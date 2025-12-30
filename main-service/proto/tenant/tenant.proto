@@ -1,0 +1,44 @@
+syntax = "proto3";
+package tenant;
+option go_package = "github.com/story-engine/main-service/proto/tenant";
+
+import "google/protobuf/timestamp.proto";
+
+// Tenant represents a multi-tenant workspace
+message Tenant {
+  string id = 1;
+  string name = 2;
+  string status = 3;
+  google.protobuf.Timestamp created_at = 4;
+  google.protobuf.Timestamp updated_at = 5;
+}
+
+// CreateTenantRequest is the request to create a new tenant
+message CreateTenantRequest {
+  string name = 1;
+  string created_by_user_id = 2; // optional
+}
+
+// CreateTenantResponse is the response after creating a tenant
+message CreateTenantResponse {
+  Tenant tenant = 1;
+}
+
+// GetTenantRequest is the request to get a tenant by ID
+message GetTenantRequest {
+  string id = 1;
+}
+
+// GetTenantResponse is the response containing a tenant
+message GetTenantResponse {
+  Tenant tenant = 1;
+}
+
+// TenantService provides tenant management operations
+service TenantService {
+  // CreateTenant creates a new tenant
+  rpc CreateTenant(CreateTenantRequest) returns (CreateTenantResponse);
+  // GetTenant retrieves a tenant by ID
+  rpc GetTenant(GetTenantRequest) returns (GetTenantResponse);
+}
+

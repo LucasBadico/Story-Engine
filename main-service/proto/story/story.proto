@@ -1,0 +1,113 @@
+syntax = "proto3";
+package story;
+option go_package = "github.com/story-engine/main-service/proto/story";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Story represents a story entity with versioning
+message Story {
+  string id = 1;
+  string tenant_id = 2;
+  string title = 3;
+  string status = 4;
+  int32 version_number = 5;
+  string root_story_id = 6;
+  string previous_story_id = 7; // optional
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// Chapter represents a chapter in a story
+message Chapter {
+  string id = 1;
+  string story_id = 2;
+  int32 number = 3;
+  string title = 4;
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// Scene represents a scene in a chapter
+message Scene {
+  string id = 1;
+  string story_id = 2;
+  string chapter_id = 3;
+  int32 number = 4;
+  string title = 5;
+  string status = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// CreateStoryRequest is the request to create a new story
+message CreateStoryRequest {
+  string tenant_id = 1; // optional if provided in metadata
+  string title = 2;
+  string created_by_user_id = 3; // optional
+}
+
+// CreateStoryResponse is the response after creating a story
+message CreateStoryResponse {
+  Story story = 1;
+}
+
+// GetStoryRequest is the request to get a story by ID
+message GetStoryRequest {
+  string id = 1;
+}
+
+// GetStoryResponse is the response containing a story
+message GetStoryResponse {
+  Story story = 1;
+}
+
+// ListStoriesRequest is the request to list stories for a tenant
+message ListStoriesRequest {
+  string tenant_id = 1; // optional if provided in metadata
+  common.PaginationRequest pagination = 2;
+}
+
+// ListStoriesResponse is the response containing a list of stories
+message ListStoriesResponse {
+  repeated Story stories = 1;
+  int32 total_count = 2;
+}
+
+// CloneStoryRequest is the request to clone a story
+message CloneStoryRequest {
+  string source_story_id = 1;
+  string created_by_user_id = 2; // optional
+}
+
+// CloneStoryResponse is the response after cloning a story
+message CloneStoryResponse {
+  Story story = 1;
+  int32 new_version_number = 2;
+}
+
+// ListStoryVersionsRequest is the request to list all versions of a story
+message ListStoryVersionsRequest {
+  string root_story_id = 1;
+}
+
+// ListStoryVersionsResponse is the response containing all versions
+message ListStoryVersionsResponse {
+  repeated Story versions = 1;
+}
+
+// StoryService provides story management operations
+service StoryService {
+  // CreateStory creates a new story (version 1)
+  rpc CreateStory(CreateStoryRequest) returns (CreateStoryResponse);
+  // GetStory retrieves a story by ID
+  rpc GetStory(GetStoryRequest) returns (GetStoryResponse);
+  // ListStories lists stories for a tenant with pagination
+  rpc ListStories(ListStoriesRequest) returns (ListStoriesResponse);
+  // CloneStory clones a story to create a new version
+  rpc CloneStory(CloneStoryRequest) returns (CloneStoryResponse);
+  // ListStoryVersions lists all versions of a story
+  rpc ListStoryVersions(ListStoryVersionsRequest) returns (ListStoryVersionsResponse);
+}
+

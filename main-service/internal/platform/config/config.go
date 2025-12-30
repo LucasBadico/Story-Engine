@@ -8,6 +8,7 @@ import (
 // Config holds application configuration
 type Config struct {
 	Database DatabaseConfig
+	GRPC     GRPCConfig
 }
 
 // DatabaseConfig holds database connection settings
@@ -18,6 +19,14 @@ type DatabaseConfig struct {
 	Password string
 	Database string
 	SSLMode  string
+}
+
+// GRPCConfig holds gRPC server settings
+type GRPCConfig struct {
+	Port             int
+	MaxRecvMsgSize   int
+	MaxSendMsgSize   int
+	EnableReflection bool
 }
 
 // DSN returns the PostgreSQL connection string
@@ -44,6 +53,12 @@ func Load() *Config {
 			Database: getEnv("DB_NAME", "storyengine"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
+		GRPC: GRPCConfig{
+			Port:             getEnvInt("GRPC_PORT", 9090),
+			MaxRecvMsgSize:   getEnvInt("GRPC_MAX_RECV_MSG_SIZE", 4194304), // 4MB
+			MaxSendMsgSize:   getEnvInt("GRPC_MAX_SEND_MSG_SIZE", 4194304), // 4MB
+			EnableReflection: getEnvBool("GRPC_ENABLE_REFLECTION", true),
+		},
 	}
 }
 
@@ -59,6 +74,18 @@ func getEnvInt(key string, defaultValue int) int {
 		var result int
 		if _, err := fmt.Sscanf(value, "%d", &result); err == nil {
 			return result
+		}
+	}
+	return defaultValue
+}
+
+func getEnvBool(key string, defaultValue bool) bool {
+	if value := os.Getenv(key); value != "" {
+		if value == "true" || value == "1" {
+			return true
+		}
+		if value == "false" || value == "0" {
+			return false
 		}
 	}
 	return defaultValue

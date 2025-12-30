@@ -107,3 +107,16 @@ deps:
 	go mod download
 	go mod tidy
 
+# Proto generation
+proto-gen:
+	protoc --go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		proto/**/*.proto
+
+proto-clean:
+	find proto -name "*.pb.go" -delete
+
+# Run gRPC server
+run-grpc:
+	go run cmd/api-grpc/main.go
+
