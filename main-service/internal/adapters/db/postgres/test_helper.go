@@ -12,8 +12,8 @@ import (
 	"github.com/story-engine/main-service/internal/platform/database"
 )
 
-// setupTestDB creates a test database connection
-func setupTestDB(t *testing.T) (*DB, func()) {
+// SetupTestDB creates a test database connection
+func SetupTestDB(t *testing.T) (*DB, func()) {
 	cfg := config.Load()
 	
 	// Override with test database if specified

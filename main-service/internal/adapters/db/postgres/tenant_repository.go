@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/core/tenant"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -52,7 +53,10 @@ func (r *TenantRepository) GetByID(ctx context.Context, id uuid.UUID) (*tenant.T
 		&t.ID, &t.Name, &t.Status, &activeLLMProfileID, &t.CreatedAt, &t.UpdatedAt, &createdBy)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("tenant not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "tenant",
+				ID:       id.String(),
+			}
 		}
 		return nil, err
 	}
@@ -86,7 +90,10 @@ func (r *TenantRepository) GetByName(ctx context.Context, name string) (*tenant.
 		&t.ID, &t.Name, &t.Status, &activeLLMProfileID, &t.CreatedAt, &t.UpdatedAt, &createdBy)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("tenant not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "tenant",
+				ID:       name, // Using name as identifier for GetByName
+			}
 		}
 		return nil, err
 	}

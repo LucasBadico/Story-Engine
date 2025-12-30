@@ -2,7 +2,6 @@ package story
 
 import (
 	"context"
-	"errors"
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/core/audit"
@@ -52,12 +51,7 @@ func (uc *CreateStoryUseCase) Execute(ctx context.Context, input CreateStoryInpu
 	// Validate tenant exists
 	_, err := uc.tenantRepo.GetByID(ctx, input.TenantID)
 	if err != nil {
-		if errors.Is(err, platformerrors.ErrNotFound) {
-			return nil, &platformerrors.NotFoundError{
-				Resource: "tenant",
-				ID:       input.TenantID.String(),
-			}
-		}
+		// Return the error directly - repository already wraps it as NotFoundError
 		return nil, err
 	}
 

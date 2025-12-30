@@ -101,7 +101,7 @@ func TestCreateStoryUseCase_Execute(t *testing.T) {
 			CreatedByUserID: nil,
 		}
 
-		output, err := createStoryUseCase.Execute(ctx, input)
+		_, err = createStoryUseCase.Execute(ctx, input)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

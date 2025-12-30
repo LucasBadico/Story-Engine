@@ -39,8 +39,8 @@ func Load() *Config {
 		Database: DatabaseConfig{
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnvInt("DB_PORT", 5432),
-			User:     getEnv("DB_USER", "storyengine"),
-			Password: getEnv("DB_PASSWORD", "storyengine_dev"),
+			User:     getEnv("DB_USER", "postgres"),
+			Password: getEnv("DB_PASSWORD", "postgres"),
 			Database: getEnv("DB_NAME", "storyengine"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 		},
@@ -63,4 +63,3 @@ func getEnvInt(key string, defaultValue int) int {
 	}
 	return defaultValue
 }
-
