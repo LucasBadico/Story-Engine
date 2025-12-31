@@ -65,6 +65,9 @@ func main() {
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
+	chapterHandler := httphandlers.NewChapterHandler(chapterRepo, storyRepo, log)
+	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
+	beatHandler := httphandlers.NewBeatHandler(beatRepo, sceneRepo, log)
 
 	// Create router
 	mux := http.NewServeMux()
@@ -75,8 +78,27 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/stories", storyHandler.Create)
 	mux.HandleFunc("GET /api/v1/stories/{id}", storyHandler.Get)
+	mux.HandleFunc("PUT /api/v1/stories/{id}", storyHandler.Update)
 	mux.HandleFunc("GET /api/v1/stories", storyHandler.List)
 	mux.HandleFunc("POST /api/v1/stories/{id}/clone", storyHandler.Clone)
+
+	mux.HandleFunc("POST /api/v1/chapters", chapterHandler.Create)
+	mux.HandleFunc("GET /api/v1/chapters/{id}", chapterHandler.Get)
+	mux.HandleFunc("PUT /api/v1/chapters/{id}", chapterHandler.Update)
+	mux.HandleFunc("GET /api/v1/stories/{id}/chapters", chapterHandler.List)
+	mux.HandleFunc("DELETE /api/v1/chapters/{id}", chapterHandler.Delete)
+
+	mux.HandleFunc("POST /api/v1/scenes", sceneHandler.Create)
+	mux.HandleFunc("GET /api/v1/scenes/{id}", sceneHandler.Get)
+	mux.HandleFunc("PUT /api/v1/scenes/{id}", sceneHandler.Update)
+	mux.HandleFunc("GET /api/v1/chapters/{id}/scenes", sceneHandler.List)
+	mux.HandleFunc("DELETE /api/v1/scenes/{id}", sceneHandler.Delete)
+
+	mux.HandleFunc("POST /api/v1/beats", beatHandler.Create)
+	mux.HandleFunc("GET /api/v1/beats/{id}", beatHandler.Get)
+	mux.HandleFunc("PUT /api/v1/beats/{id}", beatHandler.Update)
+	mux.HandleFunc("GET /api/v1/scenes/{id}/beats", beatHandler.List)
+	mux.HandleFunc("DELETE /api/v1/beats/{id}", beatHandler.Delete)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 
