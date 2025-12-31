@@ -60,16 +60,23 @@ func ChapterToProto(c *story.Chapter) interface{} {
 // SceneToProto converts a domain Scene to a proto Scene message
 func SceneToProto(s *story.Scene) interface{} {
 	// Placeholder implementation
-	return map[string]interface{}{
+	result := map[string]interface{}{
 		"id":         s.ID.String(),
 		"story_id":   s.StoryID.String(),
 		"chapter_id": s.ChapterID.String(),
-		"number":     int32(s.Number),
-		"title":      s.Title,
-		"status":     string(s.Status),
+		"order_num":  int32(s.OrderNum),
+		"goal":       s.Goal,
+		"time_ref":   s.TimeRef,
 		"created_at": timestamppb.New(s.CreatedAt),
 		"updated_at": timestamppb.New(s.UpdatedAt),
 	}
+	if s.POVCharacterID != nil {
+		result["pov_character_id"] = s.POVCharacterID.String()
+	}
+	if s.LocationID != nil {
+		result["location_id"] = s.LocationID.String()
+	}
+	return result
 }
 
 // StoryIDFromProto converts a proto UUID string to domain UUID

@@ -76,7 +76,7 @@ func main() {
 	grpcServer.RegisterStoryService(storyHandler)
 
 	// Setup graceful shutdown
-	ctx, cancel := context.WithCancel(context.Background())
+	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// Start server in goroutine

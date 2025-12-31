@@ -5,7 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/application/story"
-	grpcctx "github.com/story-engine/main-service/internal/transport/grpc"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"

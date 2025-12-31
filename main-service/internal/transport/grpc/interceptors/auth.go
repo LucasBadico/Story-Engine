@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	grpcctx "github.com/story-engine/main-service/internal/transport/grpc"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
