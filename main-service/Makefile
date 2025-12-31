@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-reset-volume migrate-up migrate-down migrate-create test test-integration clean
+.PHONY: db-up db-down db-reset-volume db-truncate migrate-up migrate-down migrate-create test test-integration test-http clean
 
 # Database management
 db-up:
@@ -78,6 +78,15 @@ db-reset-volume:
 
 db-reset: db-reset-volume migrate-up
 
+db-truncate:
+	@echo "Truncating all tables..."
+	@docker exec story-engine-postgres psql -U postgres -d storyengine -c "\
+		TRUNCATE TABLE prose_blocks, beats, scenes, chapters, stories, \
+		audit_logs, memberships, users, tenants \
+		RESTART IDENTITY CASCADE;" && \
+		echo "All tables truncated successfully" || \
+		(echo "ERROR: Failed to truncate tables"; exit 1)
+
 # Migration management
 MIGRATE_CMD = migrate -path ./migrations -database "postgres://postgres:postgres@localhost:5432/storyengine?sslmode=disable"
 
@@ -95,7 +104,7 @@ migrate-create:
 test:
 	go test -v ./...
 
-test-integration:
+test-integration: db-truncate
 	go test -v -tags=integration ./...
 
 # Development
@@ -126,6 +135,6 @@ run-http:
 	go run cmd/api-http/main.go
 
 # Test HTTP handlers
-test-http:
-	go test -v ./internal/transport/http/...
+test-http: db-truncate
+	go test -v -tags=integration ./internal/transport/http/...
 

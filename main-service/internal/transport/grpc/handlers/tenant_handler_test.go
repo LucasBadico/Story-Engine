@@ -7,14 +7,13 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func TestTenantHandler_CreateTenant(t *testing.T) {
-	conn, cleanup := grpctesting.SetupTestServer(t)
+	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	client := tenantpb.NewTenantServiceClient(conn)
@@ -76,7 +75,7 @@ func TestTenantHandler_CreateTenant(t *testing.T) {
 }
 
 func TestTenantHandler_GetTenant(t *testing.T) {
-	conn, cleanup := grpctesting.SetupTestServer(t)
+	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	client := tenantpb.NewTenantServiceClient(conn)

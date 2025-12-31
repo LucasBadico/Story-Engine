@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
-	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
+	commonpb "github.com/story-engine/main-service/proto/common"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	"google.golang.org/grpc/codes"
@@ -16,7 +16,7 @@ import (
 )
 
 func TestStoryHandler_CreateStory(t *testing.T) {
-	conn, cleanup := grpctesting.SetupTestServer(t)
+	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	storyClient := storypb.NewStoryServiceClient(conn)
@@ -60,12 +60,12 @@ func TestStoryHandler_CreateStory(t *testing.T) {
 			t.Fatalf("failed to create tenant: %v", err)
 		}
 
-		// Create story with tenant_id in request
+		// Create story with tenant_id in metadata (required by auth interceptor)
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &storypb.CreateStoryRequest{
-			TenantId: tenantResp.Tenant.Id,
-			Title:    "Test Story 2",
+			Title: "Test Story 2",
 		}
-		resp, err := storyClient.CreateStory(context.Background(), req)
+		resp, err := storyClient.CreateStory(ctx, req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -131,7 +131,7 @@ func TestStoryHandler_CreateStory(t *testing.T) {
 }
 
 func TestStoryHandler_GetStory(t *testing.T) {
-	conn, cleanup := grpctesting.SetupTestServer(t)
+	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	storyClient := storypb.NewStoryServiceClient(conn)
@@ -150,11 +150,11 @@ func TestStoryHandler_GetStory(t *testing.T) {
 			t.Fatalf("failed to create story: %v", err)
 		}
 
-		// Now get it
+		// Now get it (with tenant_id in metadata)
 		getReq := &storypb.GetStoryRequest{
 			Id: createResp.Story.Id,
 		}
-		getResp, err := storyClient.GetStory(context.Background(), getReq)
+		getResp, err := storyClient.GetStory(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -168,10 +168,16 @@ func TestStoryHandler_GetStory(t *testing.T) {
 	})
 
 	t.Run("non-existing story", func(t *testing.T) {
+		// Create tenant first to get valid tenant_id
+		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Non-existing",
+		})
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+		
 		req := &storypb.GetStoryRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := storyClient.GetStory(context.Background(), req)
+		_, err := storyClient.GetStory(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing story")
 		}
@@ -183,10 +189,16 @@ func TestStoryHandler_GetStory(t *testing.T) {
 	})
 
 	t.Run("invalid story ID", func(t *testing.T) {
+		// Create tenant first to get valid tenant_id
+		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Invalid ID",
+		})
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+		
 		req := &storypb.GetStoryRequest{
 			Id: "not-a-uuid",
 		}
-		_, err := storyClient.GetStory(context.Background(), req)
+		_, err := storyClient.GetStory(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for invalid ID")
 		}
@@ -199,7 +211,7 @@ func TestStoryHandler_GetStory(t *testing.T) {
 }
 
 func TestStoryHandler_ListStories(t *testing.T) {
-	conn, cleanup := grpctesting.SetupTestServer(t)
+	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	storyClient := storypb.NewStoryServiceClient(conn)
@@ -224,7 +236,7 @@ func TestStoryHandler_ListStories(t *testing.T) {
 
 		// List stories
 		req := &storypb.ListStoriesRequest{
-			Pagination: &storypb.PaginationRequest{
+			Pagination: &commonpb.PaginationRequest{
 				Limit:  10,
 				Offset: 0,
 			},
@@ -254,7 +266,7 @@ func TestStoryHandler_ListStories(t *testing.T) {
 }
 
 func TestStoryHandler_CloneStory(t *testing.T) {
-	conn, cleanup := grpctesting.SetupTestServer(t)
+	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	storyClient := storypb.NewStoryServiceClient(conn)
@@ -273,11 +285,11 @@ func TestStoryHandler_CloneStory(t *testing.T) {
 			t.Fatalf("failed to create story: %v", err)
 		}
 
-		// Clone it
+		// Clone it (with tenant_id in metadata)
 		cloneReq := &storypb.CloneStoryRequest{
 			SourceStoryId: createResp.Story.Id,
 		}
-		cloneResp, err := storyClient.CloneStory(context.Background(), cloneReq)
+		cloneResp, err := storyClient.CloneStory(ctx, cloneReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -298,10 +310,16 @@ func TestStoryHandler_CloneStory(t *testing.T) {
 	})
 
 	t.Run("non-existing source story", func(t *testing.T) {
+		// Create tenant first to get valid tenant_id
+		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Non-existing Clone",
+		})
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+		
 		req := &storypb.CloneStoryRequest{
 			SourceStoryId: uuid.New().String(),
 		}
-		_, err := storyClient.CloneStory(context.Background(), req)
+		_, err := storyClient.CloneStory(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing source story")
 		}
@@ -314,7 +332,7 @@ func TestStoryHandler_CloneStory(t *testing.T) {
 }
 
 func TestStoryHandler_ListStoryVersions(t *testing.T) {
-	conn, cleanup := grpctesting.SetupTestServer(t)
+	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	storyClient := storypb.NewStoryServiceClient(conn)
@@ -333,19 +351,25 @@ func TestStoryHandler_ListStoryVersions(t *testing.T) {
 			t.Fatalf("failed to create story: %v", err)
 		}
 
-		// Clone it twice
-		clone1Resp, _ := storyClient.CloneStory(context.Background(), &storypb.CloneStoryRequest{
+		// Clone it twice (with tenant_id in metadata)
+		clone1Resp, err := storyClient.CloneStory(ctx, &storypb.CloneStoryRequest{
 			SourceStoryId: createResp.Story.Id,
 		})
-		storyClient.CloneStory(context.Background(), &storypb.CloneStoryRequest{
+		if err != nil {
+			t.Fatalf("failed to clone story first time: %v", err)
+		}
+		_, err = storyClient.CloneStory(ctx, &storypb.CloneStoryRequest{
 			SourceStoryId: clone1Resp.Story.Id,
 		})
+		if err != nil {
+			t.Fatalf("failed to clone story second time: %v", err)
+		}
 
-		// List all versions
+		// List all versions (with tenant_id in metadata)
 		req := &storypb.ListStoryVersionsRequest{
 			RootStoryId: createResp.Story.RootStoryId,
 		}
-		resp, err := storyClient.ListStoryVersions(context.Background(), req)
+		resp, err := storyClient.ListStoryVersions(ctx, req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -368,10 +392,16 @@ func TestStoryHandler_ListStoryVersions(t *testing.T) {
 	})
 
 	t.Run("non-existing root story", func(t *testing.T) {
+		// Create tenant first to get valid tenant_id
+		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Non-existing Root",
+		})
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+		
 		req := &storypb.ListStoryVersionsRequest{
 			RootStoryId: uuid.New().String(),
 		}
-		resp, err := storyClient.ListStoryVersions(context.Background(), req)
+		resp, err := storyClient.ListStoryVersions(ctx, req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

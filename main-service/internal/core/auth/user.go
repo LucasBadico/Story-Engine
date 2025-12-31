@@ -17,12 +17,12 @@ const (
 
 // User represents a user entity
 type User struct {
-	ID        uuid.UUID
-	Email     string
-	Name      string
-	Status    UserStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID  `json:"id"`
+	Email     string     `json:"email"`
+	Name      string     `json:"name"`
+	Status    UserStatus `json:"status"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 // NewUser creates a new user with default values

@@ -17,13 +17,13 @@ const (
 
 // Chapter represents a chapter entity
 type Chapter struct {
-	ID        uuid.UUID
-	StoryID   uuid.UUID
-	Number    int
-	Title     string
-	Status    ChapterStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID     `json:"id"`
+	StoryID   uuid.UUID     `json:"story_id"`
+	Number    int           `json:"number"`
+	Title     string        `json:"title"`
+	Status    ChapterStatus `json:"status"`
+	CreatedAt time.Time     `json:"created_at"`
+	UpdatedAt time.Time     `json:"updated_at"`
 }
 
 // NewChapter creates a new chapter

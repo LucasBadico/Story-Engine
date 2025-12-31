@@ -3,7 +3,7 @@
 package handlers
 
 import (
-	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,12 +19,12 @@ func TestTenantHandler_Create(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
-	if err := postgres.TruncateTables(nil, db); err != nil {
+	if err := postgres.TruncateTables(context.Background(), db); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
 
-	tenantRepo := postgres.NewTenantRepository(postgres.NewDB(db))
-	auditLogRepo := postgres.NewAuditLogRepository(postgres.NewDB(db))
+	tenantRepo := postgres.NewTenantRepository(db)
+	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
@@ -119,12 +119,12 @@ func TestTenantHandler_Get(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
-	if err := postgres.TruncateTables(nil, db); err != nil {
+	if err := postgres.TruncateTables(context.Background(), db); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
 
-	tenantRepo := postgres.NewTenantRepository(postgres.NewDB(db))
-	auditLogRepo := postgres.NewAuditLogRepository(postgres.NewDB(db))
+	tenantRepo := postgres.NewTenantRepository(db)
+	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)

@@ -17,16 +17,16 @@ const (
 
 // Story represents a story entity with versioning support
 type Story struct {
-	ID              uuid.UUID
-	TenantID        uuid.UUID
-	Title           string
-	Status          StoryStatus
-	VersionNumber   int
-	RootStoryID     uuid.UUID  // All versions share the same root
-	PreviousStoryID *uuid.UUID // NULL for the first version
-	CreatedByUserID *uuid.UUID // nullable
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID              uuid.UUID   `json:"id"`
+	TenantID        uuid.UUID   `json:"tenant_id"`
+	Title           string      `json:"title"`
+	Status          StoryStatus `json:"status"`
+	VersionNumber   int         `json:"version_number"`
+	RootStoryID     uuid.UUID   `json:"root_story_id"`                // All versions share the same root
+	PreviousStoryID *uuid.UUID  `json:"previous_story_id,omitempty"`  // NULL for the first version
+	CreatedByUserID *uuid.UUID  `json:"created_by_user_id,omitempty"` // nullable
+	CreatedAt       time.Time   `json:"created_at"`
+	UpdatedAt       time.Time   `json:"updated_at"`
 }
 
 // NewStory creates a new story as version 1 (root story)

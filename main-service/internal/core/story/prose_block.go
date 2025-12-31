@@ -21,13 +21,13 @@ const (
 
 // ProseBlock represents a prose block entity
 type ProseBlock struct {
-	ID        uuid.UUID
-	SceneID   uuid.UUID
-	Kind      ProseKind
-	Content   string
-	WordCount int
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID `json:"id"`
+	SceneID   uuid.UUID `json:"scene_id"`
+	Kind      ProseKind `json:"kind"`
+	Content   string    `json:"content"`
+	WordCount int       `json:"word_count"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // NewProseBlock creates a new prose block
@@ -84,4 +84,3 @@ func countWords(text string) int {
 	words := strings.Fields(text)
 	return len(words)
 }
-

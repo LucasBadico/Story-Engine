@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/core/story"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -51,7 +52,10 @@ func (r *StoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Sto
 		&s.RootStoryID, &previousStoryID, &createdByUserID, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("story not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "story",
+				ID:       id.String(),
+			}
 		}
 		return nil, err
 	}
@@ -137,7 +141,7 @@ func (r *StoryRepository) CountByTenant(ctx context.Context, tenantID uuid.UUID)
 }
 
 func (r *StoryRepository) scanStories(rows pgx.Rows) ([]*story.Story, error) {
-	var stories []*story.Story
+	stories := make([]*story.Story, 0) // Initialize as empty slice, not nil
 	for rows.Next() {
 		var s story.Story
 		var previousStoryID sql.NullString

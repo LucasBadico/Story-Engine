@@ -22,14 +22,14 @@ const (
 
 // Beat represents a beat entity
 type Beat struct {
-	ID        uuid.UUID
-	SceneID   uuid.UUID
-	OrderNum  int
-	Type      BeatType
-	Intent    string
-	Outcome   string
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID `json:"id"`
+	SceneID   uuid.UUID `json:"scene_id"`
+	OrderNum  int       `json:"order_num"`
+	Type      BeatType  `json:"type"`
+	Intent    string    `json:"intent"`
+	Outcome   string    `json:"outcome"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // NewBeat creates a new beat
@@ -85,4 +85,3 @@ func isValidBeatType(bt BeatType) bool {
 		bt == BeatTypeHook ||
 		bt == BeatTypeTransition
 }
-

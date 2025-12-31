@@ -8,16 +8,16 @@ import (
 
 // Scene represents a scene entity
 type Scene struct {
-	ID              uuid.UUID
-	StoryID         uuid.UUID
-	ChapterID       uuid.UUID
-	OrderNum        int
-	POVCharacterID  *uuid.UUID // nullable
-	LocationID      *uuid.UUID // nullable
-	TimeRef         string
-	Goal            string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
+	ID             uuid.UUID  `json:"id"`
+	StoryID        uuid.UUID  `json:"story_id"`
+	ChapterID      uuid.UUID  `json:"chapter_id"`
+	OrderNum       int        `json:"order_num"`
+	POVCharacterID *uuid.UUID `json:"pov_character_id,omitempty"` // nullable
+	LocationID     *uuid.UUID `json:"location_id,omitempty"`      // nullable
+	TimeRef        string     `json:"time_ref"`
+	Goal           string     `json:"goal"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 // NewScene creates a new scene
@@ -62,4 +62,3 @@ func (s *Scene) UpdateLocation(locationID *uuid.UUID) {
 	s.LocationID = locationID
 	s.UpdatedAt = time.Now()
 }
-

@@ -27,13 +27,13 @@ const (
 
 // Membership represents the relationship between a user and a tenant
 type Membership struct {
-	ID        uuid.UUID
-	TenantID  uuid.UUID
-	UserID    uuid.UUID
-	Role      Role
-	Status    MembershipStatus
-	CreatedAt time.Time
-	UpdatedAt time.Time
+	ID        uuid.UUID        `json:"id"`
+	TenantID  uuid.UUID        `json:"tenant_id"`
+	UserID    uuid.UUID        `json:"user_id"`
+	Role      Role             `json:"role"`
+	Status    MembershipStatus `json:"status"`
+	CreatedAt time.Time        `json:"created_at"`
+	UpdatedAt time.Time        `json:"updated_at"`
 }
 
 // NewMembership creates a new membership with default values

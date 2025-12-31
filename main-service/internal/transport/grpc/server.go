@@ -6,7 +6,6 @@ import (
 
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/transport/grpc/handlers"
 	"github.com/story-engine/main-service/internal/transport/grpc/interceptors"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
@@ -54,13 +53,13 @@ func NewServer(cfg *config.Config, log logger.Logger) *Server {
 }
 
 // RegisterTenantService registers the TenantService handler
-func (s *Server) RegisterTenantService(handler *handlers.TenantHandler) {
+func (s *Server) RegisterTenantService(handler tenantpb.TenantServiceServer) {
 	tenantpb.RegisterTenantServiceServer(s.grpcServer, handler)
 	s.logger.Info("TenantService registered")
 }
 
 // RegisterStoryService registers the StoryService handler
-func (s *Server) RegisterStoryService(handler *handlers.StoryHandler) {
+func (s *Server) RegisterStoryService(handler storypb.StoryServiceServer) {
 	storypb.RegisterStoryServiceServer(s.grpcServer, handler)
 	s.logger.Info("StoryService registered")
 }

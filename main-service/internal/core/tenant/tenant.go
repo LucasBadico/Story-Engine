@@ -17,13 +17,13 @@ const (
 
 // Tenant represents a workspace/tenant entity
 type Tenant struct {
-	ID                 uuid.UUID
-	Name               string
-	Status             TenantStatus
-	ActiveLLMProfileID *uuid.UUID // nullable, for future phases
-	CreatedAt          time.Time
-	UpdatedAt          time.Time
-	CreatedBy          *uuid.UUID // nullable
+	ID                 uuid.UUID    `json:"id"`
+	Name               string       `json:"name"`
+	Status             TenantStatus `json:"status"`
+	ActiveLLMProfileID *uuid.UUID   `json:"active_llm_profile_id,omitempty"` // nullable, for future phases
+	CreatedAt          time.Time    `json:"created_at"`
+	UpdatedAt          time.Time    `json:"updated_at"`
+	CreatedBy          *uuid.UUID   `json:"created_by,omitempty"` // nullable
 }
 
 // NewTenant creates a new tenant with default values

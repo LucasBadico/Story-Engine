@@ -3,6 +3,7 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -20,14 +21,13 @@ func TestStoryHandler_Create(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
-	if err := postgres.TruncateTables(nil, db); err != nil {
+	if err := postgres.TruncateTables(context.Background(), db); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
 
-	pgDB := postgres.NewDB(db)
-	tenantRepo := postgres.NewTenantRepository(pgDB)
-	storyRepo := postgres.NewStoryRepository(pgDB)
-	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
+	tenantRepo := postgres.NewTenantRepository(db)
+	storyRepo := postgres.NewStoryRepository(db)
+	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
 	// Create a tenant first
@@ -103,14 +103,13 @@ func TestStoryHandler_Get(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
-	if err := postgres.TruncateTables(nil, db); err != nil {
+	if err := postgres.TruncateTables(context.Background(), db); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
 
-	pgDB := postgres.NewDB(db)
-	tenantRepo := postgres.NewTenantRepository(pgDB)
-	storyRepo := postgres.NewStoryRepository(pgDB)
-	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
+	tenantRepo := postgres.NewTenantRepository(db)
+	storyRepo := postgres.NewStoryRepository(db)
+	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
 	// Create a tenant and story
@@ -180,14 +179,13 @@ func TestStoryHandler_List(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
-	if err := postgres.TruncateTables(nil, db); err != nil {
+	if err := postgres.TruncateTables(context.Background(), db); err != nil {
 		t.Fatalf("failed to truncate tables: %v", err)
 	}
 
-	pgDB := postgres.NewDB(db)
-	tenantRepo := postgres.NewTenantRepository(pgDB)
-	storyRepo := postgres.NewStoryRepository(pgDB)
-	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
+	tenantRepo := postgres.NewTenantRepository(db)
+	storyRepo := postgres.NewStoryRepository(db)
+	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
 	// Create a tenant
