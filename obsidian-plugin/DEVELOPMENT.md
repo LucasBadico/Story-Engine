@@ -54,9 +54,9 @@ This watches for file changes and rebuilds automatically.
 mkdir -p /path/to/TestVault/.obsidian/plugins/story-engine
 
 # Create symbolic links (from obsidian-plugin directory)
-ln -s $(pwd)/main.js /path/to/TestVault/.obsidian/plugins/story-engine/
-ln -s $(pwd)/manifest.json /path/to/TestVault/.obsidian/plugins/story-engine/
-ln -s $(pwd)/styles.css /path/to/TestVault/.obsidian/plugins/story-engine/ 2>/dev/null || touch styles.css && ln -s $(pwd)/styles.css /path/to/TestVault/.obsidian/plugins/story-engine/
+ln -s $(pwd)/main.js /Users/badico/Library/Mobile Documents/iCloud~md~obsidian/Documents/Writing/.obsidian/plugins/story-engine/
+ln -s $(pwd)/manifest.json /Users/badico/Library/Mobile Documents/iCloud~md~obsidian/Documents/Writing/.obsidian/plugins/story-engine/
+ln -s $(pwd)/styles.css /Users/badico/Library/Mobile Documents/iCloud~md~obsidian/Documents/Writing/.obsidian/plugins/story-engine/ 2>/dev/null || touch styles.css && ln -s $(pwd)/styles.css /path/to/TestVault/.obsidian/plugins/story-engine/
 ```
 
 **Option B: Copy Files**

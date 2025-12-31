@@ -5,17 +5,24 @@ import { StoryEngineSettingTab } from "./settings";
 import { registerCommands } from "./commands";
 import { StoryDetailsModal } from "./views/StoryDetailsModal";
 import { PromptModal } from "./views/PromptModal";
+import { FileManager } from "./sync/fileManager";
+import { SyncService } from "./sync/syncService";
 
 const DEFAULT_SETTINGS: StoryEngineSettings = {
 	apiUrl: "http://localhost:8080",
 	apiKey: "",
 	tenantId: "",
 	tenantName: "",
+	syncFolderPath: "Stories",
+	autoVersionSnapshots: true,
+	conflictResolution: "service",
 };
 
 export default class StoryEnginePlugin extends Plugin {
 	settings: StoryEngineSettings;
 	apiClient: StoryEngineClient;
+	fileManager: FileManager;
+	syncService: SyncService;
 
 	async onload() {
 		await this.loadSettings();
@@ -23,6 +30,17 @@ export default class StoryEnginePlugin extends Plugin {
 		this.apiClient = new StoryEngineClient(
 			this.settings.apiUrl,
 			this.settings.apiKey
+		);
+
+		this.fileManager = new FileManager(
+			this.app.vault,
+			this.settings.syncFolderPath || "Stories"
+		);
+
+		this.syncService = new SyncService(
+			this.apiClient,
+			this.fileManager,
+			this.settings
 		);
 
 		this.addSettingTab(new StoryEngineSettingTab(this.app, this));
@@ -46,6 +64,17 @@ export default class StoryEnginePlugin extends Plugin {
 		this.apiClient = new StoryEngineClient(
 			this.settings.apiUrl,
 			this.settings.apiKey
+		);
+		// Update file manager base path
+		this.fileManager = new FileManager(
+			this.app.vault,
+			this.settings.syncFolderPath || "Stories"
+		);
+		// Update sync service
+		this.syncService = new SyncService(
+			this.apiClient,
+			this.fileManager,
+			this.settings
 		);
 	}
 

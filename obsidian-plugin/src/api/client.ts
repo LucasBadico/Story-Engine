@@ -1,4 +1,14 @@
-import { ErrorResponse, Story, Tenant } from "../types";
+import {
+	ErrorResponse,
+	Story,
+	Tenant,
+	Chapter,
+	Scene,
+	Beat,
+	StoryWithHierarchy,
+	ChapterWithContent,
+	SceneWithBeats,
+} from "../types";
 
 export class StoryEngineClient {
 	constructor(
@@ -109,6 +119,171 @@ export class StoryEngineClient {
 		} catch {
 			return false;
 		}
+	}
+
+	// Story methods
+	async updateStory(id: string, title: string, status?: string): Promise<Story> {
+		const body: Record<string, string> = { title: title.trim() };
+		if (status) {
+			body.status = status;
+		}
+		const response = await this.request<{ story: Story }>(
+			"PUT",
+			`/api/v1/stories/${id}`,
+			body
+		);
+		return response.story;
+	}
+
+	async getStoryWithHierarchy(id: string): Promise<StoryWithHierarchy> {
+		const story = await this.getStory(id);
+		const chapters = await this.getChapters(id);
+
+		const chaptersWithContent: ChapterWithContent[] = await Promise.all(
+			chapters.map(async (chapter) => {
+				const scenes = await this.getScenes(chapter.id);
+				const scenesWithBeats: SceneWithBeats[] = await Promise.all(
+					scenes.map(async (scene) => {
+						const beats = await this.getBeats(scene.id);
+						return { scene, beats };
+					})
+				);
+				return { chapter, scenes: scenesWithBeats };
+			})
+		);
+
+		return {
+			story,
+			chapters: chaptersWithContent,
+		};
+	}
+
+	// Chapter methods
+	async createChapter(
+		storyId: string,
+		chapter: Partial<Chapter>
+	): Promise<Chapter> {
+		const response = await this.request<{ chapter: Chapter }>(
+			"POST",
+			"/api/v1/chapters",
+			{
+				story_id: storyId,
+				number: chapter.number,
+				title: chapter.title,
+				status: chapter.status,
+			}
+		);
+		return response.chapter;
+	}
+
+	async updateChapter(
+		id: string,
+		chapter: Partial<Chapter>
+	): Promise<Chapter> {
+		const response = await this.request<{ chapter: Chapter }>(
+			"PUT",
+			`/api/v1/chapters/${id}`,
+			chapter
+		);
+		return response.chapter;
+	}
+
+	async getChapters(storyId: string): Promise<Chapter[]> {
+		const response = await this.request<{ chapters: Chapter[] }>(
+			"GET",
+			`/api/v1/stories/${storyId}/chapters`
+		);
+		return response.chapters || [];
+	}
+
+	async getChapter(id: string): Promise<Chapter> {
+		const response = await this.request<{ chapter: Chapter }>(
+			"GET",
+			`/api/v1/chapters/${id}`
+		);
+		return response.chapter;
+	}
+
+	async deleteChapter(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/chapters/${id}`);
+	}
+
+	// Scene methods
+	async createScene(scene: Partial<Scene>): Promise<Scene> {
+		const response = await this.request<{ scene: Scene }>(
+			"POST",
+			"/api/v1/scenes",
+			scene
+		);
+		return response.scene;
+	}
+
+	async updateScene(id: string, scene: Partial<Scene>): Promise<Scene> {
+		const response = await this.request<{ scene: Scene }>(
+			"PUT",
+			`/api/v1/scenes/${id}`,
+			scene
+		);
+		return response.scene;
+	}
+
+	async getScenes(chapterId: string): Promise<Scene[]> {
+		const response = await this.request<{ scenes: Scene[] }>(
+			"GET",
+			`/api/v1/chapters/${chapterId}/scenes`
+		);
+		return response.scenes || [];
+	}
+
+	async getScene(id: string): Promise<Scene> {
+		const response = await this.request<{ scene: Scene }>(
+			"GET",
+			`/api/v1/scenes/${id}`
+		);
+		return response.scene;
+	}
+
+	async deleteScene(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/scenes/${id}`);
+	}
+
+	// Beat methods
+	async createBeat(beat: Partial<Beat>): Promise<Beat> {
+		const response = await this.request<{ beat: Beat }>(
+			"POST",
+			"/api/v1/beats",
+			beat
+		);
+		return response.beat;
+	}
+
+	async updateBeat(id: string, beat: Partial<Beat>): Promise<Beat> {
+		const response = await this.request<{ beat: Beat }>(
+			"PUT",
+			`/api/v1/beats/${id}`,
+			beat
+		);
+		return response.beat;
+	}
+
+	async getBeats(sceneId: string): Promise<Beat[]> {
+		const response = await this.request<{ beats: Beat[] }>(
+			"GET",
+			`/api/v1/scenes/${sceneId}/beats`
+		);
+		return response.beats || [];
+	}
+
+	async getBeat(id: string): Promise<Beat> {
+		const response = await this.request<{ beat: Beat }>(
+			"GET",
+			`/api/v1/beats/${id}`
+		);
+		return response.beat;
+	}
+
+	async deleteBeat(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/beats/${id}`);
 	}
 }
 

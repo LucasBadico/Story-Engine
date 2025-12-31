@@ -58,12 +58,53 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 			);
 
 		new Setting(containerEl)
+			.setName("Sync Folder Path")
+			.setDesc("Folder path where synced stories will be stored")
+			.addText((text) =>
+				text
+					.setPlaceholder("Stories")
+					.setValue(this.plugin.settings.syncFolderPath || "Stories")
+					.onChange(async (value) => {
+						this.plugin.settings.syncFolderPath = value.trim() || "Stories";
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Auto Version Snapshots")
+			.setDesc("Automatically create version snapshots when syncing")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoVersionSnapshots ?? true)
+					.onChange(async (value) => {
+						this.plugin.settings.autoVersionSnapshots = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Conflict Resolution")
+			.setDesc("How to resolve conflicts when both local and service have changes")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("service", "Service Wins")
+					.addOption("local", "Local Wins")
+					.addOption("manual", "Manual (Newer Wins)")
+					.setValue(this.plugin.settings.conflictResolution || "service")
+					.onChange(async (value) => {
+						this.plugin.settings.conflictResolution =
+							value as "service" | "local" | "manual";
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
 			.setName("Test Connection")
 			.setDesc("Test the connection to the Story Engine API")
 			.addButton((button) =>
 				button.setButtonText("Test").onClick(async () => {
 					button.setButtonText("Testing...");
-					button.setDisabled(true);
+					button.disabled = true;
 
 					const success = await this.plugin.apiClient.testConnection();
 
@@ -77,7 +118,7 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 
 					setTimeout(() => {
 						button.setButtonText("Test");
-						button.setDisabled(false);
+						button.disabled = false;
 						button.buttonEl.style.color = "";
 					}, 3000);
 				})
