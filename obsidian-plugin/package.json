@@ -1,0 +1,21 @@
+{
+  "name": "obsidian-story-engine",
+  "version": "0.1.0",
+  "description": "Connect to Story Engine to manage and generate stories",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit && node esbuild.config.mjs production"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "esbuild": "^0.19.0",
+    "obsidian": "latest",
+    "tslib": "^2.4.0",
+    "typescript": "^5.0.0"
+  }
+}
+

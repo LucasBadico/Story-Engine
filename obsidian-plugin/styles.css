@@ -1,0 +1,57 @@
+/* Story Engine Plugin Styles */
+
+.story-engine-error {
+	color: var(--text-error);
+}
+
+.story-engine-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin: 1rem 0;
+}
+
+.story-engine-item {
+	padding: 0.75rem;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.story-engine-item:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+.story-engine-title {
+	font-weight: 600;
+	margin-bottom: 0.25rem;
+}
+
+.story-engine-meta {
+	display: flex;
+	gap: 1rem;
+	font-size: 0.875rem;
+	color: var(--text-muted);
+}
+
+.story-engine-details {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	margin: 1rem 0;
+}
+
+.story-engine-id {
+	font-family: monospace;
+	font-size: 0.875rem;
+	color: var(--text-muted);
+	word-break: break-all;
+}
+
+.story-engine-buttons {
+	display: flex;
+	gap: 0.5rem;
+	margin-top: 1rem;
+}
+
