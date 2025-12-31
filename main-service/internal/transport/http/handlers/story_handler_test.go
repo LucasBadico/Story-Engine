@@ -3,7 +3,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -20,10 +19,6 @@ import (
 func TestStoryHandler_Create(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
-
-	if err := postgres.TruncateTables(context.Background(), db); err != nil {
-		t.Fatalf("failed to truncate tables: %v", err)
-	}
 
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
@@ -117,10 +112,6 @@ func TestStoryHandler_Create(t *testing.T) {
 func TestStoryHandler_Get(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
-
-	if err := postgres.TruncateTables(context.Background(), db); err != nil {
-		t.Fatalf("failed to truncate tables: %v", err)
-	}
 
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
@@ -224,10 +215,6 @@ func TestStoryHandler_List(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
-	if err := postgres.TruncateTables(context.Background(), db); err != nil {
-		t.Fatalf("failed to truncate tables: %v", err)
-	}
-
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
@@ -271,7 +258,7 @@ func TestStoryHandler_List(t *testing.T) {
 		storyReq.Header.Set("Content-Type", "application/json")
 		storyW := httptest.NewRecorder()
 		handler.Create(storyW, storyReq)
-		
+
 		if storyW.Code != http.StatusCreated {
 			t.Fatalf("failed to create story %d: status %d, body: %s", i, storyW.Code, storyW.Body.String())
 		}
@@ -312,4 +299,3 @@ func TestStoryHandler_List(t *testing.T) {
 		}
 	})
 }
-

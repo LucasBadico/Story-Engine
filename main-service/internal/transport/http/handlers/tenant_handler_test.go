@@ -3,7 +3,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -18,10 +17,6 @@ import (
 func TestTenantHandler_Create(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
-
-	if err := postgres.TruncateTables(context.Background(), db); err != nil {
-		t.Fatalf("failed to truncate tables: %v", err)
-	}
 
 	tenantRepo := postgres.NewTenantRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
@@ -119,10 +114,6 @@ func TestTenantHandler_Get(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
-	if err := postgres.TruncateTables(context.Background(), db); err != nil {
-		t.Fatalf("failed to truncate tables: %v", err)
-	}
-
 	tenantRepo := postgres.NewTenantRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
@@ -190,4 +181,3 @@ func TestTenantHandler_Get(t *testing.T) {
 		}
 	})
 }
-

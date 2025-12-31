@@ -3,7 +3,6 @@
 package handlers
 
 import (
-	"context"
 	"testing"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
@@ -17,14 +16,8 @@ import (
 // setupTestServer creates a test gRPC server with all handlers initialized
 // Returns a client connection and cleanup function
 func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
-	// Setup test database
+	// Setup test database (each test gets a fresh cloned database)
 	db, cleanupDB := postgres.SetupTestDB(t)
-
-	// Clean up tables
-	ctx := context.Background()
-	if err := postgres.TruncateTables(ctx, db); err != nil {
-		t.Fatalf("failed to truncate tables: %v", err)
-	}
 
 	// Initialize repositories
 	tenantRepo := postgres.NewTenantRepository(db)

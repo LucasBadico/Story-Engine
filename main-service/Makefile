@@ -102,11 +102,20 @@ migrate-create:
 
 # Testing
 test:
-	go test -v ./...
+	go test -v ./... 2>&1 | tee /tmp/gotest.log
+	
+test-fmt:
+	go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
 
-test-integration: db-truncate
-	go test -v -tags=integration ./...
 
+test-integration: db-up
+	@echo "Running integration tests with database cloning..."
+	go test -v -tags=integration ./... 2>&1 | tee /tmp/gotest-integration.log
+
+
+test-integration-fmt: db-up
+	@echo "Running integration tests with database cloning and formatting..."
+	go test -json -v -tags=integration ./... 2>&1 | tee /tmp/gotest-integration.log | gotestfmt
 # Development
 clean:
 	go clean -cache
@@ -135,6 +144,7 @@ run-http:
 	go run cmd/api-http/main.go
 
 # Test HTTP handlers
-test-http: db-truncate
+test-http: db-up
+	@echo "Running HTTP handler tests with database cloning..."
 	go test -v -tags=integration ./internal/transport/http/...
 
