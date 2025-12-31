@@ -4,6 +4,7 @@ import { StoryEngineClient } from "./api/client";
 import { StoryEngineSettingTab } from "./settings";
 import { registerCommands } from "./commands";
 import { StoryDetailsModal } from "./views/StoryDetailsModal";
+import { PromptModal } from "./views/PromptModal";
 
 const DEFAULT_SETTINGS: StoryEngineSettings = {
 	apiUrl: "http://localhost:8080",
@@ -49,32 +50,41 @@ export default class StoryEnginePlugin extends Plugin {
 	}
 
 	async createStoryCommand() {
-		const title = await this.app.prompt("Enter story title:", {
-			placeholder: "My New Story",
-		});
+		const title = await PromptModal.prompt(
+			this.app,
+			"Enter story title:",
+			"My New Story"
+		);
 
 		if (!title) {
 			return;
 		}
 
-		if (!this.settings.tenantId) {
+		// Validate and trim tenant ID
+		const tenantId = this.settings.tenantId?.trim();
+		if (!tenantId) {
 			new Notice("Please configure Tenant ID in settings", 5000);
+			return;
+		}
+
+		// Basic UUID format validation
+		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+		if (!uuidRegex.test(tenantId)) {
+			new Notice("Invalid Tenant ID format. Please check your settings.", 5000);
 			return;
 		}
 
 		try {
 			const story = await this.apiClient.createStory(
-				this.settings.tenantId,
-				title
+				tenantId,
+				title.trim()
 			);
 			new StoryDetailsModal(this, story).open();
 			// Show notification using notice API
 			new Notice(`Story "${title}" created successfully`);
 		} catch (err) {
-			new Notice(
-				err instanceof Error ? err.message : "Failed to create story",
-				5000
-			);
+			const errorMessage = err instanceof Error ? err.message : "Failed to create story";
+			new Notice(`Error: ${errorMessage}`, 5000);
 		}
 	}
 }

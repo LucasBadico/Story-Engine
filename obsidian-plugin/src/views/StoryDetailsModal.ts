@@ -50,7 +50,7 @@ export class StoryDetailsModal extends Modal {
 			cls: "mod-cta",
 		});
 		cloneButton.onclick = async () => {
-			cloneButton.setDisabled(true);
+			cloneButton.disabled = true;
 			cloneButton.setText("Cloning...");
 
 			try {
@@ -64,7 +64,7 @@ export class StoryDetailsModal extends Modal {
 					err instanceof Error ? err.message : "Clone failed"
 				);
 				setTimeout(() => {
-					cloneButton.setDisabled(false);
+					cloneButton.disabled = false;
 					cloneButton.setText("Clone Story");
 				}, 3000);
 			}

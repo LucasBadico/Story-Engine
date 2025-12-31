@@ -45,13 +45,14 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName("Tenant ID")
-			.setDesc("Your workspace tenant ID")
+			.setDesc("Your workspace tenant ID (UUID format)")
 			.addText((text) =>
 				text
-					.setPlaceholder("Enter tenant ID")
-					.setValue(this.plugin.settings.tenantId)
+					.setPlaceholder("00000000-0000-0000-0000-000000000000")
+					.setValue(this.plugin.settings.tenantId || "")
 					.onChange(async (value) => {
-						this.plugin.settings.tenantId = value;
+						// Trim whitespace
+						this.plugin.settings.tenantId = value.trim();
 						await this.plugin.saveSettings();
 					})
 			);

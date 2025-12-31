@@ -6,7 +6,7 @@ Complete testing checklist for the Story Engine Obsidian plugin.
 
 Before testing, ensure:
 
-- [ ] Backend running on :8080
+- [x] Backend running on :8080
   ```bash
   cd main-service
   make run-http
@@ -18,9 +18,11 @@ Before testing, ensure:
     -H "Content-Type: application/json" \
     -d '{"name": "Test Workspace"}'
   ```
-  Save the tenant ID from response
+  Save the tenant ID from response.
+  
+  1c645fd8-95ca-48c4-8dfd-11003f55fd18
 
-- [ ] Plugin built and linked
+- [x] Plugin built and linked
   ```bash
   cd obsidian-plugin
   npm run build

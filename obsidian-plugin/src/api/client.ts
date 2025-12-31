@@ -32,21 +32,30 @@ export class StoryEngineClient {
 		const response = await fetch(url, options);
 
 		if (!response.ok) {
-			const error: ErrorResponse = await response.json().catch(() => ({
-				error: "unknown_error",
-				message: `HTTP ${response.status}: ${response.statusText}`,
-				code: "HTTP_ERROR",
-			}));
-			throw new Error(error.message || `HTTP ${response.status}`);
+			let error: ErrorResponse;
+			try {
+				error = await response.json();
+			} catch {
+				error = {
+					error: "unknown_error",
+					message: `HTTP ${response.status}: ${response.statusText}`,
+					code: "HTTP_ERROR",
+				};
+			}
+			// Use the error message from the API, or fallback to status text
+			const errorMessage = error.message || error.error || `HTTP ${response.status}: ${response.statusText}`;
+			throw new Error(errorMessage);
 		}
 
 		return response.json();
 	}
 
 	async listStories(tenantId: string): Promise<Story[]> {
+		// Ensure tenantId is trimmed and URL encoded
+		const trimmedTenantId = encodeURIComponent(tenantId.trim());
 		const response = await this.request<{ stories: Story[] }>(
 			"GET",
-			`/api/v1/stories?tenant_id=${tenantId}`
+			`/api/v1/stories?tenant_id=${trimmedTenantId}`
 		);
 		return response.stories || [];
 	}
@@ -60,12 +69,18 @@ export class StoryEngineClient {
 	}
 
 	async createStory(tenantId: string, title: string): Promise<Story> {
+		// Ensure tenantId is trimmed and valid
+		const trimmedTenantId = tenantId.trim();
+		if (!trimmedTenantId) {
+			throw new Error("Tenant ID is required");
+		}
+
 		const response = await this.request<{ story: Story }>(
 			"POST",
 			"/api/v1/stories",
 			{
-				tenant_id: tenantId,
-				title: title,
+				tenant_id: trimmedTenantId,
+				title: title.trim(),
 			}
 		);
 		return response.story;
