@@ -39,24 +39,16 @@ func SetupTestDB(t *testing.T) (*DB, func()) {
 }
 
 // TruncateTables truncates all tables for test cleanup
+// Uses a single TRUNCATE statement to avoid deadlocks when tests run in parallel
 func TruncateTables(ctx context.Context, db *DB) error {
-	tables := []string{
-		"prose_blocks",
-		"beats",
-		"scenes",
-		"chapters",
-		"stories",
-		"audit_logs",
-		"memberships",
-		"users",
-		"tenants",
-	}
-
-	for _, table := range tables {
-		query := fmt.Sprintf("TRUNCATE TABLE %s CASCADE", table)
-		if _, err := db.Exec(ctx, query); err != nil {
-			return fmt.Errorf("failed to truncate %s: %w", table, err)
-		}
+	// Single TRUNCATE statement with all tables to avoid deadlocks
+	query := `TRUNCATE TABLE 
+		prose_blocks, beats, scenes, chapters, stories, 
+		audit_logs, memberships, users, tenants 
+		RESTART IDENTITY CASCADE`
+	
+	if _, err := db.Exec(ctx, query); err != nil {
+		return fmt.Errorf("failed to truncate tables: %w", err)
 	}
 
 	return nil

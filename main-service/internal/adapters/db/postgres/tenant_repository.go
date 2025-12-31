@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/story-engine/main-service/internal/core/tenant"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
@@ -33,6 +34,18 @@ func (r *TenantRepository) Create(ctx context.Context, t *tenant.Tenant) error {
 	_, err := r.db.Exec(ctx, query,
 		t.ID, t.Name, string(t.Status), t.ActiveLLMProfileID, t.CreatedAt, t.UpdatedAt, t.CreatedBy)
 	if err != nil {
+		// Check for unique constraint violation (PostgreSQL error code 23505)
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			// Check if it's the name constraint
+			if pgErr.ConstraintName == "tenants_name_unique" {
+				return &platformerrors.AlreadyExistsError{
+					Resource: "tenant",
+					Field:    "name",
+					Value:    t.Name,
+				}
+			}
+		}
 		return err
 	}
 	return nil

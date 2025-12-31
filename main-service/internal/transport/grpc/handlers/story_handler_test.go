@@ -149,6 +149,15 @@ func TestStoryHandler_GetStory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create story: %v", err)
 		}
+		
+		// Debug: check the created story ID
+		if createResp.Story == nil {
+			t.Fatal("createResp.Story is nil")
+		}
+		t.Logf("Created story ID: '%s' (length: %d)", createResp.Story.Id, len(createResp.Story.Id))
+		if len(createResp.Story.Id) != 36 {
+			t.Fatalf("expected story ID length 36, got %d: '%s'", len(createResp.Story.Id), createResp.Story.Id)
+		}
 
 		// Now get it (with tenant_id in metadata)
 		getReq := &storypb.GetStoryRequest{
@@ -274,15 +283,25 @@ func TestStoryHandler_CloneStory(t *testing.T) {
 
 	t.Run("successful clone", func(t *testing.T) {
 		// Create tenant and story
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Clone",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+		if tenantResp.Tenant == nil {
+			t.Fatal("tenant response is nil")
+		}
+		
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		createResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
 			Title: "Clone Test Story",
 		})
 		if err != nil {
 			t.Fatalf("failed to create story: %v", err)
+		}
+		if createResp.Story == nil {
+			t.Fatal("create story response is nil")
 		}
 
 		// Clone it (with tenant_id in metadata)
@@ -340,15 +359,25 @@ func TestStoryHandler_ListStoryVersions(t *testing.T) {
 
 	t.Run("list versions", func(t *testing.T) {
 		// Create tenant and story
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Versions",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+		if tenantResp.Tenant == nil {
+			t.Fatal("tenant response is nil")
+		}
+		
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		createResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
 			Title: "Version Test Story",
 		})
 		if err != nil {
 			t.Fatalf("failed to create story: %v", err)
+		}
+		if createResp.Story == nil {
+			t.Fatal("create story response is nil")
 		}
 
 		// Clone it twice (with tenant_id in metadata)

@@ -39,9 +39,24 @@ func TestStoryHandler_Create(t *testing.T) {
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	tenantHandler.Create(tenantW, tenantReq)
 
+	if tenantW.Code != http.StatusCreated {
+		t.Fatalf("failed to create tenant: status %d, body: %s", tenantW.Code, tenantW.Body.String())
+	}
+
 	var tenantResp map[string]interface{}
-	json.NewDecoder(tenantW.Body).Decode(&tenantResp)
-	tenantID := tenantResp["tenant"].(map[string]interface{})["id"].(string)
+	if err := json.NewDecoder(tenantW.Body).Decode(&tenantResp); err != nil {
+		t.Fatalf("failed to decode tenant response: %v", err)
+	}
+
+	tenantObj, ok := tenantResp["tenant"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("tenant response missing tenant object: %v", tenantResp)
+	}
+
+	tenantID, ok := tenantObj["id"].(string)
+	if !ok {
+		t.Fatalf("tenant response missing id: %v", tenantObj)
+	}
 
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
 	handler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
@@ -121,9 +136,24 @@ func TestStoryHandler_Get(t *testing.T) {
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	tenantHandler.Create(tenantW, tenantReq)
 
+	if tenantW.Code != http.StatusCreated {
+		t.Fatalf("failed to create tenant: status %d, body: %s", tenantW.Code, tenantW.Body.String())
+	}
+
 	var tenantResp map[string]interface{}
-	json.NewDecoder(tenantW.Body).Decode(&tenantResp)
-	tenantID := tenantResp["tenant"].(map[string]interface{})["id"].(string)
+	if err := json.NewDecoder(tenantW.Body).Decode(&tenantResp); err != nil {
+		t.Fatalf("failed to decode tenant response: %v", err)
+	}
+
+	tenantObj, ok := tenantResp["tenant"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("tenant response missing tenant object: %v", tenantResp)
+	}
+
+	tenantID, ok := tenantObj["id"].(string)
+	if !ok {
+		t.Fatalf("tenant response missing id: %v", tenantObj)
+	}
 
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
 	storyBody := `{"tenant_id": "` + tenantID + `", "title": "Get Test Story"}`
@@ -133,9 +163,24 @@ func TestStoryHandler_Get(t *testing.T) {
 	storyHandler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
 	storyHandler.Create(storyW, storyReq)
 
+	if storyW.Code != http.StatusCreated {
+		t.Fatalf("failed to create story: status %d, body: %s", storyW.Code, storyW.Body.String())
+	}
+
 	var storyResp map[string]interface{}
-	json.NewDecoder(storyW.Body).Decode(&storyResp)
-	storyID := storyResp["story"].(map[string]interface{})["id"].(string)
+	if err := json.NewDecoder(storyW.Body).Decode(&storyResp); err != nil {
+		t.Fatalf("failed to decode story response: %v", err)
+	}
+
+	storyObj, ok := storyResp["story"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("story response missing story object: %v", storyResp)
+	}
+
+	storyID, ok := storyObj["id"].(string)
+	if !ok {
+		t.Fatalf("story response missing id: %v", storyObj)
+	}
 
 	t.Run("existing story", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/stories/"+storyID, nil)
@@ -197,9 +242,24 @@ func TestStoryHandler_List(t *testing.T) {
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	tenantHandler.Create(tenantW, tenantReq)
 
+	if tenantW.Code != http.StatusCreated {
+		t.Fatalf("failed to create tenant: status %d, body: %s", tenantW.Code, tenantW.Body.String())
+	}
+
 	var tenantResp map[string]interface{}
-	json.NewDecoder(tenantW.Body).Decode(&tenantResp)
-	tenantID := tenantResp["tenant"].(map[string]interface{})["id"].(string)
+	if err := json.NewDecoder(tenantW.Body).Decode(&tenantResp); err != nil {
+		t.Fatalf("failed to decode tenant response: %v", err)
+	}
+
+	tenantObj, ok := tenantResp["tenant"].(map[string]interface{})
+	if !ok {
+		t.Fatalf("tenant response missing tenant object: %v", tenantResp)
+	}
+
+	tenantID, ok := tenantObj["id"].(string)
+	if !ok {
+		t.Fatalf("tenant response missing id: %v", tenantObj)
+	}
 
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
 	handler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
@@ -211,6 +271,10 @@ func TestStoryHandler_List(t *testing.T) {
 		storyReq.Header.Set("Content-Type", "application/json")
 		storyW := httptest.NewRecorder()
 		handler.Create(storyW, storyReq)
+		
+		if storyW.Code != http.StatusCreated {
+			t.Fatalf("failed to create story %d: status %d, body: %s", i, storyW.Code, storyW.Body.String())
+		}
 	}
 
 	t.Run("list stories", func(t *testing.T) {
