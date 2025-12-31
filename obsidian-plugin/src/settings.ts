@@ -1,6 +1,5 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import StoryEnginePlugin from "./main";
-import { StoryEngineSettings } from "./types";
 
 export class StoryEngineSettingTab extends PluginSettingTab {
 	plugin: StoryEnginePlugin;
@@ -51,7 +50,6 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					.setPlaceholder("00000000-0000-0000-0000-000000000000")
 					.setValue(this.plugin.settings.tenantId || "")
 					.onChange(async (value) => {
-						// Trim whitespace
 						this.plugin.settings.tenantId = value.trim();
 						await this.plugin.saveSettings();
 					})
@@ -98,30 +96,39 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Test connection button
 		new Setting(containerEl)
 			.setName("Test Connection")
-			.setDesc("Test the connection to the Story Engine API")
+			.setDesc("Test connection to the Story Engine API")
 			.addButton((button) =>
-				button.setButtonText("Test").onClick(async () => {
-					button.setButtonText("Testing...");
-					button.disabled = true;
-
-					const success = await this.plugin.apiClient.testConnection();
-
-					if (success) {
-						button.setButtonText("✓ Connected");
-						button.buttonEl.style.color = "green";
-					} else {
-						button.setButtonText("✗ Failed");
-						button.buttonEl.style.color = "red";
-					}
-
-					setTimeout(() => {
-						button.setButtonText("Test");
-						button.disabled = false;
-						button.buttonEl.style.color = "";
-					}, 3000);
-				})
+				button
+					.setButtonText("Test")
+					.onClick(async () => {
+						button.setButtonText("Testing...");
+						button.setDisabled(true);
+						try {
+							const result = await this.plugin.apiClient.testConnection();
+							if (result) {
+								button.setButtonText("Success!");
+								setTimeout(() => {
+									button.setButtonText("Test");
+									button.setDisabled(false);
+								}, 2000);
+							} else {
+								button.setButtonText("Failed");
+								setTimeout(() => {
+									button.setButtonText("Test");
+									button.setDisabled(false);
+								}, 2000);
+							}
+						} catch (err) {
+							button.setButtonText("Error");
+							setTimeout(() => {
+								button.setButtonText("Test");
+								button.setDisabled(false);
+							}, 2000);
+						}
+					})
 			);
 	}
 }

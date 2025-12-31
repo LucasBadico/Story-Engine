@@ -4,7 +4,7 @@ import { StoryEngineClient } from "./api/client";
 import { StoryEngineSettingTab } from "./settings";
 import { registerCommands } from "./commands";
 import { StoryDetailsModal } from "./views/StoryDetailsModal";
-import { PromptModal } from "./views/PromptModal";
+import { CreateStoryModal } from "./views/CreateStoryModal";
 import { FileManager } from "./sync/fileManager";
 import { SyncService } from "./sync/syncService";
 
@@ -79,17 +79,7 @@ export default class StoryEnginePlugin extends Plugin {
 	}
 
 	async createStoryCommand() {
-		const title = await PromptModal.prompt(
-			this.app,
-			"Enter story title:",
-			"My New Story"
-		);
-
-		if (!title) {
-			return;
-		}
-
-		// Validate and trim tenant ID
+		// Validate and trim tenant ID first
 		const tenantId = this.settings.tenantId?.trim();
 		if (!tenantId) {
 			new Notice("Please configure Tenant ID in settings", 5000);
@@ -103,18 +93,36 @@ export default class StoryEnginePlugin extends Plugin {
 			return;
 		}
 
-		try {
-			const story = await this.apiClient.createStory(
-				tenantId,
-				title.trim()
-			);
-			new StoryDetailsModal(this, story).open();
-			// Show notification using notice API
-			new Notice(`Story "${title}" created successfully`);
-		} catch (err) {
-			const errorMessage = err instanceof Error ? err.message : "Failed to create story";
-			new Notice(`Error: ${errorMessage}`, 5000);
-		}
+		// Open modal to get title and sync preference
+		new CreateStoryModal(this.app, async (title: string, shouldSync: boolean) => {
+			try {
+				new Notice(`Creating story "${title}"...`);
+				
+				const story = await this.apiClient.createStory(tenantId, title);
+				
+				new Notice(`Story "${title}" created successfully`);
+
+				// Sync to Obsidian if requested
+				if (shouldSync) {
+					try {
+						new Notice(`Syncing story to Obsidian...`);
+						await this.syncService.pullStory(story.id);
+						new Notice(`Story synced to your vault!`);
+					} catch (syncErr) {
+						const syncErrorMessage = syncErr instanceof Error 
+							? syncErr.message 
+							: "Failed to sync story";
+						new Notice(`Story created but sync failed: ${syncErrorMessage}`, 5000);
+					}
+				} else {
+					// Show details modal if not syncing
+					new StoryDetailsModal(this, story).open();
+				}
+			} catch (err) {
+				const errorMessage = err instanceof Error ? err.message : "Failed to create story";
+				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		}).open();
 	}
 }
 

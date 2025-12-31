@@ -52,7 +52,6 @@ export class StoryEngineClient {
 					code: "HTTP_ERROR",
 				};
 			}
-			// Use the error message from the API, or fallback to status text
 			const errorMessage = error.message || error.error || `HTTP ${response.status}: ${response.statusText}`;
 			throw new Error(errorMessage);
 		}
@@ -61,7 +60,6 @@ export class StoryEngineClient {
 	}
 
 	async listStories(tenantId: string): Promise<Story[]> {
-		// Ensure tenantId is trimmed and URL encoded
 		const trimmedTenantId = encodeURIComponent(tenantId.trim());
 		const response = await this.request<{ stories: Story[] }>(
 			"GET",
@@ -79,7 +77,6 @@ export class StoryEngineClient {
 	}
 
 	async createStory(tenantId: string, title: string): Promise<Story> {
-		// Ensure tenantId is trimmed and valid
 		const trimmedTenantId = tenantId.trim();
 		if (!trimmedTenantId) {
 			throw new Error("Tenant ID is required");
@@ -96,10 +93,18 @@ export class StoryEngineClient {
 		return response.story;
 	}
 
-	async cloneStory(id: string): Promise<Story> {
+	async cloneStory(id: string, tenantId: string): Promise<Story> {
+		const trimmedTenantId = tenantId.trim();
+		if (!trimmedTenantId) {
+			throw new Error("Tenant ID is required");
+		}
+
 		const response = await this.request<{ story: Story }>(
 			"POST",
-			`/api/v1/stories/${id}/clone`
+			`/api/v1/stories/${id}/clone`,
+			{
+				tenant_id: trimmedTenantId,
+			}
 		);
 		return response.story;
 	}
@@ -121,7 +126,6 @@ export class StoryEngineClient {
 		}
 	}
 
-	// Story methods
 	async updateStory(id: string, title: string, status?: string): Promise<Story> {
 		const body: Record<string, string> = { title: title.trim() };
 		if (status) {
@@ -158,11 +162,7 @@ export class StoryEngineClient {
 		};
 	}
 
-	// Chapter methods
-	async createChapter(
-		storyId: string,
-		chapter: Partial<Chapter>
-	): Promise<Chapter> {
+	async createChapter(storyId: string, chapter: Partial<Chapter>): Promise<Chapter> {
 		const response = await this.request<{ chapter: Chapter }>(
 			"POST",
 			"/api/v1/chapters",
@@ -176,10 +176,7 @@ export class StoryEngineClient {
 		return response.chapter;
 	}
 
-	async updateChapter(
-		id: string,
-		chapter: Partial<Chapter>
-	): Promise<Chapter> {
+	async updateChapter(id: string, chapter: Partial<Chapter>): Promise<Chapter> {
 		const response = await this.request<{ chapter: Chapter }>(
 			"PUT",
 			`/api/v1/chapters/${id}`,
@@ -208,7 +205,6 @@ export class StoryEngineClient {
 		await this.request("DELETE", `/api/v1/chapters/${id}`);
 	}
 
-	// Scene methods
 	async createScene(scene: Partial<Scene>): Promise<Scene> {
 		const response = await this.request<{ scene: Scene }>(
 			"POST",
@@ -247,7 +243,6 @@ export class StoryEngineClient {
 		await this.request("DELETE", `/api/v1/scenes/${id}`);
 	}
 
-	// Beat methods
 	async createBeat(beat: Partial<Beat>): Promise<Beat> {
 		const response = await this.request<{ beat: Beat }>(
 			"POST",
@@ -284,6 +279,15 @@ export class StoryEngineClient {
 
 	async deleteBeat(id: string): Promise<void> {
 		await this.request("DELETE", `/api/v1/beats/${id}`);
+	}
+
+	// Get all versions of a story (for version history)
+	async getStoryVersions(rootStoryId: string): Promise<Story[]> {
+		const response = await this.request<{ stories: Story[] }>(
+			"GET",
+			`/api/v1/stories/${rootStoryId}/versions`
+		);
+		return response.stories || [];
 	}
 }
 

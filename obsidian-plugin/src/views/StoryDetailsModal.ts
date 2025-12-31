@@ -54,8 +54,13 @@ export class StoryDetailsModal extends Modal {
 			cloneButton.setText("Cloning...");
 
 			try {
+				if (!this.plugin.settings.tenantId) {
+					throw new Error("Tenant ID not configured");
+				}
+
 				const clonedStory = await this.plugin.apiClient.cloneStory(
-					this.story.id
+					this.story.id,
+					this.plugin.settings.tenantId
 				);
 				this.close();
 				new StoryDetailsModal(this.plugin, clonedStory).open();

@@ -1,12 +1,11 @@
 {
-	"id": "story-engine",
-	"name": "Story Engine",
-	"version": "0.1.0",
-	"minAppVersion": "0.15.0",
-	"description": "Connect to Story Engine to manage and generate stories",
-	"author": "",
-	"authorUrl": "",
-	"fundingUrl": "",
-	"isDesktopOnly": false
+  "id": "story-engine",
+  "name": "Story Engine",
+  "version": "0.1.0",
+  "minAppVersion": "0.15.0",
+  "description": "Connect to Story Engine to manage and generate stories with version control",
+  "author": "Story Engine Team",
+  "authorUrl": "",
+  "isDesktopOnly": false
 }
 
