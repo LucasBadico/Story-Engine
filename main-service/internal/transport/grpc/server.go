@@ -6,7 +6,10 @@ import (
 
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/handlers"
 	"github.com/story-engine/main-service/internal/transport/grpc/interceptors"
+	storypb "github.com/story-engine/main-service/proto/story"
+	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -51,23 +54,15 @@ func NewServer(cfg *config.Config, log logger.Logger) *Server {
 }
 
 // RegisterTenantService registers the TenantService handler
-// TODO: After proto generation, update to use actual proto service registration:
-// func (s *Server) RegisterTenantService(handler *handlers.TenantHandler) {
-//     tenantpb.RegisterTenantServiceServer(s.grpcServer, handler)
-// }
-func (s *Server) RegisterTenantService(handler interface{}) {
-	// Placeholder - will be implemented after proto generation
-	s.logger.Info("TenantService registered (placeholder)")
+func (s *Server) RegisterTenantService(handler *handlers.TenantHandler) {
+	tenantpb.RegisterTenantServiceServer(s.grpcServer, handler)
+	s.logger.Info("TenantService registered")
 }
 
 // RegisterStoryService registers the StoryService handler
-// TODO: After proto generation, update to use actual proto service registration:
-// func (s *Server) RegisterStoryService(handler *handlers.StoryHandler) {
-//     storypb.RegisterStoryServiceServer(s.grpcServer, handler)
-// }
-func (s *Server) RegisterStoryService(handler interface{}) {
-	// Placeholder - will be implemented after proto generation
-	s.logger.Info("StoryService registered (placeholder)")
+func (s *Server) RegisterStoryService(handler *handlers.StoryHandler) {
+	storypb.RegisterStoryServiceServer(s.grpcServer, handler)
+	s.logger.Info("StoryService registered")
 }
 
 // Start starts the gRPC server

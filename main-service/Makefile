@@ -121,3 +121,11 @@ proto-clean:
 run-grpc:
 	go run cmd/api-grpc/main.go
 
+# Run HTTP server
+run-http:
+	go run cmd/api-http/main.go
+
+# Test HTTP handlers
+test-http:
+	go test -v ./internal/transport/http/...
+

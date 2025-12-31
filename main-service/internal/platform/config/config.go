@@ -9,6 +9,7 @@ import (
 type Config struct {
 	Database DatabaseConfig
 	GRPC     GRPCConfig
+	HTTP     HTTPConfig
 }
 
 // DatabaseConfig holds database connection settings
@@ -27,6 +28,11 @@ type GRPCConfig struct {
 	MaxRecvMsgSize   int
 	MaxSendMsgSize   int
 	EnableReflection bool
+}
+
+// HTTPConfig holds HTTP server settings
+type HTTPConfig struct {
+	Port int
 }
 
 // DSN returns the PostgreSQL connection string
@@ -58,6 +64,9 @@ func Load() *Config {
 			MaxRecvMsgSize:   getEnvInt("GRPC_MAX_RECV_MSG_SIZE", 4194304), // 4MB
 			MaxSendMsgSize:   getEnvInt("GRPC_MAX_SEND_MSG_SIZE", 4194304), // 4MB
 			EnableReflection: getEnvBool("GRPC_ENABLE_REFLECTION", true),
+		},
+		HTTP: HTTPConfig{
+			Port: getEnvInt("HTTP_PORT", 8080),
 		},
 	}
 }

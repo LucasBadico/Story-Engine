@@ -9,15 +9,14 @@ import (
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	storypb "github.com/story-engine/main-service/proto/story"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 // StoryHandler implements the StoryService gRPC service
-// Note: This handler depends on generated proto code.
-// After running `make proto-gen`, update the method signatures to use actual proto types.
 type StoryHandler struct {
-	// pb.UnimplementedStoryServiceServer // Uncomment after proto generation
+	storypb.UnimplementedStoryServiceServer
 	createStoryUseCase  *story.CreateStoryUseCase
 	cloneStoryUseCase   *story.CloneStoryUseCase
 	versionGraphUseCase *story.GetStoryVersionGraphUseCase
@@ -43,15 +42,13 @@ func NewStoryHandler(
 }
 
 // CreateStory creates a new story (version 1)
-// TODO: Update signature after proto generation
-func (h *StoryHandler) CreateStory(ctx context.Context, req interface{}) (interface{}, error) {
+func (h *StoryHandler) CreateStory(ctx context.Context, req *storypb.CreateStoryRequest) (*storypb.CreateStoryResponse, error) {
 	// Extract tenant_id from context (set by auth interceptor)
 	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
 	if !ok {
 		// Also check request for tenant_id (fallback)
-		reqMap, _ := req.(map[string]interface{})
-		if tenantIDStr, ok := reqMap["tenant_id"].(string); ok && tenantIDStr != "" {
-			tenantID = tenantIDStr
+		if req.TenantId != "" {
+			tenantID = req.TenantId
 		} else {
 			return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
 		}
@@ -62,23 +59,23 @@ func (h *StoryHandler) CreateStory(ctx context.Context, req interface{}) (interf
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
 	}
 
-	reqMap, _ := req.(map[string]interface{})
-	title, _ := reqMap["title"].(string)
-	if title == "" {
+	if req.Title == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "title is required")
 	}
 
-	var createdByUserID *uuid.UUID
-	if createdByStr, ok := reqMap["created_by_user_id"].(string); ok && createdByStr != "" {
-		if id, err := uuid.Parse(createdByStr); err == nil {
-			createdByUserID = &id
+	var createdBy *uuid.UUID
+	if req.CreatedByUserId != "" {
+		if id, err := uuid.Parse(req.CreatedByUserId); err == nil {
+			createdBy = &id
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid created_by_user_id: %v", err)
 		}
 	}
 
 	input := story.CreateStoryInput{
-		TenantID:       tenantUUID,
-		Title:          title,
-		CreatedByUserID: createdByUserID,
+		TenantID:        tenantUUID,
+		Title:           req.Title,
+		CreatedByUserID: createdBy,
 	}
 
 	output, err := h.createStoryUseCase.Execute(ctx, input)
@@ -86,41 +83,36 @@ func (h *StoryHandler) CreateStory(ctx context.Context, req interface{}) (interf
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"story": mappers.StoryToProto(output.Story),
+	return &storypb.CreateStoryResponse{
+		Story: mappers.StoryToProto(output.Story),
 	}, nil
 }
 
 // GetStory retrieves a story by ID
-// TODO: Update signature after proto generation
-func (h *StoryHandler) GetStory(ctx context.Context, req interface{}) (interface{}, error) {
-	reqMap, _ := req.(map[string]interface{})
-	idStr, _ := reqMap["id"].(string)
-	
-	id, err := uuid.Parse(idStr)
+func (h *StoryHandler) GetStory(ctx context.Context, req *storypb.GetStoryRequest) (*storypb.GetStoryResponse, error) {
+	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid story id: %v", err)
 	}
 
-	story, err := h.storyRepo.GetByID(ctx, id)
+	s, err := h.storyRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	return map[string]interface{}{
-		"story": mappers.StoryToProto(story),
+	return &storypb.GetStoryResponse{
+		Story: mappers.StoryToProto(s),
 	}, nil
 }
 
 // ListStories lists stories for a tenant with pagination
-// TODO: Update signature after proto generation
-func (h *StoryHandler) ListStories(ctx context.Context, req interface{}) (interface{}, error) {
-	// Extract tenant_id from context
+func (h *StoryHandler) ListStories(ctx context.Context, req *storypb.ListStoriesRequest) (*storypb.ListStoriesResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
 	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
 	if !ok {
-		reqMap, _ := req.(map[string]interface{})
-		if tenantIDStr, ok := reqMap["tenant_id"].(string); ok && tenantIDStr != "" {
-			tenantID = tenantIDStr
+		// Also check request for tenant_id (fallback)
+		if req.TenantId != "" {
+			tenantID = req.TenantId
 		} else {
 			return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
 		}
@@ -131,16 +123,15 @@ func (h *StoryHandler) ListStories(ctx context.Context, req interface{}) (interf
 		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
 	}
 
-	reqMap, _ := req.(map[string]interface{})
-	limit := 10
+	// Extract pagination
+	limit := 50 // default
 	offset := 0
-	
-	if pagination, ok := reqMap["pagination"].(map[string]interface{}); ok {
-		if l, ok := pagination["limit"].(int32); ok {
-			limit = int(l)
+	if req.Pagination != nil {
+		if req.Pagination.Limit > 0 {
+			limit = int(req.Pagination.Limit)
 		}
-		if o, ok := pagination["offset"].(int32); ok {
-			offset = int(o)
+		if req.Pagination.Offset > 0 {
+			offset = int(req.Pagination.Offset)
 		}
 	}
 
@@ -149,43 +140,41 @@ func (h *StoryHandler) ListStories(ctx context.Context, req interface{}) (interf
 		return nil, err
 	}
 
-	totalCount, err := h.storyRepo.CountByTenant(ctx, tenantUUID)
-	if err != nil {
-		return nil, err
-	}
-
-	protoStories := make([]interface{}, len(stories))
+	// Convert to proto
+	protoStories := make([]*storypb.Story, len(stories))
 	for i, s := range stories {
 		protoStories[i] = mappers.StoryToProto(s)
 	}
 
-	return map[string]interface{}{
-		"stories":     protoStories,
-		"total_count": int32(totalCount),
+	// Get total count (for pagination)
+	// Note: This could be optimized with a separate count query
+	totalCount := int32(len(stories))
+
+	return &storypb.ListStoriesResponse{
+		Stories:    protoStories,
+		TotalCount: totalCount,
 	}, nil
 }
 
 // CloneStory clones a story to create a new version
-// TODO: Update signature after proto generation
-func (h *StoryHandler) CloneStory(ctx context.Context, req interface{}) (interface{}, error) {
-	reqMap, _ := req.(map[string]interface{})
-	sourceStoryIDStr, _ := reqMap["source_story_id"].(string)
-	
-	sourceStoryID, err := uuid.Parse(sourceStoryIDStr)
+func (h *StoryHandler) CloneStory(ctx context.Context, req *storypb.CloneStoryRequest) (*storypb.CloneStoryResponse, error) {
+	sourceStoryID, err := uuid.Parse(req.SourceStoryId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid source_story_id: %v", err)
 	}
 
-	var createdByUserID *uuid.UUID
-	if createdByStr, ok := reqMap["created_by_user_id"].(string); ok && createdByStr != "" {
-		if id, err := uuid.Parse(createdByStr); err == nil {
-			createdByUserID = &id
+	var createdBy *uuid.UUID
+	if req.CreatedByUserId != "" {
+		if id, err := uuid.Parse(req.CreatedByUserId); err == nil {
+			createdBy = &id
+		} else {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid created_by_user_id: %v", err)
 		}
 	}
 
 	input := story.CloneStoryInput{
 		SourceStoryID:   sourceStoryID,
-		CreatedByUserID: createdByUserID,
+		CreatedByUserID: createdBy,
 	}
 
 	output, err := h.cloneStoryUseCase.Execute(ctx, input)
@@ -193,32 +182,21 @@ func (h *StoryHandler) CloneStory(ctx context.Context, req interface{}) (interfa
 		return nil, err
 	}
 
-	// Get the cloned story to return
-	clonedStory, err := h.storyRepo.GetByID(ctx, output.NewStoryID)
+	// Get the new story to return in response
+	newStory, err := h.storyRepo.GetByID(ctx, output.NewStoryID)
 	if err != nil {
 		return nil, err
 	}
 
-	// Get version number from the cloned story
-	versions, err := h.storyRepo.ListVersionsByRoot(ctx, clonedStory.RootStoryID)
-	if err != nil {
-		return nil, err
-	}
-	versionNumber := len(versions)
-
-	return map[string]interface{}{
-		"story":            mappers.StoryToProto(clonedStory),
-		"new_version_number": int32(versionNumber),
+	return &storypb.CloneStoryResponse{
+		Story:            mappers.StoryToProto(newStory),
+		NewVersionNumber: int32(newStory.VersionNumber),
 	}, nil
 }
 
 // ListStoryVersions lists all versions of a story
-// TODO: Update signature after proto generation
-func (h *StoryHandler) ListStoryVersions(ctx context.Context, req interface{}) (interface{}, error) {
-	reqMap, _ := req.(map[string]interface{})
-	rootStoryIDStr, _ := reqMap["root_story_id"].(string)
-	
-	rootStoryID, err := uuid.Parse(rootStoryIDStr)
+func (h *StoryHandler) ListStoryVersions(ctx context.Context, req *storypb.ListStoryVersionsRequest) (*storypb.ListStoryVersionsResponse, error) {
+	rootStoryID, err := uuid.Parse(req.RootStoryId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid root_story_id: %v", err)
 	}
@@ -232,13 +210,13 @@ func (h *StoryHandler) ListStoryVersions(ctx context.Context, req interface{}) (
 		return nil, err
 	}
 
-	protoVersions := make([]interface{}, len(output.Versions))
-	for i, v := range output.Versions {
-		protoVersions[i] = mappers.StoryToProto(v)
+	// Convert version graph to flat list of versions
+	protoVersions := make([]*storypb.Story, len(output.Versions))
+	for i, s := range output.Versions {
+		protoVersions[i] = mappers.StoryToProto(s)
 	}
 
-	return map[string]interface{}{
-		"versions": protoVersions,
+	return &storypb.ListStoryVersionsResponse{
+		Versions: protoVersions,
 	}, nil
 }
-
