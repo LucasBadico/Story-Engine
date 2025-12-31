@@ -57,9 +57,10 @@ func TestStoryHandler_Create(t *testing.T) {
 	handler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
 
 	t.Run("successful creation", func(t *testing.T) {
-		body := `{"tenant_id": "` + tenantID + `", "title": "Test Story"}`
+		body := `{"title": "Test Story"}`
 		req := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Tenant-ID", tenantID)
 		w := httptest.NewRecorder()
 
 		handler.Create(w, req)
@@ -86,6 +87,7 @@ func TestStoryHandler_Create(t *testing.T) {
 		body := `{"title": "Test Story"}`
 		req := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		// X-Tenant-ID header not set
 		w := httptest.NewRecorder()
 
 		handler.Create(w, req)
@@ -96,9 +98,10 @@ func TestStoryHandler_Create(t *testing.T) {
 	})
 
 	t.Run("empty title", func(t *testing.T) {
-		body := `{"tenant_id": "` + tenantID + `", "title": ""}`
+		body := `{"title": ""}`
 		req := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("X-Tenant-ID", tenantID)
 		w := httptest.NewRecorder()
 
 		handler.Create(w, req)
@@ -147,9 +150,10 @@ func TestStoryHandler_Get(t *testing.T) {
 	}
 
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
-	storyBody := `{"tenant_id": "` + tenantID + `", "title": "Get Test Story"}`
+	storyBody := `{"title": "Get Test Story"}`
 	storyReq := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(storyBody))
 	storyReq.Header.Set("Content-Type", "application/json")
+	storyReq.Header.Set("X-Tenant-ID", tenantID)
 	storyW := httptest.NewRecorder()
 	storyHandler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
 	storyHandler.Create(storyW, storyReq)
@@ -253,9 +257,10 @@ func TestStoryHandler_List(t *testing.T) {
 
 	// Create multiple stories
 	for i := 1; i <= 3; i++ {
-		storyBody := `{"tenant_id": "` + tenantID + `", "title": "Story ` + strconv.Itoa(i) + `"}`
+		storyBody := `{"title": "Story ` + strconv.Itoa(i) + `"}`
 		storyReq := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(storyBody))
 		storyReq.Header.Set("Content-Type", "application/json")
+		storyReq.Header.Set("X-Tenant-ID", tenantID)
 		storyW := httptest.NewRecorder()
 		handler.Create(storyW, storyReq)
 
@@ -265,7 +270,8 @@ func TestStoryHandler_List(t *testing.T) {
 	}
 
 	t.Run("list stories", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/v1/stories?tenant_id="+tenantID, nil)
+		req := httptest.NewRequest("GET", "/api/v1/stories", nil)
+		req.Header.Set("X-Tenant-ID", tenantID)
 		w := httptest.NewRecorder()
 
 		handler.List(w, req)
@@ -290,6 +296,7 @@ func TestStoryHandler_List(t *testing.T) {
 
 	t.Run("missing tenant_id", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/stories", nil)
+		// X-Tenant-ID header not set
 		w := httptest.NewRecorder()
 
 		handler.List(w, req)

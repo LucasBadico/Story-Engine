@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"github.com/google/uuid"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 )
 
@@ -62,3 +63,23 @@ func WriteError(w http.ResponseWriter, err error, defaultStatus int) {
 	json.NewEncoder(w).Encode(response)
 }
 
+// extractTenantID extracts tenant_id from the X-Tenant-ID header
+func extractTenantID(r *http.Request) (uuid.UUID, error) {
+	tenantIDStr := r.Header.Get("X-Tenant-ID")
+	if tenantIDStr == "" {
+		return uuid.Nil, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}
+	}
+
+	tenantID, err := uuid.Parse(tenantIDStr)
+	if err != nil {
+		return uuid.Nil, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "invalid UUID format",
+		}
+	}
+
+	return tenantID, nil
+}

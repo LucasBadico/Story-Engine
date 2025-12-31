@@ -1,0 +1,819 @@
+{
+	"info": {
+		"_postman_id": "story-engine-api",
+		"name": "Story Engine API",
+		"description": "Complete API collection for Story Engine with automatic variable extraction",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/health",
+							"host": ["{{base_url}}"],
+							"path": ["health"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tenants",
+			"item": [
+				{
+					"name": "Create Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"tenant_id\", jsonData.tenant.id);",
+									"    pm.collectionVariables.set(\"tenant_name\", jsonData.tenant.name);",
+									"    console.log(\"Tenant ID saved:\", jsonData.tenant.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"My Test Tenant\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tenants"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Tenant",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tenants", "{{tenant_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Stories",
+			"item": [
+				{
+					"name": "Create Story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"story_id\", jsonData.story.id);",
+									"    pm.collectionVariables.set(\"story_title\", jsonData.story.title);",
+									"    pm.collectionVariables.set(\"root_story_id\", jsonData.story.root_story_id);",
+									"    console.log(\"Story ID saved:\", jsonData.story.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"My First Story\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Story",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{story_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{story_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Stories",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories?limit=50&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories"],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50"
+								},
+								{
+									"key": "offset",
+									"value": "0"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Story",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Story Title\",\n  \"status\": \"published\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{story_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{story_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Clone Story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"cloned_story_id\", jsonData.story.id);",
+									"    pm.collectionVariables.set(\"story_version\", jsonData.version_number);",
+									"    console.log(\"Cloned Story ID saved:\", jsonData.story.id);",
+									"    console.log(\"Version:\", jsonData.version_number);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/clone",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{story_id}}", "clone"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Chapters",
+			"item": [
+				{
+					"name": "Create Chapter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"chapter_id\", jsonData.chapter.id);",
+									"    pm.collectionVariables.set(\"chapter_number\", jsonData.chapter.number);",
+									"    console.log(\"Chapter ID saved:\", jsonData.chapter.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{story_id}}\",\n  \"number\": 1,\n  \"title\": \"Chapter 1\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Chapter",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters", "{{chapter_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Chapters",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/chapters",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{story_id}}", "chapters"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Chapter",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Updated Chapter Title\",\n  \"status\": \"published\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters", "{{chapter_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Chapter",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters", "{{chapter_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Scenes",
+			"item": [
+				{
+					"name": "Create Scene",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"scene_id\", jsonData.scene.id);",
+									"    pm.collectionVariables.set(\"scene_order\", jsonData.scene.order_num);",
+									"    console.log(\"Scene ID saved:\", jsonData.scene.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{story_id}}\",\n  \"chapter_id\": \"{{chapter_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"Introduce the protagonist\",\n  \"time_ref\": \"Morning\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Scene",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Scenes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/scenes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters", "{{chapter_id}}", "scenes"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Scene",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"goal\": \"Updated goal\",\n  \"time_ref\": \"Evening\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Scene",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Beats",
+			"item": [
+				{
+					"name": "Create Beat",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"beat_id\", jsonData.beat.id);",
+									"    pm.collectionVariables.set(\"beat_order\", jsonData.beat.order_num);",
+									"    console.log(\"Beat ID saved:\", jsonData.beat.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"scene_id\": \"{{scene_id}}\",\n  \"order_num\": 1,\n  \"type\": \"setup\",\n  \"intent\": \"Introduce the protagonist\",\n  \"outcome\": \"Character is established\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "beats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Beat",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "beats", "{{beat_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Beats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/beats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}", "beats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Beat",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"type\": \"conflict\",\n  \"intent\": \"Create tension\",\n  \"outcome\": \"Protagonist faces obstacle\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "beats", "{{beat_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Beat",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "beats", "{{beat_id}}"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Complete Workflow",
+			"item": [
+				{
+					"name": "1. Create Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"workflow_tenant_id\", jsonData.tenant.id);",
+									"    console.log(\"Workflow Tenant ID:\", jsonData.tenant.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Workflow Test Tenant\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "tenants"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "2. Create Story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"workflow_story_id\", jsonData.story.id);",
+									"    console.log(\"Workflow Story ID:\", jsonData.story.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Complete Workflow Story\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "3. Create Chapter",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"workflow_chapter_id\", jsonData.chapter.id);",
+									"    console.log(\"Workflow Chapter ID:\", jsonData.chapter.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 1,\n  \"title\": \"Chapter 1\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "4. Create Scene",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"workflow_scene_id\", jsonData.scene.id);",
+									"    console.log(\"Workflow Scene ID:\", jsonData.scene.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"chapter_id\": \"{{workflow_chapter_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"Introduce protagonist\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "5. Create Beat",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"workflow_beat_id\", jsonData.beat.id);",
+									"    console.log(\"Workflow Beat ID:\", jsonData.beat.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"scene_id\": \"{{workflow_scene_id}}\",\n  \"order_num\": 1,\n  \"type\": \"setup\",\n  \"intent\": \"Introduce character\",\n  \"outcome\": \"Character established\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "beats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "6. Clone Story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"workflow_cloned_story_id\", jsonData.story.id);",
+									"    console.log(\"Workflow Cloned Story ID:\", jsonData.story.id);",
+									"    console.log(\"Version:\", jsonData.version_number);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{workflow_story_id}}/clone",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{workflow_story_id}}", "clone"]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "tenant_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "story_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "chapter_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "scene_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "beat_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}
+

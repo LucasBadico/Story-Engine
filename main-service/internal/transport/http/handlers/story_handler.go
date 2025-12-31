@@ -38,24 +38,21 @@ func NewStoryHandler(
 
 // Create handles POST /api/v1/stories
 func (h *StoryHandler) Create(w http.ResponseWriter, r *http.Request) {
+	// Extract tenant_id from header
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		WriteError(w, err, http.StatusBadRequest)
+		return
+	}
+
 	var req struct {
-		TenantID string `json:"tenant_id"`
-		Title    string `json:"title"`
+		Title string `json:"title"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "body",
 			Message: "invalid JSON",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	tenantID, err := uuid.Parse(req.TenantID)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "tenant_id",
-			Message: "invalid UUID format",
 		}, http.StatusBadRequest)
 		return
 	}
@@ -108,28 +105,17 @@ func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// List handles GET /api/v1/stories?tenant_id=xxx&limit=20&offset=0
+// List handles GET /api/v1/stories?limit=20&offset=0
 func (h *StoryHandler) List(w http.ResponseWriter, r *http.Request) {
-	tenantIDStr := r.URL.Query().Get("tenant_id")
+	// Extract tenant_id from header
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		WriteError(w, err, http.StatusBadRequest)
+		return
+	}
+
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
-
-	if tenantIDStr == "" {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "tenant_id",
-			Message: "required",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	tenantID, err := uuid.Parse(tenantIDStr)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "tenant_id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
 
 	limit := 50
 	if limitStr != "" {
@@ -233,6 +219,13 @@ func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Clone handles POST /api/v1/stories/{id}/clone
 func (h *StoryHandler) Clone(w http.ResponseWriter, r *http.Request) {
+	// Extract tenant_id from header (validated for consistency, even though not used in CloneStoryInput)
+	_, err := extractTenantID(r)
+	if err != nil {
+		WriteError(w, err, http.StatusBadRequest)
+		return
+	}
+
 	id := r.PathValue("id")
 	sourceStoryID, err := uuid.Parse(id)
 	if err != nil {
