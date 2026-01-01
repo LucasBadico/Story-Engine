@@ -6,7 +6,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
-	"github.com/story-engine/ingestion-service/internal/platform/database"
+	"github.com/story-engine/llm-gateway-service/internal/platform/database"
 )
 
 // DB wraps the database connection pool

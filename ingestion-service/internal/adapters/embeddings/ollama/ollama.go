@@ -7,8 +7,8 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/story-engine/ingestion-service/internal/platform/config"
-	"github.com/story-engine/ingestion-service/internal/ports/embeddings"
+	"github.com/story-engine/llm-gateway-service/internal/platform/config"
+	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
 )
 
 var _ embeddings.Embedder = (*OllamaEmbedder)(nil)

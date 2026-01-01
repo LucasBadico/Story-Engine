@@ -7,8 +7,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
-	"github.com/story-engine/ingestion-service/internal/core/memory"
-	"github.com/story-engine/ingestion-service/internal/ports/repositories"
+	"github.com/story-engine/llm-gateway-service/internal/core/memory"
+	"github.com/story-engine/llm-gateway-service/internal/ports/repositories"
 )
 
 var _ repositories.DocumentRepository = (*DocumentRepository)(nil)

@@ -5,10 +5,10 @@ import (
 	"math"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/ingestion-service/internal/core/memory"
-	"github.com/story-engine/ingestion-service/internal/platform/logger"
-	"github.com/story-engine/ingestion-service/internal/ports/embeddings"
-	"github.com/story-engine/ingestion-service/internal/ports/repositories"
+	"github.com/story-engine/llm-gateway-service/internal/core/memory"
+	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
+	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
+	"github.com/story-engine/llm-gateway-service/internal/ports/repositories"
 )
 
 // SearchMemoryInput is the input for searching memory

@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/ingestion-service/internal/ports/grpc"
+	"github.com/story-engine/llm-gateway-service/internal/ports/grpc"
 	storypb "github.com/story-engine/main-service/proto/story"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	scenepb "github.com/story-engine/main-service/proto/scene"

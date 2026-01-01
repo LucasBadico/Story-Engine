@@ -8,7 +8,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"github.com/story-engine/ingestion-service/internal/ports/queue"
+	"github.com/story-engine/llm-gateway-service/internal/ports/queue"
 )
 
 var _ queue.IngestionQueue = (*IngestionQueue)(nil)

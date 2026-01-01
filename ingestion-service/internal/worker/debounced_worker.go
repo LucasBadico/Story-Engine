@@ -6,11 +6,11 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/ingestion-service/internal/application/ingest"
-	"github.com/story-engine/ingestion-service/internal/core/memory"
-	"github.com/story-engine/ingestion-service/internal/platform/config"
-	"github.com/story-engine/ingestion-service/internal/platform/logger"
-	"github.com/story-engine/ingestion-service/internal/ports/queue"
+	"github.com/story-engine/llm-gateway-service/internal/application/ingest"
+	"github.com/story-engine/llm-gateway-service/internal/core/memory"
+	"github.com/story-engine/llm-gateway-service/internal/platform/config"
+	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
+	"github.com/story-engine/llm-gateway-service/internal/ports/queue"
 )
 
 // DebouncedWorker processes ingestion queue items with debounce

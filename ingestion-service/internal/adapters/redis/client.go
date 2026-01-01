@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"github.com/redis/go-redis/v9"
-	"github.com/story-engine/ingestion-service/internal/platform/config"
+	"github.com/story-engine/llm-gateway-service/internal/platform/config"
 )
 
 // NewClient creates a new Redis client

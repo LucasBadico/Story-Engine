@@ -1,4 +1,4 @@
-module github.com/story-engine/ingestion-service
+module github.com/story-engine/llm-gateway-service
 
 go 1.22
 

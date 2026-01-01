@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/ingestion-service/internal/core/memory"
+	"github.com/story-engine/llm-gateway-service/internal/core/memory"
 )
 
 // ChunkRepository defines the interface for chunk persistence

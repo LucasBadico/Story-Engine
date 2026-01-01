@@ -6,11 +6,11 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/ingestion-service/internal/core/memory"
-	"github.com/story-engine/ingestion-service/internal/platform/logger"
-	"github.com/story-engine/ingestion-service/internal/ports/embeddings"
-	grpcclient "github.com/story-engine/ingestion-service/internal/ports/grpc"
-	"github.com/story-engine/ingestion-service/internal/ports/repositories"
+	"github.com/story-engine/llm-gateway-service/internal/core/memory"
+	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
+	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
+	grpcclient "github.com/story-engine/llm-gateway-service/internal/ports/grpc"
+	"github.com/story-engine/llm-gateway-service/internal/ports/repositories"
 )
 
 // IngestStoryInput is the input for ingesting a story
