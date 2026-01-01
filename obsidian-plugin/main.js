@@ -365,14 +365,152 @@ var StoryEngineSettingTab = class extends import_obsidian.PluginSettingTab {
 };
 
 // src/commands.ts
-var import_obsidian5 = require("obsidian");
-
-// src/views/StoryListModal.ts
 var import_obsidian3 = require("obsidian");
 
-// src/views/StoryDetailsModal.ts
+// src/views/StorySyncModal.ts
 var import_obsidian2 = require("obsidian");
-var StoryDetailsModal = class _StoryDetailsModal extends import_obsidian2.Modal {
+var StorySyncModal = class extends import_obsidian2.Modal {
+  constructor(plugin, mode) {
+    super(plugin.app);
+    this.stories = [];
+    this.loading = true;
+    this.error = null;
+    this.plugin = plugin;
+    this.mode = mode;
+  }
+  async onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    const title = this.mode === "pull" ? "Sync Story from Service" : "Push Story to Service";
+    contentEl.createEl("h2", { text: title });
+    await this.loadStories();
+    if (this.loading) {
+      contentEl.createEl("p", { text: "Loading stories..." });
+      return;
+    }
+    if (this.error) {
+      contentEl.createEl("p", {
+        text: `Error: ${this.error}`,
+        cls: "story-engine-error"
+      });
+      return;
+    }
+    if (this.stories.length === 0) {
+      contentEl.createEl("p", { text: "No stories found." });
+      return;
+    }
+    const storiesList = contentEl.createEl("div", { cls: "story-engine-list" });
+    for (const story of this.stories) {
+      const storyItem = storiesList.createEl("div", {
+        cls: "story-engine-item"
+      });
+      const title2 = storyItem.createEl("div", {
+        cls: "story-engine-title",
+        text: story.title
+      });
+      const meta = storyItem.createEl("div", {
+        cls: "story-engine-meta"
+      });
+      meta.createEl("span", {
+        text: `Version ${story.version_number}`
+      });
+      meta.createEl("span", {
+        text: `Status: ${story.status}`
+      });
+      storyItem.onclick = async () => {
+        this.close();
+        try {
+          if (this.mode === "pull") {
+            await this.plugin.syncService.pullStory(story.id);
+          } else {
+            const folderPath = this.plugin.fileManager.getStoryFolderPath(
+              story.title
+            );
+            await this.plugin.syncService.pushStory(folderPath);
+          }
+        } catch (err) {
+          const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
+          new import_obsidian2.Notice(`Error: ${errorMessage}`, 5e3);
+        }
+      };
+    }
+  }
+  async loadStories() {
+    this.loading = true;
+    this.error = null;
+    try {
+      if (!this.plugin.settings.tenantId) {
+        this.error = "Tenant ID not configured";
+        this.loading = false;
+        return;
+      }
+      this.stories = await this.plugin.apiClient.listStories(
+        this.plugin.settings.tenantId
+      );
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : "Unknown error";
+    } finally {
+      this.loading = false;
+    }
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+};
+
+// src/commands.ts
+function registerCommands(plugin) {
+  plugin.addCommand({
+    id: "list-stories",
+    name: "List Stories",
+    callback: () => {
+      plugin.activateView();
+    }
+  });
+  plugin.addCommand({
+    id: "create-story",
+    name: "Create Story",
+    callback: () => {
+      plugin.createStoryCommand();
+    }
+  });
+  plugin.addCommand({
+    id: "sync-story-from-service",
+    name: "Sync Story from Service",
+    callback: () => {
+      new StorySyncModal(plugin, "pull").open();
+    }
+  });
+  plugin.addCommand({
+    id: "push-story-to-service",
+    name: "Push Story to Service",
+    callback: () => {
+      new StorySyncModal(plugin, "push").open();
+    }
+  });
+  plugin.addCommand({
+    id: "sync-all-stories",
+    name: "Sync All Stories",
+    callback: async () => {
+      if (!plugin.settings.tenantId) {
+        new import_obsidian3.Notice("Please configure Tenant ID in settings", 5e3);
+        return;
+      }
+      try {
+        new import_obsidian3.Notice("Syncing all stories...");
+        await plugin.syncService.pullAllStories();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
+        new import_obsidian3.Notice(`Error: ${errorMessage}`, 5e3);
+      }
+    }
+  });
+}
+
+// src/views/StoryDetailsModal.ts
+var import_obsidian4 = require("obsidian");
+var StoryDetailsModal = class _StoryDetailsModal extends import_obsidian4.Modal {
   constructor(plugin, story) {
     super(plugin.app);
     this.plugin = plugin;
@@ -460,242 +598,9 @@ var StoryDetailsModal = class _StoryDetailsModal extends import_obsidian2.Modal 
   }
 };
 
-// src/views/StoryListModal.ts
-var StoryListModal = class extends import_obsidian3.Modal {
-  constructor(plugin) {
-    super(plugin.app);
-    this.stories = [];
-    this.loading = true;
-    this.error = null;
-    this.plugin = plugin;
-  }
-  async onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.createEl("h2", { text: "Stories" });
-    await this.loadStories();
-    if (this.loading) {
-      contentEl.createEl("p", { text: "Loading stories..." });
-      return;
-    }
-    if (this.error) {
-      contentEl.createEl("p", {
-        text: `Error: ${this.error}`,
-        cls: "story-engine-error"
-      });
-      return;
-    }
-    if (this.stories.length === 0) {
-      contentEl.createEl("p", { text: "No stories found." });
-      const createButton2 = contentEl.createEl("button", {
-        text: "Create Story"
-      });
-      createButton2.onclick = () => {
-        this.close();
-        this.plugin.createStoryCommand();
-      };
-      return;
-    }
-    const storiesList = contentEl.createEl("div", { cls: "story-engine-list" });
-    for (const story of this.stories) {
-      const storyItem = storiesList.createEl("div", {
-        cls: "story-engine-item"
-      });
-      const title = storyItem.createEl("div", {
-        cls: "story-engine-title",
-        text: story.title
-      });
-      const meta = storyItem.createEl("div", {
-        cls: "story-engine-meta"
-      });
-      meta.createEl("span", {
-        text: `Version ${story.version_number}`
-      });
-      meta.createEl("span", {
-        text: `Status: ${story.status}`
-      });
-      storyItem.onclick = () => {
-        this.close();
-        new StoryDetailsModal(this.plugin, story).open();
-      };
-    }
-    const createButton = contentEl.createEl("button", {
-      text: "Create New Story",
-      cls: "mod-cta"
-    });
-    createButton.onclick = () => {
-      this.close();
-      this.plugin.createStoryCommand();
-    };
-  }
-  async loadStories() {
-    this.loading = true;
-    this.error = null;
-    try {
-      if (!this.plugin.settings.tenantId) {
-        this.error = "Tenant ID not configured";
-        this.loading = false;
-        return;
-      }
-      this.stories = await this.plugin.apiClient.listStories(
-        this.plugin.settings.tenantId
-      );
-    } catch (err) {
-      this.error = err instanceof Error ? err.message : "Unknown error";
-    } finally {
-      this.loading = false;
-    }
-  }
-  onClose() {
-    const { contentEl } = this;
-    contentEl.empty();
-  }
-};
-
-// src/views/StorySyncModal.ts
-var import_obsidian4 = require("obsidian");
-var StorySyncModal = class extends import_obsidian4.Modal {
-  constructor(plugin, mode) {
-    super(plugin.app);
-    this.stories = [];
-    this.loading = true;
-    this.error = null;
-    this.plugin = plugin;
-    this.mode = mode;
-  }
-  async onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    const title = this.mode === "pull" ? "Sync Story from Service" : "Push Story to Service";
-    contentEl.createEl("h2", { text: title });
-    await this.loadStories();
-    if (this.loading) {
-      contentEl.createEl("p", { text: "Loading stories..." });
-      return;
-    }
-    if (this.error) {
-      contentEl.createEl("p", {
-        text: `Error: ${this.error}`,
-        cls: "story-engine-error"
-      });
-      return;
-    }
-    if (this.stories.length === 0) {
-      contentEl.createEl("p", { text: "No stories found." });
-      return;
-    }
-    const storiesList = contentEl.createEl("div", { cls: "story-engine-list" });
-    for (const story of this.stories) {
-      const storyItem = storiesList.createEl("div", {
-        cls: "story-engine-item"
-      });
-      const title2 = storyItem.createEl("div", {
-        cls: "story-engine-title",
-        text: story.title
-      });
-      const meta = storyItem.createEl("div", {
-        cls: "story-engine-meta"
-      });
-      meta.createEl("span", {
-        text: `Version ${story.version_number}`
-      });
-      meta.createEl("span", {
-        text: `Status: ${story.status}`
-      });
-      storyItem.onclick = async () => {
-        this.close();
-        try {
-          if (this.mode === "pull") {
-            await this.plugin.syncService.pullStory(story.id);
-          } else {
-            const folderPath = this.plugin.fileManager.getStoryFolderPath(
-              story.title
-            );
-            await this.plugin.syncService.pushStory(folderPath);
-          }
-        } catch (err) {
-          const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-          new import_obsidian4.Notice(`Error: ${errorMessage}`, 5e3);
-        }
-      };
-    }
-  }
-  async loadStories() {
-    this.loading = true;
-    this.error = null;
-    try {
-      if (!this.plugin.settings.tenantId) {
-        this.error = "Tenant ID not configured";
-        this.loading = false;
-        return;
-      }
-      this.stories = await this.plugin.apiClient.listStories(
-        this.plugin.settings.tenantId
-      );
-    } catch (err) {
-      this.error = err instanceof Error ? err.message : "Unknown error";
-    } finally {
-      this.loading = false;
-    }
-  }
-  onClose() {
-    const { contentEl } = this;
-    contentEl.empty();
-  }
-};
-
-// src/commands.ts
-function registerCommands(plugin) {
-  plugin.addCommand({
-    id: "list-stories",
-    name: "List Stories",
-    callback: () => {
-      new StoryListModal(plugin).open();
-    }
-  });
-  plugin.addCommand({
-    id: "create-story",
-    name: "Create Story",
-    callback: () => {
-      plugin.createStoryCommand();
-    }
-  });
-  plugin.addCommand({
-    id: "sync-story-from-service",
-    name: "Sync Story from Service",
-    callback: () => {
-      new StorySyncModal(plugin, "pull").open();
-    }
-  });
-  plugin.addCommand({
-    id: "push-story-to-service",
-    name: "Push Story to Service",
-    callback: () => {
-      new StorySyncModal(plugin, "push").open();
-    }
-  });
-  plugin.addCommand({
-    id: "sync-all-stories",
-    name: "Sync All Stories",
-    callback: async () => {
-      if (!plugin.settings.tenantId) {
-        new import_obsidian5.Notice("Please configure Tenant ID in settings", 5e3);
-        return;
-      }
-      try {
-        new import_obsidian5.Notice("Syncing all stories...");
-        await plugin.syncService.pullAllStories();
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
-        new import_obsidian5.Notice(`Error: ${errorMessage}`, 5e3);
-      }
-    }
-  });
-}
-
 // src/views/CreateStoryModal.ts
-var import_obsidian6 = require("obsidian");
-var CreateStoryModal = class extends import_obsidian6.Modal {
+var import_obsidian5 = require("obsidian");
+var CreateStoryModal = class extends import_obsidian5.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.title = "";
@@ -705,7 +610,7 @@ var CreateStoryModal = class extends import_obsidian6.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h2", { text: "Create New Story" });
-    new import_obsidian6.Setting(contentEl).setName("Story Title").setDesc("Enter the title for your new story").addText(
+    new import_obsidian5.Setting(contentEl).setName("Story Title").setDesc("Enter the title for your new story").addText(
       (text) => text.setPlaceholder("My New Story").setValue(this.title).onChange((value) => {
         this.title = value;
       }).inputEl.addEventListener("keypress", (e) => {
@@ -714,7 +619,7 @@ var CreateStoryModal = class extends import_obsidian6.Modal {
         }
       })
     );
-    new import_obsidian6.Setting(contentEl).setName("Sync to Obsidian").setDesc("Automatically sync the story files to your vault after creation").addToggle(
+    new import_obsidian5.Setting(contentEl).setName("Sync to Obsidian").setDesc("Automatically sync the story files to your vault after creation").addToggle(
       (toggle) => toggle.setValue(this.shouldSync).onChange((value) => {
         this.shouldSync = value;
       })
@@ -737,7 +642,7 @@ var CreateStoryModal = class extends import_obsidian6.Modal {
   submit() {
     const trimmedTitle = this.title.trim();
     if (!trimmedTitle) {
-      new import_obsidian6.Notice("Please enter a story title", 3e3);
+      new import_obsidian5.Notice("Please enter a story title", 3e3);
       return;
     }
     this.close();
@@ -750,7 +655,7 @@ var CreateStoryModal = class extends import_obsidian6.Modal {
 };
 
 // src/sync/fileManager.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var FileManager = class {
   constructor(vault, baseFolder) {
     this.vault = vault;
@@ -845,7 +750,7 @@ Status: ${story.status}
 `;
     const filePath = `${folderPath}/story.md`;
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian7.TFile) {
+    if (file instanceof import_obsidian6.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -888,7 +793,7 @@ Status: ${story.status}
 `;
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian7.TFile) {
+    if (file instanceof import_obsidian6.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -898,7 +803,7 @@ Status: ${story.status}
   async readStoryMetadata(folderPath) {
     const filePath = `${folderPath}/story.md`;
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian7.TFile)) {
+    if (!(file instanceof import_obsidian6.TFile)) {
       throw new Error(`Story metadata file not found: ${filePath}`);
     }
     const content = await this.vault.read(file);
@@ -947,7 +852,7 @@ Status: ${story.status}
     }
     await this.ensureFolderExists(versionFolderPath);
     const storyFolder = this.vault.getAbstractFileByPath(storyFolderPath);
-    if (!(storyFolder instanceof import_obsidian7.TFolder)) {
+    if (!(storyFolder instanceof import_obsidian6.TFolder)) {
       throw new Error(`Story folder not found: ${storyFolderPath}`);
     }
     await this.copyFolderContents(storyFolder, versionFolderPath, "versions");
@@ -956,12 +861,12 @@ Status: ${story.status}
   // Recursively copy folder contents
   async copyFolderContents(sourceFolder, destPath, excludeFolderName) {
     for (const child of sourceFolder.children) {
-      if (child instanceof import_obsidian7.TFile) {
+      if (child instanceof import_obsidian6.TFile) {
         const relativePath = child.path.replace(sourceFolder.path + "/", "");
         const destFilePath = `${destPath}/${relativePath}`;
         const content = await this.vault.read(child);
         await this.vault.create(destFilePath, content);
-      } else if (child instanceof import_obsidian7.TFolder) {
+      } else if (child instanceof import_obsidian6.TFolder) {
         if (excludeFolderName && child.name === excludeFolderName) {
           continue;
         }
@@ -1032,7 +937,7 @@ Status: ${story.status}
       }
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian7.TFile) {
+    if (file instanceof import_obsidian6.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -1070,7 +975,7 @@ Status: ${story.status}
 `;
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian7.TFile) {
+    if (file instanceof import_obsidian6.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -1080,12 +985,12 @@ Status: ${story.status}
   async listChapterFiles(storyFolderPath) {
     const chaptersPath = `${storyFolderPath}/chapters`;
     const folder = this.vault.getAbstractFileByPath(chaptersPath);
-    if (!(folder instanceof import_obsidian7.TFolder)) {
+    if (!(folder instanceof import_obsidian6.TFolder)) {
       return [];
     }
     const chapterFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
         chapterFiles.push(child.path);
       }
     }
@@ -1095,12 +1000,12 @@ Status: ${story.status}
   async listSceneFiles(chapterFolderPath) {
     const scenesPath = `${chapterFolderPath}/scenes`;
     const folder = this.vault.getAbstractFileByPath(scenesPath);
-    if (!(folder instanceof import_obsidian7.TFolder)) {
+    if (!(folder instanceof import_obsidian6.TFolder)) {
       return [];
     }
     const sceneFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
         sceneFiles.push(child.path);
       }
     }
@@ -1110,12 +1015,12 @@ Status: ${story.status}
   async listBeatFiles(sceneFolderPath) {
     const beatsPath = `${sceneFolderPath}/beats`;
     const folder = this.vault.getAbstractFileByPath(beatsPath);
-    if (!(folder instanceof import_obsidian7.TFolder)) {
+    if (!(folder instanceof import_obsidian6.TFolder)) {
       return [];
     }
     const beatFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
         beatFiles.push(child.path);
       }
     }
@@ -1124,7 +1029,7 @@ Status: ${story.status}
 };
 
 // src/sync/syncService.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var SyncService = class {
   constructor(apiClient, fileManager, settings) {
     this.apiClient = apiClient;
@@ -1161,10 +1066,10 @@ var SyncService = class {
         );
       }
       await this.syncVersionHistory(storyData.story.root_story_id, folderPath);
-      new import_obsidian8.Notice(`Story "${storyData.story.title}" synced successfully`);
+      new import_obsidian7.Notice(`Story "${storyData.story.title}" synced successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-      new import_obsidian8.Notice(`Error syncing story: ${errorMessage}`, 5e3);
+      new import_obsidian7.Notice(`Error syncing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
@@ -1227,7 +1132,7 @@ var SyncService = class {
         console.error(`Failed to sync story ${story.id}:`, err);
       }
     }
-    new import_obsidian8.Notice(`Synced ${stories.length} stories`);
+    new import_obsidian7.Notice(`Synced ${stories.length} stories`);
   }
   // Push story from Obsidian to service (Obsidian → Service)
   async pushStory(folderPath) {
@@ -1246,12 +1151,149 @@ var SyncService = class {
       for (const chapterFilePath of chapterFiles) {
         console.log(`Would update chapter: ${chapterFilePath}`);
       }
-      new import_obsidian8.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
+      new import_obsidian7.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-      new import_obsidian8.Notice(`Error pushing story: ${errorMessage}`, 5e3);
+      new import_obsidian7.Notice(`Error pushing story: ${errorMessage}`, 5e3);
       throw err;
     }
+  }
+};
+
+// src/views/StoryListView.ts
+var import_obsidian8 = require("obsidian");
+var STORY_LIST_VIEW_TYPE = "story-engine-list-view";
+var StoryListView = class extends import_obsidian8.ItemView {
+  constructor(leaf, plugin) {
+    super(leaf);
+    this.stories = [];
+    this.loading = true;
+    this.error = null;
+    this.plugin = plugin;
+  }
+  getViewType() {
+    return STORY_LIST_VIEW_TYPE;
+  }
+  getDisplayText() {
+    return "Stories";
+  }
+  getIcon() {
+    return "book-open";
+  }
+  async onOpen() {
+    const container = this.containerEl.children[1];
+    container.empty();
+    container.addClass("story-engine-view-container");
+    await this.render(container);
+    await this.loadStories();
+  }
+  async onClose() {
+  }
+  async render(container) {
+    container.empty();
+    const header = container.createDiv({ cls: "story-engine-view-header" });
+    header.createEl("h2", { text: "Stories" });
+    const headerActions = header.createDiv({ cls: "story-engine-header-actions" });
+    const refreshButton = headerActions.createEl("button", {
+      text: "Refresh",
+      cls: "story-engine-refresh-btn"
+    });
+    refreshButton.onclick = async () => {
+      await this.loadStories();
+    };
+    const syncAllButton = headerActions.createEl("button", {
+      text: "Sync All",
+      cls: "story-engine-sync-all-btn"
+    });
+    syncAllButton.onclick = async () => {
+      if (!this.plugin.settings.tenantId) {
+        new import_obsidian8.Notice("Please configure Tenant ID in settings", 5e3);
+        return;
+      }
+      try {
+        new import_obsidian8.Notice("Syncing all stories...");
+        await this.plugin.syncService.pullAllStories();
+        await this.loadStories();
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
+        new import_obsidian8.Notice(`Error: ${errorMessage}`, 5e3);
+      }
+    };
+    const createButton = headerActions.createEl("button", {
+      text: "Create Story",
+      cls: "mod-cta story-engine-create-btn"
+    });
+    createButton.onclick = () => {
+      this.plugin.createStoryCommand();
+    };
+    this.contentEl = container.createDiv({ cls: "story-engine-view-content" });
+  }
+  renderStories() {
+    if (!this.contentEl)
+      return;
+    this.contentEl.empty();
+    if (this.loading) {
+      this.contentEl.createEl("p", { text: "Loading stories..." });
+      return;
+    }
+    if (this.error) {
+      this.contentEl.createEl("p", {
+        text: `Error: ${this.error}`,
+        cls: "story-engine-error"
+      });
+      return;
+    }
+    if (this.stories.length === 0) {
+      this.contentEl.createEl("p", { text: "No stories found." });
+      return;
+    }
+    const storiesList = this.contentEl.createDiv({ cls: "story-engine-list" });
+    for (const story of this.stories) {
+      const storyItem = storiesList.createDiv({
+        cls: "story-engine-item"
+      });
+      const title = storyItem.createDiv({
+        cls: "story-engine-title",
+        text: story.title
+      });
+      const meta = storyItem.createDiv({
+        cls: "story-engine-meta"
+      });
+      meta.createEl("span", {
+        text: `Version ${story.version_number}`
+      });
+      meta.createEl("span", {
+        text: `Status: ${story.status}`
+      });
+      storyItem.onclick = () => {
+        new StoryDetailsModal(this.plugin, story).open();
+      };
+    }
+  }
+  async loadStories() {
+    this.loading = true;
+    this.error = null;
+    this.renderStories();
+    try {
+      if (!this.plugin.settings.tenantId) {
+        this.error = "Tenant ID not configured";
+        this.loading = false;
+        this.renderStories();
+        return;
+      }
+      this.stories = await this.plugin.apiClient.listStories(
+        this.plugin.settings.tenantId
+      );
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : "Unknown error";
+    } finally {
+      this.loading = false;
+      this.renderStories();
+    }
+  }
+  // Method to refresh the view
+  async refresh() {
+    await this.loadStories();
   }
 };
 
@@ -1282,9 +1324,17 @@ var StoryEnginePlugin = class extends import_obsidian9.Plugin {
       this.settings
     );
     this.addSettingTab(new StoryEngineSettingTab(this.app, this));
+    this.registerView(
+      STORY_LIST_VIEW_TYPE,
+      (leaf) => new StoryListView(leaf, this)
+    );
+    this.addRibbonIcon("book-open", "Story Engine", () => {
+      this.activateView();
+    });
     registerCommands(this);
   }
   async onunload() {
+    this.app.workspace.detachLeavesOfType(STORY_LIST_VIEW_TYPE);
   }
   async loadSettings() {
     this.settings = Object.assign(
@@ -1343,5 +1393,22 @@ var StoryEnginePlugin = class extends import_obsidian9.Plugin {
         new import_obsidian9.Notice(`Error: ${errorMessage}`, 5e3);
       }
     }).open();
+  }
+  async activateView() {
+    const { workspace } = this.app;
+    let leaf = workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+    if (!leaf) {
+      const rightLeaf = workspace.getRightLeaf(false);
+      if (!rightLeaf) {
+        new import_obsidian9.Notice("Could not create view. Please try again.", 3e3);
+        return;
+      }
+      leaf = rightLeaf;
+      await leaf.setViewState({
+        type: STORY_LIST_VIEW_TYPE,
+        active: true
+      });
+    }
+    workspace.revealLeaf(leaf);
   }
 };

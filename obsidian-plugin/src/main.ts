@@ -147,7 +147,12 @@ export default class StoryEnginePlugin extends Plugin {
 
 		if (!leaf) {
 			// Create new leaf in the right panel
-			leaf = workspace.getRightLeaf(false);
+			const rightLeaf = workspace.getRightLeaf(false);
+			if (!rightLeaf) {
+				new Notice("Could not create view. Please try again.", 3000);
+				return;
+			}
+			leaf = rightLeaf;
 			await leaf.setViewState({
 				type: STORY_LIST_VIEW_TYPE,
 				active: true,
