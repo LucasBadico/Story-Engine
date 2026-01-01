@@ -1,0 +1,133 @@
+syntax = "proto3";
+package location;
+option go_package = "github.com/story-engine/main-service/proto/location";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Location represents a location entity
+message Location {
+  string id = 1;
+  string world_id = 2;
+  string parent_id = 3; // optional
+  string name = 4;
+  string type = 5;
+  string description = 6;
+  int32 hierarchy_level = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// CreateLocationRequest is the request to create a new location
+message CreateLocationRequest {
+  string world_id = 1;
+  string parent_id = 2; // optional
+  string name = 3;
+  string type = 4;
+  string description = 5;
+}
+
+// CreateLocationResponse is the response after creating a location
+message CreateLocationResponse {
+  Location location = 1;
+}
+
+// GetLocationRequest is the request to get a location by ID
+message GetLocationRequest {
+  string id = 1;
+}
+
+// GetLocationResponse is the response containing a location
+message GetLocationResponse {
+  Location location = 1;
+}
+
+// ListLocationsRequest is the request to list locations for a world
+message ListLocationsRequest {
+  string world_id = 1;
+  string format = 2; // "flat" or "tree"
+  common.PaginationRequest pagination = 3;
+}
+
+// ListLocationsResponse is the response containing a list of locations
+message ListLocationsResponse {
+  repeated Location locations = 1;
+  int32 total_count = 2;
+}
+
+// UpdateLocationRequest is the request to update a location
+message UpdateLocationRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string type = 3;
+  optional string description = 4;
+}
+
+// UpdateLocationResponse is the response after updating a location
+message UpdateLocationResponse {
+  Location location = 1;
+}
+
+// DeleteLocationRequest is the request to delete a location
+message DeleteLocationRequest {
+  string id = 1;
+}
+
+// DeleteLocationResponse is the response after deleting a location
+message DeleteLocationResponse {
+}
+
+// GetChildrenRequest is the request to get children of a location
+message GetChildrenRequest {
+  string location_id = 1;
+}
+
+// GetChildrenResponse is the response containing children
+message GetChildrenResponse {
+  repeated Location children = 1;
+}
+
+// GetAncestorsRequest is the request to get ancestors of a location
+message GetAncestorsRequest {
+  string location_id = 1;
+}
+
+// GetAncestorsResponse is the response containing ancestors
+message GetAncestorsResponse {
+  repeated Location ancestors = 1;
+}
+
+// GetDescendantsRequest is the request to get descendants of a location
+message GetDescendantsRequest {
+  string location_id = 1;
+}
+
+// GetDescendantsResponse is the response containing descendants
+message GetDescendantsResponse {
+  repeated Location descendants = 1;
+}
+
+// MoveLocationRequest is the request to move a location
+message MoveLocationRequest {
+  string location_id = 1;
+  string parent_id = 2; // optional, empty = move to root
+}
+
+// MoveLocationResponse is the response after moving a location
+message MoveLocationResponse {
+  Location location = 1;
+}
+
+// LocationService provides location management operations
+service LocationService {
+  rpc CreateLocation(CreateLocationRequest) returns (CreateLocationResponse);
+  rpc GetLocation(GetLocationRequest) returns (GetLocationResponse);
+  rpc UpdateLocation(UpdateLocationRequest) returns (UpdateLocationResponse);
+  rpc ListLocations(ListLocationsRequest) returns (ListLocationsResponse);
+  rpc DeleteLocation(DeleteLocationRequest) returns (DeleteLocationResponse);
+  rpc GetChildren(GetChildrenRequest) returns (GetChildrenResponse);
+  rpc GetAncestors(GetAncestorsRequest) returns (GetAncestorsResponse);
+  rpc GetDescendants(GetDescendantsRequest) returns (GetDescendantsResponse);
+  rpc MoveLocation(MoveLocationRequest) returns (MoveLocationResponse);
+}
+

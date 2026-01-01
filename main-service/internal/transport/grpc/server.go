@@ -10,6 +10,7 @@ import (
 	archetypepb "github.com/story-engine/main-service/proto/archetype"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
+	locationpb "github.com/story-engine/main-service/proto/location"
 	prosepb "github.com/story-engine/main-service/proto/prose"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	storypb "github.com/story-engine/main-service/proto/story"
@@ -87,6 +88,12 @@ func (s *Server) RegisterTraitService(handler traitpb.TraitServiceServer) {
 func (s *Server) RegisterArchetypeService(handler archetypepb.ArchetypeServiceServer) {
 	archetypepb.RegisterArchetypeServiceServer(s.grpcServer, handler)
 	s.logger.Info("ArchetypeService registered")
+}
+
+// RegisterLocationService registers the LocationService handler
+func (s *Server) RegisterLocationService(handler locationpb.LocationServiceServer) {
+	locationpb.RegisterLocationServiceServer(s.grpcServer, handler)
+	s.logger.Info("LocationService registered")
 }
 
 // RegisterChapterService registers the ChapterService handler

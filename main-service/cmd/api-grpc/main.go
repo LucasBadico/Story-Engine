@@ -9,6 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
+	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
 	"github.com/story-engine/main-service/internal/application/tenant"
@@ -41,6 +42,7 @@ func main() {
 	// Initialize repositories
 	tenantRepo := postgres.NewTenantRepository(pgDB)
 	worldRepo := postgres.NewWorldRepository(pgDB)
+	locationRepo := postgres.NewLocationRepository(pgDB)
 	traitRepo := postgres.NewTraitRepository(pgDB)
 	archetypeRepo := postgres.NewArchetypeRepository(pgDB)
 	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
@@ -59,6 +61,15 @@ func main() {
 	listWorldsUseCase := worldapp.NewListWorldsUseCase(worldRepo, log)
 	updateWorldUseCase := worldapp.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
 	deleteWorldUseCase := worldapp.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
+	createLocationUseCase := locationapp.NewCreateLocationUseCase(locationRepo, worldRepo, auditLogRepo, log)
+	getLocationUseCase := locationapp.NewGetLocationUseCase(locationRepo, log)
+	listLocationsUseCase := locationapp.NewListLocationsUseCase(locationRepo, log)
+	updateLocationUseCase := locationapp.NewUpdateLocationUseCase(locationRepo, auditLogRepo, log)
+	deleteLocationUseCase := locationapp.NewDeleteLocationUseCase(locationRepo, auditLogRepo, log)
+	getChildrenUseCase := locationapp.NewGetChildrenUseCase(locationRepo, log)
+	getAncestorsUseCase := locationapp.NewGetAncestorsUseCase(locationRepo, log)
+	getDescendantsUseCase := locationapp.NewGetDescendantsUseCase(locationRepo, log)
+	moveLocationUseCase := locationapp.NewMoveLocationUseCase(locationRepo, auditLogRepo, log)
 	createTraitUseCase := traitapp.NewCreateTraitUseCase(traitRepo, tenantRepo, auditLogRepo, log)
 	getTraitUseCase := traitapp.NewGetTraitUseCase(traitRepo, log)
 	listTraitsUseCase := traitapp.NewListTraitsUseCase(traitRepo, log)
@@ -87,6 +98,7 @@ func main() {
 	// Create handlers
 	tenantHandler := handlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := handlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
+	locationHandler := handlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
 	traitHandler := handlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
 	archetypeHandler := handlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := handlers.NewStoryHandler(
@@ -101,6 +113,7 @@ func main() {
 	grpcServer := grpcserver.NewServer(cfg, log)
 	grpcServer.RegisterTenantService(tenantHandler)
 	grpcServer.RegisterWorldService(worldHandler)
+	grpcServer.RegisterLocationService(locationHandler)
 	grpcServer.RegisterTraitService(traitHandler)
 	grpcServer.RegisterArchetypeService(archetypeHandler)
 	grpcServer.RegisterStoryService(storyHandler)
