@@ -1,7 +1,7 @@
 import { Notice } from "obsidian";
 import { StoryEngineClient } from "../api/client";
 import { FileManager } from "./fileManager";
-import { StoryEngineSettings } from "../types";
+import { StoryEngineSettings, ProseBlock } from "../types";
 
 export class SyncService {
 	constructor(
@@ -24,19 +24,64 @@ export class SyncService {
 				folderPath
 			);
 
+			// Ensure prose-blocks folder exists
+			const proseBlocksFolderPath = `${folderPath}/prose-blocks`;
+			await this.fileManager.ensureFolderExists(proseBlocksFolderPath);
+
 			// Ensure chapters folder exists
 			const chaptersFolderPath = `${folderPath}/chapters`;
 			await this.fileManager.ensureFolderExists(chaptersFolderPath);
 
-			// Write chapter files
+			// Write chapter files with prose blocks
 			for (const chapterWithContent of storyData.chapters) {
+				// Fetch prose blocks for this chapter
+				const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
+
+				// Write prose block files
+				for (const proseBlock of proseBlocks) {
+					const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
+					const proseBlockFilePath = `${proseBlocksFolderPath}/${proseBlockFileName}`;
+					await this.fileManager.writeProseBlockFile(
+						proseBlock,
+						proseBlockFilePath,
+						storyData.story.title
+					);
+				}
+
+				// Write chapter file with prose block embeds
 				const chapterFileName = `Chapter-${chapterWithContent.chapter.number}.md`;
 				const chapterFilePath = `${chaptersFolderPath}/${chapterFileName}`;
 				await this.fileManager.writeChapterFile(
 					chapterWithContent,
 					chapterFilePath,
-					storyData.story.title
+					storyData.story.title,
+					proseBlocks
 				);
+
+				// Write scene files with prose block references
+				for (const { scene, beats } of chapterWithContent.scenes) {
+					// Fetch prose blocks referenced by this scene
+					const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+
+					const sceneFileName = `Scene-${scene.order_num}.md`;
+					const sceneFolderPath = `${chaptersFolderPath}/Chapter-${chapterWithContent.chapter.number}/scenes`;
+					await this.fileManager.ensureFolderExists(sceneFolderPath);
+					const sceneFilePath = `${sceneFolderPath}/${sceneFileName}`;
+
+					await this.fileManager.writeSceneFile(
+						{ scene, beats },
+						sceneFilePath,
+						storyData.story.title,
+						sceneProseBlocks
+					);
+
+					// Write beat files with prose block references
+					for (const beat of beats) {
+						const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+						// Note: writeBeatFile doesn't currently support prose blocks
+						// This could be added if needed
+					}
+				}
 			}
 
 			// Check if version changed and create snapshot if needed
@@ -117,17 +162,36 @@ export class SyncService {
 					versionFolderPath
 				);
 
+				// Ensure prose-blocks folder exists for version
+				const versionProseBlocksFolderPath = `${versionFolderPath}/prose-blocks`;
+				await this.fileManager.ensureFolderExists(versionProseBlocksFolderPath);
+
 				// Write version chapters
 				const versionChaptersPath = `${versionFolderPath}/chapters`;
 				await this.fileManager.ensureFolderExists(versionChaptersPath);
 
 				for (const chapterWithContent of versionData.chapters) {
+					// Fetch prose blocks for this chapter
+					const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
+
+					// Write prose block files
+					for (const proseBlock of proseBlocks) {
+						const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
+						const proseBlockFilePath = `${versionProseBlocksFolderPath}/${proseBlockFileName}`;
+						await this.fileManager.writeProseBlockFile(
+							proseBlock,
+							proseBlockFilePath,
+							versionData.story.title
+						);
+					}
+
 					const chapterFileName = `Chapter-${chapterWithContent.chapter.number}.md`;
 					const chapterFilePath = `${versionChaptersPath}/${chapterFileName}`;
 					await this.fileManager.writeChapterFile(
 						chapterWithContent,
 						chapterFilePath,
-						versionData.story.title
+						versionData.story.title,
+						proseBlocks
 					);
 				}
 

@@ -8,6 +8,8 @@ import {
 	StoryWithHierarchy,
 	ChapterWithContent,
 	SceneWithBeats,
+	ProseBlock,
+	ProseBlockReference,
 } from "../types";
 
 export class StoryEngineClient {
@@ -341,6 +343,84 @@ export class StoryEngineClient {
 			{ scene_id: sceneId }
 		);
 		return response.beat;
+	}
+
+	async getProseBlocks(chapterId: string): Promise<ProseBlock[]> {
+		const response = await this.request<{ prose_blocks: ProseBlock[] }>(
+			"GET",
+			`/api/v1/chapters/${chapterId}/prose-blocks`
+		);
+		return response.prose_blocks || [];
+	}
+
+	async getProseBlock(id: string): Promise<ProseBlock> {
+		const response = await this.request<{ prose_block: ProseBlock }>(
+			"GET",
+			`/api/v1/prose-blocks/${id}`
+		);
+		return response.prose_block;
+	}
+
+	async createProseBlock(chapterId: string, proseBlock: Partial<ProseBlock>): Promise<ProseBlock> {
+		const response = await this.request<{ prose_block: ProseBlock }>(
+			"POST",
+			`/api/v1/chapters/${chapterId}/prose-blocks`,
+			proseBlock
+		);
+		return response.prose_block;
+	}
+
+	async updateProseBlock(id: string, proseBlock: Partial<ProseBlock>): Promise<ProseBlock> {
+		const response = await this.request<{ prose_block: ProseBlock }>(
+			"PUT",
+			`/api/v1/prose-blocks/${id}`,
+			proseBlock
+		);
+		return response.prose_block;
+	}
+
+	async deleteProseBlock(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/prose-blocks/${id}`);
+	}
+
+	async getProseBlockReferences(proseBlockId: string): Promise<ProseBlockReference[]> {
+		const response = await this.request<{ references: ProseBlockReference[] }>(
+			"GET",
+			`/api/v1/prose-blocks/${proseBlockId}/references`
+		);
+		return response.references || [];
+	}
+
+	async getProseBlocksByScene(sceneId: string): Promise<ProseBlock[]> {
+		const response = await this.request<{ prose_blocks: ProseBlock[] }>(
+			"GET",
+			`/api/v1/scenes/${sceneId}/prose-blocks`
+		);
+		return response.prose_blocks || [];
+	}
+
+	async getProseBlocksByBeat(beatId: string): Promise<ProseBlock[]> {
+		const response = await this.request<{ prose_blocks: ProseBlock[] }>(
+			"GET",
+			`/api/v1/beats/${beatId}/prose-blocks`
+		);
+		return response.prose_blocks || [];
+	}
+
+	async createProseBlockReference(proseBlockId: string, entityType: string, entityId: string): Promise<ProseBlockReference> {
+		const response = await this.request<{ reference: ProseBlockReference }>(
+			"POST",
+			`/api/v1/prose-blocks/${proseBlockId}/references`,
+			{
+				entity_type: entityType,
+				entity_id: entityId,
+			}
+		);
+		return response.reference;
+	}
+
+	async deleteProseBlockReference(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/prose-block-references/${id}`);
 	}
 }
 

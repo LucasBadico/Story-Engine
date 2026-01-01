@@ -617,6 +617,198 @@
 			]
 		},
 		{
+			"name": "Prose Blocks",
+			"item": [
+				{
+					"name": "List Prose Blocks by Chapter",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/prose-blocks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters", "{{chapter_id}}", "prose-blocks"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Prose Block",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"prose_block_id\", jsonData.prose_block.id);",
+									"    console.log(\"Prose Block ID saved:\", jsonData.prose_block.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 1,\n  \"kind\": \"final\",\n  \"content\": \"O cavaleiro entrou na taverna com passos pesados, olhando ao redor com cautela.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/prose-blocks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters", "{{chapter_id}}", "prose-blocks"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Prose Block",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Prose Block",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"content\": \"O cavaleiro entrou na taverna com passos pesados, olhando ao redor com cautela. O ambiente estava escuro e cheio de fumaça.\",\n  \"kind\": \"final\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Prose Block",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Prose Block References",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}/references",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}", "references"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Prose Block Reference",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"prose_block_reference_id\", jsonData.reference.id);",
+									"    console.log(\"Prose Block Reference ID saved:\", jsonData.reference.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entity_type\": \"scene\",\n  \"entity_id\": \"{{scene_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}/references",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}", "references"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Prose Block Reference",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/prose-block-references/{{prose_block_reference_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "prose-block-references", "{{prose_block_reference_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Prose Blocks by Scene",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/prose-blocks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}", "prose-blocks"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Prose Blocks by Beat",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}/prose-blocks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "beats", "{{beat_id}}", "prose-blocks"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "Complete Workflow",
 			"item": [
 				{
@@ -881,6 +1073,16 @@
 		},
 		{
 			"key": "beat_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "prose_block_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "prose_block_reference_id",
 			"value": "",
 			"type": "string"
 		}

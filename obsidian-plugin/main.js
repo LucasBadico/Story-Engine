@@ -316,6 +316,74 @@ var StoryEngineClient = class {
     );
     return response.beat;
   }
+  async getProseBlocks(chapterId) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/chapters/${chapterId}/prose-blocks`
+    );
+    return response.prose_blocks || [];
+  }
+  async getProseBlock(id) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/prose-blocks/${id}`
+    );
+    return response.prose_block;
+  }
+  async createProseBlock(chapterId, proseBlock) {
+    const response = await this.request(
+      "POST",
+      `/api/v1/chapters/${chapterId}/prose-blocks`,
+      proseBlock
+    );
+    return response.prose_block;
+  }
+  async updateProseBlock(id, proseBlock) {
+    const response = await this.request(
+      "PUT",
+      `/api/v1/prose-blocks/${id}`,
+      proseBlock
+    );
+    return response.prose_block;
+  }
+  async deleteProseBlock(id) {
+    await this.request("DELETE", `/api/v1/prose-blocks/${id}`);
+  }
+  async getProseBlockReferences(proseBlockId) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/prose-blocks/${proseBlockId}/references`
+    );
+    return response.references || [];
+  }
+  async getProseBlocksByScene(sceneId) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/scenes/${sceneId}/prose-blocks`
+    );
+    return response.prose_blocks || [];
+  }
+  async getProseBlocksByBeat(beatId) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/beats/${beatId}/prose-blocks`
+    );
+    return response.prose_blocks || [];
+  }
+  async createProseBlockReference(proseBlockId, entityType, entityId) {
+    const response = await this.request(
+      "POST",
+      `/api/v1/prose-blocks/${proseBlockId}/references`,
+      {
+        entity_type: entityType,
+        entity_id: entityId
+      }
+    );
+    return response.reference;
+  }
+  async deleteProseBlockReference(id) {
+    await this.request("DELETE", `/api/v1/prose-block-references/${id}`);
+  }
 };
 
 // src/settings.ts
@@ -703,7 +771,7 @@ Status: ${story.status}
     }
   }
   // Write chapter file
-  async writeChapterFile(chapterWithContent, filePath, storyName) {
+  async writeChapterFile(chapterWithContent, filePath, storyName, proseBlocks) {
     const { chapter, scenes } = chapterWithContent;
     const baseFields = {
       id: chapter.id,
@@ -723,6 +791,19 @@ Status: ${story.status}
 # ${chapter.title}
 
 `;
+    if (proseBlocks && proseBlocks.length > 0) {
+      content += `## Prose
+
+`;
+      const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+      for (const proseBlock of sortedProseBlocks) {
+        const fileName = this.generateProseBlockFileName(proseBlock);
+        const embedName = fileName.replace(/\.md$/, "");
+        content += `![[${embedName}]]
+
+`;
+      }
+    }
     if (scenes.length > 0) {
       content += `## Scenes
 
@@ -824,7 +905,7 @@ Status: ${story.status}
     }
   }
   // Write scene file
-  async writeSceneFile(sceneWithBeats, filePath, storyName) {
+  async writeSceneFile(sceneWithBeats, filePath, storyName, proseBlocks) {
     var _a;
     const { scene, beats } = sceneWithBeats;
     const baseFields = {
@@ -862,6 +943,19 @@ Status: ${story.status}
       content += `**Time:** ${scene.time_ref}
 
 `;
+    }
+    if (proseBlocks && proseBlocks.length > 0) {
+      content += `## Prose Relacionado
+
+`;
+      const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+      for (const proseBlock of sortedProseBlocks) {
+        const fileName = this.generateProseBlockFileName(proseBlock);
+        const embedName = fileName.replace(/\.md$/, "");
+        content += `![[${embedName}]]
+
+`;
+      }
     }
     if (beats.length > 0) {
       content += `## Beats
@@ -973,6 +1067,43 @@ Status: ${story.status}
     }
     return beatFiles.sort();
   }
+  // Generate filename for prose block based on date and content preview
+  generateProseBlockFileName(proseBlock) {
+    const date = new Date(proseBlock.created_at);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
+    const contentPreview = proseBlock.content.substring(0, 30).trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    const textPart = contentPreview || "prose-block";
+    return `${dateStr}_${textPart}.md`;
+  }
+  // Write prose block file
+  async writeProseBlockFile(proseBlock, filePath, storyName) {
+    const baseFields = {
+      id: proseBlock.id,
+      chapter_id: proseBlock.chapter_id,
+      order_num: proseBlock.order_num,
+      kind: proseBlock.kind,
+      word_count: proseBlock.word_count,
+      created_at: proseBlock.created_at,
+      updated_at: proseBlock.updated_at
+    };
+    const frontmatter = this.generateFrontmatter(baseFields, void 0, {
+      entityType: "prose-block",
+      storyName,
+      date: proseBlock.created_at
+    });
+    const content = `${frontmatter}${proseBlock.content}`;
+    const file = this.vault.getAbstractFileByPath(filePath);
+    if (file instanceof import_obsidian5.TFile) {
+      await this.vault.modify(file, content);
+    } else {
+      await this.vault.create(filePath, content);
+    }
+  }
 };
 
 // src/sync/syncService.ts
@@ -994,16 +1125,45 @@ var SyncService = class {
         storyData.story,
         folderPath
       );
+      const proseBlocksFolderPath = `${folderPath}/prose-blocks`;
+      await this.fileManager.ensureFolderExists(proseBlocksFolderPath);
       const chaptersFolderPath = `${folderPath}/chapters`;
       await this.fileManager.ensureFolderExists(chaptersFolderPath);
       for (const chapterWithContent of storyData.chapters) {
+        const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
+        for (const proseBlock of proseBlocks) {
+          const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
+          const proseBlockFilePath = `${proseBlocksFolderPath}/${proseBlockFileName}`;
+          await this.fileManager.writeProseBlockFile(
+            proseBlock,
+            proseBlockFilePath,
+            storyData.story.title
+          );
+        }
         const chapterFileName = `Chapter-${chapterWithContent.chapter.number}.md`;
         const chapterFilePath = `${chaptersFolderPath}/${chapterFileName}`;
         await this.fileManager.writeChapterFile(
           chapterWithContent,
           chapterFilePath,
-          storyData.story.title
+          storyData.story.title,
+          proseBlocks
         );
+        for (const { scene, beats } of chapterWithContent.scenes) {
+          const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+          const sceneFileName = `Scene-${scene.order_num}.md`;
+          const sceneFolderPath = `${chaptersFolderPath}/Chapter-${chapterWithContent.chapter.number}/scenes`;
+          await this.fileManager.ensureFolderExists(sceneFolderPath);
+          const sceneFilePath = `${sceneFolderPath}/${sceneFileName}`;
+          await this.fileManager.writeSceneFile(
+            { scene, beats },
+            sceneFilePath,
+            storyData.story.title,
+            sceneProseBlocks
+          );
+          for (const beat of beats) {
+            const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+          }
+        }
       }
       const existingMetadata = await this.fileManager.readStoryMetadata(folderPath).catch(() => null);
       if (existingMetadata && existingMetadata.frontmatter.version !== void 0 && existingMetadata.frontmatter.version !== storyData.story.version_number) {
@@ -1049,15 +1209,28 @@ var SyncService = class {
           versionData.story,
           versionFolderPath
         );
+        const versionProseBlocksFolderPath = `${versionFolderPath}/prose-blocks`;
+        await this.fileManager.ensureFolderExists(versionProseBlocksFolderPath);
         const versionChaptersPath = `${versionFolderPath}/chapters`;
         await this.fileManager.ensureFolderExists(versionChaptersPath);
         for (const chapterWithContent of versionData.chapters) {
+          const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
+          for (const proseBlock of proseBlocks) {
+            const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
+            const proseBlockFilePath = `${versionProseBlocksFolderPath}/${proseBlockFileName}`;
+            await this.fileManager.writeProseBlockFile(
+              proseBlock,
+              proseBlockFilePath,
+              versionData.story.title
+            );
+          }
           const chapterFileName = `Chapter-${chapterWithContent.chapter.number}.md`;
           const chapterFilePath = `${versionChaptersPath}/${chapterFileName}`;
           await this.fileManager.writeChapterFile(
             chapterWithContent,
             chapterFilePath,
-            versionData.story.title
+            versionData.story.title,
+            proseBlocks
           );
         }
         console.log(`Synced version v${versionStory.version_number}`);

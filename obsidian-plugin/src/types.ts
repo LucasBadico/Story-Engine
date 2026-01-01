@@ -101,6 +101,25 @@ export interface StoryWithHierarchy {
 	chapters: ChapterWithContent[];
 }
 
+export interface ProseBlock {
+	id: string;
+	chapter_id: string;
+	order_num: number;
+	kind: string;
+	content: string;
+	word_count: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface ProseBlockReference {
+	id: string;
+	prose_block_id: string;
+	entity_type: string;
+	entity_id: string;
+	created_at: string;
+}
+
 export interface StoryMetadata {
 	frontmatter: {
 		id: string;

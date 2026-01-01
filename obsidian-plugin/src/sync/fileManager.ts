@@ -1,5 +1,5 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
-import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats } from "../types";
+import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats, ProseBlock } from "../types";
 
 export class FileManager {
 	constructor(
@@ -26,7 +26,7 @@ export class FileManager {
 		baseFields: Record<string, string | number | null>,
 		extraFields?: Record<string, string | number | null>,
 		options?: {
-			entityType: "story" | "chapter" | "scene" | "beat";
+			entityType: "story" | "chapter" | "scene" | "beat" | "prose-block";
 			storyName?: string;
 			date?: string; // ISO date string (YYYY-MM-DD) or Date object
 		}
@@ -141,7 +141,8 @@ export class FileManager {
 	async writeChapterFile(
 		chapterWithContent: ChapterWithContent,
 		filePath: string,
-		storyName?: string
+		storyName?: string,
+		proseBlocks?: ProseBlock[]
 	): Promise<void> {
 		const { chapter, scenes } = chapterWithContent;
 
@@ -162,6 +163,19 @@ export class FileManager {
 		});
 
 		let content = `${frontmatter}\n# ${chapter.title}\n\n`;
+
+		// Add prose blocks section with embeds
+		if (proseBlocks && proseBlocks.length > 0) {
+			content += `## Prose\n\n`;
+			// Sort by order_num
+			const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+			for (const proseBlock of sortedProseBlocks) {
+				const fileName = this.generateProseBlockFileName(proseBlock);
+				// Remove .md extension for embed
+				const embedName = fileName.replace(/\.md$/, "");
+				content += `![[${embedName}]]\n\n`;
+			}
+		}
 
 		// Add scenes summary (scenes are written as separate files)
 		if (scenes.length > 0) {
@@ -294,7 +308,8 @@ export class FileManager {
 	async writeSceneFile(
 		sceneWithBeats: SceneWithBeats,
 		filePath: string,
-		storyName?: string
+		storyName?: string,
+		proseBlocks?: ProseBlock[]
 	): Promise<void> {
 		const { scene, beats } = sceneWithBeats;
 
@@ -331,6 +346,19 @@ export class FileManager {
 		}
 		if (scene.time_ref) {
 			content += `**Time:** ${scene.time_ref}\n\n`;
+		}
+
+		// Add prose blocks section with embeds (if referenced)
+		if (proseBlocks && proseBlocks.length > 0) {
+			content += `## Prose Relacionado\n\n`;
+			// Sort by order_num
+			const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+			for (const proseBlock of sortedProseBlocks) {
+				const fileName = this.generateProseBlockFileName(proseBlock);
+				// Remove .md extension for embed
+				const embedName = fileName.replace(/\.md$/, "");
+				content += `![[${embedName}]]\n\n`;
+			}
 		}
 
 		// Add beats if any
@@ -450,6 +478,67 @@ export class FileManager {
 		}
 
 		return beatFiles.sort();
+	}
+
+	// Generate filename for prose block based on date and content preview
+	generateProseBlockFileName(proseBlock: ProseBlock): string {
+		// Parse created_at date
+		const date = new Date(proseBlock.created_at);
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		const hours = String(date.getHours()).padStart(2, "0");
+		const minutes = String(date.getMinutes()).padStart(2, "0");
+		
+		// Format: 2024-01-15T14-30
+		const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
+
+		// Get first 30 characters of content and sanitize
+		const contentPreview = proseBlock.content
+			.substring(0, 30)
+			.trim()
+			.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
+			.replace(/\s+/g, "-")
+			.replace(/-+/g, "-")
+			.replace(/^-|-$/g, "")
+			.toLowerCase();
+
+		// If content is empty, use a default
+		const textPart = contentPreview || "prose-block";
+
+		return `${dateStr}_${textPart}.md`;
+	}
+
+	// Write prose block file
+	async writeProseBlockFile(
+		proseBlock: ProseBlock,
+		filePath: string,
+		storyName?: string
+	): Promise<void> {
+		const baseFields = {
+			id: proseBlock.id,
+			chapter_id: proseBlock.chapter_id,
+			order_num: proseBlock.order_num,
+			kind: proseBlock.kind,
+			word_count: proseBlock.word_count,
+			created_at: proseBlock.created_at,
+			updated_at: proseBlock.updated_at,
+		};
+
+		const frontmatter = this.generateFrontmatter(baseFields, undefined, {
+			entityType: "prose-block",
+			storyName: storyName,
+			date: proseBlock.created_at,
+		});
+
+		const content = `${frontmatter}${proseBlock.content}`;
+
+		const file = this.vault.getAbstractFileByPath(filePath);
+		if (file instanceof TFile) {
+			await this.vault.modify(file, content);
+		} else {
+			await this.vault.create(filePath, content);
+		}
 	}
 }
 
