@@ -199,11 +199,11 @@ export class FileManager {
 			const sceneFileName = this.generateSceneFileName(scene);
 			const sceneLinkName = sceneFileName.replace(/\.md$/, "");
 			
-			// Format scene header: ## [[link|goal - timeRef]] or ## [[link|goal]]
+			// Format scene header: ## Scene: [[link|goal - timeRef]] or ## Scene: [[link|goal]]
 			const sceneDisplayText = scene.time_ref 
 				? `${scene.goal} - ${scene.time_ref}`
 				: scene.goal;
-			content += `## [[${sceneLinkName}|${sceneDisplayText}]]\n\n`;
+			content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]\n\n`;
 
 			// Get prose blocks for this scene (not associated with any beat)
 			const sceneProseBlocks = organization.byScene.get(scene.id)?.proseBlocks || [];
@@ -218,11 +218,11 @@ export class FileManager {
 				const beatFileName = this.generateBeatFileName(beat);
 				const beatLinkName = beatFileName.replace(/\.md$/, "");
 				
-				// Format beat header: ### [[link|intent -> outcome]] or ### [[link|intent]]
+				// Format beat header: ### Beat: [[link|intent -> outcome]] or ### Beat: [[link|intent]]
 				const beatDisplayText = beat.outcome
 					? `${beat.intent} -> ${beat.outcome}`
 					: beat.intent;
-				content += `### [[${beatLinkName}|${beatDisplayText}]]\n\n`;
+				content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]\n\n`;
 
 				// Get prose blocks for this beat
 				const beatProseBlocks = organization.byBeat.get(beat.id)?.proseBlocks || [];

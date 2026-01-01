@@ -72,8 +72,14 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 			continue;
 		}
 
-		// Check for scene header: ## [[link|text]] or ## text
-		const sceneMatch = line.match(/^##\s+(.+)$/);
+		// Skip markdown headers that are not Scene/Beat (e.g., # Title, ## Prose, etc.)
+		// But allow ## Scene: and ### Beat:
+		if (line.startsWith('#') && !line.match(/^##\s+Scene:/) && !line.match(/^###\s+Beat:/)) {
+			continue;
+		}
+
+		// Check for scene header: ## Scene: [[link|text]] or ## Scene: text
+		const sceneMatch = line.match(/^##\s+Scene:\s*(.+)$/);
 		if (sceneMatch) {
 			const sceneText = sceneMatch[1].trim();
 			const parsedScene = parseSceneHeader(sceneText);
@@ -88,8 +94,8 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 			continue;
 		}
 
-		// Check for beat header: ### [[link|text]] or ### text
-		const beatMatch = line.match(/^###\s+(.+)$/);
+		// Check for beat header: ### Beat: [[link|text]] or ### Beat: text
+		const beatMatch = line.match(/^###\s+Beat:\s*(.+)$/);
 		if (beatMatch) {
 			const beatText = beatMatch[1].trim();
 			const parsedBeat = parseBeatHeader(beatText);
@@ -104,6 +110,7 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 		}
 
 		// Check for prose block: [[link|content]] or plain text
+		// Only process if we're inside a prose section (not a header)
 		const proseMatch = line.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
 		if (proseMatch) {
 			const linkName = proseMatch[1].trim();
@@ -122,7 +129,8 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 		}
 
 		// Plain text paragraph (new prose block without link)
-		if (line.length > 0) {
+		// Only if it's not a markdown header
+		if (line.length > 0 && !line.startsWith('#')) {
 			const paragraph: ParsedParagraph = {
 				content: line,
 				linkName: null,

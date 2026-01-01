@@ -69,15 +69,16 @@ export class SyncService {
 					proseBlockRefs
 				);
 
-				// Write scene files with prose block references
+				// Write scene files with prose block references (flat structure)
+				const scenesFolderPath = `${folderPath}/scenes`;
+				await this.fileManager.ensureFolderExists(scenesFolderPath);
+				
 				for (const { scene, beats } of chapterWithContent.scenes) {
 					// Fetch prose blocks referenced by this scene
 					const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
 
-					const sceneFileName = `Scene-${scene.order_num}.md`;
-					const sceneFolderPath = `${chaptersFolderPath}/Chapter-${chapterWithContent.chapter.number}/scenes`;
-					await this.fileManager.ensureFolderExists(sceneFolderPath);
-					const sceneFilePath = `${sceneFolderPath}/${sceneFileName}`;
+					const sceneFileName = this.fileManager.generateSceneFileName(scene);
+					const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
 
 					await this.fileManager.writeSceneFile(
 						{ scene, beats },
@@ -86,11 +87,15 @@ export class SyncService {
 						sceneProseBlocks
 					);
 
-					// Write beat files with prose block references
+					// Write beat files with prose block references (flat structure)
+					const beatsFolderPath = `${folderPath}/beats`;
+					await this.fileManager.ensureFolderExists(beatsFolderPath);
+					
 					for (const beat of beats) {
 						const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
-						// Note: writeBeatFile doesn't currently support prose blocks
-						// This could be added if needed
+						const beatFileName = this.fileManager.generateBeatFileName(beat);
+						const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
+						await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title);
 					}
 				}
 			}
@@ -185,6 +190,13 @@ export class SyncService {
 					// Fetch prose blocks for this chapter
 					const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
 
+					// Fetch prose block references for all prose blocks
+					const proseBlockRefs: ProseBlockReference[] = [];
+					for (const proseBlock of proseBlocks) {
+						const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
+						proseBlockRefs.push(...refs);
+					}
+
 					// Write prose block files
 					for (const proseBlock of proseBlocks) {
 						const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
@@ -202,8 +214,35 @@ export class SyncService {
 						chapterWithContent,
 						chapterFilePath,
 						versionData.story.title,
-						proseBlocks
+						proseBlocks,
+						proseBlockRefs
 					);
+
+					// Write scene files (flat structure)
+					const versionScenesPath = `${versionFolderPath}/scenes`;
+					await this.fileManager.ensureFolderExists(versionScenesPath);
+					
+					for (const { scene, beats } of chapterWithContent.scenes) {
+						const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+						const sceneFileName = this.fileManager.generateSceneFileName(scene);
+						const sceneFilePath = `${versionScenesPath}/${sceneFileName}`;
+						await this.fileManager.writeSceneFile(
+							{ scene, beats },
+							sceneFilePath,
+							versionData.story.title,
+							sceneProseBlocks
+						);
+
+						// Write beat files (flat structure)
+						const versionBeatsPath = `${versionFolderPath}/beats`;
+						await this.fileManager.ensureFolderExists(versionBeatsPath);
+						
+						for (const beat of beats) {
+							const beatFileName = this.fileManager.generateBeatFileName(beat);
+							const beatFilePath = `${versionBeatsPath}/${beatFileName}`;
+							await this.fileManager.writeBeatFile(beat, beatFilePath, versionData.story.title);
+						}
+					}
 				}
 
 				console.log(`Synced version v${versionStory.version_number}`);
@@ -379,14 +418,14 @@ export class SyncService {
 					// The scene will be written properly on next pull
 				}
 
-				// Format scene header with link
+				// Format scene header with link and prefix
 				if (currentScene) {
 					const sceneFileName = this.fileManager.generateSceneFileName(currentScene);
 					const sceneLinkName = sceneFileName.replace(/\.md$/, "");
 					const sceneDisplayText = currentScene.time_ref
 						? `${currentScene.goal} - ${currentScene.time_ref}`
 						: currentScene.goal;
-					updatedSections.push(`## [[${sceneLinkName}|${sceneDisplayText}]]`);
+					updatedSections.push(`## Scene: [[${sceneLinkName}|${sceneDisplayText}]]`);
 				}
 				
 				currentBeat = null; // Reset beat when new scene starts
@@ -439,14 +478,14 @@ export class SyncService {
 					// The beat will be written properly on next pull
 				}
 
-				// Format beat header with link
+				// Format beat header with link and prefix
 				if (currentBeat) {
 					const beatFileName = this.fileManager.generateBeatFileName(currentBeat);
 					const beatLinkName = beatFileName.replace(/\.md$/, "");
 					const beatDisplayText = currentBeat.outcome
 						? `${currentBeat.intent} -> ${currentBeat.outcome}`
 						: currentBeat.intent;
-					updatedSections.push(`### [[${beatLinkName}|${beatDisplayText}]]`);
+					updatedSections.push(`### Beat: [[${beatLinkName}|${beatDisplayText}]]`);
 				}
 			} else if (section.type === "prose" && section.prose) {
 				const { prose: paragraph } = section;
