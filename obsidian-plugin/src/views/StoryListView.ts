@@ -1,6 +1,9 @@
-import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
+import { ItemView, WorkspaceLeaf, Notice, Modal } from "obsidian";
 import StoryEnginePlugin from "../main";
 import { Story, Chapter, Scene, Beat } from "../types";
+import { ChapterModal } from "./modals/ChapterModal";
+import { SceneModal } from "./modals/SceneModal";
+import { BeatModal } from "./modals/BeatModal";
 
 export const STORY_LIST_VIEW_TYPE = "story-engine-list-view";
 
@@ -417,8 +420,17 @@ export class StoryListView extends ItemView {
 			cls: "mod-cta",
 		});
 		createButton.onclick = () => {
-			// TODO: Open ChapterModal
-			new Notice("Create Chapter - Coming soon", 3000);
+			if (!this.currentStory) return;
+			new ChapterModal(this.app, async (chapter) => {
+				try {
+					await this.plugin.apiClient.createChapter(this.currentStory!.id, chapter);
+					await this.loadHierarchy();
+					this.renderTabContent();
+					new Notice("Chapter created successfully");
+				} catch (err) {
+					throw err;
+				}
+			}, this.chapters).open();
 		};
 
 		const list = container.createDiv({ cls: "story-engine-list" });
@@ -440,7 +452,16 @@ export class StoryListView extends ItemView {
 			// Hover actions
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
 			actions.createEl("button", { text: "Edit" }).onclick = () => {
-				new Notice("Edit Chapter - Coming soon", 3000);
+				new ChapterModal(this.app, async (updatedChapter) => {
+					try {
+						await this.plugin.apiClient.updateChapter(chapter.id, updatedChapter);
+						await this.loadHierarchy();
+						this.renderTabContent();
+						new Notice("Chapter updated successfully");
+					} catch (err) {
+						throw err;
+					}
+				}, this.chapters, chapter).open();
 			};
 			actions.createEl("button", { text: "Delete" }).onclick = async () => {
 				if (confirm("Delete this chapter?")) {
@@ -484,7 +505,18 @@ export class StoryListView extends ItemView {
 				cls: "story-engine-add-btn",
 			});
 			addButton.onclick = () => {
-				new Notice("Create Scene - Coming soon", 3000);
+				if (!this.currentStory) return;
+				new SceneModal(this.app, this.currentStory.id, this.chapters, async (scene) => {
+					try {
+						scene.chapter_id = chapter.id;
+						await this.plugin.apiClient.createScene(scene);
+						await this.loadHierarchy();
+						this.renderTabContent();
+						new Notice("Scene created successfully");
+					} catch (err) {
+						throw err;
+					}
+				}, this.scenes).open();
 			};
 
 			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
@@ -509,7 +541,18 @@ export class StoryListView extends ItemView {
 				cls: "story-engine-add-btn",
 			});
 			addButton.onclick = () => {
-				new Notice("Create Scene - Coming soon", 3000);
+				if (!this.currentStory) return;
+				new SceneModal(this.app, this.currentStory.id, this.chapters, async (scene) => {
+					try {
+						scene.chapter_id = null;
+						await this.plugin.apiClient.createScene(scene);
+						await this.loadHierarchy();
+						this.renderTabContent();
+						new Notice("Scene created successfully");
+					} catch (err) {
+						throw err;
+					}
+				}, this.scenes).open();
 			};
 
 			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
@@ -532,10 +575,20 @@ export class StoryListView extends ItemView {
 
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
 		actions.createEl("button", { text: "Edit" }).onclick = () => {
-			new Notice("Edit Scene - Coming soon", 3000);
+			if (!this.currentStory) return;
+			new SceneModal(this.app, this.currentStory.id, this.chapters, async (updatedScene) => {
+				try {
+					await this.plugin.apiClient.updateScene(scene.id, updatedScene);
+					await this.loadHierarchy();
+					this.renderTabContent();
+					new Notice("Scene updated successfully");
+				} catch (err) {
+					throw err;
+				}
+			}, this.scenes, scene).open();
 		};
-		actions.createEl("button", { text: "Move" }).onclick = () => {
-			new Notice("Move Scene - Coming soon", 3000);
+		actions.createEl("button", { text: "Move" }).onclick = async () => {
+			await this.showMoveSceneModal(scene);
 		};
 		actions.createEl("button", { text: "Delete" }).onclick = async () => {
 			if (confirm("Delete this scene?")) {
@@ -583,7 +636,18 @@ export class StoryListView extends ItemView {
 					cls: "story-engine-add-btn",
 				});
 				addButton.onclick = () => {
-					new Notice("Create Beat - Coming soon", 3000);
+					if (!this.currentStory) return;
+					new BeatModal(this.app, this.currentStory.id, this.scenes, async (beat) => {
+						try {
+							beat.scene_id = scene.id;
+							await this.plugin.apiClient.createBeat(beat);
+							await this.loadHierarchy();
+							this.renderTabContent();
+							new Notice("Beat created successfully");
+						} catch (err) {
+							throw err;
+						}
+					}, this.beats).open();
 				};
 
 				const groupItems = group.createDiv({ cls: "story-engine-group-items" });
@@ -612,7 +676,18 @@ export class StoryListView extends ItemView {
 				cls: "story-engine-add-btn",
 			});
 			addButton.onclick = () => {
-				new Notice("Create Beat - Coming soon", 3000);
+				if (!this.currentStory) return;
+				new BeatModal(this.app, this.currentStory.id, this.scenes, async (beat) => {
+					try {
+						// For orphan beats, scene_id will be set in modal
+						await this.plugin.apiClient.createBeat(beat);
+						await this.loadHierarchy();
+						this.renderTabContent();
+						new Notice("Beat created successfully");
+					} catch (err) {
+						throw err;
+					}
+				}, this.beats).open();
 			};
 
 			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
@@ -638,10 +713,20 @@ export class StoryListView extends ItemView {
 
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
 		actions.createEl("button", { text: "Edit" }).onclick = () => {
-			new Notice("Edit Beat - Coming soon", 3000);
+			if (!this.currentStory) return;
+			new BeatModal(this.app, this.currentStory.id, this.scenes, async (updatedBeat) => {
+				try {
+					await this.plugin.apiClient.updateBeat(beat.id, updatedBeat);
+					await this.loadHierarchy();
+					this.renderTabContent();
+					new Notice("Beat updated successfully");
+				} catch (err) {
+					throw err;
+				}
+			}, this.beats, beat).open();
 		};
-		actions.createEl("button", { text: "Move" }).onclick = () => {
-			new Notice("Move Beat - Coming soon", 3000);
+		actions.createEl("button", { text: "Move" }).onclick = async () => {
+			await this.showMoveBeatModal(beat);
 		};
 		actions.createEl("button", { text: "Delete" }).onclick = async () => {
 			if (confirm("Delete this beat?")) {
@@ -721,6 +806,134 @@ export class StoryListView extends ItemView {
 		}
 		
 		document.body.removeChild(textarea);
+	}
+
+	async showMoveSceneModal(scene: Scene) {
+		if (!this.currentStory) return;
+
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Move Scene");
+
+		const content = modal.contentEl;
+		content.createEl("p", { text: `Move scene "${scene.goal || `Scene ${scene.order_num}`}" to:` });
+
+		const select = content.createEl("select", { cls: "story-engine-move-select" });
+		const noChapterOption = select.createEl("option", { text: "No Chapter", value: "" });
+		
+		for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+			const option = select.createEl("option", {
+				text: `Chapter ${chapter.number}: ${chapter.title}`,
+				value: chapter.id,
+			});
+			if (scene.chapter_id === chapter.id) {
+				option.selected = true;
+			}
+		}
+
+		if (!scene.chapter_id) {
+			noChapterOption.selected = true;
+		}
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const moveButton = buttonContainer.createEl("button", {
+			text: "Move",
+			cls: "mod-cta",
+		});
+		moveButton.onclick = async () => {
+			const selectedChapterId = select.value || null;
+			try {
+				await this.plugin.apiClient.moveScene(scene.id, selectedChapterId);
+				await this.loadHierarchy();
+				this.renderTabContent();
+				modal.close();
+				new Notice("Scene moved successfully");
+			} catch (err) {
+				const errorMessage = err instanceof Error ? err.message : "Failed to move scene";
+				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		};
+
+		const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+		cancelButton.onclick = () => modal.close();
+
+		modal.open();
+	}
+
+	async showMoveBeatModal(beat: Beat) {
+		if (!this.currentStory) return;
+
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Move Beat");
+
+		const content = modal.contentEl;
+		content.createEl("p", { text: `Move beat "${beat.type}" to:` });
+
+		const select = content.createEl("select", { cls: "story-engine-move-select" });
+		
+		// Group scenes by chapter for better UX
+		for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+			const chapterScenes = this.scenes
+				.filter(s => s.chapter_id === chapter.id)
+				.sort((a, b) => a.order_num - b.order_num);
+			
+			if (chapterScenes.length > 0) {
+				const optgroup = select.createEl("optgroup");
+				optgroup.label = `Chapter ${chapter.number}: ${chapter.title}`;
+				for (const scene of chapterScenes) {
+					const option = optgroup.createEl("option", {
+						text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`,
+						value: scene.id,
+					});
+					if (beat.scene_id === scene.id) {
+						option.selected = true;
+					}
+				}
+			}
+		}
+
+		// Add orphan scenes
+		const orphanScenes = this.scenes.filter(s => !s.chapter_id);
+		if (orphanScenes.length > 0) {
+			const optgroup = select.createEl("optgroup");
+			optgroup.label = "No Chapter";
+			for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
+				const option = optgroup.createEl("option", {
+					text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`,
+					value: scene.id,
+				});
+				if (beat.scene_id === scene.id) {
+					option.selected = true;
+				}
+			}
+		}
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const moveButton = buttonContainer.createEl("button", {
+			text: "Move",
+			cls: "mod-cta",
+		});
+		moveButton.onclick = async () => {
+			const selectedSceneId = select.value;
+			if (!selectedSceneId) {
+				new Notice("Please select a scene", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.moveBeat(beat.id, selectedSceneId);
+				await this.loadHierarchy();
+				this.renderTabContent();
+				modal.close();
+				new Notice("Beat moved successfully");
+			} catch (err) {
+				const errorMessage = err instanceof Error ? err.message : "Failed to move beat";
+				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		};
+
+		const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+		cancelButton.onclick = () => modal.close();
+
+		modal.open();
 	}
 }
 

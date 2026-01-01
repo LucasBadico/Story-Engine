@@ -91,19 +91,18 @@ func main() {
 	mux.HandleFunc("POST /api/v1/scenes", sceneHandler.Create)
 	mux.HandleFunc("GET /api/v1/scenes/{id}", sceneHandler.Get)
 	mux.HandleFunc("PUT /api/v1/scenes/{id}", sceneHandler.Update)
+	mux.HandleFunc("PUT /api/v1/scenes/{id}/move", sceneHandler.Move)
+	mux.HandleFunc("GET /api/v1/stories/{id}/scenes", sceneHandler.ListByStory)
 	mux.HandleFunc("GET /api/v1/chapters/{id}/scenes", sceneHandler.List)
 	mux.HandleFunc("DELETE /api/v1/scenes/{id}", sceneHandler.Delete)
 
 	mux.HandleFunc("POST /api/v1/beats", beatHandler.Create)
 	mux.HandleFunc("GET /api/v1/beats/{id}", beatHandler.Get)
 	mux.HandleFunc("PUT /api/v1/beats/{id}", beatHandler.Update)
-	mux.HandleFunc("GET /api/v1/scenes/{id}/beats", beatHandler.List)
-	mux.HandleFunc("GET /api/v1/stories/{id}/beats", beatHandler.ListByStory)
 	mux.HandleFunc("PUT /api/v1/beats/{id}/move", beatHandler.Move)
+	mux.HandleFunc("GET /api/v1/stories/{id}/beats", beatHandler.ListByStory)
+	mux.HandleFunc("GET /api/v1/scenes/{id}/beats", beatHandler.List)
 	mux.HandleFunc("DELETE /api/v1/beats/{id}", beatHandler.Delete)
-
-	mux.HandleFunc("GET /api/v1/stories/{id}/scenes", sceneHandler.ListByStory)
-	mux.HandleFunc("PUT /api/v1/scenes/{id}/move", sceneHandler.Move)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 
