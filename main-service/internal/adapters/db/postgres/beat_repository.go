@@ -109,3 +109,31 @@ func (r *BeatRepository) DeleteByScene(ctx context.Context, sceneID uuid.UUID) e
 	return err
 }
 
+// ListByStory lists all beats for a story
+func (r *BeatRepository) ListByStory(ctx context.Context, storyID uuid.UUID) ([]*story.Beat, error) {
+	query := `
+		SELECT b.id, b.scene_id, b.order_num, b.type, b.intent, b.outcome, b.created_at, b.updated_at
+		FROM beats b
+		JOIN scenes s ON b.scene_id = s.id
+		WHERE s.story_id = $1
+		ORDER BY s.order_num ASC, b.order_num ASC
+	`
+	rows, err := r.db.Query(ctx, query, storyID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var beats []*story.Beat
+	for rows.Next() {
+		var b story.Beat
+		err := rows.Scan(&b.ID, &b.SceneID, &b.OrderNum, &b.Type, &b.Intent, &b.Outcome, &b.CreatedAt, &b.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		beats = append(beats, &b)
+	}
+
+	return beats, rows.Err()
+}
+

@@ -118,9 +118,13 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 
 	sceneIDMap := make(map[uuid.UUID]uuid.UUID) // old scene ID -> new scene ID
 	for _, oldScene := range scenes {
-		newChapterID, ok := chapterIDMap[oldScene.ChapterID]
-		if !ok {
-			return nil, errors.New("chapter mapping not found for scene")
+		var newChapterID *uuid.UUID
+		if oldScene.ChapterID != nil {
+			mappedID, ok := chapterIDMap[*oldScene.ChapterID]
+			if !ok {
+				return nil, errors.New("chapter mapping not found for scene")
+			}
+			newChapterID = &mappedID
 		}
 		newScene := versioning.CloneScene(oldScene, newStoryID, newChapterID)
 		if err := uc.sceneRepo.Create(ctx, newScene); err != nil {

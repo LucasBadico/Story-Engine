@@ -38,7 +38,7 @@ func NewSceneHandler(
 func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		StoryID        string  `json:"story_id"`
-		ChapterID      string  `json:"chapter_id"`
+		ChapterID      *string `json:"chapter_id,omitempty"`
 		OrderNum       int     `json:"order_num"`
 		POVCharacterID *string `json:"pov_character_id,omitempty"`
 		LocationID     *string `json:"location_id,omitempty"`
@@ -63,15 +63,6 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chapterID, err := uuid.Parse(req.ChapterID)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "chapter_id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
 	// Validate story exists
 	_, err = h.storyRepo.GetByID(r.Context(), storyID)
 	if err != nil {
@@ -79,18 +70,31 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate chapter exists
-	_, err = h.chapterRepo.GetByID(r.Context(), chapterID)
-	if err != nil {
-		if err.Error() == "chapter not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "chapter",
-				ID:       req.ChapterID,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
+	var chapterID *uuid.UUID
+	if req.ChapterID != nil && *req.ChapterID != "" {
+		parsedChapterID, err := uuid.Parse(*req.ChapterID)
+		if err != nil {
+			WriteError(w, &platformerrors.ValidationError{
+				Field:   "chapter_id",
+				Message: "invalid UUID format",
+			}, http.StatusBadRequest)
+			return
 		}
-		return
+
+		// Validate chapter exists
+		_, err = h.chapterRepo.GetByID(r.Context(), parsedChapterID)
+		if err != nil {
+			if err.Error() == "chapter not found" {
+				WriteError(w, &platformerrors.NotFoundError{
+					Resource: "chapter",
+					ID:       *req.ChapterID,
+				}, http.StatusNotFound)
+			} else {
+				WriteError(w, err, http.StatusInternalServerError)
+			}
+			return
+		}
+		chapterID = &parsedChapterID
 	}
 
 	if req.OrderNum < 1 {
@@ -353,5 +357,125 @@ func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListByStory handles GET /api/v1/stories/{id}/scenes
+func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
+	storyIDStr := r.PathValue("id")
+
+	storyID, err := uuid.Parse(storyIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Validate story exists
+	_, err = h.storyRepo.GetByID(r.Context(), storyID)
+	if err != nil {
+		if err.Error() == "story not found" {
+			WriteError(w, &platformerrors.NotFoundError{
+				Resource: "story",
+				ID:       storyIDStr,
+			}, http.StatusNotFound)
+		} else {
+			WriteError(w, err, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	scenes, err := h.sceneRepo.ListByStory(r.Context(), storyID)
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"scenes": scenes,
+		"total":  len(scenes),
+	})
+}
+
+// Move handles PUT /api/v1/scenes/{id}/move
+func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	sceneID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Get existing scene
+	scene, err := h.sceneRepo.GetByID(r.Context(), sceneID)
+	if err != nil {
+		if err.Error() == "scene not found" {
+			WriteError(w, &platformerrors.NotFoundError{
+				Resource: "scene",
+				ID:       id,
+			}, http.StatusNotFound)
+		} else {
+			WriteError(w, err, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	var req struct {
+		ChapterID *string `json:"chapter_id,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var newChapterID *uuid.UUID
+	if req.ChapterID != nil && *req.ChapterID != "" {
+		parsedChapterID, err := uuid.Parse(*req.ChapterID)
+		if err != nil {
+			WriteError(w, &platformerrors.ValidationError{
+				Field:   "chapter_id",
+				Message: "invalid UUID format",
+			}, http.StatusBadRequest)
+			return
+		}
+
+		// Validate chapter exists
+		_, err = h.chapterRepo.GetByID(r.Context(), parsedChapterID)
+		if err != nil {
+			if err.Error() == "chapter not found" {
+				WriteError(w, &platformerrors.NotFoundError{
+					Resource: "chapter",
+					ID:       *req.ChapterID,
+				}, http.StatusNotFound)
+			} else {
+				WriteError(w, err, http.StatusInternalServerError)
+			}
+			return
+		}
+		newChapterID = &parsedChapterID
+	}
+
+	scene.UpdateChapter(newChapterID)
+
+	if err := h.sceneRepo.Update(r.Context(), scene); err != nil {
+		h.logger.Error("failed to move scene", "error", err)
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"scene": scene,
+	})
 }
 

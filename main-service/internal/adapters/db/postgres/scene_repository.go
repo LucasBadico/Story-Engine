@@ -43,11 +43,12 @@ func (r *SceneRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Sce
 		WHERE id = $1
 	`
 	var s story.Scene
+	var chapterID sql.NullString
 	var povCharacterID sql.NullString
 	var locationID sql.NullString
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&s.ID, &s.StoryID, &s.ChapterID, &s.OrderNum, &povCharacterID, &locationID,
+		&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID, &locationID,
 		&s.TimeRef, &s.Goal, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -56,6 +57,11 @@ func (r *SceneRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Sce
 		return nil, err
 	}
 
+	if chapterID.Valid {
+		if id, err := uuid.Parse(chapterID.String); err == nil {
+			s.ChapterID = &id
+		}
+	}
 	if povCharacterID.Valid {
 		if id, err := uuid.Parse(povCharacterID.String); err == nil {
 			s.POVCharacterID = &id
@@ -113,10 +119,10 @@ func (r *SceneRepository) ListByStory(ctx context.Context, storyID uuid.UUID) ([
 func (r *SceneRepository) Update(ctx context.Context, s *story.Scene) error {
 	query := `
 		UPDATE scenes
-		SET order_num = $2, pov_character_id = $3, location_id = $4, time_ref = $5, goal = $6, updated_at = $7
+		SET chapter_id = $2, order_num = $3, pov_character_id = $4, location_id = $5, time_ref = $6, goal = $7, updated_at = $8
 		WHERE id = $1
 	`
-	_, err := r.db.Exec(ctx, query, s.ID, s.OrderNum, s.POVCharacterID, s.LocationID, s.TimeRef, s.Goal, s.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, s.ID, s.ChapterID, s.OrderNum, s.POVCharacterID, s.LocationID, s.TimeRef, s.Goal, s.UpdatedAt)
 	return err
 }
 
@@ -145,16 +151,22 @@ func (r *SceneRepository) scanScenes(rows pgx.Rows) ([]*story.Scene, error) {
 	var scenes []*story.Scene
 	for rows.Next() {
 		var s story.Scene
+		var chapterID sql.NullString
 		var povCharacterID sql.NullString
 		var locationID sql.NullString
 
 		err := rows.Scan(
-			&s.ID, &s.StoryID, &s.ChapterID, &s.OrderNum, &povCharacterID, &locationID,
+			&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID, &locationID,
 			&s.TimeRef, &s.Goal, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 
+		if chapterID.Valid {
+			if id, err := uuid.Parse(chapterID.String); err == nil {
+				s.ChapterID = &id
+			}
+		}
 		if povCharacterID.Valid {
 			if id, err := uuid.Parse(povCharacterID.String); err == nil {
 				s.POVCharacterID = &id

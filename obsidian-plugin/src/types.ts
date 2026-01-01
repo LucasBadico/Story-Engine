@@ -47,7 +47,7 @@ export interface Chapter {
 export interface Scene {
 	id: string;
 	story_id: string;
-	chapter_id: string;
+	chapter_id?: string | null;
 	order_num: number;
 	pov_character_id?: string | null;
 	location_id?: string | null;

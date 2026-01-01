@@ -67,7 +67,7 @@ func main() {
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
 	chapterHandler := httphandlers.NewChapterHandler(chapterRepo, storyRepo, log)
 	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
-	beatHandler := httphandlers.NewBeatHandler(beatRepo, sceneRepo, log)
+	beatHandler := httphandlers.NewBeatHandler(beatRepo, sceneRepo, storyRepo, log)
 
 	// Create router
 	mux := http.NewServeMux()
@@ -98,7 +98,12 @@ func main() {
 	mux.HandleFunc("GET /api/v1/beats/{id}", beatHandler.Get)
 	mux.HandleFunc("PUT /api/v1/beats/{id}", beatHandler.Update)
 	mux.HandleFunc("GET /api/v1/scenes/{id}/beats", beatHandler.List)
+	mux.HandleFunc("GET /api/v1/stories/{id}/beats", beatHandler.ListByStory)
+	mux.HandleFunc("PUT /api/v1/beats/{id}/move", beatHandler.Move)
 	mux.HandleFunc("DELETE /api/v1/beats/{id}", beatHandler.Delete)
+
+	mux.HandleFunc("GET /api/v1/stories/{id}/scenes", sceneHandler.ListByStory)
+	mux.HandleFunc("PUT /api/v1/scenes/{id}/move", sceneHandler.Move)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 

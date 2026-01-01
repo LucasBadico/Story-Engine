@@ -53,7 +53,7 @@ func CloneChapter(sourceChapter *story.Chapter, newStoryID uuid.UUID) *story.Cha
 }
 
 // CloneScene creates a deep copy of a scene
-func CloneScene(sourceScene *story.Scene, newStoryID, newChapterID uuid.UUID) *story.Scene {
+func CloneScene(sourceScene *story.Scene, newStoryID uuid.UUID, newChapterID *uuid.UUID) *story.Scene {
 	return &story.Scene{
 		ID:             uuid.New(),
 		StoryID:        newStoryID,

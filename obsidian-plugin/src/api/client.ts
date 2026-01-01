@@ -302,5 +302,45 @@ export class StoryEngineClient {
 		);
 		return response.stories || [];
 	}
+
+	async getScenesByStory(storyId: string): Promise<Scene[]> {
+		const response = await this.request<{ scenes: Scene[] }>(
+			"GET",
+			`/api/v1/stories/${storyId}/scenes`
+		);
+		return response.scenes || [];
+	}
+
+	async moveScene(sceneId: string, chapterId: string | null): Promise<Scene> {
+		const body: { chapter_id?: string | null } = {};
+		if (chapterId !== null) {
+			body.chapter_id = chapterId;
+		} else {
+			body.chapter_id = null;
+		}
+		const response = await this.request<{ scene: Scene }>(
+			"PUT",
+			`/api/v1/scenes/${sceneId}/move`,
+			body
+		);
+		return response.scene;
+	}
+
+	async getBeatsByStory(storyId: string): Promise<Beat[]> {
+		const response = await this.request<{ beats: Beat[] }>(
+			"GET",
+			`/api/v1/stories/${storyId}/beats`
+		);
+		return response.beats || [];
+	}
+
+	async moveBeat(beatId: string, sceneId: string): Promise<Beat> {
+		const response = await this.request<{ beat: Beat }>(
+			"PUT",
+			`/api/v1/beats/${beatId}/move`,
+			{ scene_id: sceneId }
+		);
+		return response.beat;
+	}
 }
 

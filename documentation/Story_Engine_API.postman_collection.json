@@ -439,6 +439,41 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "List Scenes by Story",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/scenes",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{story_id}}", "scenes"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Move Scene",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"chapter_id\": \"{{chapter_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/move",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}", "move"]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -540,6 +575,41 @@
 							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
 							"host": ["{{base_url}}"],
 							"path": ["api", "v1", "beats", "{{beat_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Beats by Story",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/beats",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{story_id}}", "beats"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Move Beat",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"scene_id\": \"{{scene_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}/move",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "beats", "{{beat_id}}", "move"]
 						}
 					},
 					"response": []

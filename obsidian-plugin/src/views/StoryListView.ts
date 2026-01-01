@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
 import StoryEnginePlugin from "../main";
-import { Story } from "../types";
+import { Story, Chapter, Scene, Beat } from "../types";
 
 export const STORY_LIST_VIEW_TYPE = "story-engine-list-view";
 
@@ -13,6 +13,11 @@ export class StoryListView extends ItemView {
 	headerEl!: HTMLElement;
 	currentStory: Story | null = null;
 	viewMode: "list" | "details" = "list";
+	currentTab: "chapters" | "scenes" | "beats" = "chapters";
+	chapters: Chapter[] = [];
+	scenes: Scene[] = [];
+	beats: Beat[] = [];
+	loadingHierarchy: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
 		super(leaf);
@@ -193,8 +198,8 @@ export class StoryListView extends ItemView {
 				text: `Status: ${story.status}`,
 			});
 
-			storyItem.onclick = () => {
-				this.showStoryDetails(story);
+			storyItem.onclick = async () => {
+				await this.showStoryDetails(story);
 			};
 		}
 	}
@@ -228,10 +233,28 @@ export class StoryListView extends ItemView {
 		await this.loadStories();
 	}
 
-	showStoryDetails(story: Story) {
+	async showStoryDetails(story: Story) {
 		this.currentStory = story;
 		this.viewMode = "details";
+		this.currentTab = "chapters";
+		await this.loadHierarchy();
 		this.renderDetails();
+	}
+
+	async loadHierarchy() {
+		if (!this.currentStory) return;
+
+		this.loadingHierarchy = true;
+		try {
+			this.chapters = await this.plugin.apiClient.getChapters(this.currentStory.id);
+			this.scenes = await this.plugin.apiClient.getScenesByStory(this.currentStory.id);
+			this.beats = await this.plugin.apiClient.getBeatsByStory(this.currentStory.id);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Failed to load hierarchy";
+			new Notice(`Error: ${errorMessage}`, 5000);
+		} finally {
+			this.loadingHierarchy = false;
+		}
 	}
 
 	showList() {
@@ -282,6 +305,8 @@ export class StoryListView extends ItemView {
 			try {
 				new Notice(`Syncing story "${story.title}"...`);
 				await this.plugin.syncService.pullStory(story.id);
+				await this.loadHierarchy();
+				this.renderTabContent();
 				new Notice(`Story synced successfully!`);
 			} catch (err) {
 				const errorMessage =
@@ -304,6 +329,330 @@ export class StoryListView extends ItemView {
 				const errorMessage =
 					err instanceof Error ? err.message : "Failed to push story";
 				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		};
+
+		// Tabs section
+		this.renderTabs();
+		this.renderTabContent();
+	}
+
+	renderTabs() {
+		if (!this.contentEl) return;
+
+		// Remove existing tabs if any
+		const existingTabs = this.contentEl.querySelector(".story-engine-tabs");
+		if (existingTabs) {
+			existingTabs.remove();
+		}
+
+		const tabsContainer = this.contentEl.createDiv({ cls: "story-engine-tabs" });
+		
+		const chaptersTab = tabsContainer.createEl("button", {
+			text: "Chapters",
+			cls: `story-engine-tab ${this.currentTab === "chapters" ? "is-active" : ""}`,
+		});
+		chaptersTab.onclick = () => {
+			this.currentTab = "chapters";
+			this.renderTabs();
+			this.renderTabContent();
+		};
+
+		const scenesTab = tabsContainer.createEl("button", {
+			text: "Scenes",
+			cls: `story-engine-tab ${this.currentTab === "scenes" ? "is-active" : ""}`,
+		});
+		scenesTab.onclick = () => {
+			this.currentTab = "scenes";
+			this.renderTabs();
+			this.renderTabContent();
+		};
+
+		const beatsTab = tabsContainer.createEl("button", {
+			text: "Beats",
+			cls: `story-engine-tab ${this.currentTab === "beats" ? "is-active" : ""}`,
+		});
+		beatsTab.onclick = () => {
+			this.currentTab = "beats";
+			this.renderTabs();
+			this.renderTabContent();
+		};
+	}
+
+	renderTabContent() {
+		if (!this.contentEl) return;
+
+		// Remove existing tab content
+		const existingContent = this.contentEl.querySelector(".story-engine-tab-content");
+		if (existingContent) {
+			existingContent.remove();
+		}
+
+		const tabContent = this.contentEl.createDiv({ cls: "story-engine-tab-content" });
+
+		if (this.loadingHierarchy) {
+			tabContent.createEl("p", { text: "Loading..." });
+			return;
+		}
+
+		switch (this.currentTab) {
+			case "chapters":
+				this.renderChaptersTab(tabContent);
+				break;
+			case "scenes":
+				this.renderScenesTab(tabContent);
+				break;
+			case "beats":
+				this.renderBeatsTab(tabContent);
+				break;
+		}
+	}
+
+	renderChaptersTab(container: HTMLElement) {
+		container.empty();
+
+		const header = container.createDiv({ cls: "story-engine-tab-header" });
+		const createButton = header.createEl("button", {
+			text: "Create Chapter",
+			cls: "mod-cta",
+		});
+		createButton.onclick = () => {
+			// TODO: Open ChapterModal
+			new Notice("Create Chapter - Coming soon", 3000);
+		};
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+		
+		if (this.chapters.length === 0) {
+			list.createEl("p", { text: "No chapters found." });
+			return;
+		}
+
+		for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+			const item = list.createDiv({ cls: "story-engine-item" });
+			item.createDiv({
+				cls: "story-engine-title",
+				text: `Chapter ${chapter.number}: ${chapter.title}`,
+			});
+			const meta = item.createDiv({ cls: "story-engine-meta" });
+			meta.createEl("span", { text: `Status: ${chapter.status}` });
+			
+			// Hover actions
+			const actions = item.createDiv({ cls: "story-engine-item-actions" });
+			actions.createEl("button", { text: "Edit" }).onclick = () => {
+				new Notice("Edit Chapter - Coming soon", 3000);
+			};
+			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+				if (confirm("Delete this chapter?")) {
+					try {
+						await this.plugin.apiClient.deleteChapter(chapter.id);
+						await this.loadHierarchy();
+						this.renderTabContent();
+						new Notice("Chapter deleted");
+					} catch (err) {
+						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+					}
+				}
+			};
+		}
+	}
+
+	renderScenesTab(container: HTMLElement) {
+		container.empty();
+
+		// Group scenes by chapter
+		const scenesByChapter = new Map<string | null, Scene[]>();
+		for (const scene of this.scenes) {
+			const chapterId = scene.chapter_id || null;
+			if (!scenesByChapter.has(chapterId)) {
+				scenesByChapter.set(chapterId, []);
+			}
+			scenesByChapter.get(chapterId)!.push(scene);
+		}
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+
+		// Render scenes grouped by chapter
+		for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+			const chapterScenes = scenesByChapter.get(chapter.id) || [];
+			const group = list.createDiv({ cls: "story-engine-group" });
+			const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+			groupHeader.createEl("h3", { text: `Chapter ${chapter.number}: ${chapter.title}` });
+			
+			const addButton = groupHeader.createEl("button", {
+				text: "+ Add Scene",
+				cls: "story-engine-add-btn",
+			});
+			addButton.onclick = () => {
+				new Notice("Create Scene - Coming soon", 3000);
+			};
+
+			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+			if (chapterScenes.length === 0) {
+				groupItems.createEl("p", { text: "No scenes in this chapter." });
+			} else {
+				for (const scene of chapterScenes.sort((a, b) => a.order_num - b.order_num)) {
+					this.renderSceneItem(groupItems, scene);
+				}
+			}
+		}
+
+		// Render orphan scenes (no chapter)
+		const orphanScenes = scenesByChapter.get(null) || [];
+		if (orphanScenes.length > 0 || scenesByChapter.size === 0) {
+			const group = list.createDiv({ cls: "story-engine-group" });
+			const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+			groupHeader.createEl("h3", { text: "Sem Chapter" });
+			
+			const addButton = groupHeader.createEl("button", {
+				text: "+ Add Scene",
+				cls: "story-engine-add-btn",
+			});
+			addButton.onclick = () => {
+				new Notice("Create Scene - Coming soon", 3000);
+			};
+
+			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+			for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
+				this.renderSceneItem(groupItems, scene);
+			}
+		}
+	}
+
+	renderSceneItem(container: HTMLElement, scene: Scene) {
+		const item = container.createDiv({ cls: "story-engine-item" });
+		item.createDiv({
+			cls: "story-engine-title",
+			text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`,
+		});
+		const meta = item.createDiv({ cls: "story-engine-meta" });
+		if (scene.time_ref) {
+			meta.createEl("span", { text: `Time: ${scene.time_ref}` });
+		}
+
+		const actions = item.createDiv({ cls: "story-engine-item-actions" });
+		actions.createEl("button", { text: "Edit" }).onclick = () => {
+			new Notice("Edit Scene - Coming soon", 3000);
+		};
+		actions.createEl("button", { text: "Move" }).onclick = () => {
+			new Notice("Move Scene - Coming soon", 3000);
+		};
+		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			if (confirm("Delete this scene?")) {
+				try {
+					await this.plugin.apiClient.deleteScene(scene.id);
+					await this.loadHierarchy();
+					this.renderTabContent();
+					new Notice("Scene deleted");
+				} catch (err) {
+					new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+				}
+			}
+		};
+	}
+
+	renderBeatsTab(container: HTMLElement) {
+		container.empty();
+
+		// Group beats by scene (which is in a chapter)
+		const beatsByScene = new Map<string, Beat[]>();
+		for (const beat of this.beats) {
+			if (!beatsByScene.has(beat.scene_id)) {
+				beatsByScene.set(beat.scene_id, []);
+			}
+			beatsByScene.get(beat.scene_id)!.push(beat);
+		}
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+
+		// Render beats grouped by chapter > scene
+		for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+			const chapterScenes = this.scenes.filter(s => s.chapter_id === chapter.id)
+				.sort((a, b) => a.order_num - b.order_num);
+			
+			for (const scene of chapterScenes) {
+				const sceneBeats = beatsByScene.get(scene.id) || [];
+				const group = list.createDiv({ cls: "story-engine-group" });
+				const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+				groupHeader.createEl("h3", { 
+					text: `Chapter ${chapter.number} > Scene ${scene.order_num}: ${scene.goal || "Untitled"}` 
+				});
+				
+				const addButton = groupHeader.createEl("button", {
+					text: "+ Add Beat",
+					cls: "story-engine-add-btn",
+				});
+				addButton.onclick = () => {
+					new Notice("Create Beat - Coming soon", 3000);
+				};
+
+				const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+				if (sceneBeats.length === 0) {
+					groupItems.createEl("p", { text: "No beats in this scene." });
+				} else {
+					for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
+						this.renderBeatItem(groupItems, beat);
+					}
+				}
+			}
+		}
+
+		// Render orphan beats (no scene)
+		const orphanBeats = this.beats.filter(b => {
+			const scene = this.scenes.find(s => s.id === b.scene_id);
+			return !scene;
+		});
+		if (orphanBeats.length > 0) {
+			const group = list.createDiv({ cls: "story-engine-group" });
+			const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+			groupHeader.createEl("h3", { text: "Sem Scene" });
+			
+			const addButton = groupHeader.createEl("button", {
+				text: "+ Add Beat",
+				cls: "story-engine-add-btn",
+			});
+			addButton.onclick = () => {
+				new Notice("Create Beat - Coming soon", 3000);
+			};
+
+			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+			for (const beat of orphanBeats.sort((a, b) => a.order_num - b.order_num)) {
+				this.renderBeatItem(groupItems, beat);
+			}
+		}
+	}
+
+	renderBeatItem(container: HTMLElement, beat: Beat) {
+		const item = container.createDiv({ cls: "story-engine-item" });
+		item.createDiv({
+			cls: "story-engine-title",
+			text: `Beat ${beat.order_num}: ${beat.type}`,
+		});
+		const meta = item.createDiv({ cls: "story-engine-meta" });
+		if (beat.intent) {
+			meta.createEl("span", { text: `Intent: ${beat.intent}` });
+		}
+		if (beat.outcome) {
+			meta.createEl("span", { text: `Outcome: ${beat.outcome}` });
+		}
+
+		const actions = item.createDiv({ cls: "story-engine-item-actions" });
+		actions.createEl("button", { text: "Edit" }).onclick = () => {
+			new Notice("Edit Beat - Coming soon", 3000);
+		};
+		actions.createEl("button", { text: "Move" }).onclick = () => {
+			new Notice("Move Beat - Coming soon", 3000);
+		};
+		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			if (confirm("Delete this beat?")) {
+				try {
+					await this.plugin.apiClient.deleteBeat(beat.id);
+					await this.loadHierarchy();
+					this.renderTabContent();
+					new Notice("Beat deleted");
+				} catch (err) {
+					new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+				}
 			}
 		};
 	}
@@ -331,7 +680,7 @@ export class StoryListView extends ItemView {
 			
 			// Refresh the list and show the cloned story
 			await this.loadStories();
-			this.showStoryDetails(clonedStory);
+			await this.showStoryDetails(clonedStory);
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Clone failed";
 			new Notice(`Error: ${errorMessage}`, 5000);

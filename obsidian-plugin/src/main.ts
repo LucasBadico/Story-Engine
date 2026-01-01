@@ -138,7 +138,7 @@ export default class StoryEnginePlugin extends Plugin {
 					await view.refresh();
 					if (!shouldSync) {
 						// Show details in the view
-						view.showStoryDetails(story);
+						await view.showStoryDetails(story);
 					}
 				}
 			} catch (err) {

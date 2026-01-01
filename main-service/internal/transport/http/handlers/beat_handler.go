@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/core/story"
@@ -15,6 +16,7 @@ import (
 type BeatHandler struct {
 	beatRepo  repositories.BeatRepository
 	sceneRepo repositories.SceneRepository
+	storyRepo repositories.StoryRepository
 	logger    logger.Logger
 }
 
@@ -22,11 +24,13 @@ type BeatHandler struct {
 func NewBeatHandler(
 	beatRepo repositories.BeatRepository,
 	sceneRepo repositories.SceneRepository,
+	storyRepo repositories.StoryRepository,
 	logger logger.Logger,
 ) *BeatHandler {
 	return &BeatHandler{
 		beatRepo:  beatRepo,
 		sceneRepo: sceneRepo,
+		storyRepo: storyRepo,
 		logger:    logger,
 	}
 }
@@ -294,6 +298,123 @@ func (h *BeatHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// ListByStory handles GET /api/v1/stories/{id}/beats
+func (h *BeatHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
+	storyIDStr := r.PathValue("id")
+
+	storyID, err := uuid.Parse(storyIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Validate story exists
+	_, err = h.storyRepo.GetByID(r.Context(), storyID)
+	if err != nil {
+		if err.Error() == "story not found" {
+			WriteError(w, &platformerrors.NotFoundError{
+				Resource: "story",
+				ID:       storyIDStr,
+			}, http.StatusNotFound)
+		} else {
+			WriteError(w, err, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	beats, err := h.beatRepo.ListByStory(r.Context(), storyID)
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"beats": beats,
+		"total": len(beats),
+	})
+}
+
+// Move handles PUT /api/v1/beats/{id}/move
+func (h *BeatHandler) Move(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	beatID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Get existing beat
+	beat, err := h.beatRepo.GetByID(r.Context(), beatID)
+	if err != nil {
+		if err.Error() == "beat not found" {
+			WriteError(w, &platformerrors.NotFoundError{
+				Resource: "beat",
+				ID:       id,
+			}, http.StatusNotFound)
+		} else {
+			WriteError(w, err, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	var req struct {
+		SceneID string `json:"scene_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	sceneID, err := uuid.Parse(req.SceneID)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "scene_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Validate scene exists
+	_, err = h.sceneRepo.GetByID(r.Context(), sceneID)
+	if err != nil {
+		if err.Error() == "scene not found" {
+			WriteError(w, &platformerrors.NotFoundError{
+				Resource: "scene",
+				ID:       req.SceneID,
+			}, http.StatusNotFound)
+		} else {
+			WriteError(w, err, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	beat.SceneID = sceneID
+	beat.UpdatedAt = time.Now()
+
+	if err := h.beatRepo.Update(r.Context(), beat); err != nil {
+		h.logger.Error("failed to move beat", "error", err)
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"beat": beat,
+	})
 }
 
 // isValidBeatType checks if a beat type is valid

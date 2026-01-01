@@ -10,7 +10,7 @@ import (
 type Scene struct {
 	ID             uuid.UUID  `json:"id"`
 	StoryID        uuid.UUID  `json:"story_id"`
-	ChapterID      uuid.UUID  `json:"chapter_id"`
+	ChapterID      *uuid.UUID `json:"chapter_id,omitempty"` // nullable
 	OrderNum       int        `json:"order_num"`
 	POVCharacterID *uuid.UUID `json:"pov_character_id,omitempty"` // nullable
 	LocationID     *uuid.UUID `json:"location_id,omitempty"`      // nullable
@@ -21,7 +21,7 @@ type Scene struct {
 }
 
 // NewScene creates a new scene
-func NewScene(storyID, chapterID uuid.UUID, orderNum int) (*Scene, error) {
+func NewScene(storyID uuid.UUID, chapterID *uuid.UUID, orderNum int) (*Scene, error) {
 	if orderNum < 1 {
 		return nil, ErrInvalidOrderNumber
 	}
@@ -60,5 +60,11 @@ func (s *Scene) UpdatePOV(characterID *uuid.UUID) {
 // UpdateLocation updates the location
 func (s *Scene) UpdateLocation(locationID *uuid.UUID) {
 	s.LocationID = locationID
+	s.UpdatedAt = time.Now()
+}
+
+// UpdateChapter updates the chapter
+func (s *Scene) UpdateChapter(chapterID *uuid.UUID) {
+	s.ChapterID = chapterID
 	s.UpdatedAt = time.Now()
 }

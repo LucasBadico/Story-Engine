@@ -118,7 +118,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Create scene
-		scene, err := story.NewScene(sourceStory.ID, chapter.ID, 1)
+		scene, err := story.NewScene(sourceStory.ID, &chapter.ID, 1)
 		if err != nil {
 			t.Fatalf("failed to create scene: %v", err)
 		}
