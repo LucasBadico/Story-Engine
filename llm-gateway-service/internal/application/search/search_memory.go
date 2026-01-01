@@ -54,7 +54,7 @@ type SearchMemoryUseCase struct {
 	chunkRepo repositories.ChunkRepository
 	docRepo   repositories.DocumentRepository
 	embedder  embeddings.Embedder
-	logger    logger.Logger
+	logger    *logger.Logger
 }
 
 // NewSearchMemoryUseCase creates a new SearchMemoryUseCase
@@ -62,7 +62,7 @@ func NewSearchMemoryUseCase(
 	chunkRepo repositories.ChunkRepository,
 	docRepo repositories.DocumentRepository,
 	embedder embeddings.Embedder,
-	logger logger.Logger,
+	logger *logger.Logger,
 ) *SearchMemoryUseCase {
 	return &SearchMemoryUseCase{
 		chunkRepo: chunkRepo,

@@ -31,7 +31,7 @@ type IngestStoryUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
-	logger            logger.Logger
+	logger            *logger.Logger
 }
 
 // NewIngestStoryUseCase creates a new IngestStoryUseCase
@@ -40,7 +40,7 @@ func NewIngestStoryUseCase(
 	documentRepo repositories.DocumentRepository,
 	chunkRepo repositories.ChunkRepository,
 	embedder embeddings.Embedder,
-	logger logger.Logger,
+	logger *logger.Logger,
 ) *IngestStoryUseCase {
 	return &IngestStoryUseCase{
 		mainServiceClient: mainServiceClient,

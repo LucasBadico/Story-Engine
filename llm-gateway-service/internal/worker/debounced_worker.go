@@ -19,7 +19,7 @@ type DebouncedWorker struct {
 	ingestStory      *ingest.IngestStoryUseCase
 	ingestChapter    *ingest.IngestChapterUseCase
 	ingestProseBlock *ingest.IngestProseBlockUseCase
-	logger           logger.Logger
+	logger           *logger.Logger
 	debounceInterval time.Duration
 	pollInterval     time.Duration
 	batchSize        int
@@ -31,7 +31,7 @@ func NewDebouncedWorker(
 	ingestStory *ingest.IngestStoryUseCase,
 	ingestChapter *ingest.IngestChapterUseCase,
 	ingestProseBlock *ingest.IngestProseBlockUseCase,
-	logger logger.Logger,
+	logger *logger.Logger,
 	cfg *config.Config,
 ) *DebouncedWorker {
 	return &DebouncedWorker{

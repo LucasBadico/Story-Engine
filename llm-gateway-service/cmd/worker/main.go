@@ -102,7 +102,8 @@ func main() {
 		embedder,
 		log,
 	)
-	searchMemoryUseCase := search.NewSearchMemoryUseCase(
+	// searchMemoryUseCase is available for future use (e.g., API endpoints)
+	_ = search.NewSearchMemoryUseCase(
 		chunkRepo,
 		documentRepo,
 		embedder,

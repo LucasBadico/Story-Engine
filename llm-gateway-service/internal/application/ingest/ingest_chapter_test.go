@@ -2,12 +2,10 @@ package ingest
 
 import (
 	"context"
-	"errors"
 	"strings"
 	"testing"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/llm-gateway-service/internal/core/memory"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
 	grpcclient "github.com/story-engine/llm-gateway-service/internal/ports/grpc"

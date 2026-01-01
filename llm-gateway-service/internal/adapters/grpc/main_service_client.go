@@ -5,15 +5,14 @@ import (
 	"fmt"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/llm-gateway-service/internal/ports/grpc"
+	grpcclient "github.com/story-engine/llm-gateway-service/internal/ports/grpc"
 	storypb "github.com/story-engine/main-service/proto/story"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	prosepb "github.com/story-engine/main-service/proto/prose"
-	"google.golang.org/grpc"
+	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 var _ grpcclient.MainServiceClient = (*MainServiceClient)(nil)
@@ -26,12 +25,12 @@ type MainServiceClient struct {
 	beatClient               beatpb.BeatServiceClient
 	proseClient              prosepb.ProseBlockServiceClient
 	proseReferenceClient     prosepb.ProseBlockReferenceServiceClient
-	conn                     *grpc.ClientConn
+	conn                     *grpclib.ClientConn
 }
 
 // NewMainServiceClient creates a new gRPC client for main-service
 func NewMainServiceClient(addr string) (*MainServiceClient, error) {
-	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpclib.NewClient(addr, grpclib.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to main-service: %w", err)
 	}

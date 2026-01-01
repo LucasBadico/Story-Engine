@@ -39,7 +39,7 @@ func (q *IngestionQueue) Push(ctx context.Context, tenantID uuid.UUID, sourceTyp
 }
 
 // PopStable returns items not updated since stableAt and removes them atomically
-func (q *IngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, stableAt time.Time, limit int) ([]*QueueItem, error) {
+func (q *IngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, stableAt time.Time, limit int) ([]*queue.QueueItem, error) {
 	key := q.queueKey(tenantID)
 	maxScore := float64(stableAt.Unix())
 
@@ -60,7 +60,7 @@ func (q *IngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, stab
 	result, err := q.client.Eval(ctx, luaScript, []string{key}, maxScore, limit).Result()
 	if err != nil {
 		if err == redis.Nil {
-			return []*QueueItem{}, nil
+			return []*queue.QueueItem{}, nil
 		}
 		return nil, err
 	}
@@ -68,10 +68,10 @@ func (q *IngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, stab
 	// Parse result
 	items, ok := result.([]interface{})
 	if !ok {
-		return []*QueueItem{}, nil
+		return []*queue.QueueItem{}, nil
 	}
 
-	queueItems := make([]*QueueItem, 0, len(items))
+	queueItems := make([]*queue.QueueItem, 0, len(items))
 	for _, item := range items {
 		member, ok := item.(string)
 		if !ok {

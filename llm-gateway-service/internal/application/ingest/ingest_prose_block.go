@@ -31,7 +31,7 @@ type IngestProseBlockUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
-	logger            logger.Logger
+	logger            *logger.Logger
 }
 
 // NewIngestProseBlockUseCase creates a new IngestProseBlockUseCase
@@ -40,7 +40,7 @@ func NewIngestProseBlockUseCase(
 	documentRepo repositories.DocumentRepository,
 	chunkRepo repositories.ChunkRepository,
 	embedder embeddings.Embedder,
-	logger logger.Logger,
+	logger *logger.Logger,
 ) *IngestProseBlockUseCase {
 	return &IngestProseBlockUseCase{
 		mainServiceClient: mainServiceClient,

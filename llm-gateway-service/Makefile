@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-reset-volume db-reset db-truncate migrate-up migrate-down migrate-create test test-integration clean deps run-worker
+.PHONY: db-up db-down db-reset-volume db-reset db-truncate migrate-up migrate-down migrate-create test test-fmt test-integration test-integration-fmt test-unit test-coverage clean deps run-worker
 
 # Database management
 db-up:
@@ -35,6 +35,8 @@ db-up:
 		echo "ERROR: Database 'storyengine' is not accessible"; \
 		exit 1; \
 	fi
+	@echo "Applying migrations..."
+	@$(MIGRATE_CMD) up || echo "Migrations already applied or migrate tool not found"
 
 db-down:
 	cd .. && docker-compose down
@@ -103,9 +105,16 @@ migrate-create:
 test:
 	go test -v ./... 2>&1 | tee /tmp/gotest.log
 
+test-fmt:
+	go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
+
 test-integration: db-up
 	@echo "Running integration tests..."
 	go test -v -tags=integration ./... 2>&1 | tee /tmp/gotest-integration.log
+
+test-integration-fmt: db-up
+	@echo "Running integration tests with formatting..."
+	go test -json -v -tags=integration ./... 2>&1 | tee /tmp/gotest-integration.log | gotestfmt
 
 test-unit:
 	go test -v ./... -short

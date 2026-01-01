@@ -18,14 +18,21 @@ func TestChunkRepository_Create(t *testing.T) {
 
 	repo := NewChunkRepository(db)
 	ctx := context.Background()
+	tenantID := uuid.New()
 
-	documentID := uuid.New()
-	embedding := make([]float32, 768)
+	// Create document first (FK constraint)
+	docRepo := NewDocumentRepository(db)
+	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	if err := docRepo.Create(ctx, doc); err != nil {
+		t.Fatalf("Failed to create document: %v", err)
+	}
+
+	embedding := make([]float32, 1536)
 	for i := range embedding {
 		embedding[i] = 0.1
 	}
 
-	chunk := memory.NewChunk(documentID, 0, "Test content", embedding, 10)
+	chunk := memory.NewChunk(doc.ID, 0, "Test content", embedding, 10)
 	chunk.SceneID = uuidPtr(uuid.New())
 	beatType := "setup"
 	chunk.BeatType = &beatType
@@ -59,15 +66,22 @@ func TestChunkRepository_CreateBatch(t *testing.T) {
 
 	repo := NewChunkRepository(db)
 	ctx := context.Background()
+	tenantID := uuid.New()
 
-	documentID := uuid.New()
+	// Create document first (FK constraint)
+	docRepo := NewDocumentRepository(db)
+	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	if err := docRepo.Create(ctx, doc); err != nil {
+		t.Fatalf("Failed to create document: %v", err)
+	}
+
 	chunks := make([]*memory.Chunk, 3)
 	for i := 0; i < 3; i++ {
-		embedding := make([]float32, 768)
+		embedding := make([]float32, 1536)
 		for j := range embedding {
 			embedding[j] = float32(i) * 0.1
 		}
-		chunks[i] = memory.NewChunk(documentID, i, "Content "+string(rune('A'+i)), embedding, 10)
+		chunks[i] = memory.NewChunk(doc.ID, i, "Content "+string(rune('A'+i)), embedding, 10)
 	}
 
 	err := repo.CreateBatch(ctx, chunks)
@@ -76,7 +90,7 @@ func TestChunkRepository_CreateBatch(t *testing.T) {
 	}
 
 	// Verify chunks were created
-	list, err := repo.ListByDocument(ctx, documentID)
+	list, err := repo.ListByDocument(ctx, doc.ID)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -103,13 +117,13 @@ func TestChunkRepository_SearchSimilar(t *testing.T) {
 	}
 
 	// Create chunks with different embeddings
-	queryEmbedding := make([]float32, 768)
+	queryEmbedding := make([]float32, 1536)
 	for i := range queryEmbedding {
 		queryEmbedding[i] = 0.5
 	}
 
 	// Chunk similar to query
-	similarEmbedding := make([]float32, 768)
+	similarEmbedding := make([]float32, 1536)
 	for i := range similarEmbedding {
 		similarEmbedding[i] = 0.5
 	}
@@ -119,7 +133,7 @@ func TestChunkRepository_SearchSimilar(t *testing.T) {
 	}
 
 	// Chunk different from query
-	differentEmbedding := make([]float32, 768)
+	differentEmbedding := make([]float32, 1536)
 	for i := range differentEmbedding {
 		differentEmbedding[i] = -0.5
 	}
@@ -162,7 +176,7 @@ func TestChunkRepository_SearchSimilar_WithBeatTypeFilter(t *testing.T) {
 	}
 
 	// Create chunks with different beat types
-	embedding := make([]float32, 768)
+	embedding := make([]float32, 1536)
 	for i := range embedding {
 		embedding[i] = 0.1
 	}
@@ -204,8 +218,15 @@ func TestChunkRepository_MetadataPersistence(t *testing.T) {
 
 	repo := NewChunkRepository(db)
 	ctx := context.Background()
+	tenantID := uuid.New()
 
-	documentID := uuid.New()
+	// Create document first (FK constraint)
+	docRepo := NewDocumentRepository(db)
+	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	if err := docRepo.Create(ctx, doc); err != nil {
+		t.Fatalf("Failed to create document: %v", err)
+	}
+
 	sceneID := uuid.New()
 	beatID := uuid.New()
 	locationID := uuid.New()
@@ -217,12 +238,12 @@ func TestChunkRepository_MetadataPersistence(t *testing.T) {
 	proseKind := "final"
 	characters := []string{"John", "Mary"}
 
-	embedding := make([]float32, 768)
+	embedding := make([]float32, 1536)
 	for i := range embedding {
 		embedding[i] = 0.1
 	}
 
-	chunk := memory.NewChunk(documentID, 0, "Test content", embedding, 10)
+	chunk := memory.NewChunk(doc.ID, 0, "Test content", embedding, 10)
 	chunk.SceneID = &sceneID
 	chunk.BeatID = &beatID
 	chunk.BeatType = &beatType

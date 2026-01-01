@@ -3,9 +3,11 @@
 package postgres
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -144,9 +146,6 @@ func NewDatabaseManager(cfg *config.Config) (*DatabaseManager, error) {
 
 // CloneDatabase creates a new test database by cloning the template
 func (m *DatabaseManager) CloneDatabase(templateName, targetName string) error {
-	// For now, we'll use a simpler approach: create database and apply migrations
-	// In a full implementation, we'd use pg_dump like main-service
-	
 	// Connect to postgres database to create new database
 	adminURL := fmt.Sprintf("postgres://%s:%s@%s:%d/postgres?sslmode=disable",
 		m.user, m.password, m.host, m.port)
@@ -159,8 +158,14 @@ func (m *DatabaseManager) CloneDatabase(templateName, targetName string) error {
 	}
 	defer adminDB.Close()
 
-	// Drop target if exists
 	ctx := context.Background()
+	
+	// Terminate any existing connections to target database
+	_, _ = adminDB.Exec(ctx, fmt.Sprintf(
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s",
+		safeLiteral(targetName)))
+
+	// Drop target if exists
 	_, _ = adminDB.Exec(ctx, fmt.Sprintf("DROP DATABASE IF EXISTS %s", safeIdent(targetName)))
 
 	// Create new database
@@ -173,15 +178,6 @@ func (m *DatabaseManager) CloneDatabase(templateName, targetName string) error {
 	targetURL := fmt.Sprintf("postgres://%s:%s@%s:%d/%s?sslmode=disable",
 		m.user, m.password, m.host, m.port, targetName)
 	
-	targetCfg := &config.Config{}
-	targetCfg.Database.URL = targetURL
-	targetDB, err := database.New(targetCfg)
-	if err != nil {
-		return fmt.Errorf("failed to connect to target database: %w", err)
-	}
-	defer targetDB.Close()
-
-	// Apply migrations
 	migrationsPath := findMigrationsPath()
 	if err := applyMigrations(targetURL, migrationsPath); err != nil {
 		return fmt.Errorf("failed to apply migrations: %w", err)
@@ -293,9 +289,20 @@ func findMigrationsPath() string {
 
 // applyMigrations applies migrations using golang-migrate CLI
 func applyMigrations(dbURL, migrationsPath string) error {
-	// This is a simplified version - in production, use golang-migrate library
-	// For now, we'll assume migrations are already applied to template
-	// In a full implementation, we'd call migrate.Up() programmatically
+	// Use golang-migrate CLI to apply migrations
+	// This requires the migrate CLI tool to be installed
+	cmd := exec.Command("migrate",
+		"-path", migrationsPath,
+		"-database", dbURL,
+		"up")
+
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("failed to run migrations: %w\nStderr: %s", err, stderr.String())
+	}
+
 	return nil
 }
 
