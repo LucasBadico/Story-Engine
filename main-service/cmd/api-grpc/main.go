@@ -14,6 +14,7 @@ import (
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
+	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
@@ -55,6 +56,7 @@ func main() {
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
+	sceneReferenceRepo := postgres.NewSceneReferenceRepository(pgDB)
 	beatRepo := postgres.NewBeatRepository(pgDB)
 	proseBlockRepo := postgres.NewProseBlockRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
@@ -117,6 +119,9 @@ func main() {
 		log,
 	)
 	versionGraphUseCase := story.NewGetStoryVersionGraphUseCase(storyRepo, log)
+	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
+	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
+	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
 
 	// Create handlers
 	tenantHandler := handlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -133,6 +138,7 @@ func main() {
 		storyRepo,
 		log,
 	)
+	sceneHandler := handlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
 
 	// Create and configure gRPC server
 	grpcServer := grpcserver.NewServer(cfg, log)
@@ -144,6 +150,7 @@ func main() {
 	grpcServer.RegisterTraitService(traitHandler)
 	grpcServer.RegisterArchetypeService(archetypeHandler)
 	grpcServer.RegisterStoryService(storyHandler)
+	grpcServer.RegisterSceneService(sceneHandler)
 
 	// Setup graceful shutdown
 	_, cancel := context.WithCancel(context.Background())

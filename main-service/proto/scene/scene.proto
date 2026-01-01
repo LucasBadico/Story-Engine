@@ -102,6 +102,49 @@ message ListScenesByStoryResponse {
   int32 total_count = 2;
 }
 
+// SceneReference represents a reference from a scene to an entity
+message SceneReference {
+  string id = 1;
+  string scene_id = 2;
+  string entity_type = 3; // "character", "location", or "artifact"
+  string entity_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// GetSceneReferencesRequest is the request to get references for a scene
+message GetSceneReferencesRequest {
+  string scene_id = 1;
+}
+
+// GetSceneReferencesResponse is the response containing scene references
+message GetSceneReferencesResponse {
+  repeated SceneReference references = 1;
+  int32 total_count = 2;
+}
+
+// AddSceneReferenceRequest is the request to add a reference to a scene
+message AddSceneReferenceRequest {
+  string scene_id = 1;
+  string entity_type = 2; // "character", "location", or "artifact"
+  string entity_id = 3;
+}
+
+// AddSceneReferenceResponse is the response after adding a scene reference
+message AddSceneReferenceResponse {
+  SceneReference reference = 1;
+}
+
+// RemoveSceneReferenceRequest is the request to remove a reference from a scene
+message RemoveSceneReferenceRequest {
+  string scene_id = 1;
+  string entity_type = 2; // "character", "location", or "artifact"
+  string entity_id = 3;
+}
+
+// RemoveSceneReferenceResponse is the response after removing a scene reference
+message RemoveSceneReferenceResponse {
+}
+
 // SceneService provides scene management operations
 service SceneService {
   // CreateScene creates a new scene
@@ -118,5 +161,11 @@ service SceneService {
   rpc ListScenesByChapter(ListScenesByChapterRequest) returns (ListScenesByChapterResponse);
   // ListScenesByStory lists all scenes for a story
   rpc ListScenesByStory(ListScenesByStoryRequest) returns (ListScenesByStoryResponse);
+  // GetSceneReferences lists all references for a scene
+  rpc GetSceneReferences(GetSceneReferencesRequest) returns (GetSceneReferencesResponse);
+  // AddSceneReference adds a reference to a scene
+  rpc AddSceneReference(AddSceneReferenceRequest) returns (AddSceneReferenceResponse);
+  // RemoveSceneReference removes a reference from a scene
+  rpc RemoveSceneReference(RemoveSceneReferenceRequest) returns (RemoveSceneReferenceResponse);
 }
 

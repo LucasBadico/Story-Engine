@@ -19,13 +19,16 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	SceneService_CreateScene_FullMethodName         = "/scene.SceneService/CreateScene"
-	SceneService_GetScene_FullMethodName            = "/scene.SceneService/GetScene"
-	SceneService_UpdateScene_FullMethodName         = "/scene.SceneService/UpdateScene"
-	SceneService_DeleteScene_FullMethodName         = "/scene.SceneService/DeleteScene"
-	SceneService_MoveScene_FullMethodName           = "/scene.SceneService/MoveScene"
-	SceneService_ListScenesByChapter_FullMethodName = "/scene.SceneService/ListScenesByChapter"
-	SceneService_ListScenesByStory_FullMethodName   = "/scene.SceneService/ListScenesByStory"
+	SceneService_CreateScene_FullMethodName          = "/scene.SceneService/CreateScene"
+	SceneService_GetScene_FullMethodName             = "/scene.SceneService/GetScene"
+	SceneService_UpdateScene_FullMethodName          = "/scene.SceneService/UpdateScene"
+	SceneService_DeleteScene_FullMethodName          = "/scene.SceneService/DeleteScene"
+	SceneService_MoveScene_FullMethodName            = "/scene.SceneService/MoveScene"
+	SceneService_ListScenesByChapter_FullMethodName  = "/scene.SceneService/ListScenesByChapter"
+	SceneService_ListScenesByStory_FullMethodName    = "/scene.SceneService/ListScenesByStory"
+	SceneService_GetSceneReferences_FullMethodName   = "/scene.SceneService/GetSceneReferences"
+	SceneService_AddSceneReference_FullMethodName    = "/scene.SceneService/AddSceneReference"
+	SceneService_RemoveSceneReference_FullMethodName = "/scene.SceneService/RemoveSceneReference"
 )
 
 // SceneServiceClient is the client API for SceneService service.
@@ -46,6 +49,12 @@ type SceneServiceClient interface {
 	ListScenesByChapter(ctx context.Context, in *ListScenesByChapterRequest, opts ...grpc.CallOption) (*ListScenesByChapterResponse, error)
 	// ListScenesByStory lists all scenes for a story
 	ListScenesByStory(ctx context.Context, in *ListScenesByStoryRequest, opts ...grpc.CallOption) (*ListScenesByStoryResponse, error)
+	// GetSceneReferences lists all references for a scene
+	GetSceneReferences(ctx context.Context, in *GetSceneReferencesRequest, opts ...grpc.CallOption) (*GetSceneReferencesResponse, error)
+	// AddSceneReference adds a reference to a scene
+	AddSceneReference(ctx context.Context, in *AddSceneReferenceRequest, opts ...grpc.CallOption) (*AddSceneReferenceResponse, error)
+	// RemoveSceneReference removes a reference from a scene
+	RemoveSceneReference(ctx context.Context, in *RemoveSceneReferenceRequest, opts ...grpc.CallOption) (*RemoveSceneReferenceResponse, error)
 }
 
 type sceneServiceClient struct {
@@ -119,6 +128,33 @@ func (c *sceneServiceClient) ListScenesByStory(ctx context.Context, in *ListScen
 	return out, nil
 }
 
+func (c *sceneServiceClient) GetSceneReferences(ctx context.Context, in *GetSceneReferencesRequest, opts ...grpc.CallOption) (*GetSceneReferencesResponse, error) {
+	out := new(GetSceneReferencesResponse)
+	err := c.cc.Invoke(ctx, SceneService_GetSceneReferences_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sceneServiceClient) AddSceneReference(ctx context.Context, in *AddSceneReferenceRequest, opts ...grpc.CallOption) (*AddSceneReferenceResponse, error) {
+	out := new(AddSceneReferenceResponse)
+	err := c.cc.Invoke(ctx, SceneService_AddSceneReference_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *sceneServiceClient) RemoveSceneReference(ctx context.Context, in *RemoveSceneReferenceRequest, opts ...grpc.CallOption) (*RemoveSceneReferenceResponse, error) {
+	out := new(RemoveSceneReferenceResponse)
+	err := c.cc.Invoke(ctx, SceneService_RemoveSceneReference_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SceneServiceServer is the server API for SceneService service.
 // All implementations must embed UnimplementedSceneServiceServer
 // for forward compatibility
@@ -137,6 +173,12 @@ type SceneServiceServer interface {
 	ListScenesByChapter(context.Context, *ListScenesByChapterRequest) (*ListScenesByChapterResponse, error)
 	// ListScenesByStory lists all scenes for a story
 	ListScenesByStory(context.Context, *ListScenesByStoryRequest) (*ListScenesByStoryResponse, error)
+	// GetSceneReferences lists all references for a scene
+	GetSceneReferences(context.Context, *GetSceneReferencesRequest) (*GetSceneReferencesResponse, error)
+	// AddSceneReference adds a reference to a scene
+	AddSceneReference(context.Context, *AddSceneReferenceRequest) (*AddSceneReferenceResponse, error)
+	// RemoveSceneReference removes a reference from a scene
+	RemoveSceneReference(context.Context, *RemoveSceneReferenceRequest) (*RemoveSceneReferenceResponse, error)
 	mustEmbedUnimplementedSceneServiceServer()
 }
 
@@ -164,6 +206,15 @@ func (UnimplementedSceneServiceServer) ListScenesByChapter(context.Context, *Lis
 }
 func (UnimplementedSceneServiceServer) ListScenesByStory(context.Context, *ListScenesByStoryRequest) (*ListScenesByStoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListScenesByStory not implemented")
+}
+func (UnimplementedSceneServiceServer) GetSceneReferences(context.Context, *GetSceneReferencesRequest) (*GetSceneReferencesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetSceneReferences not implemented")
+}
+func (UnimplementedSceneServiceServer) AddSceneReference(context.Context, *AddSceneReferenceRequest) (*AddSceneReferenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddSceneReference not implemented")
+}
+func (UnimplementedSceneServiceServer) RemoveSceneReference(context.Context, *RemoveSceneReferenceRequest) (*RemoveSceneReferenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveSceneReference not implemented")
 }
 func (UnimplementedSceneServiceServer) mustEmbedUnimplementedSceneServiceServer() {}
 
@@ -304,6 +355,60 @@ func _SceneService_ListScenesByStory_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SceneService_GetSceneReferences_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetSceneReferencesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SceneServiceServer).GetSceneReferences(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SceneService_GetSceneReferences_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SceneServiceServer).GetSceneReferences(ctx, req.(*GetSceneReferencesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SceneService_AddSceneReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddSceneReferenceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SceneServiceServer).AddSceneReference(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SceneService_AddSceneReference_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SceneServiceServer).AddSceneReference(ctx, req.(*AddSceneReferenceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SceneService_RemoveSceneReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveSceneReferenceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SceneServiceServer).RemoveSceneReference(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: SceneService_RemoveSceneReference_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SceneServiceServer).RemoveSceneReference(ctx, req.(*RemoveSceneReferenceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SceneService_ServiceDesc is the grpc.ServiceDesc for SceneService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -338,6 +443,18 @@ var SceneService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListScenesByStory",
 			Handler:    _SceneService_ListScenesByStory_Handler,
+		},
+		{
+			MethodName: "GetSceneReferences",
+			Handler:    _SceneService_GetSceneReferences_Handler,
+		},
+		{
+			MethodName: "AddSceneReference",
+			Handler:    _SceneService_AddSceneReference_Handler,
+		},
+		{
+			MethodName: "RemoveSceneReference",
+			Handler:    _SceneService_RemoveSceneReference_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

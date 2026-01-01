@@ -4,9 +4,11 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/core/story"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,10 +18,13 @@ import (
 // SceneHandler implements the SceneService gRPC service
 type SceneHandler struct {
 	scenepb.UnimplementedSceneServiceServer
-	sceneRepo   repositories.SceneRepository
-	chapterRepo repositories.ChapterRepository
-	storyRepo   repositories.StoryRepository
-	logger      logger.Logger
+	sceneRepo              repositories.SceneRepository
+	chapterRepo            repositories.ChapterRepository
+	storyRepo              repositories.StoryRepository
+	addReferenceUC         *scene.AddSceneReferenceUseCase
+	removeReferenceUC     *scene.RemoveSceneReferenceUseCase
+	getReferencesUC       *scene.GetSceneReferencesUseCase
+	logger                 logger.Logger
 }
 
 // NewSceneHandler creates a new SceneHandler
@@ -27,13 +32,19 @@ func NewSceneHandler(
 	sceneRepo repositories.SceneRepository,
 	chapterRepo repositories.ChapterRepository,
 	storyRepo repositories.StoryRepository,
+	addReferenceUC *scene.AddSceneReferenceUseCase,
+	removeReferenceUC *scene.RemoveSceneReferenceUseCase,
+	getReferencesUC *scene.GetSceneReferencesUseCase,
 	logger logger.Logger,
 ) *SceneHandler {
 	return &SceneHandler{
-		sceneRepo:   sceneRepo,
-		chapterRepo: chapterRepo,
-		storyRepo:   storyRepo,
-		logger:      logger,
+		sceneRepo:         sceneRepo,
+		chapterRepo:       chapterRepo,
+		storyRepo:         storyRepo,
+		addReferenceUC:    addReferenceUC,
+		removeReferenceUC: removeReferenceUC,
+		getReferencesUC:   getReferencesUC,
+		logger:            logger,
 	}
 }
 
@@ -290,6 +301,116 @@ func (h *SceneHandler) ListScenesByStory(ctx context.Context, req *scenepb.ListS
 		Scenes:     protoScenes,
 		TotalCount: int32(len(scenes)),
 	}, nil
+}
+
+// GetSceneReferences retrieves all references for a scene
+func (h *SceneHandler) GetSceneReferences(ctx context.Context, req *scenepb.GetSceneReferencesRequest) (*scenepb.GetSceneReferencesResponse, error) {
+	sceneID, err := uuid.Parse(req.SceneId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid scene_id: %v", err)
+	}
+
+	output, err := h.getReferencesUC.Execute(ctx, scene.GetSceneReferencesInput{
+		SceneID: sceneID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	references := make([]*scenepb.SceneReference, len(output.References))
+	for i, ref := range output.References {
+		references[i] = mappers.SceneReferenceToProto(ref)
+	}
+
+	return &scenepb.GetSceneReferencesResponse{
+		References: references,
+		TotalCount: int32(len(references)),
+	}, nil
+}
+
+// AddSceneReference adds a reference to a scene
+func (h *SceneHandler) AddSceneReference(ctx context.Context, req *scenepb.AddSceneReferenceRequest) (*scenepb.AddSceneReferenceResponse, error) {
+	sceneID, err := uuid.Parse(req.SceneId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid scene_id: %v", err)
+	}
+
+	entityID, err := uuid.Parse(req.EntityId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
+	}
+
+	entityType := story.SceneReferenceEntityType(req.EntityType)
+	if entityType != story.SceneReferenceEntityTypeCharacter &&
+		entityType != story.SceneReferenceEntityTypeLocation &&
+		entityType != story.SceneReferenceEntityTypeArtifact {
+		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character', 'location', or 'artifact'")
+	}
+
+	err = h.addReferenceUC.Execute(ctx, scene.AddSceneReferenceInput{
+		SceneID:    sceneID,
+		EntityType: entityType,
+		EntityID:   entityID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Fetch the created reference to return it
+	output, err := h.getReferencesUC.Execute(ctx, scene.GetSceneReferencesInput{
+		SceneID: sceneID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Find the reference we just created
+	var createdRef *story.SceneReference
+	for _, ref := range output.References {
+		if ref.EntityType == entityType && ref.EntityID == entityID {
+			createdRef = ref
+			break
+		}
+	}
+
+	if createdRef == nil {
+		return nil, status.Errorf(codes.Internal, "failed to retrieve created reference")
+	}
+
+	return &scenepb.AddSceneReferenceResponse{
+		Reference: mappers.SceneReferenceToProto(createdRef),
+	}, nil
+}
+
+// RemoveSceneReference removes a reference from a scene
+func (h *SceneHandler) RemoveSceneReference(ctx context.Context, req *scenepb.RemoveSceneReferenceRequest) (*scenepb.RemoveSceneReferenceResponse, error) {
+	sceneID, err := uuid.Parse(req.SceneId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid scene_id: %v", err)
+	}
+
+	entityID, err := uuid.Parse(req.EntityId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
+	}
+
+	entityType := story.SceneReferenceEntityType(req.EntityType)
+	if entityType != story.SceneReferenceEntityTypeCharacter &&
+		entityType != story.SceneReferenceEntityTypeLocation &&
+		entityType != story.SceneReferenceEntityTypeArtifact {
+		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character', 'location', or 'artifact'")
+	}
+
+	err = h.removeReferenceUC.Execute(ctx, scene.RemoveSceneReferenceInput{
+		SceneID:    sceneID,
+		EntityType: entityType,
+		EntityID:   entityID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &scenepb.RemoveSceneReferenceResponse{}, nil
 }
 
 // sceneToProto converts a domain Scene to a proto Scene message
