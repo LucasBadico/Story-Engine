@@ -775,7 +775,8 @@ Status: ${story.status}
     }
   }
   // Write chapter file
-  async writeChapterFile(chapterWithContent, filePath, storyName, proseBlocks) {
+  async writeChapterFile(chapterWithContent, filePath, storyName, proseBlocks, proseBlockRefs) {
+    var _a, _b;
     const { chapter, scenes } = chapterWithContent;
     const baseFields = {
       id: chapter.id,
@@ -795,33 +796,52 @@ Status: ${story.status}
 # ${chapter.title}
 
 `;
-    if (proseBlocks && proseBlocks.length > 0) {
-      content += `## Prose
+    const organization = this.organizeProseBlocks(
+      proseBlocks || [],
+      proseBlockRefs || [],
+      scenes
+    );
+    content += `## Prose
 
 `;
-      const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
-      for (const proseBlock of sortedProseBlocks) {
+    for (const proseBlock of organization.chapterOnly) {
+      const fileName = this.generateProseBlockFileName(proseBlock);
+      const linkName = fileName.replace(/\.md$/, "");
+      content += `[[${linkName}|${proseBlock.content}]]
+
+`;
+    }
+    for (const { scene, beats } of scenes) {
+      const sceneFileName = this.generateSceneFileName(scene);
+      const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+      const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+      content += `## [[${sceneLinkName}|${sceneDisplayText}]]
+
+`;
+      const sceneProseBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.proseBlocks) || [];
+      for (const proseBlock of sceneProseBlocks) {
         const fileName = this.generateProseBlockFileName(proseBlock);
         const linkName = fileName.replace(/\.md$/, "");
         content += `[[${linkName}|${proseBlock.content}]]
 
 `;
       }
-    }
-    if (scenes.length > 0) {
-      content += `## Scenes
+      for (const beat of beats) {
+        const beatFileName = this.generateBeatFileName(beat);
+        const beatLinkName = beatFileName.replace(/\.md$/, "");
+        const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+        content += `### [[${beatLinkName}|${beatDisplayText}]]
 
 `;
-      for (const { scene, beats } of scenes) {
-        content += `- [[Scene-${scene.order_num}]] - ${scene.goal || "No goal"}
-`;
-        if (beats.length > 0) {
-          content += `  - ${beats.length} beat(s)
+        const beatProseBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.proseBlocks) || [];
+        for (const proseBlock of beatProseBlocks) {
+          const fileName = this.generateProseBlockFileName(proseBlock);
+          const linkName = fileName.replace(/\.md$/, "");
+          content += `[[${linkName}|${proseBlock.content}]]
+
 `;
         }
       }
-      content += `
-`;
     }
     const file = this.vault.getAbstractFileByPath(filePath);
     if (file instanceof import_obsidian5.TFile) {
@@ -1084,6 +1104,75 @@ Status: ${story.status}
     const textPart = contentPreview || "prose-block";
     return `${dateStr}_${textPart}.md`;
   }
+  // Organize prose blocks by their associations (chapter, scene, beat)
+  organizeProseBlocks(proseBlocks, proseBlockRefs, scenes) {
+    const organization = {
+      chapterOnly: [],
+      byScene: /* @__PURE__ */ new Map(),
+      byBeat: /* @__PURE__ */ new Map()
+    };
+    const proseBlockRefsByProseBlock = /* @__PURE__ */ new Map();
+    for (const ref of proseBlockRefs) {
+      if (!proseBlockRefsByProseBlock.has(ref.prose_block_id)) {
+        proseBlockRefsByProseBlock.set(ref.prose_block_id, []);
+      }
+      proseBlockRefsByProseBlock.get(ref.prose_block_id).push(ref);
+    }
+    const sceneMap = /* @__PURE__ */ new Map();
+    const beatMap = /* @__PURE__ */ new Map();
+    for (const { scene, beats } of scenes) {
+      sceneMap.set(scene.id, scene);
+      for (const beat of beats) {
+        beatMap.set(beat.id, beat);
+      }
+    }
+    const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+    for (const proseBlock of sortedProseBlocks) {
+      const refs = proseBlockRefsByProseBlock.get(proseBlock.id) || [];
+      const sceneRef = refs.find((r) => r.entity_type === "scene");
+      const beatRef = refs.find((r) => r.entity_type === "beat");
+      if (beatRef && beatMap.has(beatRef.entity_id)) {
+        const beat = beatMap.get(beatRef.entity_id);
+        if (!organization.byBeat.has(beat.id)) {
+          organization.byBeat.set(beat.id, { beat, proseBlocks: [] });
+        }
+        organization.byBeat.get(beat.id).proseBlocks.push(proseBlock);
+      } else if (sceneRef && sceneMap.has(sceneRef.entity_id)) {
+        const scene = sceneMap.get(sceneRef.entity_id);
+        if (!organization.byScene.has(scene.id)) {
+          organization.byScene.set(scene.id, { scene, proseBlocks: [] });
+        }
+        organization.byScene.get(scene.id).proseBlocks.push(proseBlock);
+      } else {
+        organization.chapterOnly.push(proseBlock);
+      }
+    }
+    return organization;
+  }
+  // Generate filename for scene based on date and goal
+  generateSceneFileName(scene) {
+    const date = new Date(scene.created_at);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
+    const goalSanitized = (scene.goal || "scene").trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    return `${dateStr}_${goalSanitized}.md`;
+  }
+  // Generate filename for beat based on date and intent
+  generateBeatFileName(beat) {
+    const date = new Date(beat.created_at);
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
+    const intentSanitized = (beat.intent || "beat").trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    return `${dateStr}_${intentSanitized}.md`;
+  }
   // Write prose block file
   async writeProseBlockFile(proseBlock, filePath, storyName) {
     const baseFields = {
@@ -1143,37 +1232,172 @@ Status: ${story.status}
 var import_obsidian7 = require("obsidian");
 
 // src/sync/proseBlockParser.ts
-function parseChapterProse(chapterContent) {
-  const paragraphs = [];
+function parseHierarchicalProse(chapterContent) {
+  const sections = [];
   const frontmatterMatch = chapterContent.match(/^---\n([\s\S]*?)\n---/);
   const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
   const bodyContent = chapterContent.substring(contentStart).trim();
   const proseSectionMatch = bodyContent.match(/##\s+Prose\s*\n\n([\s\S]*?)(?=\n##|\n*$)/);
   if (!proseSectionMatch) {
-    return paragraphs;
+    return { sections: [] };
   }
   const proseContent = proseSectionMatch[1].trim();
-  const rawParagraphs = proseContent.split(/\n\n+/).filter((p) => p.trim().length > 0);
+  const lines = proseContent.split(/\n/);
+  let currentScene = null;
+  let currentBeat = null;
   let order = 0;
-  for (const rawPara of rawParagraphs) {
-    const linkMatch = rawPara.trim().match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
-    if (linkMatch) {
-      const linkName = linkMatch[1].trim();
-      const content = linkMatch[2].trim();
-      paragraphs.push({
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) {
+      continue;
+    }
+    const sceneMatch = line.match(/^##\s+(.+)$/);
+    if (sceneMatch) {
+      const sceneText = sceneMatch[1].trim();
+      const parsedScene = parseSceneHeader(sceneText);
+      parsedScene.originalOrder = order++;
+      currentScene = parsedScene;
+      currentBeat = null;
+      sections.push({
+        type: "scene",
+        scene: parsedScene,
+        originalOrder: parsedScene.originalOrder
+      });
+      continue;
+    }
+    const beatMatch = line.match(/^###\s+(.+)$/);
+    if (beatMatch) {
+      const beatText = beatMatch[1].trim();
+      const parsedBeat = parseBeatHeader(beatText);
+      parsedBeat.originalOrder = order++;
+      currentBeat = parsedBeat;
+      sections.push({
+        type: "beat",
+        beat: parsedBeat,
+        originalOrder: parsedBeat.originalOrder
+      });
+      continue;
+    }
+    const proseMatch = line.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+    if (proseMatch) {
+      const linkName = proseMatch[1].trim();
+      const content = proseMatch[2].trim();
+      const paragraph = {
         content,
         linkName,
         originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
       });
-    } else {
-      paragraphs.push({
-        content: rawPara.trim(),
+      continue;
+    }
+    if (line.length > 0) {
+      const paragraph = {
+        content: line,
         linkName: null,
         originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
       });
     }
   }
-  return paragraphs;
+  return { sections };
+}
+function parseSceneHeader(text) {
+  const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+  if (linkMatch) {
+    const linkName = linkMatch[1].trim();
+    const displayText = linkMatch[2].trim();
+    const { goal: goal2, timeRef: timeRef2 } = parseSceneText(displayText);
+    return {
+      linkName,
+      goal: goal2,
+      timeRef: timeRef2,
+      originalOrder: 0
+      // Will be set by caller
+    };
+  }
+  const simpleLinkMatch = text.match(/^\[\[([^\]]+)\]\]$/);
+  if (simpleLinkMatch) {
+    return {
+      linkName: simpleLinkMatch[1].trim(),
+      goal: "",
+      timeRef: "",
+      originalOrder: 0
+    };
+  }
+  const { goal, timeRef } = parseSceneText(text);
+  return {
+    linkName: null,
+    goal,
+    timeRef,
+    originalOrder: 0
+  };
+}
+function parseSceneText(text) {
+  const parts = text.split(/\s*-\s*/);
+  if (parts.length >= 2) {
+    return {
+      goal: parts[0].trim(),
+      timeRef: parts.slice(1).join(" - ").trim()
+      // Join in case there are multiple "-"
+    };
+  }
+  return {
+    goal: text.trim(),
+    timeRef: ""
+  };
+}
+function parseBeatHeader(text) {
+  const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+  if (linkMatch) {
+    const linkName = linkMatch[1].trim();
+    const displayText = linkMatch[2].trim();
+    const { intent: intent2, outcome: outcome2 } = parseBeatText(displayText);
+    return {
+      linkName,
+      intent: intent2,
+      outcome: outcome2,
+      originalOrder: 0
+      // Will be set by caller
+    };
+  }
+  const simpleLinkMatch = text.match(/^\[\[([^\]]+)\]\]$/);
+  if (simpleLinkMatch) {
+    return {
+      linkName: simpleLinkMatch[1].trim(),
+      intent: "",
+      outcome: "",
+      originalOrder: 0
+    };
+  }
+  const { intent, outcome } = parseBeatText(text);
+  return {
+    linkName: null,
+    intent,
+    outcome,
+    originalOrder: 0
+  };
+}
+function parseBeatText(text) {
+  const parts = text.split(/\s*->\s*/);
+  if (parts.length >= 2) {
+    return {
+      intent: parts[0].trim(),
+      outcome: parts.slice(1).join(" -> ").trim()
+      // Join in case there are multiple "->"
+    };
+  }
+  return {
+    intent: text.trim(),
+    outcome: ""
+  };
 }
 function compareProseBlocks(paragraph, localProseBlock, remoteProseBlock) {
   if (!paragraph.linkName) {
@@ -1327,6 +1551,11 @@ var SyncService = class {
       await this.fileManager.ensureFolderExists(chaptersFolderPath);
       for (const chapterWithContent of storyData.chapters) {
         const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
+        const proseBlockRefs = [];
+        for (const proseBlock of proseBlocks) {
+          const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
+          proseBlockRefs.push(...refs);
+        }
         for (const proseBlock of proseBlocks) {
           const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
           const proseBlockFilePath = `${proseBlocksFolderPath}/${proseBlockFileName}`;
@@ -1342,7 +1571,8 @@ var SyncService = class {
           chapterWithContent,
           chapterFilePath,
           storyData.story.title,
-          proseBlocks
+          proseBlocks,
+          proseBlockRefs
         );
         for (const { scene, beats } of chapterWithContent.scenes) {
           const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
@@ -1477,7 +1707,7 @@ var SyncService = class {
       throw err;
     }
   }
-  // Push prose blocks from a chapter file
+  // Push prose blocks from a chapter file (hierarchical structure)
   async pushChapterProseBlocks(chapterFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
     if (!(file instanceof import_obsidian7.TFile)) {
@@ -1485,119 +1715,227 @@ var SyncService = class {
     }
     const chapterContent = await this.fileManager.getVault().read(file);
     const frontmatter = this.fileManager.parseFrontmatter(chapterContent);
-    if (!frontmatter.id) {
-      throw new Error("Chapter metadata missing ID");
+    if (!frontmatter.id || !frontmatter.story_id) {
+      throw new Error("Chapter metadata missing ID or story_id");
     }
     const chapterId = frontmatter.id;
+    const storyId = frontmatter.story_id;
     const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
-    const paragraphs = parseChapterProse(chapterContent);
+    const hierarchical = parseHierarchicalProse(chapterContent);
     const remoteProseBlocks = await this.apiClient.getProseBlocks(chapterId);
     const remoteProseBlocksMap = /* @__PURE__ */ new Map();
     for (const pb of remoteProseBlocks) {
       remoteProseBlocksMap.set(pb.id, pb);
     }
-    const updatedParagraphs = [];
-    let newOrderNum = 1;
-    for (const paragraph of paragraphs) {
-      let localProseBlock = null;
-      let remoteProseBlock = null;
-      if (paragraph.linkName) {
-        const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-        localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
-        if (localProseBlock) {
-          remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
-        }
-      }
-      const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
-      let finalProseBlock;
-      let needsUpdate = false;
-      switch (status) {
-        case "new": {
-          finalProseBlock = await this.apiClient.createProseBlock(chapterId, {
-            order_num: newOrderNum++,
-            kind: "final",
-            content: paragraph.content
-          });
-          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-          const filePath = `${proseBlocksFolderPath}/${fileName}`;
-          await this.fileManager.writeProseBlockFile(
-            finalProseBlock,
-            filePath,
-            void 0
-          );
-          const linkName = fileName.replace(/\.md$/, "");
-          updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
-          break;
-        }
-        case "unchanged": {
-          if (localProseBlock && localProseBlock.order_num !== newOrderNum) {
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
-              order_num: newOrderNum++
-            });
-            needsUpdate = true;
-          } else {
-            finalProseBlock = localProseBlock;
-            newOrderNum++;
-          }
-          const linkName = paragraph.linkName;
-          updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
-          break;
-        }
-        case "local_modified": {
-          finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
-            content: paragraph.content,
-            order_num: newOrderNum++
-          });
-          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-          const filePath = `${proseBlocksFolderPath}/${fileName}`;
-          await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-          const linkName = fileName.replace(/\.md$/, "");
-          updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
-          break;
-        }
-        case "remote_modified": {
-          finalProseBlock = remoteProseBlock;
-          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-          const filePath = `${proseBlocksFolderPath}/${fileName}`;
-          await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-          const linkName = fileName.replace(/\.md$/, "");
-          updatedParagraphs.push(`[[${linkName}|${finalProseBlock.content}]]`);
-          new import_obsidian7.Notice(`Prose block updated from remote: ${linkName}`, 3e3);
-          newOrderNum++;
-          break;
-        }
-        case "conflict": {
-          const resolution = await this.resolveConflict(
-            localProseBlock,
-            remoteProseBlock
-          );
-          let resolvedContent;
-          if (resolution.resolution === "local") {
-            resolvedContent = paragraph.content;
-          } else if (resolution.resolution === "remote") {
-            resolvedContent = remoteProseBlock.content;
-          } else {
-            resolvedContent = resolution.mergedContent || paragraph.content;
-          }
-          finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
-            content: resolvedContent,
-            order_num: newOrderNum++
-          });
-          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-          const filePath = `${proseBlocksFolderPath}/${fileName}`;
-          await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-          const linkName = fileName.replace(/\.md$/, "");
-          updatedParagraphs.push(`[[${linkName}|${resolvedContent}]]`);
-          break;
-        }
-      }
-      if (needsUpdate && finalProseBlock) {
-        const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-        const filePath = `${proseBlocksFolderPath}/${fileName}`;
-        await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+    const existingScenes = await this.apiClient.getScenes(chapterId);
+    const sceneMap = /* @__PURE__ */ new Map();
+    const sceneIdMap = /* @__PURE__ */ new Map();
+    for (const scene of existingScenes) {
+      const fileName = this.fileManager.generateSceneFileName(scene);
+      const linkName = fileName.replace(/\.md$/, "");
+      sceneMap.set(linkName, scene);
+      sceneIdMap.set(scene.id, scene);
+    }
+    const beatMap = /* @__PURE__ */ new Map();
+    const beatIdMap = /* @__PURE__ */ new Map();
+    for (const scene of existingScenes) {
+      const beats = await this.apiClient.getBeats(scene.id);
+      for (const beat of beats) {
+        const fileName = this.fileManager.generateBeatFileName(beat);
+        const linkName = fileName.replace(/\.md$/, "");
+        beatMap.set(linkName, beat);
+        beatIdMap.set(beat.id, beat);
       }
     }
-    await this.updateChapterProseSection(chapterContent, updatedParagraphs, file);
+    const updatedSections = [];
+    let currentScene = null;
+    let currentBeat = null;
+    let proseOrderNum = 1;
+    let sceneOrderNum = existingScenes.length > 0 ? Math.max(...existingScenes.map((s) => s.order_num)) + 1 : 1;
+    for (const section of hierarchical.sections) {
+      if (section.type === "scene" && section.scene) {
+        const { scene: parsedScene } = section;
+        if (parsedScene.linkName) {
+          currentScene = sceneMap.get(parsedScene.linkName) || null;
+          if (!currentScene) {
+            currentScene = sceneIdMap.get(parsedScene.linkName) || null;
+          }
+          if (currentScene) {
+            if (parsedScene.goal !== currentScene.goal || parsedScene.timeRef !== currentScene.time_ref) {
+              currentScene = await this.apiClient.updateScene(currentScene.id, {
+                goal: parsedScene.goal,
+                time_ref: parsedScene.timeRef
+              });
+            }
+          }
+        } else {
+          currentScene = await this.apiClient.createScene({
+            story_id: storyId,
+            chapter_id: chapterId,
+            order_num: sceneOrderNum++,
+            goal: parsedScene.goal,
+            time_ref: parsedScene.timeRef
+          });
+          const sceneFileName = this.fileManager.generateSceneFileName(currentScene);
+          const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          sceneMap.set(sceneLinkName, currentScene);
+          sceneIdMap.set(currentScene.id, currentScene);
+        }
+        if (currentScene) {
+          const sceneFileName = this.fileManager.generateSceneFileName(currentScene);
+          const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          const sceneDisplayText = currentScene.time_ref ? `${currentScene.goal} - ${currentScene.time_ref}` : currentScene.goal;
+          updatedSections.push(`## [[${sceneLinkName}|${sceneDisplayText}]]`);
+        }
+        currentBeat = null;
+      } else if (section.type === "beat" && section.beat) {
+        const { beat: parsedBeat } = section;
+        if (!currentScene) {
+          throw new Error("Beat found without a parent scene");
+        }
+        if (parsedBeat.linkName) {
+          currentBeat = beatMap.get(parsedBeat.linkName) || null;
+          if (!currentBeat) {
+            currentBeat = beatIdMap.get(parsedBeat.linkName) || null;
+          }
+          if (currentBeat) {
+            if (parsedBeat.intent !== currentBeat.intent || parsedBeat.outcome !== currentBeat.outcome) {
+              currentBeat = await this.apiClient.updateBeat(currentBeat.id, {
+                intent: parsedBeat.intent,
+                outcome: parsedBeat.outcome
+              });
+            }
+          }
+        } else {
+          const existingBeats = await this.apiClient.getBeats(currentScene.id);
+          const beatOrderNum = existingBeats.length > 0 ? Math.max(...existingBeats.map((b) => b.order_num)) + 1 : 1;
+          currentBeat = await this.apiClient.createBeat({
+            scene_id: currentScene.id,
+            order_num: beatOrderNum,
+            type: "setup",
+            // Default type
+            intent: parsedBeat.intent,
+            outcome: parsedBeat.outcome
+          });
+          const beatFileName = this.fileManager.generateBeatFileName(currentBeat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          beatMap.set(beatLinkName, currentBeat);
+          beatIdMap.set(currentBeat.id, currentBeat);
+        }
+        if (currentBeat) {
+          const beatFileName = this.fileManager.generateBeatFileName(currentBeat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatDisplayText = currentBeat.outcome ? `${currentBeat.intent} -> ${currentBeat.outcome}` : currentBeat.intent;
+          updatedSections.push(`### [[${beatLinkName}|${beatDisplayText}]]`);
+        }
+      } else if (section.type === "prose" && section.prose) {
+        const { prose: paragraph } = section;
+        let localProseBlock = null;
+        let remoteProseBlock = null;
+        if (paragraph.linkName) {
+          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
+          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+          if (localProseBlock) {
+            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          }
+        }
+        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+        let finalProseBlock;
+        switch (status) {
+          case "new": {
+            finalProseBlock = await this.apiClient.createProseBlock(chapterId, {
+              order_num: proseOrderNum++,
+              kind: "final",
+              content: paragraph.content
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            if (currentScene) {
+              await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+            }
+            if (currentBeat) {
+              await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+            }
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            break;
+          }
+          case "unchanged": {
+            if (localProseBlock && localProseBlock.order_num !== proseOrderNum) {
+              finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+                order_num: proseOrderNum++
+              });
+              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const filePath = `${proseBlocksFolderPath}/${fileName}`;
+              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            } else {
+              finalProseBlock = localProseBlock;
+              proseOrderNum++;
+            }
+            if (finalProseBlock) {
+              const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+              const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
+              const hasBeatRef = existingRefs.some((r) => r.entity_type === "beat" && r.entity_id === (currentBeat == null ? void 0 : currentBeat.id));
+              if (currentScene && !hasSceneRef) {
+                await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+              }
+              if (currentBeat && !hasBeatRef) {
+                await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+              }
+            }
+            const linkName = paragraph.linkName;
+            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            break;
+          }
+          case "local_modified": {
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: paragraph.content,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            break;
+          }
+          case "remote_modified": {
+            finalProseBlock = remoteProseBlock;
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${finalProseBlock.content}]]`);
+            new import_obsidian7.Notice(`Prose block updated from remote: ${linkName}`, 3e3);
+            proseOrderNum++;
+            break;
+          }
+          case "conflict": {
+            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
+            let resolvedContent;
+            if (resolution.resolution === "local") {
+              resolvedContent = paragraph.content;
+            } else if (resolution.resolution === "remote") {
+              resolvedContent = remoteProseBlock.content;
+            } else {
+              resolvedContent = resolution.mergedContent || paragraph.content;
+            }
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: resolvedContent,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
+            break;
+          }
+        }
+      }
+    }
+    await this.updateChapterProseSectionHierarchical(chapterContent, updatedSections, file);
   }
   // Resolve conflict using modal
   async resolveConflict(localProseBlock, remoteProseBlock) {
@@ -1612,6 +1950,36 @@ var SyncService = class {
       );
       modal.open();
     });
+  }
+  // Update the Prose section in chapter file (hierarchical structure)
+  async updateChapterProseSectionHierarchical(originalContent, updatedSections, file) {
+    const frontmatterMatch = originalContent.match(/^---\n([\s\S]*?)\n---/);
+    const frontmatter = frontmatterMatch ? frontmatterMatch[0] : "";
+    const bodyStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+    const bodyContent = originalContent.substring(bodyStart).trim();
+    const proseSectionMatch = bodyContent.match(/([\s\S]*?##\s+Prose\s*\n\n)([\s\S]*?)(?=\n##|\n*$)/);
+    if (!proseSectionMatch) {
+      const newProseSection = `
+
+## Prose
+
+${updatedSections.join("\n\n")}
+
+`;
+      const updatedContent2 = `${frontmatter}
+${bodyContent}${newProseSection}`;
+      await this.fileManager.getVault().modify(file, updatedContent2);
+      return;
+    }
+    const beforeProse = proseSectionMatch[1];
+    const newProseContent = updatedSections.join("\n\n");
+    const afterProse = bodyContent.substring(proseSectionMatch.index + proseSectionMatch[0].length);
+    const updatedBody = `${beforeProse}${newProseContent}
+
+${afterProse}`;
+    const updatedContent = `${frontmatter}
+${updatedBody}`;
+    await this.fileManager.getVault().modify(file, updatedContent);
   }
   // Update the Prose section in chapter file
   async updateChapterProseSection(originalContent, updatedParagraphs, file) {

@@ -1,5 +1,12 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
-import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats, ProseBlock } from "../types";
+import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats, ProseBlock, ProseBlockReference } from "../types";
+
+// Structure to organize prose blocks by their associations
+export interface ProseBlockOrganization {
+	chapterOnly: ProseBlock[]; // Prose blocks only associated with chapter
+	byScene: Map<string, { scene: Scene; proseBlocks: ProseBlock[] }>; // Prose blocks by scene ID
+	byBeat: Map<string, { beat: Beat; proseBlocks: ProseBlock[] }>; // Prose blocks by beat ID
+}
 
 export class FileManager {
 	constructor(
@@ -147,7 +154,8 @@ export class FileManager {
 		chapterWithContent: ChapterWithContent,
 		filePath: string,
 		storyName?: string,
-		proseBlocks?: ProseBlock[]
+		proseBlocks?: ProseBlock[],
+		proseBlockRefs?: ProseBlockReference[]
 	): Promise<void> {
 		const { chapter, scenes } = chapterWithContent;
 
@@ -169,30 +177,61 @@ export class FileManager {
 
 		let content = `${frontmatter}\n# ${chapter.title}\n\n`;
 
-		// Add prose blocks section with content and links
-		if (proseBlocks && proseBlocks.length > 0) {
-			content += `## Prose\n\n`;
-			// Sort by order_num
-			const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
-			for (const proseBlock of sortedProseBlocks) {
-				const fileName = this.generateProseBlockFileName(proseBlock);
-				// Remove .md extension for link
-				const linkName = fileName.replace(/\.md$/, "");
-				// Include content directly and add link below
-				content += `[[${linkName}|${proseBlock.content}]]\n\n`;
-			}
+		// Organize prose blocks by their associations
+		const organization = this.organizeProseBlocks(
+			proseBlocks || [],
+			proseBlockRefs || [],
+			scenes
+		);
+
+		// Generate hierarchical prose section
+		content += `## Prose\n\n`;
+
+		// Add prose blocks that are only associated with chapter
+		for (const proseBlock of organization.chapterOnly) {
+			const fileName = this.generateProseBlockFileName(proseBlock);
+			const linkName = fileName.replace(/\.md$/, "");
+			content += `[[${linkName}|${proseBlock.content}]]\n\n`;
 		}
 
-		// Add scenes summary (scenes are written as separate files)
-		if (scenes.length > 0) {
-			content += `## Scenes\n\n`;
-			for (const { scene, beats } of scenes) {
-				content += `- [[Scene-${scene.order_num}]] - ${scene.goal || "No goal"}\n`;
-				if (beats.length > 0) {
-					content += `  - ${beats.length} beat(s)\n`;
+		// Add scenes with their prose blocks and beats
+		for (const { scene, beats } of scenes) {
+			const sceneFileName = this.generateSceneFileName(scene);
+			const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+			
+			// Format scene header: ## [[link|goal - timeRef]] or ## [[link|goal]]
+			const sceneDisplayText = scene.time_ref 
+				? `${scene.goal} - ${scene.time_ref}`
+				: scene.goal;
+			content += `## [[${sceneLinkName}|${sceneDisplayText}]]\n\n`;
+
+			// Get prose blocks for this scene (not associated with any beat)
+			const sceneProseBlocks = organization.byScene.get(scene.id)?.proseBlocks || [];
+			for (const proseBlock of sceneProseBlocks) {
+				const fileName = this.generateProseBlockFileName(proseBlock);
+				const linkName = fileName.replace(/\.md$/, "");
+				content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+			}
+
+			// Add beats with their prose blocks
+			for (const beat of beats) {
+				const beatFileName = this.generateBeatFileName(beat);
+				const beatLinkName = beatFileName.replace(/\.md$/, "");
+				
+				// Format beat header: ### [[link|intent -> outcome]] or ### [[link|intent]]
+				const beatDisplayText = beat.outcome
+					? `${beat.intent} -> ${beat.outcome}`
+					: beat.intent;
+				content += `### [[${beatLinkName}|${beatDisplayText}]]\n\n`;
+
+				// Get prose blocks for this beat
+				const beatProseBlocks = organization.byBeat.get(beat.id)?.proseBlocks || [];
+				for (const proseBlock of beatProseBlocks) {
+					const fileName = this.generateProseBlockFileName(proseBlock);
+					const linkName = fileName.replace(/\.md$/, "");
+					content += `[[${linkName}|${proseBlock.content}]]\n\n`;
 				}
 			}
-			content += `\n`;
 		}
 
 		const file = this.vault.getAbstractFileByPath(filePath);
@@ -514,6 +553,120 @@ export class FileManager {
 		const textPart = contentPreview || "prose-block";
 
 		return `${dateStr}_${textPart}.md`;
+	}
+
+	// Organize prose blocks by their associations (chapter, scene, beat)
+	private organizeProseBlocks(
+		proseBlocks: ProseBlock[],
+		proseBlockRefs: ProseBlockReference[],
+		scenes: SceneWithBeats[]
+	): ProseBlockOrganization {
+		const organization: ProseBlockOrganization = {
+			chapterOnly: [],
+			byScene: new Map(),
+			byBeat: new Map(),
+		};
+
+		// Create maps for quick lookup
+		const proseBlockRefsByProseBlock = new Map<string, ProseBlockReference[]>();
+		for (const ref of proseBlockRefs) {
+			if (!proseBlockRefsByProseBlock.has(ref.prose_block_id)) {
+				proseBlockRefsByProseBlock.set(ref.prose_block_id, []);
+			}
+			proseBlockRefsByProseBlock.get(ref.prose_block_id)!.push(ref);
+		}
+
+		// Create scene and beat maps for quick lookup
+		const sceneMap = new Map<string, Scene>();
+		const beatMap = new Map<string, Beat>();
+		for (const { scene, beats } of scenes) {
+			sceneMap.set(scene.id, scene);
+			for (const beat of beats) {
+				beatMap.set(beat.id, beat);
+			}
+		}
+
+		// Sort prose blocks by order_num
+		const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+
+		for (const proseBlock of sortedProseBlocks) {
+			const refs = proseBlockRefsByProseBlock.get(proseBlock.id) || [];
+			
+			// Find scene and beat references
+			const sceneRef = refs.find(r => r.entity_type === "scene");
+			const beatRef = refs.find(r => r.entity_type === "beat");
+
+			if (beatRef && beatMap.has(beatRef.entity_id)) {
+				// Associated with a beat (and implicitly with its scene)
+				const beat = beatMap.get(beatRef.entity_id)!;
+				if (!organization.byBeat.has(beat.id)) {
+					organization.byBeat.set(beat.id, { beat, proseBlocks: [] });
+				}
+				organization.byBeat.get(beat.id)!.proseBlocks.push(proseBlock);
+			} else if (sceneRef && sceneMap.has(sceneRef.entity_id)) {
+				// Associated with a scene but not a beat
+				const scene = sceneMap.get(sceneRef.entity_id)!;
+				if (!organization.byScene.has(scene.id)) {
+					organization.byScene.set(scene.id, { scene, proseBlocks: [] });
+				}
+				organization.byScene.get(scene.id)!.proseBlocks.push(proseBlock);
+			} else {
+				// Only associated with chapter
+				organization.chapterOnly.push(proseBlock);
+			}
+		}
+
+		return organization;
+	}
+
+	// Generate filename for scene based on date and goal
+	generateSceneFileName(scene: Scene): string {
+		// Parse created_at date
+		const date = new Date(scene.created_at);
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		const hours = String(date.getHours()).padStart(2, "0");
+		const minutes = String(date.getMinutes()).padStart(2, "0");
+		
+		// Format: 2024-01-15T14-30
+		const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
+
+		// Sanitize goal for filename
+		const goalSanitized = (scene.goal || "scene")
+			.trim()
+			.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
+			.replace(/\s+/g, "-")
+			.replace(/-+/g, "-")
+			.replace(/^-|-$/g, "")
+			.toLowerCase();
+
+		return `${dateStr}_${goalSanitized}.md`;
+	}
+
+	// Generate filename for beat based on date and intent
+	generateBeatFileName(beat: Beat): string {
+		// Parse created_at date
+		const date = new Date(beat.created_at);
+		const year = date.getFullYear();
+		const month = String(date.getMonth() + 1).padStart(2, "0");
+		const day = String(date.getDate()).padStart(2, "0");
+		const hours = String(date.getHours()).padStart(2, "0");
+		const minutes = String(date.getMinutes()).padStart(2, "0");
+		
+		// Format: 2024-01-15T14-30
+		const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
+
+		// Sanitize intent for filename
+		const intentSanitized = (beat.intent || "beat")
+			.trim()
+			.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
+			.replace(/\s+/g, "-")
+			.replace(/-+/g, "-")
+			.replace(/^-|-$/g, "")
+			.toLowerCase();
+
+		return `${dateStr}_${intentSanitized}.md`;
 	}
 
 	// Write prose block file

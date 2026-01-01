@@ -6,6 +6,32 @@ export interface ParsedParagraph {
 	originalOrder: number; // Posição no chapter (0-indexed)
 }
 
+export interface ParsedScene {
+	linkName: string | null; // Nome do arquivo (se tiver link)
+	goal: string; // Texto antes do "-" ou texto completo se não tiver "-"
+	timeRef: string; // Texto depois do "-" ou vazio
+	originalOrder: number; // Posição no chapter (0-indexed)
+}
+
+export interface ParsedBeat {
+	linkName: string | null; // Nome do arquivo (se tiver link)
+	intent: string; // Texto antes do "->" ou texto completo se não tiver "->"
+	outcome: string; // Texto depois do "->" ou vazio
+	originalOrder: number; // Posição relativa à scene (0-indexed)
+}
+
+export interface ParsedSection {
+	type: "prose" | "scene" | "beat";
+	prose?: ParsedParagraph;
+	scene?: ParsedScene;
+	beat?: ParsedBeat;
+	originalOrder: number; // Posição absoluta no chapter (0-indexed)
+}
+
+export interface HierarchicalProse {
+	sections: ParsedSection[];
+}
+
 export interface ProseBlockComparison {
 	paragraph: ParsedParagraph;
 	localProseBlock: ProseBlock | null; // Do arquivo .md
@@ -15,10 +41,10 @@ export interface ProseBlockComparison {
 
 /**
  * Parse the Prose section from a chapter markdown content
- * Extracts paragraphs and identifies which ones have links to prose blocks
+ * Extracts hierarchical structure: scenes (##), beats (###), and prose blocks
  */
-export function parseChapterProse(chapterContent: string): ParsedParagraph[] {
-	const paragraphs: ParsedParagraph[] = [];
+export function parseHierarchicalProse(chapterContent: string): HierarchicalProse {
+	const sections: ParsedSection[] = [];
 
 	// Extract content after frontmatter
 	const frontmatterMatch = chapterContent.match(/^---\n([\s\S]*?)\n---/);
@@ -28,37 +54,217 @@ export function parseChapterProse(chapterContent: string): ParsedParagraph[] {
 	// Find the "## Prose" section
 	const proseSectionMatch = bodyContent.match(/##\s+Prose\s*\n\n([\s\S]*?)(?=\n##|\n*$)/);
 	if (!proseSectionMatch) {
-		return paragraphs;
+		return { sections: [] };
 	}
 
 	const proseContent = proseSectionMatch[1].trim();
+	const lines = proseContent.split(/\n/);
 
-	// Split by double newlines to get paragraphs
-	const rawParagraphs = proseContent.split(/\n\n+/).filter((p) => p.trim().length > 0);
-
+	let currentScene: ParsedScene | null = null;
+	let currentBeat: ParsedBeat | null = null;
 	let order = 0;
-	for (const rawPara of rawParagraphs) {
-		// Check if paragraph is a link in format [[name|content]]
-		// The entire paragraph should be just the link
-		const linkMatch = rawPara.trim().match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
-		
-		if (linkMatch) {
-			// Has link - extract link name and content
-			const linkName = linkMatch[1].trim();
-			const content = linkMatch[2].trim();
-			
-			paragraphs.push({
+
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i].trim();
+
+		// Empty line - skip
+		if (!line) {
+			continue;
+		}
+
+		// Check for scene header: ## [[link|text]] or ## text
+		const sceneMatch = line.match(/^##\s+(.+)$/);
+		if (sceneMatch) {
+			const sceneText = sceneMatch[1].trim();
+			const parsedScene = parseSceneHeader(sceneText);
+			parsedScene.originalOrder = order++;
+			currentScene = parsedScene;
+			currentBeat = null; // Reset beat when new scene starts
+			sections.push({
+				type: "scene",
+				scene: parsedScene,
+				originalOrder: parsedScene.originalOrder,
+			});
+			continue;
+		}
+
+		// Check for beat header: ### [[link|text]] or ### text
+		const beatMatch = line.match(/^###\s+(.+)$/);
+		if (beatMatch) {
+			const beatText = beatMatch[1].trim();
+			const parsedBeat = parseBeatHeader(beatText);
+			parsedBeat.originalOrder = order++;
+			currentBeat = parsedBeat;
+			sections.push({
+				type: "beat",
+				beat: parsedBeat,
+				originalOrder: parsedBeat.originalOrder,
+			});
+			continue;
+		}
+
+		// Check for prose block: [[link|content]] or plain text
+		const proseMatch = line.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+		if (proseMatch) {
+			const linkName = proseMatch[1].trim();
+			const content = proseMatch[2].trim();
+			const paragraph: ParsedParagraph = {
 				content,
 				linkName,
 				originalOrder: order++,
+			};
+			sections.push({
+				type: "prose",
+				prose: paragraph,
+				originalOrder: paragraph.originalOrder,
 			});
-		} else {
-			// No link - new prose block (just plain text)
-			paragraphs.push({
-				content: rawPara.trim(),
+			continue;
+		}
+
+		// Plain text paragraph (new prose block without link)
+		if (line.length > 0) {
+			const paragraph: ParsedParagraph = {
+				content: line,
 				linkName: null,
 				originalOrder: order++,
+			};
+			sections.push({
+				type: "prose",
+				prose: paragraph,
+				originalOrder: paragraph.originalOrder,
 			});
+		}
+	}
+
+	return { sections };
+}
+
+/**
+ * Parse a scene header: ## [[link|goal - timeRef]] or ## goal - timeRef or ## goal
+ */
+function parseSceneHeader(text: string): ParsedScene {
+	// Check if it's a link format: [[link|text]]
+	const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+	if (linkMatch) {
+		const linkName = linkMatch[1].trim();
+		const displayText = linkMatch[2].trim();
+		const { goal, timeRef } = parseSceneText(displayText);
+		return {
+			linkName,
+			goal,
+			timeRef,
+			originalOrder: 0, // Will be set by caller
+		};
+	}
+
+	// Check if it's just a link: [[link]]
+	const simpleLinkMatch = text.match(/^\[\[([^\]]+)\]\]$/);
+	if (simpleLinkMatch) {
+		return {
+			linkName: simpleLinkMatch[1].trim(),
+			goal: "",
+			timeRef: "",
+			originalOrder: 0,
+		};
+	}
+
+	// Plain text - parse goal and timeRef
+	const { goal, timeRef } = parseSceneText(text);
+	return {
+		linkName: null,
+		goal,
+		timeRef,
+		originalOrder: 0,
+	};
+}
+
+/**
+ * Parse scene text to extract goal and timeRef
+ * Format: "goal - timeRef" or just "goal"
+ */
+function parseSceneText(text: string): { goal: string; timeRef: string } {
+	const parts = text.split(/\s*-\s*/);
+	if (parts.length >= 2) {
+		return {
+			goal: parts[0].trim(),
+			timeRef: parts.slice(1).join(" - ").trim(), // Join in case there are multiple "-"
+		};
+	}
+	return {
+		goal: text.trim(),
+		timeRef: "",
+	};
+}
+
+/**
+ * Parse a beat header: ### [[link|intent -> outcome]] or ### intent -> outcome or ### intent
+ */
+function parseBeatHeader(text: string): ParsedBeat {
+	// Check if it's a link format: [[link|text]]
+	const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+	if (linkMatch) {
+		const linkName = linkMatch[1].trim();
+		const displayText = linkMatch[2].trim();
+		const { intent, outcome } = parseBeatText(displayText);
+		return {
+			linkName,
+			intent,
+			outcome,
+			originalOrder: 0, // Will be set by caller
+		};
+	}
+
+	// Check if it's just a link: [[link]]
+	const simpleLinkMatch = text.match(/^\[\[([^\]]+)\]\]$/);
+	if (simpleLinkMatch) {
+		return {
+			linkName: simpleLinkMatch[1].trim(),
+			intent: "",
+			outcome: "",
+			originalOrder: 0,
+		};
+	}
+
+	// Plain text - parse intent and outcome
+	const { intent, outcome } = parseBeatText(text);
+	return {
+		linkName: null,
+		intent,
+		outcome,
+		originalOrder: 0,
+	};
+}
+
+/**
+ * Parse beat text to extract intent and outcome
+ * Format: "intent -> outcome" or just "intent"
+ */
+function parseBeatText(text: string): { intent: string; outcome: string } {
+	const parts = text.split(/\s*->\s*/);
+	if (parts.length >= 2) {
+		return {
+			intent: parts[0].trim(),
+			outcome: parts.slice(1).join(" -> ").trim(), // Join in case there are multiple "->"
+		};
+	}
+	return {
+		intent: text.trim(),
+		outcome: "",
+	};
+}
+
+/**
+ * Legacy function - kept for backward compatibility
+ * Parse the Prose section from a chapter markdown content
+ * Extracts paragraphs and identifies which ones have links to prose blocks
+ */
+export function parseChapterProse(chapterContent: string): ParsedParagraph[] {
+	const hierarchical = parseHierarchicalProse(chapterContent);
+	const paragraphs: ParsedParagraph[] = [];
+
+	for (const section of hierarchical.sections) {
+		if (section.type === "prose" && section.prose) {
+			paragraphs.push(section.prose);
 		}
 	}
 
@@ -120,4 +326,3 @@ export function compareProseBlocks(
 	// Default to conflict if unclear
 	return "conflict";
 }
-
