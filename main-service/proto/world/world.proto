@@ -1,0 +1,92 @@
+syntax = "proto3";
+package world;
+option go_package = "github.com/story-engine/main-service/proto/world";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// World represents a world entity
+message World {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  string genre = 5;
+  bool is_implicit = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// CreateWorldRequest is the request to create a new world
+message CreateWorldRequest {
+  string tenant_id = 1; // optional if provided in metadata
+  string name = 2;
+  string description = 3;
+  string genre = 4;
+  bool is_implicit = 5;
+}
+
+// CreateWorldResponse is the response after creating a world
+message CreateWorldResponse {
+  World world = 1;
+}
+
+// GetWorldRequest is the request to get a world by ID
+message GetWorldRequest {
+  string id = 1;
+}
+
+// GetWorldResponse is the response containing a world
+message GetWorldResponse {
+  World world = 1;
+}
+
+// ListWorldsRequest is the request to list worlds for a tenant
+message ListWorldsRequest {
+  string tenant_id = 1; // optional if provided in metadata
+  common.PaginationRequest pagination = 2;
+}
+
+// ListWorldsResponse is the response containing a list of worlds
+message ListWorldsResponse {
+  repeated World worlds = 1;
+  int32 total_count = 2;
+}
+
+// UpdateWorldRequest is the request to update a world
+message UpdateWorldRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string genre = 4;
+  optional bool is_implicit = 5;
+}
+
+// UpdateWorldResponse is the response after updating a world
+message UpdateWorldResponse {
+  World world = 1;
+}
+
+// DeleteWorldRequest is the request to delete a world
+message DeleteWorldRequest {
+  string id = 1;
+}
+
+// DeleteWorldResponse is the response after deleting a world
+message DeleteWorldResponse {
+}
+
+// WorldService provides world management operations
+service WorldService {
+  // CreateWorld creates a new world
+  rpc CreateWorld(CreateWorldRequest) returns (CreateWorldResponse);
+  // GetWorld retrieves a world by ID
+  rpc GetWorld(GetWorldRequest) returns (GetWorldResponse);
+  // UpdateWorld updates an existing world
+  rpc UpdateWorld(UpdateWorldRequest) returns (UpdateWorldResponse);
+  // ListWorlds lists worlds for a tenant with pagination
+  rpc ListWorlds(ListWorldsRequest) returns (ListWorldsResponse);
+  // DeleteWorld deletes a world
+  rpc DeleteWorld(DeleteWorldRequest) returns (DeleteWorldResponse);
+}
+

@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	worldapp "github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/application/story"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
@@ -37,6 +38,7 @@ func main() {
 
 	// Initialize repositories
 	tenantRepo := postgres.NewTenantRepository(pgDB)
+	worldRepo := postgres.NewWorldRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -47,7 +49,12 @@ func main() {
 
 	// Initialize use cases
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := worldapp.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	getWorldUseCase := worldapp.NewGetWorldUseCase(worldRepo, log)
+	listWorldsUseCase := worldapp.NewListWorldsUseCase(worldRepo, log)
+	updateWorldUseCase := worldapp.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
+	deleteWorldUseCase := worldapp.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
 		chapterRepo,
@@ -62,6 +69,7 @@ func main() {
 
 	// Create handlers
 	tenantHandler := handlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
+	worldHandler := handlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	storyHandler := handlers.NewStoryHandler(
 		createStoryUseCase,
 		cloneStoryUseCase,
@@ -73,6 +81,7 @@ func main() {
 	// Create and configure gRPC server
 	grpcServer := grpcserver.NewServer(cfg, log)
 	grpcServer.RegisterTenantService(tenantHandler)
+	grpcServer.RegisterWorldService(worldHandler)
 	grpcServer.RegisterStoryService(storyHandler)
 
 	// Setup graceful shutdown

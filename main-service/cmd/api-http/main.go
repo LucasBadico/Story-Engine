@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	worldapp "github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/application/story"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
@@ -40,6 +41,7 @@ func main() {
 
 	// Initialize repositories
 	tenantRepo := postgres.NewTenantRepository(pgDB)
+	worldRepo := postgres.NewWorldRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -51,7 +53,12 @@ func main() {
 
 	// Initialize use cases
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := worldapp.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	getWorldUseCase := worldapp.NewGetWorldUseCase(worldRepo, log)
+	listWorldsUseCase := worldapp.NewListWorldsUseCase(worldRepo, log)
+	updateWorldUseCase := worldapp.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
+	deleteWorldUseCase := worldapp.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
 		chapterRepo,
@@ -65,6 +72,7 @@ func main() {
 
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
+	worldHandler := httphandlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
 	chapterHandler := httphandlers.NewChapterHandler(chapterRepo, storyRepo, log)
 	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
@@ -78,6 +86,12 @@ func main() {
 	// Register routes
 	mux.HandleFunc("POST /api/v1/tenants", tenantHandler.Create)
 	mux.HandleFunc("GET /api/v1/tenants/{id}", tenantHandler.Get)
+
+	mux.HandleFunc("POST /api/v1/worlds", worldHandler.Create)
+	mux.HandleFunc("GET /api/v1/worlds", worldHandler.List)
+	mux.HandleFunc("GET /api/v1/worlds/{id}", worldHandler.Get)
+	mux.HandleFunc("PUT /api/v1/worlds/{id}", worldHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/worlds/{id}", worldHandler.Delete)
 
 	mux.HandleFunc("POST /api/v1/stories", storyHandler.Create)
 	mux.HandleFunc("GET /api/v1/stories/{id}", storyHandler.Get)

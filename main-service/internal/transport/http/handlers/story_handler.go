@@ -46,7 +46,8 @@ func (h *StoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Title string `json:"title"`
+		Title   string     `json:"title"`
+		WorldID *uuid.UUID `json:"world_id"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -68,6 +69,7 @@ func (h *StoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	output, err := h.createStoryUseCase.Execute(r.Context(), storyapp.CreateStoryInput{
 		TenantID: tenantID,
 		Title:    req.Title,
+		WorldID:  req.WorldID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

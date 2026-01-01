@@ -13,6 +13,7 @@ import (
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
+	worldpb "github.com/story-engine/main-service/proto/world"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -66,6 +67,12 @@ func (s *Server) RegisterTenantService(handler tenantpb.TenantServiceServer) {
 func (s *Server) RegisterStoryService(handler storypb.StoryServiceServer) {
 	storypb.RegisterStoryServiceServer(s.grpcServer, handler)
 	s.logger.Info("StoryService registered")
+}
+
+// RegisterWorldService registers the WorldService handler
+func (s *Server) RegisterWorldService(handler worldpb.WorldServiceServer) {
+	worldpb.RegisterWorldServiceServer(s.grpcServer, handler)
+	s.logger.Info("WorldService registered")
 }
 
 // RegisterChapterService registers the ChapterService handler

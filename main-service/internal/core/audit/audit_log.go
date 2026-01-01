@@ -31,6 +31,7 @@ const (
 	EntityTypeScene      EntityType = "scene"
 	EntityTypeBeat       EntityType = "beat"
 	EntityTypeProseBlock EntityType = "prose_block"
+	EntityTypeWorld      EntityType = "world"
 )
 
 // AuditLog represents an audit log entry

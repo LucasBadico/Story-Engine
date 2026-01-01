@@ -24,6 +24,7 @@ type Story struct {
 	VersionNumber   int         `json:"version_number"`
 	RootStoryID     uuid.UUID   `json:"root_story_id"`                // All versions share the same root
 	PreviousStoryID *uuid.UUID  `json:"previous_story_id,omitempty"`  // NULL for the first version
+	WorldID         *uuid.UUID  `json:"world_id,omitempty"`           // nullable - world this story belongs to
 	CreatedByUserID *uuid.UUID  `json:"created_by_user_id,omitempty"` // nullable
 	CreatedAt       time.Time   `json:"created_at"`
 	UpdatedAt       time.Time   `json:"updated_at"`

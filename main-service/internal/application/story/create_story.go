@@ -2,8 +2,10 @@ package story
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/google/uuid"
+	"github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/core/audit"
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
@@ -13,31 +15,38 @@ import (
 
 // CreateStoryUseCase handles story creation
 type CreateStoryUseCase struct {
-	storyRepo     repositories.StoryRepository
-	tenantRepo    repositories.TenantRepository
-	auditLogRepo  repositories.AuditLogRepository
-	logger        logger.Logger
+	storyRepo      repositories.StoryRepository
+	tenantRepo     repositories.TenantRepository
+	worldRepo      repositories.WorldRepository
+	createWorldUC  *world.CreateWorldUseCase
+	auditLogRepo   repositories.AuditLogRepository
+	logger         logger.Logger
 }
 
 // NewCreateStoryUseCase creates a new CreateStoryUseCase
 func NewCreateStoryUseCase(
 	storyRepo repositories.StoryRepository,
 	tenantRepo repositories.TenantRepository,
+	worldRepo repositories.WorldRepository,
+	createWorldUC *world.CreateWorldUseCase,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *CreateStoryUseCase {
 	return &CreateStoryUseCase{
-		storyRepo:    storyRepo,
-		tenantRepo:  tenantRepo,
-		auditLogRepo: auditLogRepo,
-		logger:       logger,
+		storyRepo:     storyRepo,
+		tenantRepo:    tenantRepo,
+		worldRepo:     worldRepo,
+		createWorldUC: createWorldUC,
+		auditLogRepo:  auditLogRepo,
+		logger:        logger,
 	}
 }
 
 // CreateStoryInput represents the input for creating a story
 type CreateStoryInput struct {
-	TenantID      uuid.UUID
-	Title         string
+	TenantID       uuid.UUID
+	Title          string
+	WorldID        *uuid.UUID
 	CreatedByUserID *uuid.UUID
 }
 
@@ -63,11 +72,38 @@ func (uc *CreateStoryUseCase) Execute(ctx context.Context, input CreateStoryInpu
 		}
 	}
 
+	// Handle world_id: if not provided, create implicit world
+	worldID := input.WorldID
+	if worldID == nil {
+		// Create implicit world
+		worldName := fmt.Sprintf("World of %s", input.Title)
+		createWorldOutput, err := uc.createWorldUC.Execute(ctx, world.CreateWorldInput{
+			TenantID:    input.TenantID,
+			Name:        worldName,
+			IsImplicit:  true,
+		})
+		if err != nil {
+			uc.logger.Error("failed to create implicit world", "error", err, "title", input.Title)
+			return nil, err
+		}
+		worldID = &createWorldOutput.World.ID
+		uc.logger.Info("created implicit world for story", "world_id", worldID, "story_title", input.Title)
+	} else {
+		// Validate world exists
+		_, err := uc.worldRepo.GetByID(ctx, *worldID)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	// Create story (as version 1, root_story_id = self, previous_story_id = NULL)
 	newStory, err := story.NewStory(input.TenantID, input.Title, input.CreatedByUserID)
 	if err != nil {
 		return nil, err
 	}
+
+	// Set world_id
+	newStory.WorldID = worldID
 
 	if err := newStory.Validate(); err != nil {
 		return nil, &platformerrors.ValidationError{

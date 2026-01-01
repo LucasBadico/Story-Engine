@@ -27,29 +27,30 @@ func NewStoryRepository(db *DB) *StoryRepository {
 // Create creates a new story
 func (r *StoryRepository) Create(ctx context.Context, s *story.Story) error {
 	query := `
-		INSERT INTO stories (id, tenant_id, title, status, version_number, root_story_id, previous_story_id, created_by_user_id, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO stories (id, tenant_id, title, status, version_number, root_story_id, previous_story_id, world_id, created_by_user_id, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
 	`
 	_, err := r.db.Exec(ctx, query,
 		s.ID, s.TenantID, s.Title, string(s.Status), s.VersionNumber,
-		s.RootStoryID, s.PreviousStoryID, s.CreatedByUserID, s.CreatedAt, s.UpdatedAt)
+		s.RootStoryID, s.PreviousStoryID, s.WorldID, s.CreatedByUserID, s.CreatedAt, s.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a story by ID
 func (r *StoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Story, error) {
 	query := `
-		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, created_by_user_id, created_at, updated_at
+		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, world_id, created_by_user_id, created_at, updated_at
 		FROM stories
 		WHERE id = $1
 	`
 	var s story.Story
 	var previousStoryID sql.NullString
+	var worldID sql.NullString
 	var createdByUserID sql.NullString
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&s.ID, &s.TenantID, &s.Title, &s.Status, &s.VersionNumber,
-		&s.RootStoryID, &previousStoryID, &createdByUserID, &s.CreatedAt, &s.UpdatedAt)
+		&s.RootStoryID, &previousStoryID, &worldID, &createdByUserID, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &platformerrors.NotFoundError{
@@ -65,6 +66,11 @@ func (r *StoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Sto
 			s.PreviousStoryID = &id
 		}
 	}
+	if worldID.Valid {
+		if id, err := uuid.Parse(worldID.String); err == nil {
+			s.WorldID = &id
+		}
+	}
 	if createdByUserID.Valid {
 		if id, err := uuid.Parse(createdByUserID.String); err == nil {
 			s.CreatedByUserID = &id
@@ -77,7 +83,7 @@ func (r *StoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Sto
 // ListByTenant lists stories for a tenant
 func (r *StoryRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*story.Story, error) {
 	query := `
-		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, created_by_user_id, created_at, updated_at
+		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, world_id, created_by_user_id, created_at, updated_at
 		FROM stories
 		WHERE tenant_id = $1
 		ORDER BY created_at DESC
@@ -95,7 +101,7 @@ func (r *StoryRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, 
 // ListVersionsByRoot lists all versions of a story by root story ID
 func (r *StoryRepository) ListVersionsByRoot(ctx context.Context, rootStoryID uuid.UUID) ([]*story.Story, error) {
 	query := `
-		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, created_by_user_id, created_at, updated_at
+		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, world_id, created_by_user_id, created_at, updated_at
 		FROM stories
 		WHERE root_story_id = $1
 		ORDER BY version_number ASC
@@ -145,11 +151,12 @@ func (r *StoryRepository) scanStories(rows pgx.Rows) ([]*story.Story, error) {
 	for rows.Next() {
 		var s story.Story
 		var previousStoryID sql.NullString
+		var worldID sql.NullString
 		var createdByUserID sql.NullString
 
 		err := rows.Scan(
 			&s.ID, &s.TenantID, &s.Title, &s.Status, &s.VersionNumber,
-			&s.RootStoryID, &previousStoryID, &createdByUserID, &s.CreatedAt, &s.UpdatedAt)
+			&s.RootStoryID, &previousStoryID, &worldID, &createdByUserID, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -157,6 +164,11 @@ func (r *StoryRepository) scanStories(rows pgx.Rows) ([]*story.Story, error) {
 		if previousStoryID.Valid {
 			if id, err := uuid.Parse(previousStoryID.String); err == nil {
 				s.PreviousStoryID = &id
+			}
+		}
+		if worldID.Valid {
+			if id, err := uuid.Parse(worldID.String); err == nil {
+				s.WorldID = &id
 			}
 		}
 		if createdByUserID.Valid {
