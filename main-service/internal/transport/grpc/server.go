@@ -7,6 +7,10 @@ import (
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/interceptors"
+	beatpb "github.com/story-engine/main-service/proto/beat"
+	chapterpb "github.com/story-engine/main-service/proto/chapter"
+	prosepb "github.com/story-engine/main-service/proto/prose"
+	scenepb "github.com/story-engine/main-service/proto/scene"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	"google.golang.org/grpc"
@@ -62,6 +66,36 @@ func (s *Server) RegisterTenantService(handler tenantpb.TenantServiceServer) {
 func (s *Server) RegisterStoryService(handler storypb.StoryServiceServer) {
 	storypb.RegisterStoryServiceServer(s.grpcServer, handler)
 	s.logger.Info("StoryService registered")
+}
+
+// RegisterChapterService registers the ChapterService handler
+func (s *Server) RegisterChapterService(handler chapterpb.ChapterServiceServer) {
+	chapterpb.RegisterChapterServiceServer(s.grpcServer, handler)
+	s.logger.Info("ChapterService registered")
+}
+
+// RegisterSceneService registers the SceneService handler
+func (s *Server) RegisterSceneService(handler scenepb.SceneServiceServer) {
+	scenepb.RegisterSceneServiceServer(s.grpcServer, handler)
+	s.logger.Info("SceneService registered")
+}
+
+// RegisterBeatService registers the BeatService handler
+func (s *Server) RegisterBeatService(handler beatpb.BeatServiceServer) {
+	beatpb.RegisterBeatServiceServer(s.grpcServer, handler)
+	s.logger.Info("BeatService registered")
+}
+
+// RegisterProseBlockService registers the ProseBlockService handler
+func (s *Server) RegisterProseBlockService(handler prosepb.ProseBlockServiceServer) {
+	prosepb.RegisterProseBlockServiceServer(s.grpcServer, handler)
+	s.logger.Info("ProseBlockService registered")
+}
+
+// RegisterProseBlockReferenceService registers the ProseBlockReferenceService handler
+func (s *Server) RegisterProseBlockReferenceService(handler prosepb.ProseBlockReferenceServiceServer) {
+	prosepb.RegisterProseBlockReferenceServiceServer(s.grpcServer, handler)
+	s.logger.Info("ProseBlockReferenceService registered")
 }
 
 // Start starts the gRPC server

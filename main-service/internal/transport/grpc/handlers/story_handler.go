@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/application/story"
+	storycore "github.com/story-engine/main-service/internal/core/story"
 	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
@@ -101,6 +102,41 @@ func (h *StoryHandler) GetStory(ctx context.Context, req *storypb.GetStoryReques
 	}
 
 	return &storypb.GetStoryResponse{
+		Story: mappers.StoryToProto(s),
+	}, nil
+}
+
+// UpdateStory updates an existing story
+func (h *StoryHandler) UpdateStory(ctx context.Context, req *storypb.UpdateStoryRequest) (*storypb.UpdateStoryResponse, error) {
+	id, err := uuid.Parse(req.Id)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid story id: %v", err)
+	}
+
+	s, err := h.storyRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, status.Errorf(codes.NotFound, "story not found: %v", err)
+	}
+
+	// Update fields if provided
+	if req.Title != nil {
+		if err := s.UpdateTitle(*req.Title); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid title: %v", err)
+		}
+	}
+
+	if req.Status != nil {
+		if err := s.UpdateStatus(storycore.StoryStatus(*req.Status)); err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid status: %v", err)
+		}
+	}
+
+	if err := h.storyRepo.Update(ctx, s); err != nil {
+		h.logger.Error("failed to update story", "error", err)
+		return nil, status.Errorf(codes.Internal, "failed to update story: %v", err)
+	}
+
+	return &storypb.UpdateStoryResponse{
 		Story: mappers.StoryToProto(s),
 	}, nil
 }

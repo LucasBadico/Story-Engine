@@ -1,0 +1,155 @@
+syntax = "proto3";
+package prose;
+option go_package = "github.com/story-engine/main-service/proto/prose";
+
+import "google/protobuf/timestamp.proto";
+
+// ProseBlock represents a block of prose text
+message ProseBlock {
+  string id = 1;
+  string chapter_id = 2;
+  int32 order_num = 3;
+  string kind = 4; // final, alt_a, alt_b, cleaned, localized, draft
+  string content = 5;
+  int32 word_count = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// ProseBlockReference represents a reference from an entity to a prose block
+message ProseBlockReference {
+  string id = 1;
+  string prose_block_id = 2;
+  string entity_type = 3; // scene, beat, character, location, trait
+  string entity_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// CreateProseBlockRequest is the request to create a new prose block
+message CreateProseBlockRequest {
+  string chapter_id = 1;
+  int32 order_num = 2;
+  string kind = 3;
+  string content = 4;
+}
+
+// CreateProseBlockResponse is the response after creating a prose block
+message CreateProseBlockResponse {
+  ProseBlock prose_block = 1;
+}
+
+// GetProseBlockRequest is the request to get a prose block by ID
+message GetProseBlockRequest {
+  string id = 1;
+}
+
+// GetProseBlockResponse is the response containing a prose block
+message GetProseBlockResponse {
+  ProseBlock prose_block = 1;
+}
+
+// UpdateProseBlockRequest is the request to update a prose block
+message UpdateProseBlockRequest {
+  string id = 1;
+  optional int32 order_num = 2;
+  optional string kind = 3;
+  optional string content = 4;
+}
+
+// UpdateProseBlockResponse is the response after updating a prose block
+message UpdateProseBlockResponse {
+  ProseBlock prose_block = 1;
+}
+
+// DeleteProseBlockRequest is the request to delete a prose block
+message DeleteProseBlockRequest {
+  string id = 1;
+}
+
+// DeleteProseBlockResponse is the response after deleting a prose block
+message DeleteProseBlockResponse {
+  bool success = 1;
+}
+
+// ListProseBlocksByChapterRequest is the request to list prose blocks for a chapter
+message ListProseBlocksByChapterRequest {
+  string chapter_id = 1;
+}
+
+// ListProseBlocksByChapterResponse is the response containing prose blocks
+message ListProseBlocksByChapterResponse {
+  repeated ProseBlock prose_blocks = 1;
+  int32 total_count = 2;
+}
+
+// CreateProseBlockReferenceRequest is the request to create a reference
+message CreateProseBlockReferenceRequest {
+  string prose_block_id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+}
+
+// CreateProseBlockReferenceResponse is the response after creating a reference
+message CreateProseBlockReferenceResponse {
+  ProseBlockReference reference = 1;
+}
+
+// ListProseBlockReferencesByProseBlockRequest lists references for a prose block
+message ListProseBlockReferencesByProseBlockRequest {
+  string prose_block_id = 1;
+}
+
+// ListProseBlockReferencesByProseBlockResponse contains references for a prose block
+message ListProseBlockReferencesByProseBlockResponse {
+  repeated ProseBlockReference references = 1;
+  int32 total_count = 2;
+}
+
+// ListProseBlocksByEntityRequest lists prose blocks for an entity
+message ListProseBlocksByEntityRequest {
+  string entity_type = 1;
+  string entity_id = 2;
+}
+
+// ListProseBlocksByEntityResponse contains prose blocks for an entity
+message ListProseBlocksByEntityResponse {
+  repeated ProseBlock prose_blocks = 1;
+  int32 total_count = 2;
+}
+
+// DeleteProseBlockReferenceRequest is the request to delete a reference
+message DeleteProseBlockReferenceRequest {
+  string id = 1;
+}
+
+// DeleteProseBlockReferenceResponse is the response after deleting a reference
+message DeleteProseBlockReferenceResponse {
+  bool success = 1;
+}
+
+// ProseBlockService provides prose block management operations
+service ProseBlockService {
+  // CreateProseBlock creates a new prose block
+  rpc CreateProseBlock(CreateProseBlockRequest) returns (CreateProseBlockResponse);
+  // GetProseBlock retrieves a prose block by ID
+  rpc GetProseBlock(GetProseBlockRequest) returns (GetProseBlockResponse);
+  // UpdateProseBlock updates an existing prose block
+  rpc UpdateProseBlock(UpdateProseBlockRequest) returns (UpdateProseBlockResponse);
+  // DeleteProseBlock deletes a prose block
+  rpc DeleteProseBlock(DeleteProseBlockRequest) returns (DeleteProseBlockResponse);
+  // ListProseBlocksByChapter lists prose blocks for a chapter
+  rpc ListProseBlocksByChapter(ListProseBlocksByChapterRequest) returns (ListProseBlocksByChapterResponse);
+}
+
+// ProseBlockReferenceService provides prose block reference management operations
+service ProseBlockReferenceService {
+  // CreateProseBlockReference creates a new reference
+  rpc CreateProseBlockReference(CreateProseBlockReferenceRequest) returns (CreateProseBlockReferenceResponse);
+  // ListProseBlockReferencesByProseBlock lists references for a prose block
+  rpc ListProseBlockReferencesByProseBlock(ListProseBlockReferencesByProseBlockRequest) returns (ListProseBlockReferencesByProseBlockResponse);
+  // ListProseBlocksByEntity lists prose blocks associated with an entity
+  rpc ListProseBlocksByEntity(ListProseBlocksByEntityRequest) returns (ListProseBlocksByEntityResponse);
+  // DeleteProseBlockReference deletes a reference
+  rpc DeleteProseBlockReference(DeleteProseBlockReferenceRequest) returns (DeleteProseBlockReferenceResponse);
+}
+

@@ -21,6 +21,7 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	StoryService_CreateStory_FullMethodName       = "/story.StoryService/CreateStory"
 	StoryService_GetStory_FullMethodName          = "/story.StoryService/GetStory"
+	StoryService_UpdateStory_FullMethodName       = "/story.StoryService/UpdateStory"
 	StoryService_ListStories_FullMethodName       = "/story.StoryService/ListStories"
 	StoryService_CloneStory_FullMethodName        = "/story.StoryService/CloneStory"
 	StoryService_ListStoryVersions_FullMethodName = "/story.StoryService/ListStoryVersions"
@@ -34,6 +35,8 @@ type StoryServiceClient interface {
 	CreateStory(ctx context.Context, in *CreateStoryRequest, opts ...grpc.CallOption) (*CreateStoryResponse, error)
 	// GetStory retrieves a story by ID
 	GetStory(ctx context.Context, in *GetStoryRequest, opts ...grpc.CallOption) (*GetStoryResponse, error)
+	// UpdateStory updates an existing story
+	UpdateStory(ctx context.Context, in *UpdateStoryRequest, opts ...grpc.CallOption) (*UpdateStoryResponse, error)
 	// ListStories lists stories for a tenant with pagination
 	ListStories(ctx context.Context, in *ListStoriesRequest, opts ...grpc.CallOption) (*ListStoriesResponse, error)
 	// CloneStory clones a story to create a new version
@@ -62,6 +65,15 @@ func (c *storyServiceClient) CreateStory(ctx context.Context, in *CreateStoryReq
 func (c *storyServiceClient) GetStory(ctx context.Context, in *GetStoryRequest, opts ...grpc.CallOption) (*GetStoryResponse, error) {
 	out := new(GetStoryResponse)
 	err := c.cc.Invoke(ctx, StoryService_GetStory_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *storyServiceClient) UpdateStory(ctx context.Context, in *UpdateStoryRequest, opts ...grpc.CallOption) (*UpdateStoryResponse, error) {
+	out := new(UpdateStoryResponse)
+	err := c.cc.Invoke(ctx, StoryService_UpdateStory_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -103,6 +115,8 @@ type StoryServiceServer interface {
 	CreateStory(context.Context, *CreateStoryRequest) (*CreateStoryResponse, error)
 	// GetStory retrieves a story by ID
 	GetStory(context.Context, *GetStoryRequest) (*GetStoryResponse, error)
+	// UpdateStory updates an existing story
+	UpdateStory(context.Context, *UpdateStoryRequest) (*UpdateStoryResponse, error)
 	// ListStories lists stories for a tenant with pagination
 	ListStories(context.Context, *ListStoriesRequest) (*ListStoriesResponse, error)
 	// CloneStory clones a story to create a new version
@@ -121,6 +135,9 @@ func (UnimplementedStoryServiceServer) CreateStory(context.Context, *CreateStory
 }
 func (UnimplementedStoryServiceServer) GetStory(context.Context, *GetStoryRequest) (*GetStoryResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStory not implemented")
+}
+func (UnimplementedStoryServiceServer) UpdateStory(context.Context, *UpdateStoryRequest) (*UpdateStoryResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateStory not implemented")
 }
 func (UnimplementedStoryServiceServer) ListStories(context.Context, *ListStoriesRequest) (*ListStoriesResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListStories not implemented")
@@ -176,6 +193,24 @@ func _StoryService_GetStory_Handler(srv interface{}, ctx context.Context, dec fu
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(StoryServiceServer).GetStory(ctx, req.(*GetStoryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _StoryService_UpdateStory_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateStoryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(StoryServiceServer).UpdateStory(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: StoryService_UpdateStory_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(StoryServiceServer).UpdateStory(ctx, req.(*UpdateStoryRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -248,6 +283,10 @@ var StoryService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStory",
 			Handler:    _StoryService_GetStory_Handler,
+		},
+		{
+			MethodName: "UpdateStory",
+			Handler:    _StoryService_UpdateStory_Handler,
 		},
 		{
 			MethodName: "ListStories",

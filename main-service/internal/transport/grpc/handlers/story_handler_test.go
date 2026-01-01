@@ -441,3 +441,106 @@ func TestStoryHandler_ListStoryVersions(t *testing.T) {
 		}
 	})
 }
+
+func TestStoryHandler_UpdateStory(t *testing.T) {
+	conn, cleanup := setupTestServer(t)
+	defer cleanup()
+
+	storyClient := storypb.NewStoryServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	t.Run("successful update title", func(t *testing.T) {
+		// Create tenant and story
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Update Story",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+
+		createResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
+			Title: "Original Title",
+		})
+		if err != nil {
+			t.Fatalf("failed to create story: %v", err)
+		}
+
+		// Update story
+		newTitle := "Updated Title"
+		updateResp, err := storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
+			Id:    createResp.Story.Id,
+			Title: &newTitle,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if updateResp.Story.Title != "Updated Title" {
+			t.Errorf("expected title 'Updated Title', got '%s'", updateResp.Story.Title)
+		}
+	})
+
+	t.Run("successful update status", func(t *testing.T) {
+		// Create tenant and story
+		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Update Story Status",
+		})
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+		createResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
+			Title: "Test Story",
+		})
+
+		// Update status
+		newStatus := "published"
+		updateResp, err := storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
+			Id:     createResp.Story.Id,
+			Status: &newStatus,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if updateResp.Story.Status != "published" {
+			t.Errorf("expected status 'published', got '%s'", updateResp.Story.Status)
+		}
+	})
+
+	t.Run("non-existing story", func(t *testing.T) {
+		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Non-existing Update",
+		})
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+
+		newTitle := "Updated Title"
+		_, err := storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
+			Id:    uuid.New().String(),
+			Title: &newTitle,
+		})
+		if err == nil {
+			t.Fatal("expected error for non-existing story")
+		}
+		s, _ := status.FromError(err)
+		if s.Code() != codes.NotFound {
+			t.Errorf("expected NotFound, got %v", s.Code())
+		}
+	})
+
+	t.Run("invalid story ID", func(t *testing.T) {
+		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Test Tenant for Invalid Update ID",
+		})
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+
+		newTitle := "Updated Title"
+		_, err := storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
+			Id:    "not-a-uuid",
+			Title: &newTitle,
+		})
+		if err == nil {
+			t.Fatal("expected error for invalid ID")
+		}
+		s, _ := status.FromError(err)
+		if s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", s.Code())
+		}
+	})
+}

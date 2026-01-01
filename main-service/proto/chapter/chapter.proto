@@ -1,0 +1,88 @@
+syntax = "proto3";
+package chapter;
+option go_package = "github.com/story-engine/main-service/proto/chapter";
+
+import "google/protobuf/timestamp.proto";
+
+// Chapter represents a chapter in a story
+message Chapter {
+  string id = 1;
+  string story_id = 2;
+  int32 number = 3;
+  string title = 4;
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// CreateChapterRequest is the request to create a new chapter
+message CreateChapterRequest {
+  string story_id = 1;
+  int32 number = 2;
+  string title = 3;
+  string status = 4; // optional
+}
+
+// CreateChapterResponse is the response after creating a chapter
+message CreateChapterResponse {
+  Chapter chapter = 1;
+}
+
+// GetChapterRequest is the request to get a chapter by ID
+message GetChapterRequest {
+  string id = 1;
+}
+
+// GetChapterResponse is the response containing a chapter
+message GetChapterResponse {
+  Chapter chapter = 1;
+}
+
+// UpdateChapterRequest is the request to update a chapter
+message UpdateChapterRequest {
+  string id = 1;
+  optional int32 number = 2;
+  optional string title = 3;
+  optional string status = 4;
+}
+
+// UpdateChapterResponse is the response after updating a chapter
+message UpdateChapterResponse {
+  Chapter chapter = 1;
+}
+
+// DeleteChapterRequest is the request to delete a chapter
+message DeleteChapterRequest {
+  string id = 1;
+}
+
+// DeleteChapterResponse is the response after deleting a chapter
+message DeleteChapterResponse {
+  bool success = 1;
+}
+
+// ListChaptersByStoryRequest is the request to list chapters for a story
+message ListChaptersByStoryRequest {
+  string story_id = 1;
+}
+
+// ListChaptersByStoryResponse is the response containing a list of chapters
+message ListChaptersByStoryResponse {
+  repeated Chapter chapters = 1;
+  int32 total_count = 2;
+}
+
+// ChapterService provides chapter management operations
+service ChapterService {
+  // CreateChapter creates a new chapter
+  rpc CreateChapter(CreateChapterRequest) returns (CreateChapterResponse);
+  // GetChapter retrieves a chapter by ID
+  rpc GetChapter(GetChapterRequest) returns (GetChapterResponse);
+  // UpdateChapter updates an existing chapter
+  rpc UpdateChapter(UpdateChapterRequest) returns (UpdateChapterResponse);
+  // DeleteChapter deletes a chapter
+  rpc DeleteChapter(DeleteChapterRequest) returns (DeleteChapterResponse);
+  // ListChaptersByStory lists all chapters for a story
+  rpc ListChaptersByStory(ListChaptersByStoryRequest) returns (ListChaptersByStoryResponse);
+}
+

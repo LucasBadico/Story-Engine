@@ -1,0 +1,122 @@
+syntax = "proto3";
+package scene;
+option go_package = "github.com/story-engine/main-service/proto/scene";
+
+import "google/protobuf/timestamp.proto";
+
+// Scene represents a scene in a chapter
+message Scene {
+  string id = 1;
+  string story_id = 2;
+  optional string chapter_id = 3;
+  int32 order_num = 4;
+  string goal = 5;
+  string time_ref = 6;
+  optional string pov_character_id = 7;
+  optional string location_id = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// CreateSceneRequest is the request to create a new scene
+message CreateSceneRequest {
+  string story_id = 1;
+  optional string chapter_id = 2;
+  int32 order_num = 3;
+  optional string pov_character_id = 4;
+  optional string location_id = 5;
+  string time_ref = 6;
+  string goal = 7;
+}
+
+// CreateSceneResponse is the response after creating a scene
+message CreateSceneResponse {
+  Scene scene = 1;
+}
+
+// GetSceneRequest is the request to get a scene by ID
+message GetSceneRequest {
+  string id = 1;
+}
+
+// GetSceneResponse is the response containing a scene
+message GetSceneResponse {
+  Scene scene = 1;
+}
+
+// UpdateSceneRequest is the request to update a scene
+message UpdateSceneRequest {
+  string id = 1;
+  optional int32 order_num = 2;
+  optional string pov_character_id = 3;
+  optional string location_id = 4;
+  optional string time_ref = 5;
+  optional string goal = 6;
+}
+
+// UpdateSceneResponse is the response after updating a scene
+message UpdateSceneResponse {
+  Scene scene = 1;
+}
+
+// DeleteSceneRequest is the request to delete a scene
+message DeleteSceneRequest {
+  string id = 1;
+}
+
+// DeleteSceneResponse is the response after deleting a scene
+message DeleteSceneResponse {
+  bool success = 1;
+}
+
+// MoveSceneRequest is the request to move a scene to a different chapter
+message MoveSceneRequest {
+  string id = 1;
+  optional string chapter_id = 2; // null to unassign from chapter
+}
+
+// MoveSceneResponse is the response after moving a scene
+message MoveSceneResponse {
+  Scene scene = 1;
+}
+
+// ListScenesByChapterRequest is the request to list scenes for a chapter
+message ListScenesByChapterRequest {
+  string chapter_id = 1;
+}
+
+// ListScenesByChapterResponse is the response containing scenes for a chapter
+message ListScenesByChapterResponse {
+  repeated Scene scenes = 1;
+  int32 total_count = 2;
+}
+
+// ListScenesByStoryRequest is the request to list all scenes for a story
+message ListScenesByStoryRequest {
+  string story_id = 1;
+}
+
+// ListScenesByStoryResponse is the response containing all scenes for a story
+message ListScenesByStoryResponse {
+  repeated Scene scenes = 1;
+  int32 total_count = 2;
+}
+
+// SceneService provides scene management operations
+service SceneService {
+  // CreateScene creates a new scene
+  rpc CreateScene(CreateSceneRequest) returns (CreateSceneResponse);
+  // GetScene retrieves a scene by ID
+  rpc GetScene(GetSceneRequest) returns (GetSceneResponse);
+  // UpdateScene updates an existing scene
+  rpc UpdateScene(UpdateSceneRequest) returns (UpdateSceneResponse);
+  // DeleteScene deletes a scene
+  rpc DeleteScene(DeleteSceneRequest) returns (DeleteSceneResponse);
+  // MoveScene moves a scene to a different chapter
+  rpc MoveScene(MoveSceneRequest) returns (MoveSceneResponse);
+  // ListScenesByChapter lists scenes for a specific chapter
+  rpc ListScenesByChapter(ListScenesByChapterRequest) returns (ListScenesByChapterResponse);
+  // ListScenesByStory lists all scenes for a story
+  rpc ListScenesByStory(ListScenesByStoryRequest) returns (ListScenesByStoryResponse);
+}
+

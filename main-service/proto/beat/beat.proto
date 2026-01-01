@@ -1,0 +1,117 @@
+syntax = "proto3";
+package beat;
+option go_package = "github.com/story-engine/main-service/proto/beat";
+
+import "google/protobuf/timestamp.proto";
+
+// Beat represents a beat in a scene
+message Beat {
+  string id = 1;
+  string scene_id = 2;
+  int32 order_num = 3;
+  string type = 4; // setup, turn, reveal, conflict, climax, resolution, hook, transition
+  string intent = 5;
+  string outcome = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// CreateBeatRequest is the request to create a new beat
+message CreateBeatRequest {
+  string scene_id = 1;
+  int32 order_num = 2;
+  string type = 3;
+  string intent = 4;
+  string outcome = 5;
+}
+
+// CreateBeatResponse is the response after creating a beat
+message CreateBeatResponse {
+  Beat beat = 1;
+}
+
+// GetBeatRequest is the request to get a beat by ID
+message GetBeatRequest {
+  string id = 1;
+}
+
+// GetBeatResponse is the response containing a beat
+message GetBeatResponse {
+  Beat beat = 1;
+}
+
+// UpdateBeatRequest is the request to update a beat
+message UpdateBeatRequest {
+  string id = 1;
+  optional int32 order_num = 2;
+  optional string type = 3;
+  optional string intent = 4;
+  optional string outcome = 5;
+}
+
+// UpdateBeatResponse is the response after updating a beat
+message UpdateBeatResponse {
+  Beat beat = 1;
+}
+
+// DeleteBeatRequest is the request to delete a beat
+message DeleteBeatRequest {
+  string id = 1;
+}
+
+// DeleteBeatResponse is the response after deleting a beat
+message DeleteBeatResponse {
+  bool success = 1;
+}
+
+// MoveBeatRequest is the request to move a beat to a different scene
+message MoveBeatRequest {
+  string id = 1;
+  string scene_id = 2;
+}
+
+// MoveBeatResponse is the response after moving a beat
+message MoveBeatResponse {
+  Beat beat = 1;
+}
+
+// ListBeatsBySceneRequest is the request to list beats for a scene
+message ListBeatsBySceneRequest {
+  string scene_id = 1;
+}
+
+// ListBeatsBySceneResponse is the response containing beats for a scene
+message ListBeatsBySceneResponse {
+  repeated Beat beats = 1;
+  int32 total_count = 2;
+}
+
+// ListBeatsByStoryRequest is the request to list all beats for a story
+message ListBeatsByStoryRequest {
+  string story_id = 1;
+}
+
+// ListBeatsByStoryResponse is the response containing all beats for a story
+message ListBeatsByStoryResponse {
+  repeated Beat beats = 1;
+  int32 total_count = 2;
+}
+
+// BeatService provides beat management operations
+service BeatService {
+  // CreateBeat creates a new beat
+  rpc CreateBeat(CreateBeatRequest) returns (CreateBeatResponse);
+  // GetBeat retrieves a beat by ID
+  rpc GetBeat(GetBeatRequest) returns (GetBeatResponse);
+  // UpdateBeat updates an existing beat
+  rpc UpdateBeat(UpdateBeatRequest) returns (UpdateBeatResponse);
+  // DeleteBeat deletes a beat
+  rpc DeleteBeat(DeleteBeatRequest) returns (DeleteBeatResponse);
+  // MoveBeat moves a beat to a different scene
+  rpc MoveBeat(MoveBeatRequest) returns (MoveBeatResponse);
+  // ListBeatsByScene lists beats for a specific scene
+  rpc ListBeatsByScene(ListBeatsBySceneRequest) returns (ListBeatsBySceneResponse);
+  // ListBeatsByStory lists all beats for a story
+  rpc ListBeatsByStory(ListBeatsByStoryRequest) returns (ListBeatsByStoryResponse);
+}
+

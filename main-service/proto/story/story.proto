@@ -89,6 +89,18 @@ message CloneStoryResponse {
   int32 new_version_number = 2;
 }
 
+// UpdateStoryRequest is the request to update a story
+message UpdateStoryRequest {
+  string id = 1;
+  optional string title = 2;
+  optional string status = 3;
+}
+
+// UpdateStoryResponse is the response after updating a story
+message UpdateStoryResponse {
+  Story story = 1;
+}
+
 // ListStoryVersionsRequest is the request to list all versions of a story
 message ListStoryVersionsRequest {
   string root_story_id = 1;
@@ -105,6 +117,8 @@ service StoryService {
   rpc CreateStory(CreateStoryRequest) returns (CreateStoryResponse);
   // GetStory retrieves a story by ID
   rpc GetStory(GetStoryRequest) returns (GetStoryResponse);
+  // UpdateStory updates an existing story
+  rpc UpdateStory(UpdateStoryRequest) returns (UpdateStoryResponse);
   // ListStories lists stories for a tenant with pagination
   rpc ListStories(ListStoriesRequest) returns (ListStoriesResponse);
   // CloneStory clones a story to create a new version

@@ -26,6 +26,7 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
 	proseBlockRepo := postgres.NewProseBlockRepository(db)
+	proseBlockRefRepo := postgres.NewProseBlockReferenceRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
 
@@ -54,9 +55,22 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 		storyRepo,
 		log,
 	)
+	chapterHandler := NewChapterHandler(chapterRepo, storyRepo, log)
+	sceneHandler := NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
+	beatHandler := NewBeatHandler(beatRepo, sceneRepo, storyRepo, log)
+	proseBlockHandler := NewProseBlockHandler(proseBlockRepo, chapterRepo, log)
+	proseBlockRefHandler := NewProseBlockReferenceHandler(proseBlockRefRepo, proseBlockRepo, log)
 
-	// Use the testing package's SetupTestServer with our handlers
-	conn, cleanupServer := grpctesting.SetupTestServer(t, tenantHandler, storyHandler)
+	// Use the testing package's SetupTestServerWithHandlers with all handlers
+	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
+		TenantHandler:              tenantHandler,
+		StoryHandler:               storyHandler,
+		ChapterHandler:             chapterHandler,
+		SceneHandler:               sceneHandler,
+		BeatHandler:                beatHandler,
+		ProseBlockHandler:          proseBlockHandler,
+		ProseBlockReferenceHandler: proseBlockRefHandler,
+	})
 
 	cleanup := func() {
 		cleanupServer()
