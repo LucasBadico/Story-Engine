@@ -17,6 +17,7 @@ import (
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
+	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
@@ -58,6 +59,7 @@ func main() {
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
+	sceneReferenceRepo := postgres.NewSceneReferenceRepository(pgDB)
 	beatRepo := postgres.NewBeatRepository(pgDB)
 	proseBlockRepo := postgres.NewProseBlockRepository(pgDB)
 	proseBlockReferenceRepo := postgres.NewProseBlockReferenceRepository(pgDB)
@@ -120,6 +122,9 @@ func main() {
 		transactionRepo,
 		log,
 	)
+	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
+	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
+	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
 
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -131,7 +136,7 @@ func main() {
 	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
 	chapterHandler := httphandlers.NewChapterHandler(chapterRepo, storyRepo, log)
-	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
+	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
 	beatHandler := httphandlers.NewBeatHandler(beatRepo, sceneRepo, storyRepo, log)
 	proseBlockHandler := httphandlers.NewProseBlockHandler(proseBlockRepo, chapterRepo, log)
 	proseBlockReferenceHandler := httphandlers.NewProseBlockReferenceHandler(proseBlockReferenceRepo, proseBlockRepo, log)
@@ -211,6 +216,9 @@ func main() {
 	mux.HandleFunc("GET /api/v1/stories/{id}/scenes", sceneHandler.ListByStory)
 	mux.HandleFunc("GET /api/v1/chapters/{id}/scenes", sceneHandler.List)
 	mux.HandleFunc("DELETE /api/v1/scenes/{id}", sceneHandler.Delete)
+	mux.HandleFunc("GET /api/v1/scenes/{id}/references", sceneHandler.GetReferences)
+	mux.HandleFunc("POST /api/v1/scenes/{id}/references", sceneHandler.AddReference)
+	mux.HandleFunc("DELETE /api/v1/scenes/{id}/references/{entity_type}/{entity_id}", sceneHandler.RemoveReference)
 
 	mux.HandleFunc("POST /api/v1/beats", beatHandler.Create)
 	mux.HandleFunc("GET /api/v1/beats/{id}", beatHandler.Get)

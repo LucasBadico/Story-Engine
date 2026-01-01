@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	"github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
@@ -13,10 +14,13 @@ import (
 
 // SceneHandler handles HTTP requests for scenes
 type SceneHandler struct {
-	sceneRepo    repositories.SceneRepository
-	chapterRepo  repositories.ChapterRepository
-	storyRepo    repositories.StoryRepository
-	logger       logger.Logger
+	sceneRepo         repositories.SceneRepository
+	chapterRepo       repositories.ChapterRepository
+	storyRepo         repositories.StoryRepository
+	addReferenceUC    *scene.AddSceneReferenceUseCase
+	removeReferenceUC *scene.RemoveSceneReferenceUseCase
+	getReferencesUC   *scene.GetSceneReferencesUseCase
+	logger            logger.Logger
 }
 
 // NewSceneHandler creates a new SceneHandler
@@ -24,13 +28,19 @@ func NewSceneHandler(
 	sceneRepo repositories.SceneRepository,
 	chapterRepo repositories.ChapterRepository,
 	storyRepo repositories.StoryRepository,
+	addReferenceUC *scene.AddSceneReferenceUseCase,
+	removeReferenceUC *scene.RemoveSceneReferenceUseCase,
+	getReferencesUC *scene.GetSceneReferencesUseCase,
 	logger logger.Logger,
 ) *SceneHandler {
 	return &SceneHandler{
-		sceneRepo:   sceneRepo,
-		chapterRepo: chapterRepo,
-		storyRepo:   storyRepo,
-		logger:      logger,
+		sceneRepo:         sceneRepo,
+		chapterRepo:       chapterRepo,
+		storyRepo:         storyRepo,
+		addReferenceUC:    addReferenceUC,
+		removeReferenceUC: removeReferenceUC,
+		getReferencesUC:   getReferencesUC,
+		logger:            logger,
 	}
 }
 
@@ -350,6 +360,7 @@ func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Delete scene (references will be deleted via CASCADE)
 	if err := h.sceneRepo.Delete(r.Context(), sceneID); err != nil {
 		h.logger.Error("failed to delete scene", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
@@ -357,6 +368,148 @@ func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetReferences handles GET /api/v1/scenes/{id}/references
+func (h *SceneHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	sceneID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getReferencesUC.Execute(r.Context(), scene.GetSceneReferencesInput{
+		SceneID: sceneID,
+	})
+	if err != nil {
+		if err.Error() == "scene not found" {
+			WriteError(w, &platformerrors.NotFoundError{
+				Resource: "scene",
+				ID:       id,
+			}, http.StatusNotFound)
+		} else {
+			WriteError(w, err, http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"references": output.References,
+		"total":      len(output.References),
+	})
+}
+
+// AddReference handles POST /api/v1/scenes/{id}/references
+func (h *SceneHandler) AddReference(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+
+	sceneID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		EntityType string `json:"entity_type"`
+		EntityID   string `json:"entity_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	entityType := story.SceneReferenceEntityType(req.EntityType)
+	if !isValidSceneReferenceEntityType(entityType) {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "entity_type",
+			Message: "invalid entity type, must be one of: character, location, artifact",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	entityID, err := uuid.Parse(req.EntityID)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "entity_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	if err := h.addReferenceUC.Execute(r.Context(), scene.AddSceneReferenceInput{
+		SceneID:    sceneID,
+		EntityType: entityType,
+		EntityID:   entityID,
+	}); err != nil {
+		WriteError(w, err, http.StatusBadRequest)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+// RemoveReference handles DELETE /api/v1/scenes/{id}/references/{entity_type}/{entity_id}
+func (h *SceneHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	entityTypeStr := r.PathValue("entity_type")
+	entityIDStr := r.PathValue("entity_id")
+
+	sceneID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	entityType := story.SceneReferenceEntityType(entityTypeStr)
+	if !isValidSceneReferenceEntityType(entityType) {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "entity_type",
+			Message: "invalid entity type, must be one of: character, location, artifact",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	entityID, err := uuid.Parse(entityIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "entity_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	if err := h.removeReferenceUC.Execute(r.Context(), scene.RemoveSceneReferenceInput{
+		SceneID:    sceneID,
+		EntityType: entityType,
+		EntityID:   entityID,
+	}); err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func isValidSceneReferenceEntityType(entityType story.SceneReferenceEntityType) bool {
+	return entityType == story.SceneReferenceEntityTypeCharacter ||
+		entityType == story.SceneReferenceEntityTypeLocation ||
+		entityType == story.SceneReferenceEntityTypeArtifact
 }
 
 // ListByStory handles GET /api/v1/stories/{id}/scenes
@@ -478,4 +631,3 @@ func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
 		"scene": scene,
 	})
 }
-
