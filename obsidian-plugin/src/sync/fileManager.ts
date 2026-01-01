@@ -1,5 +1,5 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
-import { Story, Chapter, ChapterWithContent, StoryMetadata } from "../types";
+import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats } from "../types";
 
 export class FileManager {
 	constructor(
@@ -163,17 +163,16 @@ export class FileManager {
 
 		let content = `${frontmatter}\n# ${chapter.title}\n\n`;
 
-		// Add scenes
-		for (const { scene, beats } of scenes) {
-			content += `## Scene\n\n${scene.content}\n\n`;
-
-			if (beats.length > 0) {
-				content += `### Beats\n\n`;
-				for (const beat of beats) {
-					content += `- ${beat.content}\n`;
+		// Add scenes summary (scenes are written as separate files)
+		if (scenes.length > 0) {
+			content += `## Scenes\n\n`;
+			for (const { scene, beats } of scenes) {
+				content += `- [[Scene-${scene.order_num}]] - ${scene.goal || "No goal"}\n`;
+				if (beats.length > 0) {
+					content += `  - ${beats.length} beat(s)\n`;
 				}
-				content += `\n`;
 			}
+			content += `\n`;
 		}
 
 		const file = this.vault.getAbstractFileByPath(filePath);
@@ -291,6 +290,111 @@ export class FileManager {
 		}
 	}
 
+	// Write scene file
+	async writeSceneFile(
+		sceneWithBeats: SceneWithBeats,
+		filePath: string,
+		storyName?: string
+	): Promise<void> {
+		const { scene, beats } = sceneWithBeats;
+
+		const baseFields: Record<string, string | number | null> = {
+			id: scene.id,
+			story_id: scene.story_id,
+			chapter_id: scene.chapter_id,
+			order_num: scene.order_num,
+			time_ref: scene.time_ref || "",
+			goal: scene.goal || "",
+			created_at: scene.created_at,
+			updated_at: scene.updated_at,
+		};
+
+		// Add optional fields
+		const extraFields: Record<string, string | number | null> = {};
+		if (scene.pov_character_id) {
+			extraFields.pov_character_id = scene.pov_character_id;
+		}
+		if (scene.location_id) {
+			extraFields.location_id = scene.location_id;
+		}
+
+		const frontmatter = this.generateFrontmatter(baseFields, extraFields, {
+			entityType: "scene",
+			storyName: storyName,
+			date: scene.created_at,
+		});
+
+		let content = `${frontmatter}\n# Scene ${scene.order_num}\n\n`;
+		
+		if (scene.goal) {
+			content += `**Goal:** ${scene.goal}\n\n`;
+		}
+		if (scene.time_ref) {
+			content += `**Time:** ${scene.time_ref}\n\n`;
+		}
+
+		// Add beats if any
+		if (beats.length > 0) {
+			content += `## Beats\n\n`;
+			for (const beat of beats) {
+				content += `### Beat ${beat.order_num} - ${beat.type}\n\n`;
+				if (beat.intent) {
+					content += `**Intent:** ${beat.intent}\n\n`;
+				}
+				if (beat.outcome) {
+					content += `**Outcome:** ${beat.outcome}\n\n`;
+				}
+			}
+		}
+
+		const file = this.vault.getAbstractFileByPath(filePath);
+		if (file instanceof TFile) {
+			await this.vault.modify(file, content);
+		} else {
+			await this.vault.create(filePath, content);
+		}
+	}
+
+	// Write beat file
+	async writeBeatFile(
+		beat: Beat,
+		filePath: string,
+		storyName?: string
+	): Promise<void> {
+		const baseFields = {
+			id: beat.id,
+			scene_id: beat.scene_id,
+			order_num: beat.order_num,
+			type: beat.type,
+			intent: beat.intent || "",
+			outcome: beat.outcome || "",
+			created_at: beat.created_at,
+			updated_at: beat.updated_at,
+		};
+
+		const frontmatter = this.generateFrontmatter(baseFields, undefined, {
+			entityType: "beat",
+			storyName: storyName,
+			date: beat.created_at,
+		});
+
+		let content = `${frontmatter}\n# Beat ${beat.order_num} - ${beat.type}\n\n`;
+		
+		if (beat.intent) {
+			content += `**Intent:** ${beat.intent}\n\n`;
+		}
+		if (beat.outcome) {
+			content += `**Outcome:** ${beat.outcome}\n\n`;
+		}
+
+		const file = this.vault.getAbstractFileByPath(filePath);
+		if (file instanceof TFile) {
+			await this.vault.modify(file, content);
+		} else {
+			await this.vault.create(filePath, content);
+		}
+	}
+
 	// List all chapter files in a story folder
 	async listChapterFiles(storyFolderPath: string): Promise<string[]> {
 		const chaptersPath = `${storyFolderPath}/chapters`;
@@ -308,6 +412,44 @@ export class FileManager {
 		}
 
 		return chapterFiles.sort();
+	}
+
+	// List all scene files in a chapter folder
+	async listSceneFiles(chapterFolderPath: string): Promise<string[]> {
+		const scenesPath = `${chapterFolderPath}/scenes`;
+		const folder = this.vault.getAbstractFileByPath(scenesPath);
+
+		if (!(folder instanceof TFolder)) {
+			return [];
+		}
+
+		const sceneFiles: string[] = [];
+		for (const child of folder.children) {
+			if (child instanceof TFile && child.extension === "md") {
+				sceneFiles.push(child.path);
+			}
+		}
+
+		return sceneFiles.sort();
+	}
+
+	// List all beat files in a scene folder
+	async listBeatFiles(sceneFolderPath: string): Promise<string[]> {
+		const beatsPath = `${sceneFolderPath}/beats`;
+		const folder = this.vault.getAbstractFileByPath(beatsPath);
+
+		if (!(folder instanceof TFolder)) {
+			return [];
+		}
+
+		const beatFiles: string[] = [];
+		for (const child of folder.children) {
+			if (child instanceof TFile && child.extension === "md") {
+				beatFiles.push(child.path);
+			}
+		}
+
+		return beatFiles.sort();
 	}
 }
 

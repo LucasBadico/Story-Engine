@@ -79,11 +79,27 @@ export class StoryDetailsModal extends Modal {
 			text: "Copy ID",
 		});
 		copyIdButton.onclick = () => {
-			navigator.clipboard.writeText(this.story.id);
-			copyIdButton.setText("Copied!");
-			setTimeout(() => {
-				copyIdButton.setText("Copy ID");
-			}, 2000);
+			// Use Obsidian's copy text functionality
+			const textarea = contentEl.createEl("textarea");
+			textarea.value = this.story.id;
+			textarea.style.position = "fixed";
+			textarea.style.opacity = "0";
+			textarea.style.left = "-9999px";
+			textarea.select();
+			try {
+				// Use execCommand for clipboard copy (works in Obsidian's Electron environment)
+				const doc = (contentEl as any).ownerDocument || (globalThis as any).document;
+				if (doc && doc.execCommand) {
+					doc.execCommand("copy");
+					copyIdButton.setText("Copied!");
+					setTimeout(() => {
+						copyIdButton.setText("Copy ID");
+					}, 2000);
+				}
+			} catch (err) {
+				console.error("Failed to copy ID:", err);
+			}
+			textarea.remove();
 		};
 	}
 

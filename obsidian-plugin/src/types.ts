@@ -46,8 +46,13 @@ export interface Chapter {
 
 export interface Scene {
 	id: string;
+	story_id: string;
 	chapter_id: string;
-	content: string;
+	order_num: number;
+	pov_character_id?: string | null;
+	location_id?: string | null;
+	time_ref: string;
+	goal: string;
 	created_at: string;
 	updated_at: string;
 }
@@ -55,8 +60,10 @@ export interface Scene {
 export interface Beat {
 	id: string;
 	scene_id: string;
-	content: string;
-	order_index: number;
+	order_num: number;
+	type: string;
+	intent: string;
+	outcome: string;
 	created_at: string;
 	updated_at: string;
 }
