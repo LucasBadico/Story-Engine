@@ -63,7 +63,7 @@ _None (infrastructure only)_
 - [ ] CloneStoryTx (transactional)
 
 ### Status
-- ⬜ Not started
+- ⬜ Done
 
 ---
 
@@ -95,7 +95,7 @@ _None (infrastructure only)_
 - Basic auth/interceptors
 
 ### Status
-- ⬜ Not started
+- ⬜ Done
 
 ---
 
@@ -120,7 +120,7 @@ _None (infrastructure only)_
 - Plugin-level DTOs (mirroring gRPC models)
 
 ### Status
-- ⬜ Not started
+- ⬜ Em Progresso
 
 ---
 

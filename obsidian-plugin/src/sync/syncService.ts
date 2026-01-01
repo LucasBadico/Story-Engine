@@ -1,13 +1,16 @@
-import { Notice } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import { StoryEngineClient } from "../api/client";
 import { FileManager } from "./fileManager";
 import { StoryEngineSettings, ProseBlock } from "../types";
+import { parseChapterProse, compareProseBlocks, ParsedParagraph, ProseBlockComparison } from "./proseBlockParser";
+import { ConflictModal, ConflictResolutionResult } from "../views/modals/ConflictModal";
 
 export class SyncService {
 	constructor(
 		private apiClient: StoryEngineClient,
 		private fileManager: FileManager,
-		private settings: StoryEngineSettings
+		private settings: StoryEngineSettings,
+		private app: App
 	) {}
 
 	// Pull story from service to Obsidian (Service → Obsidian)
@@ -140,7 +143,7 @@ export class SyncService {
 
 				// Check if this version already exists
 				// (We won't overwrite existing versions to preserve local edits)
-				const existingVersionFolder = this.fileManager["vault"].getAbstractFileByPath(
+				const existingVersionFolder = this.fileManager.getVault().getAbstractFileByPath(
 					versionFolderPath
 				);
 				if (existingVersionFolder) {
@@ -251,6 +254,11 @@ export class SyncService {
 				console.log(`Would update chapter: ${chapterFilePath}`);
 			}
 
+			// Push prose blocks for each chapter
+			for (const chapterFilePath of chapterFiles) {
+				await this.pushChapterProseBlocks(chapterFilePath, folderPath);
+			}
+
 			new Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
 		} catch (err) {
 			const errorMessage =
@@ -258,6 +266,230 @@ export class SyncService {
 			new Notice(`Error pushing story: ${errorMessage}`, 5000);
 			throw err;
 		}
+	}
+
+	// Push prose blocks from a chapter file
+	async pushChapterProseBlocks(chapterFilePath: string, storyFolderPath: string): Promise<void> {
+		// Read chapter file
+		const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
+		if (!(file instanceof TFile)) {
+			throw new Error(`Chapter file not found: ${chapterFilePath}`);
+		}
+
+		const chapterContent = await this.fileManager.getVault().read(file);
+		const frontmatter = this.fileManager.parseFrontmatter(chapterContent);
+
+		if (!frontmatter.id) {
+			throw new Error("Chapter metadata missing ID");
+		}
+
+		const chapterId = frontmatter.id;
+		const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+
+		// Parse paragraphs from Prose section
+		const paragraphs = parseChapterProse(chapterContent);
+
+		// Get all prose blocks from API for this chapter
+		const remoteProseBlocks = await this.apiClient.getProseBlocks(chapterId);
+		const remoteProseBlocksMap = new Map<string, ProseBlock>();
+		for (const pb of remoteProseBlocks) {
+			remoteProseBlocksMap.set(pb.id, pb);
+		}
+
+		// Process each paragraph
+		const updatedParagraphs: string[] = [];
+		let newOrderNum = 1;
+
+		for (const paragraph of paragraphs) {
+			let localProseBlock: ProseBlock | null = null;
+			let remoteProseBlock: ProseBlock | null = null;
+
+			// If paragraph has a link, read the local file
+			if (paragraph.linkName) {
+				const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
+				localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+
+				// Find corresponding remote prose block
+				if (localProseBlock) {
+					remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+				}
+			}
+
+			// Compare and determine status
+			const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+
+			let finalProseBlock: ProseBlock;
+			let needsUpdate = false;
+
+			switch (status) {
+				case "new": {
+					// Create new prose block
+					finalProseBlock = await this.apiClient.createProseBlock(chapterId, {
+						order_num: newOrderNum++,
+						kind: "final",
+						content: paragraph.content,
+					});
+
+					// Create file
+					const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+					const filePath = `${proseBlocksFolderPath}/${fileName}`;
+					await this.fileManager.writeProseBlockFile(
+						finalProseBlock,
+						filePath,
+						undefined
+					);
+
+					// Add link to paragraph
+					const linkName = fileName.replace(/\.md$/, "");
+					updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
+					break;
+				}
+
+				case "unchanged": {
+					// Check if order_num needs update
+					if (localProseBlock && localProseBlock.order_num !== newOrderNum) {
+						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+							order_num: newOrderNum++,
+						});
+						needsUpdate = true;
+					} else {
+						finalProseBlock = localProseBlock!;
+						newOrderNum++;
+					}
+
+					// Keep original paragraph with link
+					const linkName = paragraph.linkName!;
+					updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
+					break;
+				}
+
+				case "local_modified": {
+					// Update prose block with local content
+					finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						content: paragraph.content,
+						order_num: newOrderNum++,
+					});
+
+					// Update local file
+					const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+					const filePath = `${proseBlocksFolderPath}/${fileName}`;
+					await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+
+					const linkName = fileName.replace(/\.md$/, "");
+					updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
+					break;
+				}
+
+				case "remote_modified": {
+					// Update local file with remote content
+					finalProseBlock = remoteProseBlock!;
+					const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+					const filePath = `${proseBlocksFolderPath}/${fileName}`;
+					await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+
+					const linkName = fileName.replace(/\.md$/, "");
+					updatedParagraphs.push(`[[${linkName}|${finalProseBlock.content}]]`);
+					new Notice(`Prose block updated from remote: ${linkName}`, 3000);
+					newOrderNum++;
+					break;
+				}
+
+				case "conflict": {
+					// Show conflict modal
+					const resolution = await this.resolveConflict(
+						localProseBlock!,
+						remoteProseBlock!
+					);
+
+					let resolvedContent: string;
+					if (resolution.resolution === "local") {
+						resolvedContent = paragraph.content;
+					} else if (resolution.resolution === "remote") {
+						resolvedContent = remoteProseBlock!.content;
+					} else {
+						resolvedContent = resolution.mergedContent || paragraph.content;
+					}
+
+					// Update prose block with resolved content
+					finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						content: resolvedContent,
+						order_num: newOrderNum++,
+					});
+
+					// Update local file
+					const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+					const filePath = `${proseBlocksFolderPath}/${fileName}`;
+					await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+
+					const linkName = fileName.replace(/\.md$/, "");
+					updatedParagraphs.push(`[[${linkName}|${resolvedContent}]]`);
+					break;
+				}
+			}
+
+			if (needsUpdate && finalProseBlock) {
+				const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+				const filePath = `${proseBlocksFolderPath}/${fileName}`;
+				await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+			}
+		}
+
+		// Update chapter file with new paragraph content
+		await this.updateChapterProseSection(chapterContent, updatedParagraphs, file);
+	}
+
+	// Resolve conflict using modal
+	private async resolveConflict(
+		localProseBlock: ProseBlock,
+		remoteProseBlock: ProseBlock
+	): Promise<ConflictResolutionResult> {
+		return new Promise((resolve) => {
+			const modal = new ConflictModal(
+				this.app,
+				localProseBlock,
+				remoteProseBlock,
+				async (result) => {
+					resolve(result);
+				}
+			);
+			modal.open();
+		});
+	}
+
+	// Update the Prose section in chapter file
+	private async updateChapterProseSection(
+		originalContent: string,
+		updatedParagraphs: string[],
+		file: TFile
+	): Promise<void> {
+		// Extract frontmatter
+		const frontmatterMatch = originalContent.match(/^---\n([\s\S]*?)\n---/);
+		const frontmatter = frontmatterMatch ? frontmatterMatch[0] : "";
+
+		// Extract content after frontmatter
+		const bodyStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+		const bodyContent = originalContent.substring(bodyStart).trim();
+
+		// Find Prose section and replace it
+		const proseSectionMatch = bodyContent.match(/([\s\S]*?##\s+Prose\s*\n\n)([\s\S]*?)(?=\n##|\n*$)/);
+		
+		if (!proseSectionMatch) {
+			// No Prose section found, add it
+			const newProseSection = `\n\n## Prose\n\n${updatedParagraphs.join("\n\n")}\n\n`;
+			const updatedContent = `${frontmatter}\n${bodyContent}${newProseSection}`;
+			await this.fileManager.getVault().modify(file, updatedContent);
+			return;
+		}
+
+		// Replace Prose section content
+		const beforeProse = proseSectionMatch[1];
+		const newProseContent = updatedParagraphs.join("\n\n");
+		const afterProse = bodyContent.substring(proseSectionMatch.index! + proseSectionMatch[0].length);
+
+		const updatedBody = `${beforeProse}${newProseContent}\n\n${afterProse}`;
+		const updatedContent = `${frontmatter}\n${updatedBody}`;
+
+		await this.fileManager.getVault().modify(file, updatedContent);
 	}
 }
 

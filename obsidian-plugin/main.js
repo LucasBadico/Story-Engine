@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => StoryEnginePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/api/client.ts
 var StoryEngineClient = class {
@@ -675,6 +675,10 @@ var FileManager = class {
     this.vault = vault;
     this.baseFolder = baseFolder;
   }
+  // Expose vault for sync operations
+  getVault() {
+    return this.vault;
+  }
   // Get the folder path for a specific story
   getStoryFolderPath(storyTitle) {
     const sanitized = this.sanitizeFolderName(storyTitle);
@@ -799,7 +803,7 @@ Status: ${story.status}
       for (const proseBlock of sortedProseBlocks) {
         const fileName = this.generateProseBlockFileName(proseBlock);
         const linkName = fileName.replace(/\.md$/, "");
-        content += `${proseBlock.content} [[${linkName}|(go to)]]
+        content += `[[${linkName}|${proseBlock.content}]]
 
 `;
       }
@@ -952,9 +956,7 @@ Status: ${story.status}
       for (const proseBlock of sortedProseBlocks) {
         const fileName = this.generateProseBlockFileName(proseBlock);
         const linkName = fileName.replace(/\.md$/, "");
-        content += `${proseBlock.content}
-
-[[${linkName}]]
+        content += `[[${linkName}|${proseBlock.content}]]
 
 `;
       }
@@ -1106,15 +1108,207 @@ Status: ${story.status}
       await this.vault.create(filePath, content);
     }
   }
+  // Read prose block from file
+  async readProseBlockFromFile(filePath) {
+    const file = this.vault.getAbstractFileByPath(filePath);
+    if (!(file instanceof import_obsidian5.TFile)) {
+      return null;
+    }
+    try {
+      const content = await this.vault.read(file);
+      const frontmatter = this.parseFrontmatter(content);
+      const contentMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+      const proseContent = contentMatch ? contentMatch[1].trim() : "";
+      if (!frontmatter.id) {
+        return null;
+      }
+      return {
+        id: frontmatter.id,
+        chapter_id: frontmatter.chapter_id || "",
+        order_num: parseInt(frontmatter.order_num || "0", 10),
+        kind: frontmatter.kind || "final",
+        content: proseContent,
+        word_count: parseInt(frontmatter.word_count || "0", 10),
+        created_at: frontmatter.created_at || "",
+        updated_at: frontmatter.updated_at || ""
+      };
+    } catch (err) {
+      console.error(`Failed to read prose block from ${filePath}:`, err);
+      return null;
+    }
+  }
 };
 
 // src/sync/syncService.ts
+var import_obsidian7 = require("obsidian");
+
+// src/sync/proseBlockParser.ts
+function parseChapterProse(chapterContent) {
+  const paragraphs = [];
+  const frontmatterMatch = chapterContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = chapterContent.substring(contentStart).trim();
+  const proseSectionMatch = bodyContent.match(/##\s+Prose\s*\n\n([\s\S]*?)(?=\n##|\n*$)/);
+  if (!proseSectionMatch) {
+    return paragraphs;
+  }
+  const proseContent = proseSectionMatch[1].trim();
+  const rawParagraphs = proseContent.split(/\n\n+/).filter((p) => p.trim().length > 0);
+  let order = 0;
+  for (const rawPara of rawParagraphs) {
+    const linkMatch = rawPara.trim().match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+    if (linkMatch) {
+      const linkName = linkMatch[1].trim();
+      const content = linkMatch[2].trim();
+      paragraphs.push({
+        content,
+        linkName,
+        originalOrder: order++
+      });
+    } else {
+      paragraphs.push({
+        content: rawPara.trim(),
+        linkName: null,
+        originalOrder: order++
+      });
+    }
+  }
+  return paragraphs;
+}
+function compareProseBlocks(paragraph, localProseBlock, remoteProseBlock) {
+  if (!paragraph.linkName) {
+    return "new";
+  }
+  if (!localProseBlock) {
+    return "new";
+  }
+  if (!remoteProseBlock) {
+    return "local_modified";
+  }
+  const localContent = localProseBlock.content.trim();
+  const remoteContent = remoteProseBlock.content.trim();
+  const paragraphContent = paragraph.content.trim();
+  if (localContent === paragraphContent && remoteContent === paragraphContent) {
+    return "unchanged";
+  }
+  if (paragraphContent !== localContent && paragraphContent !== remoteContent && localContent === remoteContent) {
+    return "local_modified";
+  }
+  if (localContent === paragraphContent && remoteContent !== paragraphContent) {
+    return "remote_modified";
+  }
+  if (paragraphContent !== localContent && paragraphContent !== remoteContent && localContent !== remoteContent) {
+    return "conflict";
+  }
+  if (paragraphContent === remoteContent && localContent !== remoteContent) {
+    return "remote_modified";
+  }
+  return "conflict";
+}
+
+// src/views/modals/ConflictModal.ts
 var import_obsidian6 = require("obsidian");
+var ConflictModal = class extends import_obsidian6.Modal {
+  constructor(app, localProseBlock, remoteProseBlock, onResolve) {
+    super(app);
+    this.resolution = null;
+    this.localProseBlock = localProseBlock;
+    this.remoteProseBlock = remoteProseBlock;
+    this.onResolve = onResolve;
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", {
+      text: "Prose Block Conflict"
+    });
+    contentEl.createEl("p", {
+      text: "This prose block has been modified both locally and remotely. Choose how to resolve the conflict:"
+    });
+    const diffContainer = contentEl.createDiv("conflict-diff-container");
+    const localDiv = diffContainer.createDiv("conflict-local");
+    localDiv.createEl("h3", { text: "Local Version" });
+    const localContent = localDiv.createEl("pre", {
+      text: this.localProseBlock.content,
+      cls: "conflict-content"
+    });
+    localContent.style.whiteSpace = "pre-wrap";
+    localContent.style.maxHeight = "200px";
+    localContent.style.overflow = "auto";
+    localContent.style.border = "1px solid var(--background-modifier-border)";
+    localContent.style.padding = "10px";
+    localContent.style.borderRadius = "4px";
+    const remoteDiv = diffContainer.createDiv("conflict-remote");
+    remoteDiv.createEl("h3", { text: "Remote Version" });
+    const remoteContent = remoteDiv.createEl("pre", {
+      text: this.remoteProseBlock.content,
+      cls: "conflict-content"
+    });
+    remoteContent.style.whiteSpace = "pre-wrap";
+    remoteContent.style.maxHeight = "200px";
+    remoteContent.style.overflow = "auto";
+    remoteContent.style.border = "1px solid var(--background-modifier-border)";
+    remoteContent.style.padding = "10px";
+    remoteContent.style.borderRadius = "4px";
+    const manualDiv = contentEl.createDiv("conflict-manual");
+    manualDiv.createEl("h3", { text: "Manual Merge (Optional)" });
+    const manualTextarea = manualDiv.createEl("textarea", {
+      text: this.localProseBlock.content,
+      cls: "conflict-manual-input"
+    });
+    manualTextarea.style.width = "100%";
+    manualTextarea.style.minHeight = "150px";
+    manualTextarea.style.padding = "10px";
+    manualTextarea.style.border = "1px solid var(--background-modifier-border)";
+    manualTextarea.style.borderRadius = "4px";
+    manualTextarea.style.fontFamily = "var(--font-monospace)";
+    const buttonContainer = contentEl.createDiv("conflict-buttons");
+    buttonContainer.style.marginTop = "20px";
+    buttonContainer.style.display = "flex";
+    buttonContainer.style.gap = "10px";
+    const useLocalBtn = buttonContainer.createEl("button", {
+      text: "Use Local",
+      cls: "mod-cta"
+    });
+    useLocalBtn.onclick = async () => {
+      this.resolution = { resolution: "local" };
+      await this.onResolve(this.resolution);
+      this.close();
+    };
+    const useRemoteBtn = buttonContainer.createEl("button", {
+      text: "Use Remote"
+    });
+    useRemoteBtn.onclick = async () => {
+      this.resolution = { resolution: "remote" };
+      await this.onResolve(this.resolution);
+      this.close();
+    };
+    const useManualBtn = buttonContainer.createEl("button", {
+      text: "Use Manual Merge",
+      cls: "mod-primary"
+    });
+    useManualBtn.onclick = async () => {
+      this.resolution = {
+        resolution: "manual",
+        mergedContent: manualTextarea.value
+      };
+      await this.onResolve(this.resolution);
+      this.close();
+    };
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+};
+
+// src/sync/syncService.ts
 var SyncService = class {
-  constructor(apiClient, fileManager, settings) {
+  constructor(apiClient, fileManager, settings, app) {
     this.apiClient = apiClient;
     this.fileManager = fileManager;
     this.settings = settings;
+    this.app = app;
   }
   // Pull story from service to Obsidian (Service → Obsidian)
   async pullStory(storyId) {
@@ -1175,10 +1369,10 @@ var SyncService = class {
         );
       }
       await this.syncVersionHistory(storyData.story.root_story_id, folderPath);
-      new import_obsidian6.Notice(`Story "${storyData.story.title}" synced successfully`);
+      new import_obsidian7.Notice(`Story "${storyData.story.title}" synced successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-      new import_obsidian6.Notice(`Error syncing story: ${errorMessage}`, 5e3);
+      new import_obsidian7.Notice(`Error syncing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
@@ -1196,7 +1390,7 @@ var SyncService = class {
           continue;
         }
         const versionFolderPath = `${versionsPath}/v${versionStory.version_number}`;
-        const existingVersionFolder = this.fileManager["vault"].getAbstractFileByPath(
+        const existingVersionFolder = this.fileManager.getVault().getAbstractFileByPath(
           versionFolderPath
         );
         if (existingVersionFolder) {
@@ -1254,7 +1448,7 @@ var SyncService = class {
         console.error(`Failed to sync story ${story.id}:`, err);
       }
     }
-    new import_obsidian6.Notice(`Synced ${stories.length} stories`);
+    new import_obsidian7.Notice(`Synced ${stories.length} stories`);
   }
   // Push story from Obsidian to service (Obsidian → Service)
   async pushStory(folderPath) {
@@ -1273,21 +1467,190 @@ var SyncService = class {
       for (const chapterFilePath of chapterFiles) {
         console.log(`Would update chapter: ${chapterFilePath}`);
       }
-      new import_obsidian6.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
+      for (const chapterFilePath of chapterFiles) {
+        await this.pushChapterProseBlocks(chapterFilePath, folderPath);
+      }
+      new import_obsidian7.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-      new import_obsidian6.Notice(`Error pushing story: ${errorMessage}`, 5e3);
+      new import_obsidian7.Notice(`Error pushing story: ${errorMessage}`, 5e3);
       throw err;
     }
+  }
+  // Push prose blocks from a chapter file
+  async pushChapterProseBlocks(chapterFilePath, storyFolderPath) {
+    const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
+    if (!(file instanceof import_obsidian7.TFile)) {
+      throw new Error(`Chapter file not found: ${chapterFilePath}`);
+    }
+    const chapterContent = await this.fileManager.getVault().read(file);
+    const frontmatter = this.fileManager.parseFrontmatter(chapterContent);
+    if (!frontmatter.id) {
+      throw new Error("Chapter metadata missing ID");
+    }
+    const chapterId = frontmatter.id;
+    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const paragraphs = parseChapterProse(chapterContent);
+    const remoteProseBlocks = await this.apiClient.getProseBlocks(chapterId);
+    const remoteProseBlocksMap = /* @__PURE__ */ new Map();
+    for (const pb of remoteProseBlocks) {
+      remoteProseBlocksMap.set(pb.id, pb);
+    }
+    const updatedParagraphs = [];
+    let newOrderNum = 1;
+    for (const paragraph of paragraphs) {
+      let localProseBlock = null;
+      let remoteProseBlock = null;
+      if (paragraph.linkName) {
+        const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
+        localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+        if (localProseBlock) {
+          remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+        }
+      }
+      const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+      let finalProseBlock;
+      let needsUpdate = false;
+      switch (status) {
+        case "new": {
+          finalProseBlock = await this.apiClient.createProseBlock(chapterId, {
+            order_num: newOrderNum++,
+            kind: "final",
+            content: paragraph.content
+          });
+          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+          const filePath = `${proseBlocksFolderPath}/${fileName}`;
+          await this.fileManager.writeProseBlockFile(
+            finalProseBlock,
+            filePath,
+            void 0
+          );
+          const linkName = fileName.replace(/\.md$/, "");
+          updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
+          break;
+        }
+        case "unchanged": {
+          if (localProseBlock && localProseBlock.order_num !== newOrderNum) {
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              order_num: newOrderNum++
+            });
+            needsUpdate = true;
+          } else {
+            finalProseBlock = localProseBlock;
+            newOrderNum++;
+          }
+          const linkName = paragraph.linkName;
+          updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
+          break;
+        }
+        case "local_modified": {
+          finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            content: paragraph.content,
+            order_num: newOrderNum++
+          });
+          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+          const filePath = `${proseBlocksFolderPath}/${fileName}`;
+          await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+          const linkName = fileName.replace(/\.md$/, "");
+          updatedParagraphs.push(`[[${linkName}|${paragraph.content}]]`);
+          break;
+        }
+        case "remote_modified": {
+          finalProseBlock = remoteProseBlock;
+          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+          const filePath = `${proseBlocksFolderPath}/${fileName}`;
+          await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+          const linkName = fileName.replace(/\.md$/, "");
+          updatedParagraphs.push(`[[${linkName}|${finalProseBlock.content}]]`);
+          new import_obsidian7.Notice(`Prose block updated from remote: ${linkName}`, 3e3);
+          newOrderNum++;
+          break;
+        }
+        case "conflict": {
+          const resolution = await this.resolveConflict(
+            localProseBlock,
+            remoteProseBlock
+          );
+          let resolvedContent;
+          if (resolution.resolution === "local") {
+            resolvedContent = paragraph.content;
+          } else if (resolution.resolution === "remote") {
+            resolvedContent = remoteProseBlock.content;
+          } else {
+            resolvedContent = resolution.mergedContent || paragraph.content;
+          }
+          finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            content: resolvedContent,
+            order_num: newOrderNum++
+          });
+          const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+          const filePath = `${proseBlocksFolderPath}/${fileName}`;
+          await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+          const linkName = fileName.replace(/\.md$/, "");
+          updatedParagraphs.push(`[[${linkName}|${resolvedContent}]]`);
+          break;
+        }
+      }
+      if (needsUpdate && finalProseBlock) {
+        const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+        const filePath = `${proseBlocksFolderPath}/${fileName}`;
+        await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+      }
+    }
+    await this.updateChapterProseSection(chapterContent, updatedParagraphs, file);
+  }
+  // Resolve conflict using modal
+  async resolveConflict(localProseBlock, remoteProseBlock) {
+    return new Promise((resolve) => {
+      const modal = new ConflictModal(
+        this.app,
+        localProseBlock,
+        remoteProseBlock,
+        async (result) => {
+          resolve(result);
+        }
+      );
+      modal.open();
+    });
+  }
+  // Update the Prose section in chapter file
+  async updateChapterProseSection(originalContent, updatedParagraphs, file) {
+    const frontmatterMatch = originalContent.match(/^---\n([\s\S]*?)\n---/);
+    const frontmatter = frontmatterMatch ? frontmatterMatch[0] : "";
+    const bodyStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+    const bodyContent = originalContent.substring(bodyStart).trim();
+    const proseSectionMatch = bodyContent.match(/([\s\S]*?##\s+Prose\s*\n\n)([\s\S]*?)(?=\n##|\n*$)/);
+    if (!proseSectionMatch) {
+      const newProseSection = `
+
+## Prose
+
+${updatedParagraphs.join("\n\n")}
+
+`;
+      const updatedContent2 = `${frontmatter}
+${bodyContent}${newProseSection}`;
+      await this.fileManager.getVault().modify(file, updatedContent2);
+      return;
+    }
+    const beforeProse = proseSectionMatch[1];
+    const newProseContent = updatedParagraphs.join("\n\n");
+    const afterProse = bodyContent.substring(proseSectionMatch.index + proseSectionMatch[0].length);
+    const updatedBody = `${beforeProse}${newProseContent}
+
+${afterProse}`;
+    const updatedContent = `${frontmatter}
+${updatedBody}`;
+    await this.fileManager.getVault().modify(file, updatedContent);
   }
 };
 
 // src/views/StoryListView.ts
-var import_obsidian10 = require("obsidian");
+var import_obsidian11 = require("obsidian");
 
 // src/views/modals/ChapterModal.ts
-var import_obsidian7 = require("obsidian");
-var ChapterModal = class extends import_obsidian7.Modal {
+var import_obsidian8 = require("obsidian");
+var ChapterModal = class extends import_obsidian8.Modal {
   constructor(app, onSubmit, existingChapters = [], chapter) {
     super(app);
     this.chapter = {
@@ -1314,7 +1677,7 @@ var ChapterModal = class extends import_obsidian7.Modal {
       text: this.isEdit ? "Edit Chapter" : "Create Chapter"
     });
     if (this.isEdit) {
-      new import_obsidian7.Setting(contentEl).setName("Chapter Number").setDesc("The chapter number").addText(
+      new import_obsidian8.Setting(contentEl).setName("Chapter Number").setDesc("The chapter number").addText(
         (text) => {
           var _a;
           return text.setPlaceholder("1").setValue(((_a = this.chapter.number) == null ? void 0 : _a.toString()) || "1").onChange((value) => {
@@ -1326,7 +1689,7 @@ var ChapterModal = class extends import_obsidian7.Modal {
         }
       );
     }
-    new import_obsidian7.Setting(contentEl).setName("Title").setDesc("Chapter title").addText(
+    new import_obsidian8.Setting(contentEl).setName("Title").setDesc("Chapter title").addText(
       (text) => text.setPlaceholder("Chapter Title").setValue(this.chapter.title || "").onChange((value) => {
         this.chapter.title = value;
       }).inputEl.addEventListener("keypress", (e) => {
@@ -1335,7 +1698,7 @@ var ChapterModal = class extends import_obsidian7.Modal {
         }
       })
     );
-    new import_obsidian7.Setting(contentEl).setName("Status").setDesc("Chapter status").addDropdown(
+    new import_obsidian8.Setting(contentEl).setName("Status").setDesc("Chapter status").addDropdown(
       (dropdown) => dropdown.addOption("draft", "Draft").addOption("in_progress", "In Progress").addOption("completed", "Completed").setValue(this.chapter.status || "draft").onChange((value) => {
         this.chapter.status = value;
       })
@@ -1358,7 +1721,7 @@ var ChapterModal = class extends import_obsidian7.Modal {
   async submit() {
     var _a;
     if (!((_a = this.chapter.title) == null ? void 0 : _a.trim())) {
-      new import_obsidian7.Notice("Please enter a chapter title", 3e3);
+      new import_obsidian8.Notice("Please enter a chapter title", 3e3);
       return;
     }
     if (!this.isEdit) {
@@ -1366,7 +1729,7 @@ var ChapterModal = class extends import_obsidian7.Modal {
       this.chapter.number = maxNumber + 1;
     } else {
       if (!this.chapter.number || this.chapter.number < 1) {
-        new import_obsidian7.Notice("Chapter number must be greater than 0", 3e3);
+        new import_obsidian8.Notice("Chapter number must be greater than 0", 3e3);
         return;
       }
     }
@@ -1375,7 +1738,7 @@ var ChapterModal = class extends import_obsidian7.Modal {
       this.close();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save chapter";
-      new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian8.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   onClose() {
@@ -1385,8 +1748,8 @@ var ChapterModal = class extends import_obsidian7.Modal {
 };
 
 // src/views/modals/SceneModal.ts
-var import_obsidian8 = require("obsidian");
-var SceneModal = class extends import_obsidian8.Modal {
+var import_obsidian9 = require("obsidian");
+var SceneModal = class extends import_obsidian9.Modal {
   constructor(app, storyId, chapters, onSubmit, existingScenes = [], scene) {
     super(app);
     this.scene = {
@@ -1421,7 +1784,7 @@ var SceneModal = class extends import_obsidian8.Modal {
     contentEl.createEl("h2", {
       text: this.isEdit ? "Edit Scene" : "Create Scene"
     });
-    new import_obsidian8.Setting(contentEl).setName("Chapter").setDesc("Select the chapter for this scene (optional)").addDropdown((dropdown) => {
+    new import_obsidian9.Setting(contentEl).setName("Chapter").setDesc("Select the chapter for this scene (optional)").addDropdown((dropdown) => {
       dropdown.addOption("", "No Chapter");
       for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
         dropdown.addOption(
@@ -1435,7 +1798,7 @@ var SceneModal = class extends import_obsidian8.Modal {
       });
     });
     if (this.isEdit) {
-      new import_obsidian8.Setting(contentEl).setName("Order Number").setDesc("Scene order within chapter").addText(
+      new import_obsidian9.Setting(contentEl).setName("Order Number").setDesc("Scene order within chapter").addText(
         (text) => {
           var _a;
           return text.setPlaceholder("1").setValue(((_a = this.scene.order_num) == null ? void 0 : _a.toString()) || "1").onChange((value) => {
@@ -1447,12 +1810,12 @@ var SceneModal = class extends import_obsidian8.Modal {
         }
       );
     }
-    new import_obsidian8.Setting(contentEl).setName("Goal").setDesc("Scene goal or description").addTextArea(
+    new import_obsidian9.Setting(contentEl).setName("Goal").setDesc("Scene goal or description").addTextArea(
       (text) => text.setPlaceholder("What happens in this scene?").setValue(this.scene.goal || "").onChange((value) => {
         this.scene.goal = value;
       })
     );
-    new import_obsidian8.Setting(contentEl).setName("Time Reference").setDesc("When does this scene take place?").addText(
+    new import_obsidian9.Setting(contentEl).setName("Time Reference").setDesc("When does this scene take place?").addText(
       (text) => text.setPlaceholder("Morning, Evening, etc.").setValue(this.scene.time_ref || "").onChange((value) => {
         this.scene.time_ref = value;
       })
@@ -1482,7 +1845,7 @@ var SceneModal = class extends import_obsidian8.Modal {
       this.scene.order_num = maxOrderNum + 1;
     } else {
       if (!this.scene.order_num || this.scene.order_num < 1) {
-        new import_obsidian8.Notice("Order number must be greater than 0", 3e3);
+        new import_obsidian9.Notice("Order number must be greater than 0", 3e3);
         return;
       }
     }
@@ -1491,7 +1854,7 @@ var SceneModal = class extends import_obsidian8.Modal {
       this.close();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save scene";
-      new import_obsidian8.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian9.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   onClose() {
@@ -1501,8 +1864,8 @@ var SceneModal = class extends import_obsidian8.Modal {
 };
 
 // src/views/modals/BeatModal.ts
-var import_obsidian9 = require("obsidian");
-var BeatModal = class extends import_obsidian9.Modal {
+var import_obsidian10 = require("obsidian");
+var BeatModal = class extends import_obsidian10.Modal {
   constructor(app, storyId, scenes, onSubmit, existingBeats = [], beat) {
     super(app);
     this.beat = {
@@ -1534,7 +1897,7 @@ var BeatModal = class extends import_obsidian9.Modal {
     contentEl.createEl("h2", {
       text: this.isEdit ? "Edit Beat" : "Create Beat"
     });
-    new import_obsidian9.Setting(contentEl).setName("Scene").setDesc("Select the scene for this beat").addDropdown((dropdown) => {
+    new import_obsidian10.Setting(contentEl).setName("Scene").setDesc("Select the scene for this beat").addDropdown((dropdown) => {
       const scenesByChapter = /* @__PURE__ */ new Map();
       for (const scene of this.scenes) {
         const chapterId = scene.chapter_id || null;
@@ -1558,7 +1921,7 @@ var BeatModal = class extends import_obsidian9.Modal {
       });
     });
     if (this.isEdit) {
-      new import_obsidian9.Setting(contentEl).setName("Order Number").setDesc("Beat order within scene").addText(
+      new import_obsidian10.Setting(contentEl).setName("Order Number").setDesc("Beat order within scene").addText(
         (text) => {
           var _a;
           return text.setPlaceholder("1").setValue(((_a = this.beat.order_num) == null ? void 0 : _a.toString()) || "1").onChange((value) => {
@@ -1570,17 +1933,17 @@ var BeatModal = class extends import_obsidian9.Modal {
         }
       );
     }
-    new import_obsidian9.Setting(contentEl).setName("Type").setDesc("Beat type").addDropdown(
+    new import_obsidian10.Setting(contentEl).setName("Type").setDesc("Beat type").addDropdown(
       (dropdown) => dropdown.addOption("setup", "Setup").addOption("turn", "Turn").addOption("reveal", "Reveal").addOption("conflict", "Conflict").addOption("climax", "Climax").addOption("resolution", "Resolution").addOption("hook", "Hook").addOption("transition", "Transition").setValue(this.beat.type || "setup").onChange((value) => {
         this.beat.type = value;
       })
     );
-    new import_obsidian9.Setting(contentEl).setName("Intent").setDesc("What is the intent of this beat?").addTextArea(
+    new import_obsidian10.Setting(contentEl).setName("Intent").setDesc("What is the intent of this beat?").addTextArea(
       (text) => text.setPlaceholder("What does the character want?").setValue(this.beat.intent || "").onChange((value) => {
         this.beat.intent = value;
       })
     );
-    new import_obsidian9.Setting(contentEl).setName("Outcome").setDesc("What is the outcome of this beat?").addTextArea(
+    new import_obsidian10.Setting(contentEl).setName("Outcome").setDesc("What is the outcome of this beat?").addTextArea(
       (text) => text.setPlaceholder("What happens as a result?").setValue(this.beat.outcome || "").onChange((value) => {
         this.beat.outcome = value;
       })
@@ -1602,11 +1965,11 @@ var BeatModal = class extends import_obsidian9.Modal {
   }
   async submit() {
     if (!this.beat.scene_id) {
-      new import_obsidian9.Notice("Please select a scene", 3e3);
+      new import_obsidian10.Notice("Please select a scene", 3e3);
       return;
     }
     if (!this.beat.type) {
-      new import_obsidian9.Notice("Please select a beat type", 3e3);
+      new import_obsidian10.Notice("Please select a beat type", 3e3);
       return;
     }
     if (!this.isEdit) {
@@ -1615,7 +1978,7 @@ var BeatModal = class extends import_obsidian9.Modal {
       this.beat.order_num = maxOrderNum + 1;
     } else {
       if (!this.beat.order_num || this.beat.order_num < 1) {
-        new import_obsidian9.Notice("Order number must be greater than 0", 3e3);
+        new import_obsidian10.Notice("Order number must be greater than 0", 3e3);
         return;
       }
     }
@@ -1624,7 +1987,7 @@ var BeatModal = class extends import_obsidian9.Modal {
       this.close();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save beat";
-      new import_obsidian9.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   onClose() {
@@ -1635,7 +1998,7 @@ var BeatModal = class extends import_obsidian9.Modal {
 
 // src/views/StoryListView.ts
 var STORY_LIST_VIEW_TYPE = "story-engine-list-view";
-var StoryListView = class extends import_obsidian10.ItemView {
+var StoryListView = class extends import_obsidian11.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.stories = [];
@@ -1700,16 +2063,16 @@ var StoryListView = class extends import_obsidian10.ItemView {
     });
     syncAllButton.onclick = async () => {
       if (!this.plugin.settings.tenantId) {
-        new import_obsidian10.Notice("Please configure Tenant ID in settings", 5e3);
+        new import_obsidian11.Notice("Please configure Tenant ID in settings", 5e3);
         return;
       }
       try {
-        new import_obsidian10.Notice("Syncing all stories...");
+        new import_obsidian11.Notice("Syncing all stories...");
         await this.plugin.syncService.pullAllStories();
         await this.loadStories();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
-        new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const createButton = headerActions.createEl("button", {
@@ -1836,7 +2199,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
       this.beats = await this.plugin.apiClient.getBeatsByStory(this.currentStory.id);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load hierarchy";
-      new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
     } finally {
       this.loadingHierarchy = false;
     }
@@ -1877,14 +2240,14 @@ var StoryListView = class extends import_obsidian10.ItemView {
     });
     syncButton.onclick = async () => {
       try {
-        new import_obsidian10.Notice(`Syncing story "${story.title}"...`);
+        new import_obsidian11.Notice(`Syncing story "${story.title}"...`);
         await this.plugin.syncService.pullStory(story.id);
         await this.loadHierarchy();
         this.renderTabContent();
-        new import_obsidian10.Notice(`Story synced successfully!`);
+        new import_obsidian11.Notice(`Story synced successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-        new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const pushButton = actionsSection.createEl("button", {
@@ -1894,12 +2257,12 @@ var StoryListView = class extends import_obsidian10.ItemView {
     pushButton.onclick = async () => {
       try {
         const folderPath = this.plugin.fileManager.getStoryFolderPath(story.title);
-        new import_obsidian10.Notice(`Pushing story "${story.title}"...`);
+        new import_obsidian11.Notice(`Pushing story "${story.title}"...`);
         await this.plugin.syncService.pushStory(folderPath);
-        new import_obsidian10.Notice(`Story pushed successfully!`);
+        new import_obsidian11.Notice(`Story pushed successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-        new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     this.renderTabs();
@@ -1980,7 +2343,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
           await this.plugin.apiClient.createChapter(this.currentStory.id, chapter);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian10.Notice("Chapter created successfully");
+          new import_obsidian11.Notice("Chapter created successfully");
         } catch (err) {
           throw err;
         }
@@ -2006,7 +2369,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
             await this.plugin.apiClient.updateChapter(chapter.id, updatedChapter);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian10.Notice("Chapter updated successfully");
+            new import_obsidian11.Notice("Chapter updated successfully");
           } catch (err) {
             throw err;
           }
@@ -2018,9 +2381,9 @@ var StoryListView = class extends import_obsidian10.ItemView {
             await this.plugin.apiClient.deleteChapter(chapter.id);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian10.Notice("Chapter deleted");
+            new import_obsidian11.Notice("Chapter deleted");
           } catch (err) {
-            new import_obsidian10.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian11.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -2055,7 +2418,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian10.Notice("Scene created successfully");
+            new import_obsidian11.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
@@ -2088,7 +2451,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian10.Notice("Scene created successfully");
+            new import_obsidian11.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
@@ -2119,7 +2482,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
           await this.plugin.apiClient.updateScene(scene.id, updatedScene);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian10.Notice("Scene updated successfully");
+          new import_obsidian11.Notice("Scene updated successfully");
         } catch (err) {
           throw err;
         }
@@ -2134,9 +2497,9 @@ var StoryListView = class extends import_obsidian10.ItemView {
           await this.plugin.apiClient.deleteScene(scene.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian10.Notice("Scene deleted");
+          new import_obsidian11.Notice("Scene deleted");
         } catch (err) {
-          new import_obsidian10.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian11.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -2180,7 +2543,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
                 await this.plugin.apiClient.createBeat(beat);
                 await this.loadHierarchy();
                 this.renderTabContent();
-                new import_obsidian10.Notice("Beat created successfully");
+                new import_obsidian11.Notice("Beat created successfully");
               } catch (err) {
                 throw err;
               }
@@ -2227,7 +2590,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
               await this.plugin.apiClient.createBeat(beat);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian10.Notice("Beat created successfully");
+              new import_obsidian11.Notice("Beat created successfully");
             } catch (err) {
               throw err;
             }
@@ -2279,7 +2642,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
           await this.plugin.apiClient.updateBeat(beat.id, updatedBeat);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian10.Notice("Beat updated successfully");
+          new import_obsidian11.Notice("Beat updated successfully");
         } catch (err) {
           throw err;
         }
@@ -2294,9 +2657,9 @@ var StoryListView = class extends import_obsidian10.ItemView {
           await this.plugin.apiClient.deleteBeat(beat.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian10.Notice("Beat deleted");
+          new import_obsidian11.Notice("Beat deleted");
         } catch (err) {
-          new import_obsidian10.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian11.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -2318,12 +2681,12 @@ var StoryListView = class extends import_obsidian10.ItemView {
         this.currentStory.id,
         this.plugin.settings.tenantId
       );
-      new import_obsidian10.Notice(`Story "${clonedStory.title}" cloned successfully!`);
+      new import_obsidian11.Notice(`Story "${clonedStory.title}" cloned successfully!`);
       await this.loadStories();
       await this.showStoryDetails(clonedStory);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Clone failed";
-      new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
       if (cloneButton) {
         cloneButton.setText("Clone Story");
         cloneButton.disabled = false;
@@ -2352,18 +2715,18 @@ var StoryListView = class extends import_obsidian10.ItemView {
             copyButton.setText("Copy ID");
           }, 2e3);
         }
-        new import_obsidian10.Notice("Story ID copied to clipboard");
+        new import_obsidian11.Notice("Story ID copied to clipboard");
       }
     } catch (err) {
       console.error("Failed to copy ID:", err);
-      new import_obsidian10.Notice("Failed to copy ID", 3e3);
+      new import_obsidian11.Notice("Failed to copy ID", 3e3);
     }
     document.body.removeChild(textarea);
   }
   async showMoveSceneModal(scene) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian10.Modal(this.app);
+    const modal = new import_obsidian11.Modal(this.app);
     modal.titleEl.setText("Move Scene");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move scene "${scene.goal || `Scene ${scene.order_num}`}" to:` });
@@ -2393,10 +2756,10 @@ var StoryListView = class extends import_obsidian10.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian10.Notice("Scene moved successfully");
+        new import_obsidian11.Notice("Scene moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move scene";
-        new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -2406,7 +2769,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
   async showMoveBeatModal(beat) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian10.Modal(this.app);
+    const modal = new import_obsidian11.Modal(this.app);
     modal.titleEl.setText("Move Beat");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move beat "${beat.type}" to:` });
@@ -2449,7 +2812,7 @@ var StoryListView = class extends import_obsidian10.ItemView {
     moveButton.onclick = async () => {
       const selectedSceneId = select.value;
       if (!selectedSceneId) {
-        new import_obsidian10.Notice("Please select a scene", 3e3);
+        new import_obsidian11.Notice("Please select a scene", 3e3);
         return;
       }
       try {
@@ -2457,10 +2820,10 @@ var StoryListView = class extends import_obsidian10.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian10.Notice("Beat moved successfully");
+        new import_obsidian11.Notice("Beat moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move beat";
-        new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -2479,7 +2842,7 @@ var DEFAULT_SETTINGS = {
   autoVersionSnapshots: true,
   conflictResolution: "service"
 };
-var StoryEnginePlugin = class extends import_obsidian11.Plugin {
+var StoryEnginePlugin = class extends import_obsidian12.Plugin {
   async onload() {
     await this.loadSettings();
     this.apiClient = new StoryEngineClient(
@@ -2493,7 +2856,8 @@ var StoryEnginePlugin = class extends import_obsidian11.Plugin {
     this.syncService = new SyncService(
       this.apiClient,
       this.fileManager,
-      this.settings
+      this.settings,
+      this.app
     );
     this.addSettingTab(new StoryEngineSettingTab(this.app, this));
     this.registerView(
@@ -2528,34 +2892,35 @@ var StoryEnginePlugin = class extends import_obsidian11.Plugin {
     this.syncService = new SyncService(
       this.apiClient,
       this.fileManager,
-      this.settings
+      this.settings,
+      this.app
     );
   }
   async createStoryCommand() {
     var _a;
     const tenantId = (_a = this.settings.tenantId) == null ? void 0 : _a.trim();
     if (!tenantId) {
-      new import_obsidian11.Notice("Please configure Tenant ID in settings", 5e3);
+      new import_obsidian12.Notice("Please configure Tenant ID in settings", 5e3);
       return;
     }
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(tenantId)) {
-      new import_obsidian11.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
+      new import_obsidian12.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
       return;
     }
     new CreateStoryModal(this.app, async (title, shouldSync) => {
       try {
-        new import_obsidian11.Notice(`Creating story "${title}"...`);
+        new import_obsidian12.Notice(`Creating story "${title}"...`);
         const story = await this.apiClient.createStory(tenantId, title);
-        new import_obsidian11.Notice(`Story "${title}" created successfully`);
+        new import_obsidian12.Notice(`Story "${title}" created successfully`);
         if (shouldSync) {
           try {
-            new import_obsidian11.Notice(`Syncing story to Obsidian...`);
+            new import_obsidian12.Notice(`Syncing story to Obsidian...`);
             await this.syncService.pullStory(story.id);
-            new import_obsidian11.Notice(`Story synced to your vault!`);
+            new import_obsidian12.Notice(`Story synced to your vault!`);
           } catch (syncErr) {
             const syncErrorMessage = syncErr instanceof Error ? syncErr.message : "Failed to sync story";
-            new import_obsidian11.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
+            new import_obsidian12.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
           }
         }
         const openView = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
@@ -2568,7 +2933,7 @@ var StoryEnginePlugin = class extends import_obsidian11.Plugin {
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to create story";
-        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
       }
     }).open();
   }
@@ -2578,7 +2943,7 @@ var StoryEnginePlugin = class extends import_obsidian11.Plugin {
     if (!leaf) {
       const rightLeaf = workspace.getRightLeaf(false);
       if (!rightLeaf) {
-        new import_obsidian11.Notice("Could not create view. Please try again.", 3e3);
+        new import_obsidian12.Notice("Could not create view. Please try again.", 3e3);
         return;
       }
       leaf = rightLeaf;

@@ -41,7 +41,8 @@ export default class StoryEnginePlugin extends Plugin {
 		this.syncService = new SyncService(
 			this.apiClient,
 			this.fileManager,
-			this.settings
+			this.settings,
+			this.app
 		);
 
 		this.addSettingTab(new StoryEngineSettingTab(this.app, this));
@@ -89,7 +90,8 @@ export default class StoryEnginePlugin extends Plugin {
 		this.syncService = new SyncService(
 			this.apiClient,
 			this.fileManager,
-			this.settings
+			this.settings,
+			this.app
 		);
 	}
 

@@ -7,6 +7,11 @@ export class FileManager {
 		private baseFolder: string
 	) {}
 
+	// Expose vault for sync operations
+	getVault(): Vault {
+		return this.vault;
+	}
+
 	// Get the folder path for a specific story
 	getStoryFolderPath(storyTitle: string): string {
 		const sanitized = this.sanitizeFolderName(storyTitle);
@@ -174,7 +179,7 @@ export class FileManager {
 				// Remove .md extension for link
 				const linkName = fileName.replace(/\.md$/, "");
 				// Include content directly and add link below
-				content += `${proseBlock.content} [[${linkName}|(go to)]]\n\n`;
+				content += `[[${linkName}|${proseBlock.content}]]\n\n`;
 			}
 		}
 
@@ -226,7 +231,7 @@ export class FileManager {
 	}
 
 	// Parse YAML frontmatter
-	private parseFrontmatter(content: string): Record<string, string> {
+	parseFrontmatter(content: string): Record<string, string> {
 		const match = content.match(/^---\n([\s\S]*?)\n---/);
 		if (!match) {
 			return {};
@@ -358,8 +363,8 @@ export class FileManager {
 				const fileName = this.generateProseBlockFileName(proseBlock);
 				// Remove .md extension for link
 				const linkName = fileName.replace(/\.md$/, "");
-				// Include content directly and add link below
-				content += `${proseBlock.content}\n\n[[${linkName}]]\n\n`;
+				// Include content as link text
+				content += `[[${linkName}|${proseBlock.content}]]\n\n`;
 			}
 		}
 
@@ -540,6 +545,41 @@ export class FileManager {
 			await this.vault.modify(file, content);
 		} else {
 			await this.vault.create(filePath, content);
+		}
+	}
+
+	// Read prose block from file
+	async readProseBlockFromFile(filePath: string): Promise<ProseBlock | null> {
+		const file = this.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			return null;
+		}
+
+		try {
+			const content = await this.vault.read(file);
+			const frontmatter = this.parseFrontmatter(content);
+
+			// Extract content after frontmatter
+			const contentMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+			const proseContent = contentMatch ? contentMatch[1].trim() : "";
+
+			if (!frontmatter.id) {
+				return null;
+			}
+
+			return {
+				id: frontmatter.id,
+				chapter_id: frontmatter.chapter_id || "",
+				order_num: parseInt(frontmatter.order_num || "0", 10),
+				kind: frontmatter.kind || "final",
+				content: proseContent,
+				word_count: parseInt(frontmatter.word_count || "0", 10),
+				created_at: frontmatter.created_at || "",
+				updated_at: frontmatter.updated_at || "",
+			};
+		} catch (err) {
+			console.error(`Failed to read prose block from ${filePath}:`, err);
+			return null;
 		}
 	}
 }
