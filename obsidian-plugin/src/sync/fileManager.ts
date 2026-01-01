@@ -301,7 +301,7 @@ export class FileManager {
 		const baseFields: Record<string, string | number | null> = {
 			id: scene.id,
 			story_id: scene.story_id,
-			chapter_id: scene.chapter_id,
+			chapter_id: scene.chapter_id ?? null,
 			order_num: scene.order_num,
 			time_ref: scene.time_ref || "",
 			goal: scene.goal || "",

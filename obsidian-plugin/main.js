@@ -280,6 +280,42 @@ var StoryEngineClient = class {
     );
     return response.stories || [];
   }
+  async getScenesByStory(storyId) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/stories/${storyId}/scenes`
+    );
+    return response.scenes || [];
+  }
+  async moveScene(sceneId, chapterId) {
+    const body = {};
+    if (chapterId !== null) {
+      body.chapter_id = chapterId;
+    } else {
+      body.chapter_id = null;
+    }
+    const response = await this.request(
+      "PUT",
+      `/api/v1/scenes/${sceneId}/move`,
+      body
+    );
+    return response.scene;
+  }
+  async getBeatsByStory(storyId) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/stories/${storyId}/beats`
+    );
+    return response.beats || [];
+  }
+  async moveBeat(beatId, sceneId) {
+    const response = await this.request(
+      "PUT",
+      `/api/v1/beats/${beatId}/move`,
+      { scene_id: sceneId }
+    );
+    return response.beat;
+  }
 };
 
 // src/settings.ts
@@ -789,11 +825,12 @@ Status: ${story.status}
   }
   // Write scene file
   async writeSceneFile(sceneWithBeats, filePath, storyName) {
+    var _a;
     const { scene, beats } = sceneWithBeats;
     const baseFields = {
       id: scene.id,
       story_id: scene.story_id,
-      chapter_id: scene.chapter_id,
+      chapter_id: (_a = scene.chapter_id) != null ? _a : null,
       order_num: scene.order_num,
       time_ref: scene.time_ref || "",
       goal: scene.goal || "",
@@ -1081,6 +1118,11 @@ var StoryListView = class extends import_obsidian7.ItemView {
     this.error = null;
     this.currentStory = null;
     this.viewMode = "list";
+    this.currentTab = "chapters";
+    this.chapters = [];
+    this.scenes = [];
+    this.beats = [];
+    this.loadingHierarchy = false;
     this.plugin = plugin;
   }
   getViewType() {
@@ -1222,8 +1264,8 @@ var StoryListView = class extends import_obsidian7.ItemView {
       meta.createEl("span", {
         text: `Status: ${story.status}`
       });
-      storyItem.onclick = () => {
-        this.showStoryDetails(story);
+      storyItem.onclick = async () => {
+        await this.showStoryDetails(story);
       };
     }
   }
@@ -1252,10 +1294,27 @@ var StoryListView = class extends import_obsidian7.ItemView {
   async refresh() {
     await this.loadStories();
   }
-  showStoryDetails(story) {
+  async showStoryDetails(story) {
     this.currentStory = story;
     this.viewMode = "details";
+    this.currentTab = "chapters";
+    await this.loadHierarchy();
     this.renderDetails();
+  }
+  async loadHierarchy() {
+    if (!this.currentStory)
+      return;
+    this.loadingHierarchy = true;
+    try {
+      this.chapters = await this.plugin.apiClient.getChapters(this.currentStory.id);
+      this.scenes = await this.plugin.apiClient.getScenesByStory(this.currentStory.id);
+      this.beats = await this.plugin.apiClient.getBeatsByStory(this.currentStory.id);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to load hierarchy";
+      new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
+    } finally {
+      this.loadingHierarchy = false;
+    }
   }
   showList() {
     this.currentStory = null;
@@ -1295,6 +1354,8 @@ var StoryListView = class extends import_obsidian7.ItemView {
       try {
         new import_obsidian7.Notice(`Syncing story "${story.title}"...`);
         await this.plugin.syncService.pullStory(story.id);
+        await this.loadHierarchy();
+        this.renderTabContent();
         new import_obsidian7.Notice(`Story synced successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
@@ -1314,6 +1375,279 @@ var StoryListView = class extends import_obsidian7.ItemView {
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to push story";
         new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
+      }
+    };
+    this.renderTabs();
+    this.renderTabContent();
+  }
+  renderTabs() {
+    if (!this.contentEl)
+      return;
+    const existingTabs = this.contentEl.querySelector(".story-engine-tabs");
+    if (existingTabs) {
+      existingTabs.remove();
+    }
+    const tabsContainer = this.contentEl.createDiv({ cls: "story-engine-tabs" });
+    const chaptersTab = tabsContainer.createEl("button", {
+      text: "Chapters",
+      cls: `story-engine-tab ${this.currentTab === "chapters" ? "is-active" : ""}`
+    });
+    chaptersTab.onclick = () => {
+      this.currentTab = "chapters";
+      this.renderTabs();
+      this.renderTabContent();
+    };
+    const scenesTab = tabsContainer.createEl("button", {
+      text: "Scenes",
+      cls: `story-engine-tab ${this.currentTab === "scenes" ? "is-active" : ""}`
+    });
+    scenesTab.onclick = () => {
+      this.currentTab = "scenes";
+      this.renderTabs();
+      this.renderTabContent();
+    };
+    const beatsTab = tabsContainer.createEl("button", {
+      text: "Beats",
+      cls: `story-engine-tab ${this.currentTab === "beats" ? "is-active" : ""}`
+    });
+    beatsTab.onclick = () => {
+      this.currentTab = "beats";
+      this.renderTabs();
+      this.renderTabContent();
+    };
+  }
+  renderTabContent() {
+    if (!this.contentEl)
+      return;
+    const existingContent = this.contentEl.querySelector(".story-engine-tab-content");
+    if (existingContent) {
+      existingContent.remove();
+    }
+    const tabContent = this.contentEl.createDiv({ cls: "story-engine-tab-content" });
+    if (this.loadingHierarchy) {
+      tabContent.createEl("p", { text: "Loading..." });
+      return;
+    }
+    switch (this.currentTab) {
+      case "chapters":
+        this.renderChaptersTab(tabContent);
+        break;
+      case "scenes":
+        this.renderScenesTab(tabContent);
+        break;
+      case "beats":
+        this.renderBeatsTab(tabContent);
+        break;
+    }
+  }
+  renderChaptersTab(container) {
+    container.empty();
+    const header = container.createDiv({ cls: "story-engine-tab-header" });
+    const createButton = header.createEl("button", {
+      text: "Create Chapter",
+      cls: "mod-cta"
+    });
+    createButton.onclick = () => {
+      new import_obsidian7.Notice("Create Chapter - Coming soon", 3e3);
+    };
+    const list = container.createDiv({ cls: "story-engine-list" });
+    if (this.chapters.length === 0) {
+      list.createEl("p", { text: "No chapters found." });
+      return;
+    }
+    for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+      const item = list.createDiv({ cls: "story-engine-item" });
+      item.createDiv({
+        cls: "story-engine-title",
+        text: `Chapter ${chapter.number}: ${chapter.title}`
+      });
+      const meta = item.createDiv({ cls: "story-engine-meta" });
+      meta.createEl("span", { text: `Status: ${chapter.status}` });
+      const actions = item.createDiv({ cls: "story-engine-item-actions" });
+      actions.createEl("button", { text: "Edit" }).onclick = () => {
+        new import_obsidian7.Notice("Edit Chapter - Coming soon", 3e3);
+      };
+      actions.createEl("button", { text: "Delete" }).onclick = async () => {
+        if (confirm("Delete this chapter?")) {
+          try {
+            await this.plugin.apiClient.deleteChapter(chapter.id);
+            await this.loadHierarchy();
+            this.renderTabContent();
+            new import_obsidian7.Notice("Chapter deleted");
+          } catch (err) {
+            new import_obsidian7.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          }
+        }
+      };
+    }
+  }
+  renderScenesTab(container) {
+    container.empty();
+    const scenesByChapter = /* @__PURE__ */ new Map();
+    for (const scene of this.scenes) {
+      const chapterId = scene.chapter_id || null;
+      if (!scenesByChapter.has(chapterId)) {
+        scenesByChapter.set(chapterId, []);
+      }
+      scenesByChapter.get(chapterId).push(scene);
+    }
+    const list = container.createDiv({ cls: "story-engine-list" });
+    for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+      const chapterScenes = scenesByChapter.get(chapter.id) || [];
+      const group = list.createDiv({ cls: "story-engine-group" });
+      const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+      groupHeader.createEl("h3", { text: `Chapter ${chapter.number}: ${chapter.title}` });
+      const addButton = groupHeader.createEl("button", {
+        text: "+ Add Scene",
+        cls: "story-engine-add-btn"
+      });
+      addButton.onclick = () => {
+        new import_obsidian7.Notice("Create Scene - Coming soon", 3e3);
+      };
+      const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+      if (chapterScenes.length === 0) {
+        groupItems.createEl("p", { text: "No scenes in this chapter." });
+      } else {
+        for (const scene of chapterScenes.sort((a, b) => a.order_num - b.order_num)) {
+          this.renderSceneItem(groupItems, scene);
+        }
+      }
+    }
+    const orphanScenes = scenesByChapter.get(null) || [];
+    if (orphanScenes.length > 0 || scenesByChapter.size === 0) {
+      const group = list.createDiv({ cls: "story-engine-group" });
+      const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+      groupHeader.createEl("h3", { text: "Sem Chapter" });
+      const addButton = groupHeader.createEl("button", {
+        text: "+ Add Scene",
+        cls: "story-engine-add-btn"
+      });
+      addButton.onclick = () => {
+        new import_obsidian7.Notice("Create Scene - Coming soon", 3e3);
+      };
+      const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+      for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
+        this.renderSceneItem(groupItems, scene);
+      }
+    }
+  }
+  renderSceneItem(container, scene) {
+    const item = container.createDiv({ cls: "story-engine-item" });
+    item.createDiv({
+      cls: "story-engine-title",
+      text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`
+    });
+    const meta = item.createDiv({ cls: "story-engine-meta" });
+    if (scene.time_ref) {
+      meta.createEl("span", { text: `Time: ${scene.time_ref}` });
+    }
+    const actions = item.createDiv({ cls: "story-engine-item-actions" });
+    actions.createEl("button", { text: "Edit" }).onclick = () => {
+      new import_obsidian7.Notice("Edit Scene - Coming soon", 3e3);
+    };
+    actions.createEl("button", { text: "Move" }).onclick = () => {
+      new import_obsidian7.Notice("Move Scene - Coming soon", 3e3);
+    };
+    actions.createEl("button", { text: "Delete" }).onclick = async () => {
+      if (confirm("Delete this scene?")) {
+        try {
+          await this.plugin.apiClient.deleteScene(scene.id);
+          await this.loadHierarchy();
+          this.renderTabContent();
+          new import_obsidian7.Notice("Scene deleted");
+        } catch (err) {
+          new import_obsidian7.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        }
+      }
+    };
+  }
+  renderBeatsTab(container) {
+    container.empty();
+    const beatsByScene = /* @__PURE__ */ new Map();
+    for (const beat of this.beats) {
+      if (!beatsByScene.has(beat.scene_id)) {
+        beatsByScene.set(beat.scene_id, []);
+      }
+      beatsByScene.get(beat.scene_id).push(beat);
+    }
+    const list = container.createDiv({ cls: "story-engine-list" });
+    for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+      const chapterScenes = this.scenes.filter((s) => s.chapter_id === chapter.id).sort((a, b) => a.order_num - b.order_num);
+      for (const scene of chapterScenes) {
+        const sceneBeats = beatsByScene.get(scene.id) || [];
+        const group = list.createDiv({ cls: "story-engine-group" });
+        const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+        groupHeader.createEl("h3", {
+          text: `Chapter ${chapter.number} > Scene ${scene.order_num}: ${scene.goal || "Untitled"}`
+        });
+        const addButton = groupHeader.createEl("button", {
+          text: "+ Add Beat",
+          cls: "story-engine-add-btn"
+        });
+        addButton.onclick = () => {
+          new import_obsidian7.Notice("Create Beat - Coming soon", 3e3);
+        };
+        const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+        if (sceneBeats.length === 0) {
+          groupItems.createEl("p", { text: "No beats in this scene." });
+        } else {
+          for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
+            this.renderBeatItem(groupItems, beat);
+          }
+        }
+      }
+    }
+    const orphanBeats = this.beats.filter((b) => {
+      const scene = this.scenes.find((s) => s.id === b.scene_id);
+      return !scene;
+    });
+    if (orphanBeats.length > 0) {
+      const group = list.createDiv({ cls: "story-engine-group" });
+      const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+      groupHeader.createEl("h3", { text: "Sem Scene" });
+      const addButton = groupHeader.createEl("button", {
+        text: "+ Add Beat",
+        cls: "story-engine-add-btn"
+      });
+      addButton.onclick = () => {
+        new import_obsidian7.Notice("Create Beat - Coming soon", 3e3);
+      };
+      const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+      for (const beat of orphanBeats.sort((a, b) => a.order_num - b.order_num)) {
+        this.renderBeatItem(groupItems, beat);
+      }
+    }
+  }
+  renderBeatItem(container, beat) {
+    const item = container.createDiv({ cls: "story-engine-item" });
+    item.createDiv({
+      cls: "story-engine-title",
+      text: `Beat ${beat.order_num}: ${beat.type}`
+    });
+    const meta = item.createDiv({ cls: "story-engine-meta" });
+    if (beat.intent) {
+      meta.createEl("span", { text: `Intent: ${beat.intent}` });
+    }
+    if (beat.outcome) {
+      meta.createEl("span", { text: `Outcome: ${beat.outcome}` });
+    }
+    const actions = item.createDiv({ cls: "story-engine-item-actions" });
+    actions.createEl("button", { text: "Edit" }).onclick = () => {
+      new import_obsidian7.Notice("Edit Beat - Coming soon", 3e3);
+    };
+    actions.createEl("button", { text: "Move" }).onclick = () => {
+      new import_obsidian7.Notice("Move Beat - Coming soon", 3e3);
+    };
+    actions.createEl("button", { text: "Delete" }).onclick = async () => {
+      if (confirm("Delete this beat?")) {
+        try {
+          await this.plugin.apiClient.deleteBeat(beat.id);
+          await this.loadHierarchy();
+          this.renderTabContent();
+          new import_obsidian7.Notice("Beat deleted");
+        } catch (err) {
+          new import_obsidian7.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        }
       }
     };
   }
@@ -1336,7 +1670,7 @@ var StoryListView = class extends import_obsidian7.ItemView {
       );
       new import_obsidian7.Notice(`Story "${clonedStory.title}" cloned successfully!`);
       await this.loadStories();
-      this.showStoryDetails(clonedStory);
+      await this.showStoryDetails(clonedStory);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Clone failed";
       new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
@@ -1472,7 +1806,7 @@ var StoryEnginePlugin = class extends import_obsidian8.Plugin {
           const view = openView.view;
           await view.refresh();
           if (!shouldSync) {
-            view.showStoryDetails(story);
+            await view.showStoryDetails(story);
           }
         }
       } catch (err) {
