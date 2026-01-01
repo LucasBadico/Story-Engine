@@ -12,6 +12,7 @@ import (
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	characterpb "github.com/story-engine/main-service/proto/character"
+	eventpb "github.com/story-engine/main-service/proto/event"
 	locationpb "github.com/story-engine/main-service/proto/location"
 	prosepb "github.com/story-engine/main-service/proto/prose"
 	scenepb "github.com/story-engine/main-service/proto/scene"
@@ -108,6 +109,12 @@ func (s *Server) RegisterCharacterService(handler characterpb.CharacterServiceSe
 func (s *Server) RegisterArtifactService(handler artifactpb.ArtifactServiceServer) {
 	artifactpb.RegisterArtifactServiceServer(s.grpcServer, handler)
 	s.logger.Info("ArtifactService registered")
+}
+
+// RegisterEventService registers the EventService handler
+func (s *Server) RegisterEventService(handler eventpb.EventServiceServer) {
+	eventpb.RegisterEventServiceServer(s.grpcServer, handler)
+	s.logger.Info("EventService registered")
 }
 
 // RegisterChapterService registers the ChapterService handler

@@ -1,0 +1,239 @@
+syntax = "proto3";
+package event;
+option go_package = "github.com/story-engine/main-service/proto/event";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Event represents an event entity
+message Event {
+  string id = 1;
+  string world_id = 2;
+  string name = 3;
+  optional string type = 4;
+  optional string description = 5;
+  optional string timeline = 6;
+  int32 importance = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// EventCharacter represents the relationship between an event and a character
+message EventCharacter {
+  string id = 1;
+  string event_id = 2;
+  string character_id = 3;
+  optional string role = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// EventLocation represents the relationship between an event and a location
+message EventLocation {
+  string id = 1;
+  string event_id = 2;
+  string location_id = 3;
+  optional string significance = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// EventArtifact represents the relationship between an event and an artifact
+message EventArtifact {
+  string id = 1;
+  string event_id = 2;
+  string artifact_id = 3;
+  optional string role = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// CreateEventRequest is the request to create a new event
+message CreateEventRequest {
+  string world_id = 1;
+  string name = 2;
+  optional string type = 3;
+  optional string description = 4;
+  optional string timeline = 5;
+  int32 importance = 6;
+}
+
+// CreateEventResponse is the response after creating an event
+message CreateEventResponse {
+  Event event = 1;
+}
+
+// GetEventRequest is the request to get an event by ID
+message GetEventRequest {
+  string id = 1;
+}
+
+// GetEventResponse is the response containing an event
+message GetEventResponse {
+  Event event = 1;
+}
+
+// ListEventsRequest is the request to list events for a world
+message ListEventsRequest {
+  string world_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListEventsResponse is the response containing a list of events
+message ListEventsResponse {
+  repeated Event events = 1;
+  int32 total_count = 2;
+}
+
+// UpdateEventRequest is the request to update an event
+message UpdateEventRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string type = 3;
+  optional string description = 4;
+  optional string timeline = 5;
+  optional int32 importance = 6;
+}
+
+// UpdateEventResponse is the response after updating an event
+message UpdateEventResponse {
+  Event event = 1;
+}
+
+// DeleteEventRequest is the request to delete an event
+message DeleteEventRequest {
+  string id = 1;
+}
+
+// DeleteEventResponse is the response after deleting an event
+message DeleteEventResponse {
+}
+
+// AddCharacterToEventRequest is the request to add a character to an event
+message AddCharacterToEventRequest {
+  string event_id = 1;
+  string character_id = 2;
+  optional string role = 3;
+}
+
+// AddCharacterToEventResponse is the response after adding a character to an event
+message AddCharacterToEventResponse {
+  EventCharacter event_character = 1;
+}
+
+// RemoveCharacterFromEventRequest is the request to remove a character from an event
+message RemoveCharacterFromEventRequest {
+  string event_id = 1;
+  string character_id = 2;
+}
+
+// RemoveCharacterFromEventResponse is the response after removing a character from an event
+message RemoveCharacterFromEventResponse {
+}
+
+// GetEventCharactersRequest is the request to get characters for an event
+message GetEventCharactersRequest {
+  string event_id = 1;
+}
+
+// GetEventCharactersResponse is the response containing characters for an event
+message GetEventCharactersResponse {
+  repeated EventCharacter characters = 1;
+  int32 total_count = 2;
+}
+
+// AddLocationToEventRequest is the request to add a location to an event
+message AddLocationToEventRequest {
+  string event_id = 1;
+  string location_id = 2;
+  optional string significance = 3;
+}
+
+// AddLocationToEventResponse is the response after adding a location to an event
+message AddLocationToEventResponse {
+  EventLocation event_location = 1;
+}
+
+// RemoveLocationFromEventRequest is the request to remove a location from an event
+message RemoveLocationFromEventRequest {
+  string event_id = 1;
+  string location_id = 2;
+}
+
+// RemoveLocationFromEventResponse is the response after removing a location from an event
+message RemoveLocationFromEventResponse {
+}
+
+// GetEventLocationsRequest is the request to get locations for an event
+message GetEventLocationsRequest {
+  string event_id = 1;
+}
+
+// GetEventLocationsResponse is the response containing locations for an event
+message GetEventLocationsResponse {
+  repeated EventLocation locations = 1;
+  int32 total_count = 2;
+}
+
+// AddArtifactToEventRequest is the request to add an artifact to an event
+message AddArtifactToEventRequest {
+  string event_id = 1;
+  string artifact_id = 2;
+  optional string role = 3;
+}
+
+// AddArtifactToEventResponse is the response after adding an artifact to an event
+message AddArtifactToEventResponse {
+  EventArtifact event_artifact = 1;
+}
+
+// RemoveArtifactFromEventRequest is the request to remove an artifact from an event
+message RemoveArtifactFromEventRequest {
+  string event_id = 1;
+  string artifact_id = 2;
+}
+
+// RemoveArtifactFromEventResponse is the response after removing an artifact from an event
+message RemoveArtifactFromEventResponse {
+}
+
+// GetEventArtifactsRequest is the request to get artifacts for an event
+message GetEventArtifactsRequest {
+  string event_id = 1;
+}
+
+// GetEventArtifactsResponse is the response containing artifacts for an event
+message GetEventArtifactsResponse {
+  repeated EventArtifact artifacts = 1;
+  int32 total_count = 2;
+}
+
+// EventService provides event management operations
+service EventService {
+  // CreateEvent creates a new event
+  rpc CreateEvent(CreateEventRequest) returns (CreateEventResponse);
+  // GetEvent retrieves an event by ID
+  rpc GetEvent(GetEventRequest) returns (GetEventResponse);
+  // ListEvents lists events for a world
+  rpc ListEvents(ListEventsRequest) returns (ListEventsResponse);
+  // UpdateEvent updates an existing event
+  rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse);
+  // DeleteEvent deletes an event
+  rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
+  // AddCharacterToEvent adds a character to an event
+  rpc AddCharacterToEvent(AddCharacterToEventRequest) returns (AddCharacterToEventResponse);
+  // RemoveCharacterFromEvent removes a character from an event
+  rpc RemoveCharacterFromEvent(RemoveCharacterFromEventRequest) returns (RemoveCharacterFromEventResponse);
+  // GetEventCharacters lists characters for an event
+  rpc GetEventCharacters(GetEventCharactersRequest) returns (GetEventCharactersResponse);
+  // AddLocationToEvent adds a location to an event
+  rpc AddLocationToEvent(AddLocationToEventRequest) returns (AddLocationToEventResponse);
+  // RemoveLocationFromEvent removes a location from an event
+  rpc RemoveLocationFromEvent(RemoveLocationFromEventRequest) returns (RemoveLocationFromEventResponse);
+  // GetEventLocations lists locations for an event
+  rpc GetEventLocations(GetEventLocationsRequest) returns (GetEventLocationsResponse);
+  // AddArtifactToEvent adds an artifact to an event
+  rpc AddArtifactToEvent(AddArtifactToEventRequest) returns (AddArtifactToEventResponse);
+  // RemoveArtifactFromEvent removes an artifact from an event
+  rpc RemoveArtifactFromEvent(RemoveArtifactFromEventRequest) returns (RemoveArtifactFromEventResponse);
+  // GetEventArtifacts lists artifacts for an event
+  rpc GetEventArtifacts(GetEventArtifactsRequest) returns (GetEventArtifactsResponse);
+}
+

@@ -14,6 +14,7 @@ import (
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
@@ -56,6 +57,10 @@ func main() {
 	characterTraitRepo := postgres.NewCharacterTraitRepository(pgDB)
 	artifactRepo := postgres.NewArtifactRepository(pgDB)
 	artifactReferenceRepo := postgres.NewArtifactReferenceRepository(pgDB)
+	eventRepo := postgres.NewEventRepository(pgDB)
+	eventCharacterRepo := postgres.NewEventCharacterRepository(pgDB)
+	eventLocationRepo := postgres.NewEventLocationRepository(pgDB)
+	eventArtifactRepo := postgres.NewEventArtifactRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -99,6 +104,20 @@ func main() {
 	getArtifactReferencesUseCase := artifactapp.NewGetArtifactReferencesUseCase(artifactReferenceRepo, log)
 	addArtifactReferenceUseCase := artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, log)
 	removeArtifactReferenceUseCase := artifactapp.NewRemoveArtifactReferenceUseCase(artifactReferenceRepo, log)
+	createEventUseCase := eventapp.NewCreateEventUseCase(eventRepo, worldRepo, auditLogRepo, log)
+	getEventUseCase := eventapp.NewGetEventUseCase(eventRepo, log)
+	listEventsUseCase := eventapp.NewListEventsUseCase(eventRepo, log)
+	updateEventUseCase := eventapp.NewUpdateEventUseCase(eventRepo, auditLogRepo, log)
+	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, eventCharacterRepo, eventLocationRepo, eventArtifactRepo, auditLogRepo, log)
+	addCharacterToEventUseCase := eventapp.NewAddCharacterToEventUseCase(eventRepo, characterRepo, eventCharacterRepo, log)
+	removeCharacterFromEventUseCase := eventapp.NewRemoveCharacterFromEventUseCase(eventCharacterRepo, log)
+	getEventCharactersUseCase := eventapp.NewGetEventCharactersUseCase(eventCharacterRepo, log)
+	addLocationToEventUseCase := eventapp.NewAddLocationToEventUseCase(eventRepo, locationRepo, eventLocationRepo, log)
+	removeLocationFromEventUseCase := eventapp.NewRemoveLocationFromEventUseCase(eventLocationRepo, log)
+	getEventLocationsUseCase := eventapp.NewGetEventLocationsUseCase(eventLocationRepo, log)
+	addArtifactToEventUseCase := eventapp.NewAddArtifactToEventUseCase(eventRepo, artifactRepo, eventArtifactRepo, log)
+	removeArtifactFromEventUseCase := eventapp.NewRemoveArtifactFromEventUseCase(eventArtifactRepo, log)
+	getEventArtifactsUseCase := eventapp.NewGetEventArtifactsUseCase(eventArtifactRepo, log)
 	createTraitUseCase := traitapp.NewCreateTraitUseCase(traitRepo, tenantRepo, auditLogRepo, log)
 	getTraitUseCase := traitapp.NewGetTraitUseCase(traitRepo, log)
 	listTraitsUseCase := traitapp.NewListTraitsUseCase(traitRepo, log)
@@ -132,6 +151,7 @@ func main() {
 	locationHandler := httphandlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
 	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, log)
 	artifactHandler := httphandlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
+	eventHandler := httphandlers.NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterToEventUseCase, removeCharacterFromEventUseCase, getEventCharactersUseCase, addLocationToEventUseCase, removeLocationFromEventUseCase, getEventLocationsUseCase, addArtifactToEventUseCase, removeArtifactFromEventUseCase, getEventArtifactsUseCase, log)
 	traitHandler := httphandlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
 	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
@@ -182,6 +202,21 @@ func main() {
 	mux.HandleFunc("GET /api/v1/artifacts/{id}/references", artifactHandler.GetReferences)
 	mux.HandleFunc("POST /api/v1/artifacts/{id}/references", artifactHandler.AddReference)
 	mux.HandleFunc("DELETE /api/v1/artifacts/{id}/references/{entity_type}/{entity_id}", artifactHandler.RemoveReference)
+
+	mux.HandleFunc("POST /api/v1/worlds/{world_id}/events", eventHandler.Create)
+	mux.HandleFunc("GET /api/v1/worlds/{world_id}/events", eventHandler.List)
+	mux.HandleFunc("GET /api/v1/events/{id}", eventHandler.Get)
+	mux.HandleFunc("PUT /api/v1/events/{id}", eventHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/events/{id}", eventHandler.Delete)
+	mux.HandleFunc("POST /api/v1/events/{id}/characters", eventHandler.AddCharacter)
+	mux.HandleFunc("GET /api/v1/events/{id}/characters", eventHandler.GetCharacters)
+	mux.HandleFunc("DELETE /api/v1/events/{id}/characters/{character_id}", eventHandler.RemoveCharacter)
+	mux.HandleFunc("POST /api/v1/events/{id}/locations", eventHandler.AddLocation)
+	mux.HandleFunc("GET /api/v1/events/{id}/locations", eventHandler.GetLocations)
+	mux.HandleFunc("DELETE /api/v1/events/{id}/locations/{location_id}", eventHandler.RemoveLocation)
+	mux.HandleFunc("POST /api/v1/events/{id}/artifacts", eventHandler.AddArtifact)
+	mux.HandleFunc("GET /api/v1/events/{id}/artifacts", eventHandler.GetArtifacts)
+	mux.HandleFunc("DELETE /api/v1/events/{id}/artifacts/{artifact_id}", eventHandler.RemoveArtifact)
 
 	mux.HandleFunc("POST /api/v1/traits", traitHandler.Create)
 	mux.HandleFunc("GET /api/v1/traits", traitHandler.List)
