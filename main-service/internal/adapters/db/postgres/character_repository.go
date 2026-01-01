@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/google/uuid"
@@ -26,26 +27,27 @@ func NewCharacterRepository(db *DB) *CharacterRepository {
 // Create creates a new character
 func (r *CharacterRepository) Create(ctx context.Context, c *world.Character) error {
 	query := `
-		INSERT INTO characters (id, world_id, archetype_id, name, description, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO characters (id, world_id, archetype_id, current_class_id, class_level, name, description, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 	_, err := r.db.Exec(ctx, query,
-		c.ID, c.WorldID, c.ArchetypeID, c.Name, c.Description, c.CreatedAt, c.UpdatedAt)
+		c.ID, c.WorldID, c.ArchetypeID, c.CurrentClassID, c.ClassLevel, c.Name, c.Description, c.CreatedAt, c.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a character by ID
 func (r *CharacterRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.Character, error) {
 	query := `
-		SELECT id, world_id, archetype_id, name, description, created_at, updated_at
+		SELECT id, world_id, archetype_id, current_class_id, class_level, name, description, created_at, updated_at
 		FROM characters
 		WHERE id = $1
 	`
 	var c world.Character
-	var archetypeID *uuid.UUID
+	var archetypeID sql.NullString
+	var currentClassID sql.NullString
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&c.ID, &c.WorldID, &archetypeID, &c.Name, &c.Description, &c.CreatedAt, &c.UpdatedAt)
+		&c.ID, &c.WorldID, &archetypeID, &currentClassID, &c.ClassLevel, &c.Name, &c.Description, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &platformerrors.NotFoundError{
@@ -56,14 +58,25 @@ func (r *CharacterRepository) GetByID(ctx context.Context, id uuid.UUID) (*world
 		return nil, err
 	}
 
-	c.ArchetypeID = archetypeID
+	if archetypeID.Valid {
+		parsedID, err := uuid.Parse(archetypeID.String)
+		if err == nil {
+			c.ArchetypeID = &parsedID
+		}
+	}
+	if currentClassID.Valid {
+		parsedID, err := uuid.Parse(currentClassID.String)
+		if err == nil {
+			c.CurrentClassID = &parsedID
+		}
+	}
 	return &c, nil
 }
 
 // ListByWorld lists characters for a world
 func (r *CharacterRepository) ListByWorld(ctx context.Context, worldID uuid.UUID, limit, offset int) ([]*world.Character, error) {
 	query := `
-		SELECT id, world_id, archetype_id, name, description, created_at, updated_at
+		SELECT id, world_id, archetype_id, current_class_id, class_level, name, description, created_at, updated_at
 		FROM characters
 		WHERE world_id = $1
 		ORDER BY created_at DESC
@@ -82,10 +95,10 @@ func (r *CharacterRepository) ListByWorld(ctx context.Context, worldID uuid.UUID
 func (r *CharacterRepository) Update(ctx context.Context, c *world.Character) error {
 	query := `
 		UPDATE characters
-		SET name = $2, description = $3, archetype_id = $4, updated_at = $5
+		SET name = $2, description = $3, archetype_id = $4, current_class_id = $5, class_level = $6, updated_at = $7
 		WHERE id = $1
 	`
-	_, err := r.db.Exec(ctx, query, c.ID, c.Name, c.Description, c.ArchetypeID, c.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, c.ID, c.Name, c.Description, c.ArchetypeID, c.CurrentClassID, c.ClassLevel, c.UpdatedAt)
 	return err
 }
 
@@ -108,15 +121,27 @@ func (r *CharacterRepository) scanCharacters(rows pgx.Rows) ([]*world.Character,
 	characters := make([]*world.Character, 0)
 	for rows.Next() {
 		var c world.Character
-		var archetypeID *uuid.UUID
+		var archetypeID sql.NullString
+		var currentClassID sql.NullString
 
 		err := rows.Scan(
-			&c.ID, &c.WorldID, &archetypeID, &c.Name, &c.Description, &c.CreatedAt, &c.UpdatedAt)
+			&c.ID, &c.WorldID, &archetypeID, &currentClassID, &c.ClassLevel, &c.Name, &c.Description, &c.CreatedAt, &c.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
 
-		c.ArchetypeID = archetypeID
+		if archetypeID.Valid {
+			parsedID, err := uuid.Parse(archetypeID.String)
+			if err == nil {
+				c.ArchetypeID = &parsedID
+			}
+		}
+		if currentClassID.Valid {
+			parsedID, err := uuid.Parse(currentClassID.String)
+			if err == nil {
+				c.CurrentClassID = &parsedID
+			}
+		}
 		characters = append(characters, &c)
 	}
 

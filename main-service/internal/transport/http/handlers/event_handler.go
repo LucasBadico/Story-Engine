@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
+	rpgeventapp "github.com/story-engine/main-service/internal/application/rpg/event"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -26,6 +27,7 @@ type EventHandler struct {
 	addArtifactUseCase         *eventapp.AddArtifactToEventUseCase
 	removeArtifactUseCase      *eventapp.RemoveArtifactFromEventUseCase
 	getArtifactsUseCase        *eventapp.GetEventArtifactsUseCase
+	getStatChangesUseCase      *rpgeventapp.GetEventStatChangesUseCase
 	logger                     logger.Logger
 }
 
@@ -45,6 +47,7 @@ func NewEventHandler(
 	addArtifactUseCase *eventapp.AddArtifactToEventUseCase,
 	removeArtifactUseCase *eventapp.RemoveArtifactFromEventUseCase,
 	getArtifactsUseCase *eventapp.GetEventArtifactsUseCase,
+	getStatChangesUseCase *rpgeventapp.GetEventStatChangesUseCase,
 	logger logger.Logger,
 ) *EventHandler {
 	return &EventHandler{
@@ -62,6 +65,7 @@ func NewEventHandler(
 		addArtifactUseCase:    addArtifactUseCase,
 		removeArtifactUseCase: removeArtifactUseCase,
 		getArtifactsUseCase:   getArtifactsUseCase,
+		getStatChangesUseCase: getStatChangesUseCase,
 		logger:                logger,
 	}
 }
@@ -554,6 +558,34 @@ func (h *EventHandler) GetArtifacts(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"artifacts": output.Artifacts,
 		"total":      len(output.Artifacts),
+	})
+}
+
+// GetStatChanges handles GET /api/v1/events/{id}/stat-changes
+func (h *EventHandler) GetStatChanges(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	eventID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getStatChangesUseCase.Execute(r.Context(), rpgeventapp.GetEventStatChangesInput{
+		EventID: eventID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"character_stats": output.CharacterStats,
+		"artifact_stats":  output.ArtifactStats,
+		"total":           len(output.CharacterStats) + len(output.ArtifactStats),
 	})
 }
 

@@ -241,7 +241,7 @@ func (h *ProseBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 			}, http.StatusBadRequest)
 			return
 		}
-		proseBlock.OrderNum = *req.OrderNum
+		proseBlock.OrderNum = req.OrderNum
 	}
 
 	if req.Kind != nil {

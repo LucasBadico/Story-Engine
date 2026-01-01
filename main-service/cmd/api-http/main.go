@@ -17,6 +17,14 @@ import (
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
+	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
+	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
+	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
+	rpgeventapp "github.com/story-engine/main-service/internal/application/rpg/event"
+	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
+	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
+	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
+	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	"github.com/story-engine/main-service/internal/application/story"
 	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
@@ -62,6 +70,13 @@ func main() {
 	eventCharacterRepo := postgres.NewEventCharacterRepository(pgDB)
 	eventLocationRepo := postgres.NewEventLocationRepository(pgDB)
 	eventArtifactRepo := postgres.NewEventArtifactRepository(pgDB)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(pgDB)
+	characterRPGStatsRepo := postgres.NewCharacterRPGStatsRepository(pgDB)
+	artifactRPGStatsRepo := postgres.NewArtifactRPGStatsRepository(pgDB)
+	skillRepo := postgres.NewSkillRepository(pgDB)
+	characterSkillRepo := postgres.NewCharacterSkillRepository(pgDB)
+	rpgClassRepo := postgres.NewRPGClassRepository(pgDB)
+	rpgClassSkillRepo := postgres.NewRPGClassSkillRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -155,14 +170,53 @@ func main() {
 	addImageBlockReferenceUseCase := imageblockapp.NewAddImageBlockReferenceUseCase(imageBlockRepo, imageBlockReferenceRepo, log)
 	removeImageBlockReferenceUseCase := imageblockapp.NewRemoveImageBlockReferenceUseCase(imageBlockReferenceRepo, log)
 	getImageBlockReferencesUseCase := imageblockapp.NewGetImageBlockReferencesUseCase(imageBlockReferenceRepo, log)
+	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
+	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)
+	listRPGSystemsUseCase := rpgsystemapp.NewListRPGSystemsUseCase(rpgSystemRepo, log)
+	updateRPGSystemUseCase := rpgsystemapp.NewUpdateRPGSystemUseCase(rpgSystemRepo, log)
+	deleteRPGSystemUseCase := rpgsystemapp.NewDeleteRPGSystemUseCase(rpgSystemRepo, log)
+	createCharacterStatsUseCase := characterstatsapp.NewCreateCharacterStatsUseCase(characterRPGStatsRepo, characterRepo, eventRepo, log)
+	getActiveCharacterStatsUseCase := characterstatsapp.NewGetActiveCharacterStatsUseCase(characterRPGStatsRepo, log)
+	listCharacterStatsHistoryUseCase := characterstatsapp.NewListCharacterStatsHistoryUseCase(characterRPGStatsRepo, log)
+	activateCharacterStatsVersionUseCase := characterstatsapp.NewActivateCharacterStatsVersionUseCase(characterRPGStatsRepo, log)
+	deleteAllCharacterStatsUseCase := characterstatsapp.NewDeleteAllCharacterStatsUseCase(characterRPGStatsRepo, log)
+	createArtifactStatsUseCase := artifactstatsapp.NewCreateArtifactStatsUseCase(artifactRPGStatsRepo, artifactRepo, eventRepo, log)
+	getActiveArtifactStatsUseCase := artifactstatsapp.NewGetActiveArtifactStatsUseCase(artifactRPGStatsRepo, log)
+	listArtifactStatsHistoryUseCase := artifactstatsapp.NewListArtifactStatsHistoryUseCase(artifactRPGStatsRepo, log)
+	activateArtifactStatsVersionUseCase := artifactstatsapp.NewActivateArtifactStatsVersionUseCase(artifactRPGStatsRepo, log)
+	getEventStatChangesUseCase := rpgeventapp.NewGetEventStatChangesUseCase(characterRPGStatsRepo, artifactRPGStatsRepo, log)
+	createSkillUseCase := skillapp.NewCreateSkillUseCase(skillRepo, rpgSystemRepo, log)
+	getSkillUseCase := skillapp.NewGetSkillUseCase(skillRepo, log)
+	listSkillsUseCase := skillapp.NewListSkillsUseCase(skillRepo, log)
+	updateSkillUseCase := skillapp.NewUpdateSkillUseCase(skillRepo, log)
+	deleteSkillUseCase := skillapp.NewDeleteSkillUseCase(skillRepo, log)
+	learnSkillUseCase := characterskillapp.NewLearnSkillUseCase(characterSkillRepo, characterRepo, skillRepo, log)
+	listCharacterSkillsUseCase := characterskillapp.NewListCharacterSkillsUseCase(characterSkillRepo, log)
+	updateCharacterSkillUseCase := characterskillapp.NewUpdateCharacterSkillUseCase(characterSkillRepo, skillRepo, log)
+	deleteCharacterSkillUseCase := characterskillapp.NewDeleteCharacterSkillUseCase(characterSkillRepo, log)
+	createRPGClassUseCase := rpgclassapp.NewCreateRPGClassUseCase(rpgClassRepo, rpgSystemRepo, log)
+	getRPGClassUseCase := rpgclassapp.NewGetRPGClassUseCase(rpgClassRepo, log)
+	listRPGClassesUseCase := rpgclassapp.NewListRPGClassesUseCase(rpgClassRepo, log)
+	updateRPGClassUseCase := rpgclassapp.NewUpdateRPGClassUseCase(rpgClassRepo, log)
+	deleteRPGClassUseCase := rpgclassapp.NewDeleteRPGClassUseCase(rpgClassRepo, log)
+	addSkillToClassUseCase := rpgclassapp.NewAddSkillToClassUseCase(rpgClassSkillRepo, rpgClassRepo, skillRepo, log)
+	listClassSkillsUseCase := rpgclassapp.NewListClassSkillsUseCase(rpgClassSkillRepo, log)
+	changeCharacterClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := httphandlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	locationHandler := httphandlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
-	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, log)
+	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, changeCharacterClassUseCase, getAvailableClassesUseCase, log)
+	rpgClassHandler := httphandlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, log)
 	artifactHandler := httphandlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
-	eventHandler := httphandlers.NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterToEventUseCase, removeCharacterFromEventUseCase, getEventCharactersUseCase, addLocationToEventUseCase, removeLocationFromEventUseCase, getEventLocationsUseCase, addArtifactToEventUseCase, removeArtifactFromEventUseCase, getEventArtifactsUseCase, log)
+	eventHandler := httphandlers.NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterToEventUseCase, removeCharacterFromEventUseCase, getEventCharactersUseCase, addLocationToEventUseCase, removeLocationFromEventUseCase, getEventLocationsUseCase, addArtifactToEventUseCase, removeArtifactFromEventUseCase, getEventArtifactsUseCase, getEventStatChangesUseCase, log)
+	rpgSystemHandler := httphandlers.NewRPGSystemHandler(createRPGSystemUseCase, getRPGSystemUseCase, listRPGSystemsUseCase, updateRPGSystemUseCase, deleteRPGSystemUseCase, log)
+	characterRPGStatsHandler := httphandlers.NewCharacterRPGStatsHandler(createCharacterStatsUseCase, getActiveCharacterStatsUseCase, listCharacterStatsHistoryUseCase, activateCharacterStatsVersionUseCase, deleteAllCharacterStatsUseCase, log)
+	artifactRPGStatsHandler := httphandlers.NewArtifactRPGStatsHandler(createArtifactStatsUseCase, getActiveArtifactStatsUseCase, listArtifactStatsHistoryUseCase, activateArtifactStatsVersionUseCase, log)
+	skillHandler := httphandlers.NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
+	characterSkillHandler := httphandlers.NewCharacterSkillHandler(learnSkillUseCase, listCharacterSkillsUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, log)
 	traitHandler := httphandlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
 	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
@@ -229,6 +283,7 @@ func main() {
 	mux.HandleFunc("POST /api/v1/events/{id}/artifacts", eventHandler.AddArtifact)
 	mux.HandleFunc("GET /api/v1/events/{id}/artifacts", eventHandler.GetArtifacts)
 	mux.HandleFunc("DELETE /api/v1/events/{id}/artifacts/{artifact_id}", eventHandler.RemoveArtifact)
+	mux.HandleFunc("GET /api/v1/events/{id}/stat-changes", eventHandler.GetStatChanges)
 
 	mux.HandleFunc("POST /api/v1/traits", traitHandler.Create)
 	mux.HandleFunc("GET /api/v1/traits", traitHandler.List)
@@ -295,6 +350,47 @@ func main() {
 	mux.HandleFunc("GET /api/v1/image-blocks/{id}/references", imageBlockHandler.GetReferences)
 	mux.HandleFunc("POST /api/v1/image-blocks/{id}/references", imageBlockHandler.AddReference)
 	mux.HandleFunc("DELETE /api/v1/image-blocks/{id}/references/{entity_type}/{entity_id}", imageBlockHandler.RemoveReference)
+
+	mux.HandleFunc("GET /api/v1/rpg-systems", rpgSystemHandler.List)
+	mux.HandleFunc("POST /api/v1/rpg-systems", rpgSystemHandler.Create)
+	mux.HandleFunc("GET /api/v1/rpg-systems/{id}", rpgSystemHandler.Get)
+	mux.HandleFunc("PUT /api/v1/rpg-systems/{id}", rpgSystemHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/rpg-systems/{id}", rpgSystemHandler.Delete)
+
+	mux.HandleFunc("GET /api/v1/characters/{id}/rpg-stats", characterRPGStatsHandler.GetActive)
+	mux.HandleFunc("POST /api/v1/characters/{id}/rpg-stats", characterRPGStatsHandler.Create)
+	mux.HandleFunc("GET /api/v1/characters/{id}/rpg-stats/history", characterRPGStatsHandler.ListHistory)
+	mux.HandleFunc("PUT /api/v1/characters/{id}/rpg-stats/{stats_id}/activate", characterRPGStatsHandler.ActivateVersion)
+	mux.HandleFunc("DELETE /api/v1/characters/{id}/rpg-stats", characterRPGStatsHandler.DeleteAll)
+
+	mux.HandleFunc("GET /api/v1/artifacts/{id}/rpg-stats", artifactRPGStatsHandler.GetActive)
+	mux.HandleFunc("POST /api/v1/artifacts/{id}/rpg-stats", artifactRPGStatsHandler.Create)
+	mux.HandleFunc("GET /api/v1/artifacts/{id}/rpg-stats/history", artifactRPGStatsHandler.ListHistory)
+	mux.HandleFunc("PUT /api/v1/artifacts/{id}/rpg-stats/{stats_id}/activate", artifactRPGStatsHandler.ActivateVersion)
+
+	mux.HandleFunc("GET /api/v1/rpg-systems/{id}/skills", skillHandler.List)
+	mux.HandleFunc("POST /api/v1/rpg-systems/{id}/skills", skillHandler.Create)
+	mux.HandleFunc("GET /api/v1/rpg-skills/{id}", skillHandler.Get)
+	mux.HandleFunc("PUT /api/v1/rpg-skills/{id}", skillHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/rpg-skills/{id}", skillHandler.Delete)
+
+	mux.HandleFunc("GET /api/v1/characters/{id}/skills", characterSkillHandler.List)
+	mux.HandleFunc("POST /api/v1/characters/{id}/skills", characterSkillHandler.Learn)
+	mux.HandleFunc("PUT /api/v1/characters/{id}/skills/{skill_id}", characterSkillHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/characters/{id}/skills/{skill_id}", characterSkillHandler.Delete)
+	mux.HandleFunc("PUT /api/v1/character-skills/{id}", characterSkillHandler.UpdateByID)
+	mux.HandleFunc("DELETE /api/v1/character-skills/{id}", characterSkillHandler.DeleteByID)
+
+	mux.HandleFunc("GET /api/v1/rpg-systems/{id}/classes", rpgClassHandler.List)
+	mux.HandleFunc("POST /api/v1/rpg-systems/{id}/classes", rpgClassHandler.Create)
+	mux.HandleFunc("GET /api/v1/rpg-classes/{id}", rpgClassHandler.Get)
+	mux.HandleFunc("PUT /api/v1/rpg-classes/{id}", rpgClassHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/rpg-classes/{id}", rpgClassHandler.Delete)
+	mux.HandleFunc("GET /api/v1/rpg-classes/{id}/skills", rpgClassHandler.ListSkills)
+	mux.HandleFunc("POST /api/v1/rpg-classes/{id}/skills", rpgClassHandler.AddSkill)
+
+	mux.HandleFunc("PUT /api/v1/characters/{id}/class", characterHandler.ChangeClass)
+	mux.HandleFunc("GET /api/v1/characters/{id}/available-classes", characterHandler.GetAvailableClasses)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 

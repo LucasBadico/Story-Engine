@@ -10,7 +10,7 @@ import (
 var (
 	ErrImageBlockURLRequired = errors.New("image URL is required")
 	ErrInvalidImageKind      = errors.New("invalid image kind")
-	ErrInvalidOrderNumber    = errors.New("order number must be greater than 0")
+	ErrInvalidImageOrderNumber = errors.New("order number must be greater than 0")
 	ErrInvalidDimensions     = errors.New("width and height must be positive")
 )
 
@@ -49,7 +49,7 @@ func NewImageBlock(chapterID *uuid.UUID, orderNum *int, kind ImageKind, imageURL
 		return nil, ErrImageBlockURLRequired
 	}
 	if orderNum != nil && *orderNum < 1 {
-		return nil, ErrInvalidOrderNumber
+		return nil, ErrInvalidImageOrderNumber
 	}
 
 	now := time.Now()
@@ -73,7 +73,7 @@ func (i *ImageBlock) Validate() error {
 		return ErrImageBlockURLRequired
 	}
 	if i.OrderNum != nil && *i.OrderNum < 1 {
-		return ErrInvalidOrderNumber
+		return ErrInvalidImageOrderNumber
 	}
 	if i.Width != nil && *i.Width < 1 {
 		return ErrInvalidDimensions

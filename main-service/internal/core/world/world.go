@@ -13,14 +13,15 @@ var (
 
 // World represents a world entity
 type World struct {
-	ID          uuid.UUID `json:"id"`
-	TenantID    uuid.UUID `json:"tenant_id"`
-	Name        string    `json:"name"`
-	Description string    `json:"description"`
-	Genre       string    `json:"genre"`
-	IsImplicit  bool      `json:"is_implicit"`
-	CreatedAt   time.Time `json:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at"`
+	ID          uuid.UUID  `json:"id"`
+	TenantID    uuid.UUID  `json:"tenant_id"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Genre       string     `json:"genre"`
+	IsImplicit  bool       `json:"is_implicit"`
+	RPGSystemID *uuid.UUID `json:"rpg_system_id,omitempty"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
 }
 
 // NewWorld creates a new world
@@ -73,6 +74,12 @@ func (w *World) UpdateGenre(genre string) {
 // SetImplicit updates the implicit flag
 func (w *World) SetImplicit(isImplicit bool) {
 	w.IsImplicit = isImplicit
+	w.UpdatedAt = time.Now()
+}
+
+// SetRPGSystem sets the RPG system for this world
+func (w *World) SetRPGSystem(rpgSystemID *uuid.UUID) {
+	w.RPGSystemID = rpgSystemID
 	w.UpdatedAt = time.Now()
 }
 

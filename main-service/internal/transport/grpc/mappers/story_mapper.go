@@ -3,6 +3,7 @@ package mappers
 import (
 	"github.com/story-engine/main-service/internal/core/story"
 	storypb "github.com/story-engine/main-service/proto/story"
+	scenepb "github.com/story-engine/main-service/proto/scene"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -40,11 +41,10 @@ func ChapterToProto(c *story.Chapter) *storypb.Chapter {
 }
 
 // SceneToProto converts a domain Scene to a proto Scene message
-func SceneToProto(s *story.Scene) *storypb.Scene {
-	pb := &storypb.Scene{
+func SceneToProto(s *story.Scene) *scenepb.Scene {
+	pb := &scenepb.Scene{
 		Id:        s.ID.String(),
 		StoryId:   s.StoryID.String(),
-		ChapterId: s.ChapterID.String(),
 		OrderNum:  int32(s.OrderNum),
 		Goal:      s.Goal,
 		TimeRef:   s.TimeRef,
@@ -52,11 +52,13 @@ func SceneToProto(s *story.Scene) *storypb.Scene {
 		UpdatedAt: timestamppb.New(s.UpdatedAt),
 	}
 	
-	if s.POVCharacterID != nil {
-		pb.PovCharacterId = s.POVCharacterID.String()
+	if s.ChapterID != nil {
+		chapterIDStr := s.ChapterID.String()
+		pb.ChapterId = &chapterIDStr
 	}
-	if s.LocationID != nil {
-		pb.LocationId = s.LocationID.String()
+	if s.POVCharacterID != nil {
+		povStr := s.POVCharacterID.String()
+		pb.PovCharacterId = &povStr
 	}
 	
 	return pb

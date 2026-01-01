@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -22,6 +23,8 @@ type CharacterHandler struct {
 	removeTraitUseCase        *characterapp.RemoveTraitFromCharacterUseCase
 	updateTraitUseCase        *characterapp.UpdateCharacterTraitUseCase
 	getTraitsUseCase          *characterapp.GetCharacterTraitsUseCase
+	changeClassUseCase        *rpgcharacterapp.ChangeCharacterClassUseCase
+	getAvailableClassesUseCase *rpgcharacterapp.GetAvailableClassesUseCase
 	logger                    logger.Logger
 }
 
@@ -36,6 +39,8 @@ func NewCharacterHandler(
 	removeTraitUseCase *characterapp.RemoveTraitFromCharacterUseCase,
 	updateTraitUseCase *characterapp.UpdateCharacterTraitUseCase,
 	getTraitsUseCase *characterapp.GetCharacterTraitsUseCase,
+	changeClassUseCase *rpgcharacterapp.ChangeCharacterClassUseCase,
+	getAvailableClassesUseCase *rpgcharacterapp.GetAvailableClassesUseCase,
 	logger logger.Logger,
 ) *CharacterHandler {
 	return &CharacterHandler{
@@ -48,6 +53,8 @@ func NewCharacterHandler(
 		removeTraitUseCase:     removeTraitUseCase,
 		updateTraitUseCase:     updateTraitUseCase,
 		getTraitsUseCase:       getTraitsUseCase,
+		changeClassUseCase:     changeClassUseCase,
+		getAvailableClassesUseCase: getAvailableClassesUseCase,
 		logger:                 logger,
 	}
 }
@@ -422,6 +429,87 @@ func (h *CharacterHandler) UpdateTrait(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"character_trait": output.CharacterTrait,
+	})
+}
+
+// ChangeClass handles PUT /api/v1/characters/{id}/class
+func (h *CharacterHandler) ChangeClass(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		ClassID    *string `json:"class_id,omitempty"`
+		ClassLevel *int    `json:"class_level,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var classID *uuid.UUID
+	if req.ClassID != nil && *req.ClassID != "" {
+		parsedID, err := uuid.Parse(*req.ClassID)
+		if err != nil {
+			WriteError(w, &platformerrors.ValidationError{
+				Field:   "class_id",
+				Message: "invalid UUID format",
+			}, http.StatusBadRequest)
+			return
+		}
+		classID = &parsedID
+	}
+
+	output, err := h.changeClassUseCase.Execute(r.Context(), rpgcharacterapp.ChangeCharacterClassInput{
+		CharacterID: characterID,
+		ClassID:     classID,
+		ClassLevel:  req.ClassLevel,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"character": output.Character,
+	})
+}
+
+// GetAvailableClasses handles GET /api/v1/characters/{id}/available-classes
+func (h *CharacterHandler) GetAvailableClasses(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getAvailableClassesUseCase.Execute(r.Context(), rpgcharacterapp.GetAvailableClassesInput{
+		CharacterID: characterID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"classes": output.Classes,
+		"total":   len(output.Classes),
 	})
 }
 

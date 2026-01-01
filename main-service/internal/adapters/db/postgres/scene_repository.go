@@ -26,11 +26,11 @@ func NewSceneRepository(db *DB) *SceneRepository {
 // Create creates a new scene
 func (r *SceneRepository) Create(ctx context.Context, s *story.Scene) error {
 	query := `
-		INSERT INTO scenes (id, story_id, chapter_id, order_num, pov_character_id, location_id, time_ref, goal, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+		INSERT INTO scenes (id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 	_, err := r.db.Exec(ctx, query,
-		s.ID, s.StoryID, s.ChapterID, s.OrderNum, s.POVCharacterID, s.LocationID,
+		s.ID, s.StoryID, s.ChapterID, s.OrderNum, s.POVCharacterID,
 		s.TimeRef, s.Goal, s.CreatedAt, s.UpdatedAt)
 	return err
 }
@@ -38,17 +38,16 @@ func (r *SceneRepository) Create(ctx context.Context, s *story.Scene) error {
 // GetByID retrieves a scene by ID
 func (r *SceneRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Scene, error) {
 	query := `
-		SELECT id, story_id, chapter_id, order_num, pov_character_id, location_id, time_ref, goal, created_at, updated_at
+		SELECT id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
 		FROM scenes
 		WHERE id = $1
 	`
 	var s story.Scene
 	var chapterID sql.NullString
 	var povCharacterID sql.NullString
-	var locationID sql.NullString
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID, &locationID,
+		&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID,
 		&s.TimeRef, &s.Goal, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -67,11 +66,6 @@ func (r *SceneRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Sce
 			s.POVCharacterID = &id
 		}
 	}
-	if locationID.Valid {
-		if id, err := uuid.Parse(locationID.String); err == nil {
-			s.LocationID = &id
-		}
-	}
 
 	return &s, nil
 }
@@ -84,7 +78,7 @@ func (r *SceneRepository) ListByChapter(ctx context.Context, chapterID uuid.UUID
 // ListByChapterOrdered lists scenes for a chapter ordered by order_num
 func (r *SceneRepository) ListByChapterOrdered(ctx context.Context, chapterID uuid.UUID) ([]*story.Scene, error) {
 	query := `
-		SELECT id, story_id, chapter_id, order_num, pov_character_id, location_id, time_ref, goal, created_at, updated_at
+		SELECT id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
 		FROM scenes
 		WHERE chapter_id = $1
 		ORDER BY order_num ASC
@@ -101,7 +95,7 @@ func (r *SceneRepository) ListByChapterOrdered(ctx context.Context, chapterID uu
 // ListByStory lists scenes for a story
 func (r *SceneRepository) ListByStory(ctx context.Context, storyID uuid.UUID) ([]*story.Scene, error) {
 	query := `
-		SELECT id, story_id, chapter_id, order_num, pov_character_id, location_id, time_ref, goal, created_at, updated_at
+		SELECT id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
 		FROM scenes
 		WHERE story_id = $1
 		ORDER BY chapter_id, order_num ASC
@@ -119,10 +113,10 @@ func (r *SceneRepository) ListByStory(ctx context.Context, storyID uuid.UUID) ([
 func (r *SceneRepository) Update(ctx context.Context, s *story.Scene) error {
 	query := `
 		UPDATE scenes
-		SET chapter_id = $2, order_num = $3, pov_character_id = $4, location_id = $5, time_ref = $6, goal = $7, updated_at = $8
+		SET chapter_id = $2, order_num = $3, pov_character_id = $4, time_ref = $5, goal = $6, updated_at = $7
 		WHERE id = $1
 	`
-	_, err := r.db.Exec(ctx, query, s.ID, s.ChapterID, s.OrderNum, s.POVCharacterID, s.LocationID, s.TimeRef, s.Goal, s.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, s.ID, s.ChapterID, s.OrderNum, s.POVCharacterID, s.TimeRef, s.Goal, s.UpdatedAt)
 	return err
 }
 
@@ -153,10 +147,9 @@ func (r *SceneRepository) scanScenes(rows pgx.Rows) ([]*story.Scene, error) {
 		var s story.Scene
 		var chapterID sql.NullString
 		var povCharacterID sql.NullString
-		var locationID sql.NullString
 
 		err := rows.Scan(
-			&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID, &locationID,
+			&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID,
 			&s.TimeRef, &s.Goal, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err
@@ -170,11 +163,6 @@ func (r *SceneRepository) scanScenes(rows pgx.Rows) ([]*story.Scene, error) {
 		if povCharacterID.Valid {
 			if id, err := uuid.Parse(povCharacterID.String); err == nil {
 				s.POVCharacterID = &id
-			}
-		}
-		if locationID.Valid {
-			if id, err := uuid.Parse(locationID.String); err == nil {
-				s.LocationID = &id
 			}
 		}
 

@@ -118,7 +118,8 @@ func (h *ProseBlockHandler) UpdateProseBlock(ctx context.Context, req *prosepb.U
 		if *req.OrderNum < 1 {
 			return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
 		}
-		proseBlock.OrderNum = int(*req.OrderNum)
+		orderNum := int(*req.OrderNum)
+		proseBlock.OrderNum = &orderNum
 	}
 
 	if req.Kind != nil {
