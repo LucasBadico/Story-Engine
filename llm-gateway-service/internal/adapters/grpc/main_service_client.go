@@ -20,12 +20,13 @@ var _ grpcclient.MainServiceClient = (*MainServiceClient)(nil)
 
 // MainServiceClient implements the gRPC client interface for main-service
 type MainServiceClient struct {
-	storyClient   storypb.StoryServiceClient
-	chapterClient chapterpb.ChapterServiceClient
-	sceneClient   scenepb.SceneServiceClient
-	beatClient    beatpb.BeatServiceClient
-	proseClient   prosepb.ProseBlockServiceClient
-	conn          *grpc.ClientConn
+	storyClient              storypb.StoryServiceClient
+	chapterClient            chapterpb.ChapterServiceClient
+	sceneClient              scenepb.SceneServiceClient
+	beatClient               beatpb.BeatServiceClient
+	proseClient              prosepb.ProseBlockServiceClient
+	proseReferenceClient     prosepb.ProseBlockReferenceServiceClient
+	conn                     *grpc.ClientConn
 }
 
 // NewMainServiceClient creates a new gRPC client for main-service
@@ -36,12 +37,13 @@ func NewMainServiceClient(addr string) (*MainServiceClient, error) {
 	}
 
 	return &MainServiceClient{
-		storyClient:   storypb.NewStoryServiceClient(conn),
-		chapterClient: chapterpb.NewChapterServiceClient(conn),
-		sceneClient:   scenepb.NewSceneServiceClient(conn),
-		beatClient:    beatpb.NewBeatServiceClient(conn),
-		proseClient:   prosepb.NewProseBlockServiceClient(conn),
-		conn:          conn,
+		storyClient:          storypb.NewStoryServiceClient(conn),
+		chapterClient:       chapterpb.NewChapterServiceClient(conn),
+		sceneClient:         scenepb.NewSceneServiceClient(conn),
+		beatClient:          beatpb.NewBeatServiceClient(conn),
+		proseClient:         prosepb.NewProseBlockServiceClient(conn),
+		proseReferenceClient: prosepb.NewProseBlockReferenceServiceClient(conn),
+		conn:                 conn,
 	}, nil
 }
 
@@ -125,6 +127,23 @@ func (c *MainServiceClient) ListProseBlocksByChapter(ctx context.Context, chapte
 	}
 
 	return proseBlocks, nil
+}
+
+// ListProseBlockReferences lists references for a prose block
+func (c *MainServiceClient) ListProseBlockReferences(ctx context.Context, proseBlockID uuid.UUID) ([]*grpcclient.ProseBlockReference, error) {
+	resp, err := c.proseReferenceClient.ListProseBlockReferencesByProseBlock(ctx, &prosepb.ListProseBlockReferencesByProseBlockRequest{
+		ProseBlockId: proseBlockID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	references := make([]*grpcclient.ProseBlockReference, len(resp.References))
+	for i, ref := range resp.References {
+		references[i] = protoToProseBlockReference(ref)
+	}
+
+	return references, nil
 }
 
 // Helper functions to convert proto to domain models
@@ -217,6 +236,20 @@ func protoToProseBlock(pb *prosepb.ProseBlock) *grpcclient.ProseBlock {
 		WordCount: int(pb.WordCount),
 		CreatedAt: pb.CreatedAt.Seconds,
 		UpdatedAt: pb.UpdatedAt.Seconds,
+	}
+}
+
+func protoToProseBlockReference(ref *prosepb.ProseBlockReference) *grpcclient.ProseBlockReference {
+	refID, _ := uuid.Parse(ref.Id)
+	proseBlockID, _ := uuid.Parse(ref.ProseBlockId)
+	entityID, _ := uuid.Parse(ref.EntityId)
+
+	return &grpcclient.ProseBlockReference{
+		ID:          refID,
+		ProseBlockID: proseBlockID,
+		EntityType:  ref.EntityType,
+		EntityID:    entityID,
+		CreatedAt:   ref.CreatedAt.Seconds,
 	}
 }
 

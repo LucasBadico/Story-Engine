@@ -17,6 +17,12 @@ type SearchMemoryInput struct {
 	Query       string
 	Limit       int
 	SourceTypes []memory.SourceType // Optional filter by source types
+
+	// Structural filters
+	BeatTypes   []string
+	Characters  []string
+	SceneIDs    []uuid.UUID
+	StoryID     *uuid.UUID
 }
 
 // SearchMemoryOutput is the output containing relevant chunks
@@ -32,6 +38,15 @@ type SearchResult struct {
 	SourceID    uuid.UUID
 	Content     string
 	Similarity  float64 // Cosine similarity score
+
+	// Structural metadata
+	BeatType     *string   `json:"beat_type,omitempty"`
+	BeatIntent   *string   `json:"beat_intent,omitempty"`
+	Characters   []string  `json:"characters,omitempty"`
+	LocationName *string   `json:"location_name,omitempty"`
+	Timeline     *string   `json:"timeline,omitempty"`
+	POVCharacter *string   `json:"pov_character,omitempty"`
+	ProseKind    *string   `json:"prose_kind,omitempty"`
 }
 
 // SearchMemoryUseCase handles semantic memory search
@@ -71,8 +86,17 @@ func (uc *SearchMemoryUseCase) Execute(ctx context.Context, input SearchMemoryIn
 		limit = 10
 	}
 
+	// Build search filters
+	filters := &repositories.SearchFilters{
+		SourceTypes: input.SourceTypes,
+		BeatTypes:   input.BeatTypes,
+		SceneIDs:    input.SceneIDs,
+		Characters:  input.Characters,
+		StoryID:     input.StoryID,
+	}
+
 	// Search for similar chunks
-	chunks, err := uc.chunkRepo.SearchSimilar(ctx, input.TenantID, queryEmbedding, limit, input.SourceTypes)
+	chunks, err := uc.chunkRepo.SearchSimilar(ctx, input.TenantID, queryEmbedding, limit, filters)
 	if err != nil {
 		return nil, err
 	}
@@ -91,12 +115,19 @@ func (uc *SearchMemoryUseCase) Execute(ctx context.Context, input SearchMemoryIn
 		similarity := uc.calculateSimilarity(queryEmbedding, chunk.Embedding)
 
 		results = append(results, &SearchResult{
-			ChunkID:    chunk.ID,
-			DocumentID: chunk.DocumentID,
-			SourceType: doc.SourceType,
-			SourceID:   doc.SourceID,
-			Content:    chunk.Content,
-			Similarity: similarity,
+			ChunkID:      chunk.ID,
+			DocumentID:   chunk.DocumentID,
+			SourceType:   doc.SourceType,
+			SourceID:     doc.SourceID,
+			Content:      chunk.Content,
+			Similarity:   similarity,
+			BeatType:     chunk.BeatType,
+			BeatIntent:   chunk.BeatIntent,
+			Characters:   chunk.Characters,
+			LocationName: chunk.LocationName,
+			Timeline:     chunk.Timeline,
+			POVCharacter: chunk.POVCharacter,
+			ProseKind:    chunk.ProseKind,
 		})
 	}
 

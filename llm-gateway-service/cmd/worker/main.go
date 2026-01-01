@@ -95,6 +95,13 @@ func main() {
 		embedder,
 		log,
 	)
+	ingestProseBlockUseCase := ingest.NewIngestProseBlockUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
 	searchMemoryUseCase := search.NewSearchMemoryUseCase(
 		chunkRepo,
 		documentRepo,
@@ -109,6 +116,7 @@ func main() {
 		ingestionQueue,
 		ingestStoryUseCase,
 		ingestChapterUseCase,
+		ingestProseBlockUseCase,
 		log,
 		cfg,
 	)

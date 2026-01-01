@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -27,11 +28,25 @@ func NewChunkRepository(db *DB) *ChunkRepository {
 // Create creates a new chunk
 func (r *ChunkRepository) Create(ctx context.Context, chunk *memory.Chunk) error {
 	query := `
-		INSERT INTO embedding_chunks (id, document_id, chunk_index, content, embedding, token_count, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO embedding_chunks (
+			id, document_id, chunk_index, content, embedding, token_count, created_at,
+			scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
+			timeline, pov_character, prose_kind
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
-	_, err := r.db.Exec(ctx, query,
-		chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt)
+	charactersJSON, err := json.Marshal(chunk.Characters)
+	if err != nil {
+		return fmt.Errorf("failed to marshal characters: %w", err)
+	}
+	if len(chunk.Characters) == 0 {
+		charactersJSON = []byte("[]")
+	}
+
+	_, err = r.db.Exec(ctx, query,
+		chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt,
+		chunk.SceneID, chunk.BeatID, chunk.BeatType, chunk.BeatIntent, string(charactersJSON), chunk.LocationID, chunk.LocationName,
+		chunk.Timeline, chunk.POVCharacter, chunk.ProseKind)
 	return err
 }
 
@@ -48,13 +63,27 @@ func (r *ChunkRepository) CreateBatch(ctx context.Context, chunks []*memory.Chun
 	defer tx.Rollback(ctx)
 
 	query := `
-		INSERT INTO embedding_chunks (id, document_id, chunk_index, content, embedding, token_count, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO embedding_chunks (
+			id, document_id, chunk_index, content, embedding, token_count, created_at,
+			scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
+			timeline, pov_character, prose_kind
+		)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
 
 	for _, chunk := range chunks {
-		_, err := tx.Exec(ctx, query,
-			chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt)
+		charactersJSON, err := json.Marshal(chunk.Characters)
+		if err != nil {
+			return fmt.Errorf("failed to marshal characters: %w", err)
+		}
+		if len(chunk.Characters) == 0 {
+			charactersJSON = []byte("[]")
+		}
+
+		_, err = tx.Exec(ctx, query,
+			chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt,
+			chunk.SceneID, chunk.BeatID, chunk.BeatType, chunk.BeatIntent, string(charactersJSON), chunk.LocationID, chunk.LocationName,
+			chunk.Timeline, chunk.POVCharacter, chunk.ProseKind)
 		if err != nil {
 			return err
 		}
@@ -66,15 +95,20 @@ func (r *ChunkRepository) CreateBatch(ctx context.Context, chunks []*memory.Chun
 // GetByID retrieves a chunk by ID
 func (r *ChunkRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory.Chunk, error) {
 	query := `
-		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at
+		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at,
+		       scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
+		       timeline, pov_character, prose_kind
 		FROM embedding_chunks
 		WHERE id = $1
 	`
 	var chunk memory.Chunk
 	var embeddingStr string
+	var charactersJSON string
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt)
+		&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
+		&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
+		&chunk.Timeline, &chunk.POVCharacter, &chunk.ProseKind)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("chunk not found")
@@ -83,13 +117,20 @@ func (r *ChunkRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory.Ch
 	}
 
 	chunk.Embedding = parseVector(embeddingStr)
+	if charactersJSON != "" {
+		if err := json.Unmarshal([]byte(charactersJSON), &chunk.Characters); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal characters: %w", err)
+		}
+	}
 	return &chunk, nil
 }
 
 // ListByDocument lists chunks for a document
 func (r *ChunkRepository) ListByDocument(ctx context.Context, documentID uuid.UUID) ([]*memory.Chunk, error) {
 	query := `
-		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at
+		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at,
+		       scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
+		       timeline, pov_character, prose_kind
 		FROM embedding_chunks
 		WHERE document_id = $1
 		ORDER BY chunk_index ASC
@@ -104,10 +145,18 @@ func (r *ChunkRepository) ListByDocument(ctx context.Context, documentID uuid.UU
 	for rows.Next() {
 		var chunk memory.Chunk
 		var embeddingStr string
-		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt); err != nil {
+		var charactersJSON string
+		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
+			&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
+			&chunk.Timeline, &chunk.POVCharacter, &chunk.ProseKind); err != nil {
 			return nil, err
 		}
 		chunk.Embedding = parseVector(embeddingStr)
+		if charactersJSON != "" {
+			if err := json.Unmarshal([]byte(charactersJSON), &chunk.Characters); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal characters: %w", err)
+			}
+		}
 		chunks = append(chunks, &chunk)
 	}
 
@@ -122,10 +171,16 @@ func (r *ChunkRepository) DeleteByDocument(ctx context.Context, documentID uuid.
 }
 
 // SearchSimilar searches for similar chunks using vector similarity
-func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int, sourceTypes []memory.SourceType) ([]*memory.Chunk, error) {
-	// Build query with optional source type filter
+func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int, filters *repositories.SearchFilters) ([]*memory.Chunk, error) {
+	if filters == nil {
+		filters = &repositories.SearchFilters{}
+	}
+
+	// Build query with filters
 	query := `
-		SELECT c.id, c.document_id, c.chunk_index, c.content, c.embedding, c.token_count, c.created_at
+		SELECT c.id, c.document_id, c.chunk_index, c.content, c.embedding, c.token_count, c.created_at,
+		       c.scene_id, c.beat_id, c.beat_type, c.beat_intent, c.characters, c.location_id, c.location_name,
+		       c.timeline, c.pov_character, c.prose_kind
 		FROM embedding_chunks c
 		INNER JOIN embedding_documents d ON c.document_id = d.id
 		WHERE d.tenant_id = $1
@@ -135,14 +190,66 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 	argIndex := 2
 
 	// Add source type filter if provided
-	if len(sourceTypes) > 0 {
-		placeholders := make([]string, len(sourceTypes))
-		for i, st := range sourceTypes {
+	if len(filters.SourceTypes) > 0 {
+		placeholders := make([]string, len(filters.SourceTypes))
+		for i, st := range filters.SourceTypes {
 			placeholders[i] = fmt.Sprintf("$%d", argIndex)
 			args = append(args, string(st))
 			argIndex++
 		}
 		query += fmt.Sprintf(" AND d.source_type IN (%s)", strings.Join(placeholders, ","))
+	}
+
+	// Add story filter if provided
+	if filters.StoryID != nil {
+		query += fmt.Sprintf(" AND d.source_id = $%d", argIndex)
+		args = append(args, *filters.StoryID)
+		argIndex++
+	}
+
+	// Add beat type filter if provided
+	if len(filters.BeatTypes) > 0 {
+		placeholders := make([]string, len(filters.BeatTypes))
+		for i, bt := range filters.BeatTypes {
+			placeholders[i] = fmt.Sprintf("$%d", argIndex)
+			args = append(args, bt)
+			argIndex++
+		}
+		query += fmt.Sprintf(" AND c.beat_type IN (%s)", strings.Join(placeholders, ","))
+	}
+
+	// Add scene filter if provided
+	if len(filters.SceneIDs) > 0 {
+		placeholders := make([]string, len(filters.SceneIDs))
+		for i, sid := range filters.SceneIDs {
+			placeholders[i] = fmt.Sprintf("$%d", argIndex)
+			args = append(args, sid)
+			argIndex++
+		}
+		query += fmt.Sprintf(" AND c.scene_id IN (%s)", strings.Join(placeholders, ","))
+	}
+
+	// Add location filter if provided
+	if len(filters.LocationIDs) > 0 {
+		placeholders := make([]string, len(filters.LocationIDs))
+		for i, lid := range filters.LocationIDs {
+			placeholders[i] = fmt.Sprintf("$%d", argIndex)
+			args = append(args, lid)
+			argIndex++
+		}
+		query += fmt.Sprintf(" AND c.location_id IN (%s)", strings.Join(placeholders, ","))
+	}
+
+	// Add characters filter if provided (using JSONB containment)
+	if len(filters.Characters) > 0 {
+		// Build JSONB array for containment check
+		charJSON, err := json.Marshal(filters.Characters)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal characters filter: %w", err)
+		}
+		query += fmt.Sprintf(" AND c.characters @> $%d::jsonb", argIndex)
+		args = append(args, string(charJSON))
+		argIndex++
 	}
 
 	// Add vector similarity search
@@ -162,10 +269,18 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 	for rows.Next() {
 		var chunk memory.Chunk
 		var embeddingStr string
-		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt); err != nil {
+		var charactersJSON string
+		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
+			&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
+			&chunk.Timeline, &chunk.POVCharacter, &chunk.ProseKind); err != nil {
 			return nil, err
 		}
 		chunk.Embedding = parseVector(embeddingStr)
+		if charactersJSON != "" {
+			if err := json.Unmarshal([]byte(charactersJSON), &chunk.Characters); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal characters: %w", err)
+			}
+		}
 		chunks = append(chunks, &chunk)
 	}
 

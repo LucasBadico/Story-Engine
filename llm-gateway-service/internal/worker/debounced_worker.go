@@ -18,6 +18,7 @@ type DebouncedWorker struct {
 	queue            queue.IngestionQueue
 	ingestStory      *ingest.IngestStoryUseCase
 	ingestChapter    *ingest.IngestChapterUseCase
+	ingestProseBlock *ingest.IngestProseBlockUseCase
 	logger           logger.Logger
 	debounceInterval time.Duration
 	pollInterval     time.Duration
@@ -29,6 +30,7 @@ func NewDebouncedWorker(
 	queue queue.IngestionQueue,
 	ingestStory *ingest.IngestStoryUseCase,
 	ingestChapter *ingest.IngestChapterUseCase,
+	ingestProseBlock *ingest.IngestProseBlockUseCase,
 	logger logger.Logger,
 	cfg *config.Config,
 ) *DebouncedWorker {
@@ -36,6 +38,7 @@ func NewDebouncedWorker(
 		queue:            queue,
 		ingestStory:      ingestStory,
 		ingestChapter:    ingestChapter,
+		ingestProseBlock: ingestProseBlock,
 		logger:           logger,
 		debounceInterval: time.Duration(cfg.Worker.DebounceMinutes) * time.Minute,
 		pollInterval:     time.Duration(cfg.Worker.PollSeconds) * time.Second,
@@ -150,6 +153,16 @@ func (w *DebouncedWorker) processItem(ctx context.Context, item *queue.QueueItem
 			return fmt.Errorf("failed to ingest chapter: %w", err)
 		}
 		w.logger.Info("Successfully ingested chapter", "chapter_id", item.SourceID)
+
+	case memory.SourceTypeProseBlock:
+		_, err := w.ingestProseBlock.Execute(ctx, ingest.IngestProseBlockInput{
+			TenantID:     item.TenantID,
+			ProseBlockID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest prose block: %w", err)
+		}
+		w.logger.Info("Successfully ingested prose block", "prose_block_id", item.SourceID)
 
 	default:
 		return fmt.Errorf("unsupported source type: %s", item.SourceType)

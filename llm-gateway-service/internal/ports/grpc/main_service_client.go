@@ -25,6 +25,9 @@ type MainServiceClient interface {
 	
 	// ListProseBlocksByChapter lists prose blocks for a chapter
 	ListProseBlocksByChapter(ctx context.Context, chapterID uuid.UUID) ([]*ProseBlock, error)
+
+	// ListProseBlockReferences lists references for a prose block
+	ListProseBlockReferences(ctx context.Context, proseBlockID uuid.UUID) ([]*ProseBlockReference, error)
 }
 
 // Story represents a story from main-service
@@ -84,5 +87,14 @@ type ProseBlock struct {
 	WordCount int
 	CreatedAt int64
 	UpdatedAt int64
+}
+
+// ProseBlockReference represents a reference from a prose block to an entity
+type ProseBlockReference struct {
+	ID          uuid.UUID
+	ProseBlockID uuid.UUID
+	EntityType  string // "scene", "beat", "character", "location", "trait"
+	EntityID    uuid.UUID
+	CreatedAt   int64
 }
 

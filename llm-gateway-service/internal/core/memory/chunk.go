@@ -15,6 +15,22 @@ type Chunk struct {
 	Embedding   []float32 // Vector embedding
 	TokenCount  int
 	CreatedAt   time.Time
+
+	// Metadados estruturais
+	SceneID    *uuid.UUID `json:"scene_id,omitempty"`
+	BeatID     *uuid.UUID `json:"beat_id,omitempty"`
+	BeatType   *string    `json:"beat_type,omitempty"`
+	BeatIntent *string    `json:"beat_intent,omitempty"`
+
+	// Contexto narrativo
+	Characters   []string   `json:"characters,omitempty"`
+	LocationID   *uuid.UUID `json:"location_id,omitempty"`
+	LocationName *string    `json:"location_name,omitempty"`
+	Timeline     *string    `json:"timeline,omitempty"`
+	POVCharacter *string    `json:"pov_character,omitempty"`
+
+	// Tipo do bloco
+	ProseKind *string `json:"prose_kind,omitempty"`
 }
 
 // NewChunk creates a new chunk
