@@ -798,8 +798,8 @@ Status: ${story.status}
       const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
       for (const proseBlock of sortedProseBlocks) {
         const fileName = this.generateProseBlockFileName(proseBlock);
-        const embedName = fileName.replace(/\.md$/, "");
-        content += `![[${embedName}]]
+        const linkName = fileName.replace(/\.md$/, "");
+        content += `${proseBlock.content} [[${linkName}|(go to)]]
 
 `;
       }
@@ -951,8 +951,10 @@ Status: ${story.status}
       const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
       for (const proseBlock of sortedProseBlocks) {
         const fileName = this.generateProseBlockFileName(proseBlock);
-        const embedName = fileName.replace(/\.md$/, "");
-        content += `![[${embedName}]]
+        const linkName = fileName.replace(/\.md$/, "");
+        content += `${proseBlock.content}
+
+[[${linkName}]]
 
 `;
       }

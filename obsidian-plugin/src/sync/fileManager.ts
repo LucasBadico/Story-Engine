@@ -164,16 +164,17 @@ export class FileManager {
 
 		let content = `${frontmatter}\n# ${chapter.title}\n\n`;
 
-		// Add prose blocks section with embeds
+		// Add prose blocks section with content and links
 		if (proseBlocks && proseBlocks.length > 0) {
 			content += `## Prose\n\n`;
 			// Sort by order_num
 			const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
 			for (const proseBlock of sortedProseBlocks) {
 				const fileName = this.generateProseBlockFileName(proseBlock);
-				// Remove .md extension for embed
-				const embedName = fileName.replace(/\.md$/, "");
-				content += `![[${embedName}]]\n\n`;
+				// Remove .md extension for link
+				const linkName = fileName.replace(/\.md$/, "");
+				// Include content directly and add link below
+				content += `${proseBlock.content} [[${linkName}|(go to)]]\n\n`;
 			}
 		}
 
@@ -348,16 +349,17 @@ export class FileManager {
 			content += `**Time:** ${scene.time_ref}\n\n`;
 		}
 
-		// Add prose blocks section with embeds (if referenced)
+		// Add prose blocks section with content and links (if referenced)
 		if (proseBlocks && proseBlocks.length > 0) {
 			content += `## Prose Relacionado\n\n`;
 			// Sort by order_num
 			const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
 			for (const proseBlock of sortedProseBlocks) {
 				const fileName = this.generateProseBlockFileName(proseBlock);
-				// Remove .md extension for embed
-				const embedName = fileName.replace(/\.md$/, "");
-				content += `![[${embedName}]]\n\n`;
+				// Remove .md extension for link
+				const linkName = fileName.replace(/\.md$/, "");
+				// Include content directly and add link below
+				content += `${proseBlock.content}\n\n[[${linkName}]]\n\n`;
 			}
 		}
 
