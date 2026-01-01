@@ -136,7 +136,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Create prose block
-		prose, err := story.NewProseBlock(scene.ID, story.ProseKindFinal, "This is the prose content.")
+		prose, err := story.NewProseBlock(chapter.ID, 1, story.ProseKindFinal, "This is the prose content.")
 		if err != nil {
 			t.Fatalf("failed to create prose block: %v", err)
 		}
@@ -198,7 +198,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Verify prose blocks
-		newProseBlocks, err := proseBlockRepo.ListByScene(ctx, newScenes[0].ID)
+		newProseBlocks, err := proseBlockRepo.ListByChapter(ctx, newChapters[0].ID)
 		if err != nil {
 			t.Fatalf("failed to list prose blocks: %v", err)
 		}

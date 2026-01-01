@@ -45,6 +45,7 @@ func main() {
 	sceneRepo := postgres.NewSceneRepository(pgDB)
 	beatRepo := postgres.NewBeatRepository(pgDB)
 	proseBlockRepo := postgres.NewProseBlockRepository(pgDB)
+	proseBlockReferenceRepo := postgres.NewProseBlockReferenceRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
 	transactionRepo := postgres.NewTransactionRepository(pgDB)
 
@@ -68,6 +69,8 @@ func main() {
 	chapterHandler := httphandlers.NewChapterHandler(chapterRepo, storyRepo, log)
 	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
 	beatHandler := httphandlers.NewBeatHandler(beatRepo, sceneRepo, storyRepo, log)
+	proseBlockHandler := httphandlers.NewProseBlockHandler(proseBlockRepo, chapterRepo, log)
+	proseBlockReferenceHandler := httphandlers.NewProseBlockReferenceHandler(proseBlockReferenceRepo, proseBlockRepo, log)
 
 	// Create router
 	mux := http.NewServeMux()
@@ -103,6 +106,18 @@ func main() {
 	mux.HandleFunc("GET /api/v1/stories/{id}/beats", beatHandler.ListByStory)
 	mux.HandleFunc("GET /api/v1/scenes/{id}/beats", beatHandler.List)
 	mux.HandleFunc("DELETE /api/v1/beats/{id}", beatHandler.Delete)
+
+	mux.HandleFunc("GET /api/v1/chapters/{id}/prose-blocks", proseBlockHandler.ListByChapter)
+	mux.HandleFunc("POST /api/v1/chapters/{id}/prose-blocks", proseBlockHandler.Create)
+	mux.HandleFunc("GET /api/v1/prose-blocks/{id}", proseBlockHandler.Get)
+	mux.HandleFunc("PUT /api/v1/prose-blocks/{id}", proseBlockHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/prose-blocks/{id}", proseBlockHandler.Delete)
+
+	mux.HandleFunc("POST /api/v1/prose-blocks/{id}/references", proseBlockReferenceHandler.Create)
+	mux.HandleFunc("GET /api/v1/prose-blocks/{id}/references", proseBlockReferenceHandler.ListByProseBlock)
+	mux.HandleFunc("GET /api/v1/scenes/{id}/prose-blocks", proseBlockReferenceHandler.ListByScene)
+	mux.HandleFunc("GET /api/v1/beats/{id}/prose-blocks", proseBlockReferenceHandler.ListByBeat)
+	mux.HandleFunc("DELETE /api/v1/prose-block-references/{id}", proseBlockReferenceHandler.Delete)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 

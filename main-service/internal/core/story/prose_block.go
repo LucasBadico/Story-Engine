@@ -22,7 +22,8 @@ const (
 // ProseBlock represents a prose block entity
 type ProseBlock struct {
 	ID        uuid.UUID `json:"id"`
-	SceneID   uuid.UUID `json:"scene_id"`
+	ChapterID uuid.UUID `json:"chapter_id"`
+	OrderNum  int       `json:"order_num"`
 	Kind      ProseKind `json:"kind"`
 	Content   string    `json:"content"`
 	WordCount int       `json:"word_count"`
@@ -31,9 +32,12 @@ type ProseBlock struct {
 }
 
 // NewProseBlock creates a new prose block
-func NewProseBlock(sceneID uuid.UUID, kind ProseKind, content string) (*ProseBlock, error) {
+func NewProseBlock(chapterID uuid.UUID, orderNum int, kind ProseKind, content string) (*ProseBlock, error) {
 	if !isValidProseKind(kind) {
 		return nil, ErrInvalidProseKind
+	}
+	if orderNum < 1 {
+		return nil, ErrInvalidOrderNumber
 	}
 
 	now := time.Now()
@@ -41,7 +45,8 @@ func NewProseBlock(sceneID uuid.UUID, kind ProseKind, content string) (*ProseBlo
 
 	return &ProseBlock{
 		ID:        uuid.New(),
-		SceneID:   sceneID,
+		ChapterID: chapterID,
+		OrderNum:  orderNum,
 		Kind:      kind,
 		Content:   content,
 		WordCount: wordCount,
@@ -54,6 +59,9 @@ func NewProseBlock(sceneID uuid.UUID, kind ProseKind, content string) (*ProseBlo
 func (p *ProseBlock) Validate() error {
 	if !isValidProseKind(p.Kind) {
 		return ErrInvalidProseKind
+	}
+	if p.OrderNum < 1 {
+		return ErrInvalidOrderNumber
 	}
 	if p.WordCount < 0 {
 		return ErrInvalidWordCount

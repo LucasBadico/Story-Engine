@@ -11,5 +11,6 @@ var (
 	ErrInvalidBeatType       = errors.New("invalid beat type")
 	ErrInvalidProseKind      = errors.New("invalid prose kind")
 	ErrInvalidWordCount      = errors.New("invalid word count")
+	ErrInvalidEntityType     = errors.New("invalid entity type")
 )
 

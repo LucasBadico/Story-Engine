@@ -11,10 +11,10 @@ import (
 type ProseBlockRepository interface {
 	Create(ctx context.Context, p *story.ProseBlock) error
 	GetByID(ctx context.Context, id uuid.UUID) (*story.ProseBlock, error)
-	ListByScene(ctx context.Context, sceneID uuid.UUID) ([]*story.ProseBlock, error)
-	GetBySceneAndKind(ctx context.Context, sceneID uuid.UUID, kind story.ProseKind) (*story.ProseBlock, error)
+	ListByChapter(ctx context.Context, chapterID uuid.UUID) ([]*story.ProseBlock, error)
+	GetByChapterAndKind(ctx context.Context, chapterID uuid.UUID, kind story.ProseKind) (*story.ProseBlock, error)
 	Update(ctx context.Context, p *story.ProseBlock) error
 	Delete(ctx context.Context, id uuid.UUID) error
-	DeleteByScene(ctx context.Context, sceneID uuid.UUID) error
+	DeleteByChapter(ctx context.Context, chapterID uuid.UUID) error
 }
 

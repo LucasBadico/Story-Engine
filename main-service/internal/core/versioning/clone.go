@@ -83,10 +83,11 @@ func CloneBeat(sourceBeat *story.Beat, newSceneID uuid.UUID) *story.Beat {
 }
 
 // CloneProseBlock creates a deep copy of a prose block
-func CloneProseBlock(sourceProse *story.ProseBlock, newSceneID uuid.UUID) *story.ProseBlock {
+func CloneProseBlock(sourceProse *story.ProseBlock, newChapterID uuid.UUID, newOrderNum int) *story.ProseBlock {
 	return &story.ProseBlock{
 		ID:        uuid.New(),
-		SceneID:   newSceneID,
+		ChapterID: newChapterID,
+		OrderNum:  newOrderNum,
 		Kind:      sourceProse.Kind,
 		Content:   sourceProse.Content,
 		WordCount: sourceProse.WordCount,

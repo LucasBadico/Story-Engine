@@ -154,19 +154,19 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 	}
 
 	// Clone all prose blocks
-	for _, oldScene := range scenes {
-		proseBlocks, err := uc.proseBlockRepo.ListByScene(ctx, oldScene.ID)
+	for _, oldChapter := range chapters {
+		proseBlocks, err := uc.proseBlockRepo.ListByChapter(ctx, oldChapter.ID)
 		if err != nil {
 			return nil, err
 		}
 
-		newSceneID, ok := sceneIDMap[oldScene.ID]
+		newChapterID, ok := chapterIDMap[oldChapter.ID]
 		if !ok {
-			return nil, errors.New("scene mapping not found for prose block")
+			return nil, errors.New("chapter mapping not found for prose block")
 		}
 
 		for _, oldProse := range proseBlocks {
-			newProse := versioning.CloneProseBlock(oldProse, newSceneID)
+			newProse := versioning.CloneProseBlock(oldProse, newChapterID, oldProse.OrderNum)
 			if err := uc.proseBlockRepo.Create(ctx, newProse); err != nil {
 				return nil, err
 			}
