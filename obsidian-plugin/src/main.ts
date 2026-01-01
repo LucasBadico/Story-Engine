@@ -7,6 +7,7 @@ import { StoryDetailsModal } from "./views/StoryDetailsModal";
 import { CreateStoryModal } from "./views/CreateStoryModal";
 import { FileManager } from "./sync/fileManager";
 import { SyncService } from "./sync/syncService";
+import { StoryListView, STORY_LIST_VIEW_TYPE } from "./views/StoryListView";
 
 const DEFAULT_SETTINGS: StoryEngineSettings = {
 	apiUrl: "http://localhost:8080",
@@ -45,10 +46,24 @@ export default class StoryEnginePlugin extends Plugin {
 
 		this.addSettingTab(new StoryEngineSettingTab(this.app, this));
 
+		// Register the story list view
+		this.registerView(
+			STORY_LIST_VIEW_TYPE,
+			(leaf) => new StoryListView(leaf, this)
+		);
+
+		// Add ribbon icon to open the view
+		this.addRibbonIcon("book-open", "Story Engine", () => {
+			this.activateView();
+		});
+
 		registerCommands(this);
 	}
 
-	async onunload() {}
+	async onunload() {
+		// Detach all leaves of the story list view
+		this.app.workspace.detachLeavesOfType(STORY_LIST_VIEW_TYPE);
+	}
 
 	async loadSettings() {
 		this.settings = Object.assign(
@@ -123,6 +138,23 @@ export default class StoryEnginePlugin extends Plugin {
 				new Notice(`Error: ${errorMessage}`, 5000);
 			}
 		}).open();
+	}
+
+	async activateView() {
+		const { workspace } = this.app;
+
+		let leaf = workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			// Create new leaf in the right panel
+			leaf = workspace.getRightLeaf(false);
+			await leaf.setViewState({
+				type: STORY_LIST_VIEW_TYPE,
+				active: true,
+			});
+		}
+
+		workspace.revealLeaf(leaf);
 	}
 }
 

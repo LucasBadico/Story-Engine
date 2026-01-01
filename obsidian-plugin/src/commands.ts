@@ -1,5 +1,4 @@
 import { Notice } from "obsidian";
-import { StoryListModal } from "./views/StoryListModal";
 import { StorySyncModal } from "./views/StorySyncModal";
 import StoryEnginePlugin from "./main";
 
@@ -8,7 +7,7 @@ export function registerCommands(plugin: StoryEnginePlugin) {
 		id: "list-stories",
 		name: "List Stories",
 		callback: () => {
-			new StoryListModal(plugin).open();
+			plugin.activateView();
 		},
 	});
 
