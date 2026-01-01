@@ -11,6 +11,8 @@ import (
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
+	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
+	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
@@ -42,6 +44,9 @@ func main() {
 	// Initialize repositories
 	tenantRepo := postgres.NewTenantRepository(pgDB)
 	worldRepo := postgres.NewWorldRepository(pgDB)
+	traitRepo := postgres.NewTraitRepository(pgDB)
+	archetypeRepo := postgres.NewArchetypeRepository(pgDB)
+	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -58,6 +63,18 @@ func main() {
 	listWorldsUseCase := worldapp.NewListWorldsUseCase(worldRepo, log)
 	updateWorldUseCase := worldapp.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
 	deleteWorldUseCase := worldapp.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
+	createTraitUseCase := traitapp.NewCreateTraitUseCase(traitRepo, tenantRepo, auditLogRepo, log)
+	getTraitUseCase := traitapp.NewGetTraitUseCase(traitRepo, log)
+	listTraitsUseCase := traitapp.NewListTraitsUseCase(traitRepo, log)
+	updateTraitUseCase := traitapp.NewUpdateTraitUseCase(traitRepo, auditLogRepo, log)
+	deleteTraitUseCase := traitapp.NewDeleteTraitUseCase(traitRepo, auditLogRepo, log)
+	createArchetypeUseCase := archetypeapp.NewCreateArchetypeUseCase(archetypeRepo, tenantRepo, auditLogRepo, log)
+	getArchetypeUseCase := archetypeapp.NewGetArchetypeUseCase(archetypeRepo, log)
+	listArchetypesUseCase := archetypeapp.NewListArchetypesUseCase(archetypeRepo, log)
+	updateArchetypeUseCase := archetypeapp.NewUpdateArchetypeUseCase(archetypeRepo, auditLogRepo, log)
+	deleteArchetypeUseCase := archetypeapp.NewDeleteArchetypeUseCase(archetypeRepo, archetypeTraitRepo, auditLogRepo, log)
+	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
+	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
@@ -73,6 +90,8 @@ func main() {
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := httphandlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
+	traitHandler := httphandlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
+	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
 	chapterHandler := httphandlers.NewChapterHandler(chapterRepo, storyRepo, log)
 	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
@@ -92,6 +111,20 @@ func main() {
 	mux.HandleFunc("GET /api/v1/worlds/{id}", worldHandler.Get)
 	mux.HandleFunc("PUT /api/v1/worlds/{id}", worldHandler.Update)
 	mux.HandleFunc("DELETE /api/v1/worlds/{id}", worldHandler.Delete)
+
+	mux.HandleFunc("POST /api/v1/traits", traitHandler.Create)
+	mux.HandleFunc("GET /api/v1/traits", traitHandler.List)
+	mux.HandleFunc("GET /api/v1/traits/{id}", traitHandler.Get)
+	mux.HandleFunc("PUT /api/v1/traits/{id}", traitHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/traits/{id}", traitHandler.Delete)
+
+	mux.HandleFunc("POST /api/v1/archetypes", archetypeHandler.Create)
+	mux.HandleFunc("GET /api/v1/archetypes", archetypeHandler.List)
+	mux.HandleFunc("GET /api/v1/archetypes/{id}", archetypeHandler.Get)
+	mux.HandleFunc("PUT /api/v1/archetypes/{id}", archetypeHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/archetypes/{id}", archetypeHandler.Delete)
+	mux.HandleFunc("POST /api/v1/archetypes/{id}/traits", archetypeHandler.AddTrait)
+	mux.HandleFunc("DELETE /api/v1/archetypes/{id}/traits/{trait_id}", archetypeHandler.RemoveTrait)
 
 	mux.HandleFunc("POST /api/v1/stories", storyHandler.Create)
 	mux.HandleFunc("GET /api/v1/stories/{id}", storyHandler.Get)

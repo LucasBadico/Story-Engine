@@ -1,0 +1,84 @@
+syntax = "proto3";
+package trait;
+option go_package = "github.com/story-engine/main-service/proto/trait";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Trait represents a trait entity
+message Trait {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string category = 4;
+  string description = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// CreateTraitRequest is the request to create a new trait
+message CreateTraitRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string category = 3;
+  string description = 4;
+}
+
+// CreateTraitResponse is the response after creating a trait
+message CreateTraitResponse {
+  Trait trait = 1;
+}
+
+// GetTraitRequest is the request to get a trait by ID
+message GetTraitRequest {
+  string id = 1;
+}
+
+// GetTraitResponse is the response containing a trait
+message GetTraitResponse {
+  Trait trait = 1;
+}
+
+// ListTraitsRequest is the request to list traits for a tenant
+message ListTraitsRequest {
+  string tenant_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListTraitsResponse is the response containing a list of traits
+message ListTraitsResponse {
+  repeated Trait traits = 1;
+  int32 total_count = 2;
+}
+
+// UpdateTraitRequest is the request to update a trait
+message UpdateTraitRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string category = 3;
+  optional string description = 4;
+}
+
+// UpdateTraitResponse is the response after updating a trait
+message UpdateTraitResponse {
+  Trait trait = 1;
+}
+
+// DeleteTraitRequest is the request to delete a trait
+message DeleteTraitRequest {
+  string id = 1;
+}
+
+// DeleteTraitResponse is the response after deleting a trait
+message DeleteTraitResponse {
+}
+
+// TraitService provides trait management operations
+service TraitService {
+  rpc CreateTrait(CreateTraitRequest) returns (CreateTraitResponse);
+  rpc GetTrait(GetTraitRequest) returns (GetTraitResponse);
+  rpc UpdateTrait(UpdateTraitRequest) returns (UpdateTraitResponse);
+  rpc ListTraits(ListTraitsRequest) returns (ListTraitsResponse);
+  rpc DeleteTrait(DeleteTraitRequest) returns (DeleteTraitResponse);
+}
+

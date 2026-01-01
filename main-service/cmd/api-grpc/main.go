@@ -8,6 +8,8 @@ import (
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
+	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
+	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
@@ -39,6 +41,9 @@ func main() {
 	// Initialize repositories
 	tenantRepo := postgres.NewTenantRepository(pgDB)
 	worldRepo := postgres.NewWorldRepository(pgDB)
+	traitRepo := postgres.NewTraitRepository(pgDB)
+	archetypeRepo := postgres.NewArchetypeRepository(pgDB)
+	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -54,6 +59,18 @@ func main() {
 	listWorldsUseCase := worldapp.NewListWorldsUseCase(worldRepo, log)
 	updateWorldUseCase := worldapp.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
 	deleteWorldUseCase := worldapp.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
+	createTraitUseCase := traitapp.NewCreateTraitUseCase(traitRepo, tenantRepo, auditLogRepo, log)
+	getTraitUseCase := traitapp.NewGetTraitUseCase(traitRepo, log)
+	listTraitsUseCase := traitapp.NewListTraitsUseCase(traitRepo, log)
+	updateTraitUseCase := traitapp.NewUpdateTraitUseCase(traitRepo, auditLogRepo, log)
+	deleteTraitUseCase := traitapp.NewDeleteTraitUseCase(traitRepo, auditLogRepo, log)
+	createArchetypeUseCase := archetypeapp.NewCreateArchetypeUseCase(archetypeRepo, tenantRepo, auditLogRepo, log)
+	getArchetypeUseCase := archetypeapp.NewGetArchetypeUseCase(archetypeRepo, log)
+	listArchetypesUseCase := archetypeapp.NewListArchetypesUseCase(archetypeRepo, log)
+	updateArchetypeUseCase := archetypeapp.NewUpdateArchetypeUseCase(archetypeRepo, auditLogRepo, log)
+	deleteArchetypeUseCase := archetypeapp.NewDeleteArchetypeUseCase(archetypeRepo, archetypeTraitRepo, auditLogRepo, log)
+	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
+	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
@@ -70,6 +87,8 @@ func main() {
 	// Create handlers
 	tenantHandler := handlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := handlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
+	traitHandler := handlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
+	archetypeHandler := handlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := handlers.NewStoryHandler(
 		createStoryUseCase,
 		cloneStoryUseCase,
@@ -82,6 +101,8 @@ func main() {
 	grpcServer := grpcserver.NewServer(cfg, log)
 	grpcServer.RegisterTenantService(tenantHandler)
 	grpcServer.RegisterWorldService(worldHandler)
+	grpcServer.RegisterTraitService(traitHandler)
+	grpcServer.RegisterArchetypeService(archetypeHandler)
 	grpcServer.RegisterStoryService(storyHandler)
 
 	// Setup graceful shutdown

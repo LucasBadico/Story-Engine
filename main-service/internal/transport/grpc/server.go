@@ -7,12 +7,14 @@ import (
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/interceptors"
+	archetypepb "github.com/story-engine/main-service/proto/archetype"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	prosepb "github.com/story-engine/main-service/proto/prose"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
+	traitpb "github.com/story-engine/main-service/proto/trait"
 	worldpb "github.com/story-engine/main-service/proto/world"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
@@ -73,6 +75,18 @@ func (s *Server) RegisterStoryService(handler storypb.StoryServiceServer) {
 func (s *Server) RegisterWorldService(handler worldpb.WorldServiceServer) {
 	worldpb.RegisterWorldServiceServer(s.grpcServer, handler)
 	s.logger.Info("WorldService registered")
+}
+
+// RegisterTraitService registers the TraitService handler
+func (s *Server) RegisterTraitService(handler traitpb.TraitServiceServer) {
+	traitpb.RegisterTraitServiceServer(s.grpcServer, handler)
+	s.logger.Info("TraitService registered")
+}
+
+// RegisterArchetypeService registers the ArchetypeService handler
+func (s *Server) RegisterArchetypeService(handler archetypepb.ArchetypeServiceServer) {
+	archetypepb.RegisterArchetypeServiceServer(s.grpcServer, handler)
+	s.logger.Info("ArchetypeService registered")
 }
 
 // RegisterChapterService registers the ChapterService handler

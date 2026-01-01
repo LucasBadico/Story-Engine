@@ -1,0 +1,104 @@
+syntax = "proto3";
+package archetype;
+option go_package = "github.com/story-engine/main-service/proto/archetype";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Archetype represents an archetype entity
+message Archetype {
+  string id = 1;
+  string tenant_id = 2;
+  string name = 3;
+  string description = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+}
+
+// CreateArchetypeRequest is the request to create a new archetype
+message CreateArchetypeRequest {
+  string tenant_id = 1;
+  string name = 2;
+  string description = 3;
+}
+
+// CreateArchetypeResponse is the response after creating an archetype
+message CreateArchetypeResponse {
+  Archetype archetype = 1;
+}
+
+// GetArchetypeRequest is the request to get an archetype by ID
+message GetArchetypeRequest {
+  string id = 1;
+}
+
+// GetArchetypeResponse is the response containing an archetype
+message GetArchetypeResponse {
+  Archetype archetype = 1;
+}
+
+// ListArchetypesRequest is the request to list archetypes for a tenant
+message ListArchetypesRequest {
+  string tenant_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListArchetypesResponse is the response containing a list of archetypes
+message ListArchetypesResponse {
+  repeated Archetype archetypes = 1;
+  int32 total_count = 2;
+}
+
+// UpdateArchetypeRequest is the request to update an archetype
+message UpdateArchetypeRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+}
+
+// UpdateArchetypeResponse is the response after updating an archetype
+message UpdateArchetypeResponse {
+  Archetype archetype = 1;
+}
+
+// DeleteArchetypeRequest is the request to delete an archetype
+message DeleteArchetypeRequest {
+  string id = 1;
+}
+
+// DeleteArchetypeResponse is the response after deleting an archetype
+message DeleteArchetypeResponse {
+}
+
+// AddTraitToArchetypeRequest is the request to add a trait to an archetype
+message AddTraitToArchetypeRequest {
+  string archetype_id = 1;
+  string trait_id = 2;
+  string default_value = 3;
+}
+
+// AddTraitToArchetypeResponse is the response after adding a trait
+message AddTraitToArchetypeResponse {
+}
+
+// RemoveTraitFromArchetypeRequest is the request to remove a trait from an archetype
+message RemoveTraitFromArchetypeRequest {
+  string archetype_id = 1;
+  string trait_id = 2;
+}
+
+// RemoveTraitFromArchetypeResponse is the response after removing a trait
+message RemoveTraitFromArchetypeResponse {
+}
+
+// ArchetypeService provides archetype management operations
+service ArchetypeService {
+  rpc CreateArchetype(CreateArchetypeRequest) returns (CreateArchetypeResponse);
+  rpc GetArchetype(GetArchetypeRequest) returns (GetArchetypeResponse);
+  rpc UpdateArchetype(UpdateArchetypeRequest) returns (UpdateArchetypeResponse);
+  rpc ListArchetypes(ListArchetypesRequest) returns (ListArchetypesResponse);
+  rpc DeleteArchetype(DeleteArchetypeRequest) returns (DeleteArchetypeResponse);
+  rpc AddTraitToArchetype(AddTraitToArchetypeRequest) returns (AddTraitToArchetypeResponse);
+  rpc RemoveTraitFromArchetype(RemoveTraitFromArchetypeRequest) returns (RemoveTraitFromArchetypeResponse);
+}
+
