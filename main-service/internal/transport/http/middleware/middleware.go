@@ -58,7 +58,10 @@ func CORS() Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Access-Control-Allow-Origin", "app://obsidian.md")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+			w.Header().Set(
+				"Access-Control-Allow-Headers",
+				"Content-Type, Authorization, X-Tenant-Id, x-tenant-id",
+			)
 
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
@@ -69,4 +72,3 @@ func CORS() Middleware {
 		})
 	}
 }
-

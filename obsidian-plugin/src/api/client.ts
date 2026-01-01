@@ -23,16 +23,19 @@ export class StoryEngineClient {
 		tenantId?: string
 	): Promise<T> {
 		const url = `${this.apiUrl}${endpoint}`;
-		const headers: Record<string, string> = {
-			"Content-Type": "application/json",
-		};
+		const headers = new Headers();
+		
+		headers.set("Content-Type", "application/json");
 
 		if (this.apiKey) {
-			headers["Authorization"] = `Bearer ${this.apiKey}`;
+			headers.set("Authorization", `Bearer ${this.apiKey}`);
 		}
 
 		if (tenantId) {
-			headers["X-Tenant-ID"] = tenantId.trim();
+			const trimmedTenantId = tenantId.trim();
+			if (trimmedTenantId) {
+				headers.set("X-Tenant-ID", trimmedTenantId);
+			}
 		}
 
 		const options: RequestInit = {
