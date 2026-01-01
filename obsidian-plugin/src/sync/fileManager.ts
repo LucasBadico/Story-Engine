@@ -21,6 +21,82 @@ export class FileManager {
 			.trim();
 	}
 
+	// Generate frontmatter with Obsidian tags
+	private generateFrontmatter(
+		baseFields: Record<string, string | number | null>,
+		extraFields?: Record<string, string | number | null>,
+		options?: {
+			entityType: "story" | "chapter" | "scene" | "beat";
+			storyName?: string;
+			date?: string; // ISO date string (YYYY-MM-DD) or Date object
+		}
+	): string {
+		const fields: Record<string, string | number | null> = { ...baseFields };
+
+		// Add extra fields if provided
+		if (extraFields) {
+			Object.assign(fields, extraFields);
+		}
+
+		// Generate tags (without # prefix - Obsidian adds it automatically)
+		const tags: string[] = [];
+		if (options) {
+			// Entity type tag
+			tags.push(`story-engine/${options.entityType}`);
+
+			// Story name tag (sanitized)
+			if (options.storyName) {
+				const sanitizedStoryName = this.sanitizeFolderName(options.storyName)
+					.toLowerCase()
+					.replace(/\s+/g, "-");
+				tags.push(`story/${sanitizedStoryName}`);
+			}
+
+			// Date tag in format YYYY/MM/DD
+			if (options.date) {
+				const date = typeof options.date === "string" ? new Date(options.date) : options.date;
+				if (!isNaN(date.getTime())) {
+					const year = date.getFullYear();
+					const month = String(date.getMonth() + 1).padStart(2, "0");
+					const day = String(date.getDate()).padStart(2, "0");
+					tags.push(`date/${year}/${month}/${day}`);
+				}
+			}
+		}
+
+		// Build frontmatter lines
+		const lines: string[] = ["---"];
+
+		// Add all fields
+		for (const [key, value] of Object.entries(fields)) {
+			if (value === null || value === undefined) {
+				lines.push(`${key}: null`);
+			} else if (typeof value === "string") {
+				// Escape quotes and wrap in quotes if contains special chars
+				const escaped = value.replace(/"/g, '\\"');
+				if (value.includes(":") || value.includes("\n") || value.includes('"')) {
+					lines.push(`${key}: "${escaped}"`);
+				} else {
+					lines.push(`${key}: ${escaped}`);
+				}
+			} else {
+				lines.push(`${key}: ${value}`);
+			}
+		}
+
+		// Add tags if any
+		if (tags.length > 0) {
+			lines.push(`tags:`);
+			for (const tag of tags) {
+				lines.push(`  - ${tag}`);
+			}
+		}
+
+		lines.push("---", "");
+
+		return lines.join("\n");
+	}
+
 	// Ensure folder exists
 	async ensureFolderExists(path: string): Promise<void> {
 		const folder = this.vault.getAbstractFileByPath(path);
@@ -33,21 +109,22 @@ export class FileManager {
 	async writeStoryMetadata(story: Story, folderPath: string): Promise<void> {
 		await this.ensureFolderExists(folderPath);
 
-		const frontmatter = [
-			"---",
-			`id: ${story.id}`,
-			`title: "${story.title}"`,
-			`status: ${story.status}`,
-			`version: ${story.version_number}`,
-			`root_story_id: ${story.root_story_id}`,
-			story.previous_story_id
-				? `previous_version_id: ${story.previous_story_id}`
-				: `previous_version_id: null`,
-			`created_at: ${story.created_at}`,
-			`updated_at: ${story.updated_at}`,
-			"---",
-			"",
-		].join("\n");
+		const baseFields = {
+			id: story.id,
+			title: story.title,
+			status: story.status,
+			version: story.version_number,
+			root_story_id: story.root_story_id,
+			previous_version_id: story.previous_story_id,
+			created_at: story.created_at,
+			updated_at: story.updated_at,
+		};
+
+		const frontmatter = this.generateFrontmatter(baseFields, undefined, {
+			entityType: "story",
+			storyName: story.title,
+			date: story.created_at,
+		});
 
 		const content = `${frontmatter}\n# ${story.title}\n\nVersion: ${story.version_number}\nStatus: ${story.status}\n`;
 		const filePath = `${folderPath}/story.md`;
@@ -63,22 +140,26 @@ export class FileManager {
 	// Write chapter file
 	async writeChapterFile(
 		chapterWithContent: ChapterWithContent,
-		filePath: string
+		filePath: string,
+		storyName?: string
 	): Promise<void> {
 		const { chapter, scenes } = chapterWithContent;
 
-		const frontmatter = [
-			"---",
-			`id: ${chapter.id}`,
-			`story_id: ${chapter.story_id}`,
-			`number: ${chapter.number}`,
-			`title: "${chapter.title}"`,
-			`status: ${chapter.status}`,
-			`created_at: ${chapter.created_at}`,
-			`updated_at: ${chapter.updated_at}`,
-			"---",
-			"",
-		].join("\n");
+		const baseFields = {
+			id: chapter.id,
+			story_id: chapter.story_id,
+			number: chapter.number,
+			title: chapter.title,
+			status: chapter.status,
+			created_at: chapter.created_at,
+			updated_at: chapter.updated_at,
+		};
+
+		const frontmatter = this.generateFrontmatter(baseFields, undefined, {
+			entityType: "chapter",
+			storyName: storyName,
+			date: chapter.created_at,
+		});
 
 		let content = `${frontmatter}\n# ${chapter.title}\n\n`;
 

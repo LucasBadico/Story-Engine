@@ -19,7 +19,8 @@ export class StoryEngineClient {
 	private async request<T>(
 		method: string,
 		endpoint: string,
-		body?: unknown
+		body?: unknown,
+		tenantId?: string
 	): Promise<T> {
 		const url = `${this.apiUrl}${endpoint}`;
 		const headers: Record<string, string> = {
@@ -28,6 +29,10 @@ export class StoryEngineClient {
 
 		if (this.apiKey) {
 			headers["Authorization"] = `Bearer ${this.apiKey}`;
+		}
+
+		if (tenantId) {
+			headers["X-Tenant-ID"] = tenantId.trim();
 		}
 
 		const options: RequestInit = {
@@ -60,10 +65,16 @@ export class StoryEngineClient {
 	}
 
 	async listStories(tenantId: string): Promise<Story[]> {
-		const trimmedTenantId = encodeURIComponent(tenantId.trim());
+		const trimmedTenantId = tenantId.trim();
+		if (!trimmedTenantId) {
+			throw new Error("Tenant ID is required");
+		}
+
 		const response = await this.request<{ stories: Story[] }>(
 			"GET",
-			`/api/v1/stories?tenant_id=${trimmedTenantId}`
+			"/api/v1/stories",
+			undefined,
+			trimmedTenantId
 		);
 		return response.stories || [];
 	}
@@ -86,9 +97,9 @@ export class StoryEngineClient {
 			"POST",
 			"/api/v1/stories",
 			{
-				tenant_id: trimmedTenantId,
 				title: title.trim(),
-			}
+			},
+			trimmedTenantId
 		);
 		return response.story;
 	}
@@ -102,9 +113,8 @@ export class StoryEngineClient {
 		const response = await this.request<{ story: Story }>(
 			"POST",
 			`/api/v1/stories/${id}/clone`,
-			{
-				tenant_id: trimmedTenantId,
-			}
+			{},
+			trimmedTenantId
 		);
 		return response.story;
 	}

@@ -34,7 +34,8 @@ export class SyncService {
 				const chapterFilePath = `${chaptersFolderPath}/${chapterFileName}`;
 				await this.fileManager.writeChapterFile(
 					chapterWithContent,
-					chapterFilePath
+					chapterFilePath,
+					storyData.story.title
 				);
 			}
 
@@ -125,7 +126,8 @@ export class SyncService {
 					const chapterFilePath = `${versionChaptersPath}/${chapterFileName}`;
 					await this.fileManager.writeChapterFile(
 						chapterWithContent,
-						chapterFilePath
+						chapterFilePath,
+						versionData.story.title
 					);
 				}
 
