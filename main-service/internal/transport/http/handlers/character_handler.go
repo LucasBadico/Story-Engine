@@ -1,0 +1,427 @@
+package handlers
+
+import (
+	"encoding/json"
+	"net/http"
+	"strconv"
+
+	"github.com/google/uuid"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
+	"github.com/story-engine/main-service/internal/platform/logger"
+)
+
+// CharacterHandler handles HTTP requests for characters
+type CharacterHandler struct {
+	createCharacterUseCase    *characterapp.CreateCharacterUseCase
+	getCharacterUseCase       *characterapp.GetCharacterUseCase
+	listCharactersUseCase     *characterapp.ListCharactersUseCase
+	updateCharacterUseCase    *characterapp.UpdateCharacterUseCase
+	deleteCharacterUseCase    *characterapp.DeleteCharacterUseCase
+	addTraitUseCase           *characterapp.AddTraitToCharacterUseCase
+	removeTraitUseCase        *characterapp.RemoveTraitFromCharacterUseCase
+	updateTraitUseCase        *characterapp.UpdateCharacterTraitUseCase
+	getTraitsUseCase          *characterapp.GetCharacterTraitsUseCase
+	logger                    logger.Logger
+}
+
+// NewCharacterHandler creates a new CharacterHandler
+func NewCharacterHandler(
+	createCharacterUseCase *characterapp.CreateCharacterUseCase,
+	getCharacterUseCase *characterapp.GetCharacterUseCase,
+	listCharactersUseCase *characterapp.ListCharactersUseCase,
+	updateCharacterUseCase *characterapp.UpdateCharacterUseCase,
+	deleteCharacterUseCase *characterapp.DeleteCharacterUseCase,
+	addTraitUseCase *characterapp.AddTraitToCharacterUseCase,
+	removeTraitUseCase *characterapp.RemoveTraitFromCharacterUseCase,
+	updateTraitUseCase *characterapp.UpdateCharacterTraitUseCase,
+	getTraitsUseCase *characterapp.GetCharacterTraitsUseCase,
+	logger logger.Logger,
+) *CharacterHandler {
+	return &CharacterHandler{
+		createCharacterUseCase: createCharacterUseCase,
+		getCharacterUseCase:    getCharacterUseCase,
+		listCharactersUseCase:  listCharactersUseCase,
+		updateCharacterUseCase: updateCharacterUseCase,
+		deleteCharacterUseCase: deleteCharacterUseCase,
+		addTraitUseCase:        addTraitUseCase,
+		removeTraitUseCase:     removeTraitUseCase,
+		updateTraitUseCase:     updateTraitUseCase,
+		getTraitsUseCase:       getTraitsUseCase,
+		logger:                 logger,
+	}
+}
+
+// Create handles POST /api/v1/worlds/:world_id/characters
+func (h *CharacterHandler) Create(w http.ResponseWriter, r *http.Request) {
+	worldIDStr := r.PathValue("world_id")
+	worldID, err := uuid.Parse(worldIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "world_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		ArchetypeID *string `json:"archetype_id"`
+		Name        string  `json:"name"`
+		Description string  `json:"description"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var archetypeID *uuid.UUID
+	if req.ArchetypeID != nil && *req.ArchetypeID != "" {
+		aid, err := uuid.Parse(*req.ArchetypeID)
+		if err != nil {
+			WriteError(w, &platformerrors.ValidationError{
+				Field:   "archetype_id",
+				Message: "invalid UUID format",
+			}, http.StatusBadRequest)
+			return
+		}
+		archetypeID = &aid
+	}
+
+	output, err := h.createCharacterUseCase.Execute(r.Context(), characterapp.CreateCharacterInput{
+		WorldID:     worldID,
+		ArchetypeID: archetypeID,
+		Name:        req.Name,
+		Description: req.Description,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"character": output.Character,
+	})
+}
+
+// Get handles GET /api/v1/characters/{id}
+func (h *CharacterHandler) Get(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getCharacterUseCase.Execute(r.Context(), characterapp.GetCharacterInput{
+		ID: characterID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"character": output.Character,
+	})
+}
+
+// List handles GET /api/v1/worlds/:world_id/characters?limit=20&offset=0
+func (h *CharacterHandler) List(w http.ResponseWriter, r *http.Request) {
+	worldIDStr := r.PathValue("world_id")
+	worldID, err := uuid.Parse(worldIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "world_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	limitStr := r.URL.Query().Get("limit")
+	offsetStr := r.URL.Query().Get("offset")
+
+	limit := 50
+	if limitStr != "" {
+		if l, err := strconv.Atoi(limitStr); err == nil && l > 0 {
+			limit = l
+		}
+	}
+
+	offset := 0
+	if offsetStr != "" {
+		if o, err := strconv.Atoi(offsetStr); err == nil && o >= 0 {
+			offset = o
+		}
+	}
+
+	output, err := h.listCharactersUseCase.Execute(r.Context(), characterapp.ListCharactersInput{
+		WorldID: worldID,
+		Limit:   limit,
+		Offset:  offset,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"characters": output.Characters,
+		"total":      output.Total,
+	})
+}
+
+// Update handles PUT /api/v1/characters/{id}
+func (h *CharacterHandler) Update(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Name        *string `json:"name"`
+		Description *string `json:"description"`
+		ArchetypeID *string `json:"archetype_id"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var archetypeID *uuid.UUID
+	if req.ArchetypeID != nil {
+		if *req.ArchetypeID == "" {
+			archetypeID = nil
+		} else {
+			aid, err := uuid.Parse(*req.ArchetypeID)
+			if err != nil {
+				WriteError(w, &platformerrors.ValidationError{
+					Field:   "archetype_id",
+					Message: "invalid UUID format",
+				}, http.StatusBadRequest)
+				return
+			}
+			archetypeID = &aid
+		}
+	}
+
+	output, err := h.updateCharacterUseCase.Execute(r.Context(), characterapp.UpdateCharacterInput{
+		ID:          characterID,
+		Name:        req.Name,
+		Description: req.Description,
+		ArchetypeID: archetypeID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"character": output.Character,
+	})
+}
+
+// Delete handles DELETE /api/v1/characters/{id}
+func (h *CharacterHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	err = h.deleteCharacterUseCase.Execute(r.Context(), characterapp.DeleteCharacterInput{
+		ID: characterID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetTraits handles GET /api/v1/characters/{id}/traits
+func (h *CharacterHandler) GetTraits(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getTraitsUseCase.Execute(r.Context(), characterapp.GetCharacterTraitsInput{
+		CharacterID: characterID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"traits": output.Traits,
+	})
+}
+
+// AddTrait handles POST /api/v1/characters/{id}/traits
+func (h *CharacterHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		TraitID string `json:"trait_id"`
+		Value   string `json:"value"`
+		Notes   string `json:"notes"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	traitID, err := uuid.Parse(req.TraitID)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "trait_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	err = h.addTraitUseCase.Execute(r.Context(), characterapp.AddTraitToCharacterInput{
+		CharacterID: characterID,
+		TraitID:      traitID,
+		Value:        req.Value,
+		Notes:        req.Notes,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+}
+
+// RemoveTrait handles DELETE /api/v1/characters/{id}/traits/{trait_id}
+func (h *CharacterHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	traitIDStr := r.PathValue("trait_id")
+	traitID, err := uuid.Parse(traitIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "trait_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	err = h.removeTraitUseCase.Execute(r.Context(), characterapp.RemoveTraitFromCharacterInput{
+		CharacterID: characterID,
+		TraitID:     traitID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// UpdateTrait handles PUT /api/v1/characters/{id}/traits/{trait_id}
+func (h *CharacterHandler) UpdateTrait(w http.ResponseWriter, r *http.Request) {
+	id := r.PathValue("id")
+	characterID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	traitIDStr := r.PathValue("trait_id")
+	traitID, err := uuid.Parse(traitIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "trait_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		Value *string `json:"value"`
+		Notes *string `json:"notes"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.updateTraitUseCase.Execute(r.Context(), characterapp.UpdateCharacterTraitInput{
+		CharacterID: characterID,
+		TraitID:     traitID,
+		Value:       req.Value,
+		Notes:       req.Notes,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"character_trait": output.CharacterTrait,
+	})
+}
+

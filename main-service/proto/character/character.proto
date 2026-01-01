@@ -1,0 +1,147 @@
+syntax = "proto3";
+package character;
+option go_package = "github.com/story-engine/main-service/proto/character";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Character represents a character entity
+message Character {
+  string id = 1;
+  string world_id = 2;
+  string archetype_id = 3; // optional
+  string name = 4;
+  string description = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// CharacterTrait represents a trait assigned to a character
+message CharacterTrait {
+  string id = 1;
+  string character_id = 2;
+  string trait_id = 3;
+  string trait_name = 4;
+  string trait_category = 5;
+  string trait_description = 6;
+  string value = 7;
+  string notes = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// CreateCharacterRequest is the request to create a new character
+message CreateCharacterRequest {
+  string world_id = 1;
+  string archetype_id = 2; // optional
+  string name = 3;
+  string description = 4;
+}
+
+// CreateCharacterResponse is the response after creating a character
+message CreateCharacterResponse {
+  Character character = 1;
+}
+
+// GetCharacterRequest is the request to get a character by ID
+message GetCharacterRequest {
+  string id = 1;
+}
+
+// GetCharacterResponse is the response containing a character
+message GetCharacterResponse {
+  Character character = 1;
+}
+
+// ListCharactersRequest is the request to list characters for a world
+message ListCharactersRequest {
+  string world_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListCharactersResponse is the response containing a list of characters
+message ListCharactersResponse {
+  repeated Character characters = 1;
+  int32 total_count = 2;
+}
+
+// UpdateCharacterRequest is the request to update a character
+message UpdateCharacterRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string archetype_id = 4;
+}
+
+// UpdateCharacterResponse is the response after updating a character
+message UpdateCharacterResponse {
+  Character character = 1;
+}
+
+// DeleteCharacterRequest is the request to delete a character
+message DeleteCharacterRequest {
+  string id = 1;
+}
+
+// DeleteCharacterResponse is the response after deleting a character
+message DeleteCharacterResponse {
+}
+
+// GetCharacterTraitsRequest is the request to get traits for a character
+message GetCharacterTraitsRequest {
+  string character_id = 1;
+}
+
+// GetCharacterTraitsResponse is the response containing character traits
+message GetCharacterTraitsResponse {
+  repeated CharacterTrait traits = 1;
+}
+
+// AddTraitToCharacterRequest is the request to add a trait to a character
+message AddTraitToCharacterRequest {
+  string character_id = 1;
+  string trait_id = 2;
+  string value = 3;
+  string notes = 4;
+}
+
+// AddTraitToCharacterResponse is the response after adding a trait
+message AddTraitToCharacterResponse {
+}
+
+// UpdateCharacterTraitRequest is the request to update a character trait
+message UpdateCharacterTraitRequest {
+  string character_id = 1;
+  string trait_id = 2;
+  optional string value = 3;
+  optional string notes = 4;
+}
+
+// UpdateCharacterTraitResponse is the response after updating a character trait
+message UpdateCharacterTraitResponse {
+  CharacterTrait character_trait = 1;
+}
+
+// RemoveTraitFromCharacterRequest is the request to remove a trait from a character
+message RemoveTraitFromCharacterRequest {
+  string character_id = 1;
+  string trait_id = 2;
+}
+
+// RemoveTraitFromCharacterResponse is the response after removing a trait
+message RemoveTraitFromCharacterResponse {
+}
+
+// CharacterService provides character management operations
+service CharacterService {
+  rpc CreateCharacter(CreateCharacterRequest) returns (CreateCharacterResponse);
+  rpc GetCharacter(GetCharacterRequest) returns (GetCharacterResponse);
+  rpc UpdateCharacter(UpdateCharacterRequest) returns (UpdateCharacterResponse);
+  rpc ListCharacters(ListCharactersRequest) returns (ListCharactersResponse);
+  rpc DeleteCharacter(DeleteCharacterRequest) returns (DeleteCharacterResponse);
+  rpc GetCharacterTraits(GetCharacterTraitsRequest) returns (GetCharacterTraitsResponse);
+  rpc AddTraitToCharacter(AddTraitToCharacterRequest) returns (AddTraitToCharacterResponse);
+  rpc UpdateCharacterTrait(UpdateCharacterTraitRequest) returns (UpdateCharacterTraitResponse);
+  rpc RemoveTraitFromCharacter(RemoveTraitFromCharacterRequest) returns (RemoveTraitFromCharacterResponse);
+}
+

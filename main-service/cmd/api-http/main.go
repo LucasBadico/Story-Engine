@@ -12,6 +12,7 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
@@ -49,6 +50,8 @@ func main() {
 	traitRepo := postgres.NewTraitRepository(pgDB)
 	archetypeRepo := postgres.NewArchetypeRepository(pgDB)
 	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
+	characterRepo := postgres.NewCharacterRepository(pgDB)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -74,6 +77,15 @@ func main() {
 	getAncestorsUseCase := locationapp.NewGetAncestorsUseCase(locationRepo, log)
 	getDescendantsUseCase := locationapp.NewGetDescendantsUseCase(locationRepo, log)
 	moveLocationUseCase := locationapp.NewMoveLocationUseCase(locationRepo, auditLogRepo, log)
+	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
+	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
+	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
+	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	addTraitToCharacterUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+	removeTraitFromCharacterUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	updateCharacterTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+	getCharacterTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
 	createTraitUseCase := traitapp.NewCreateTraitUseCase(traitRepo, tenantRepo, auditLogRepo, log)
 	getTraitUseCase := traitapp.NewGetTraitUseCase(traitRepo, log)
 	listTraitsUseCase := traitapp.NewListTraitsUseCase(traitRepo, log)
@@ -102,6 +114,7 @@ func main() {
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := httphandlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	locationHandler := httphandlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
+	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, log)
 	traitHandler := httphandlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
 	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
@@ -133,6 +146,16 @@ func main() {
 	mux.HandleFunc("GET /api/v1/locations/{id}/ancestors", locationHandler.GetAncestors)
 	mux.HandleFunc("GET /api/v1/locations/{id}/descendants", locationHandler.GetDescendants)
 	mux.HandleFunc("PUT /api/v1/locations/{id}/move", locationHandler.Move)
+
+	mux.HandleFunc("POST /api/v1/worlds/{world_id}/characters", characterHandler.Create)
+	mux.HandleFunc("GET /api/v1/worlds/{world_id}/characters", characterHandler.List)
+	mux.HandleFunc("GET /api/v1/characters/{id}", characterHandler.Get)
+	mux.HandleFunc("PUT /api/v1/characters/{id}", characterHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/characters/{id}", characterHandler.Delete)
+	mux.HandleFunc("GET /api/v1/characters/{id}/traits", characterHandler.GetTraits)
+	mux.HandleFunc("POST /api/v1/characters/{id}/traits", characterHandler.AddTrait)
+	mux.HandleFunc("PUT /api/v1/characters/{id}/traits/{trait_id}", characterHandler.UpdateTrait)
+	mux.HandleFunc("DELETE /api/v1/characters/{id}/traits/{trait_id}", characterHandler.RemoveTrait)
 
 	mux.HandleFunc("POST /api/v1/traits", traitHandler.Create)
 	mux.HandleFunc("GET /api/v1/traits", traitHandler.List)
