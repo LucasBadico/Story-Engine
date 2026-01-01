@@ -584,6 +584,20 @@ export class SyncService {
 						const filePath = `${proseBlocksFolderPath}/${fileName}`;
 						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
 
+						// Update references if needed
+						if (finalProseBlock) {
+							const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
+							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
+							
+							if (currentScene && !hasSceneRef) {
+								await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+							}
+							if (currentBeat && !hasBeatRef) {
+								await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+							}
+						}
+
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						break;
@@ -595,6 +609,20 @@ export class SyncService {
 						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
 						const filePath = `${proseBlocksFolderPath}/${fileName}`;
 						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+
+						// Update references if needed
+						if (finalProseBlock) {
+							const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
+							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
+							
+							if (currentScene && !hasSceneRef) {
+								await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+							}
+							if (currentBeat && !hasBeatRef) {
+								await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+							}
+						}
 
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${finalProseBlock.content}]]`);
@@ -626,6 +654,20 @@ export class SyncService {
 						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
 						const filePath = `${proseBlocksFolderPath}/${fileName}`;
 						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+
+						// Update references if needed
+						if (finalProseBlock) {
+							const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
+							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
+							
+							if (currentScene && !hasSceneRef) {
+								await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+							}
+							if (currentBeat && !hasBeatRef) {
+								await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+							}
+						}
 
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
@@ -672,7 +714,8 @@ export class SyncService {
 		const bodyContent = originalContent.substring(bodyStart).trim();
 
 		// Find Prose section and replace it
-		const proseSectionMatch = bodyContent.match(/([\s\S]*?##\s+Prose\s*\n\n)([\s\S]*?)(?=\n##|\n*$)/);
+		// Capture everything until the end since Scene and Beat are part of Prose section
+		const proseSectionMatch = bodyContent.match(/([\s\S]*?##\s+Prose\s*\n\n)([\s\S]*)$/);
 		
 		if (!proseSectionMatch) {
 			// No Prose section found, add it
@@ -685,9 +728,8 @@ export class SyncService {
 		// Replace Prose section content
 		const beforeProse = proseSectionMatch[1];
 		const newProseContent = updatedSections.join("\n\n");
-		const afterProse = bodyContent.substring(proseSectionMatch.index! + proseSectionMatch[0].length);
-
-		const updatedBody = `${beforeProse}${newProseContent}\n\n${afterProse}`;
+		// No afterProse since we're replacing everything until the end
+		const updatedBody = `${beforeProse}${newProseContent}\n\n`;
 		const updatedContent = `${frontmatter}\n${updatedBody}`;
 		await this.fileManager.getVault().modify(file, updatedContent);
 	}

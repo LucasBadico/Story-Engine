@@ -52,7 +52,8 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 	const bodyContent = chapterContent.substring(contentStart).trim();
 
 	// Find the "## Prose" section
-	const proseSectionMatch = bodyContent.match(/##\s+Prose\s*\n\n([\s\S]*?)(?=\n##|\n*$)/);
+	// Capture everything until the end of the document since Scene and Beat are part of Prose section
+	const proseSectionMatch = bodyContent.match(/##\s+Prose\s*\n\n([\s\S]*)$/);
 	if (!proseSectionMatch) {
 		return { sections: [] };
 	}
@@ -72,13 +73,7 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 			continue;
 		}
 
-		// Skip markdown headers that are not Scene/Beat (e.g., # Title, ## Prose, etc.)
-		// But allow ## Scene: and ### Beat:
-		if (line.startsWith('#') && !line.match(/^##\s+Scene:/) && !line.match(/^###\s+Beat:/)) {
-			continue;
-		}
-
-		// Check for scene header: ## Scene: [[link|text]] or ## Scene: text
+		// Check for scene header FIRST: ## Scene: [[link|text]] or ## Scene: text
 		const sceneMatch = line.match(/^##\s+Scene:\s*(.+)$/);
 		if (sceneMatch) {
 			const sceneText = sceneMatch[1].trim();
@@ -109,9 +104,14 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 			continue;
 		}
 
+		// Skip other markdown headers (e.g., # Title, ## Prose, etc.)
+		if (line.startsWith('#')) {
+			continue;
+		}
+
 		// Check for prose block: [[link|content]] or plain text
-		// Only process if we're inside a prose section (not a header)
-		const proseMatch = line.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+		// Match can have optional whitespace around the link
+		const proseMatch = line.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
 		if (proseMatch) {
 			const linkName = proseMatch[1].trim();
 			const content = proseMatch[2].trim();
@@ -129,7 +129,7 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 		}
 
 		// Plain text paragraph (new prose block without link)
-		// Only if it's not a markdown header
+		// Only if it's not a markdown header and not empty
 		if (line.length > 0 && !line.startsWith('#')) {
 			const paragraph: ParsedParagraph = {
 				content: line,
