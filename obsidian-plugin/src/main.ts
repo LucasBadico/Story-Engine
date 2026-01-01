@@ -129,9 +129,17 @@ export default class StoryEnginePlugin extends Plugin {
 							: "Failed to sync story";
 						new Notice(`Story created but sync failed: ${syncErrorMessage}`, 5000);
 					}
-				} else {
-					// Show details modal if not syncing
-					new StoryDetailsModal(this, story).open();
+				}
+
+				// Update the view if it's open
+				const openView = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+				if (openView) {
+					const view = openView.view as StoryListView;
+					await view.refresh();
+					if (!shouldSync) {
+						// Show details in the view
+						view.showStoryDetails(story);
+					}
 				}
 			} catch (err) {
 				const errorMessage = err instanceof Error ? err.message : "Failed to create story";

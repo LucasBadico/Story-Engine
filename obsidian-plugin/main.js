@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => StoryEnginePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian9 = require("obsidian");
+var import_obsidian8 = require("obsidian");
 
 // src/api/client.ts
 var StoryEngineClient = class {
@@ -508,99 +508,9 @@ function registerCommands(plugin) {
   });
 }
 
-// src/views/StoryDetailsModal.ts
-var import_obsidian4 = require("obsidian");
-var StoryDetailsModal = class _StoryDetailsModal extends import_obsidian4.Modal {
-  constructor(plugin, story) {
-    super(plugin.app);
-    this.plugin = plugin;
-    this.story = story;
-  }
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.empty();
-    contentEl.createEl("h2", { text: this.story.title });
-    const details = contentEl.createEl("div", { cls: "story-engine-details" });
-    details.createEl("p", {
-      text: `Status: ${this.story.status}`
-    });
-    details.createEl("p", {
-      text: `Version: ${this.story.version_number}`
-    });
-    details.createEl("p", {
-      text: `Created: ${new Date(this.story.created_at).toLocaleString()}`
-    });
-    details.createEl("p", {
-      text: `Updated: ${new Date(this.story.updated_at).toLocaleString()}`
-    });
-    details.createEl("p", {
-      text: `ID: ${this.story.id}`,
-      cls: "story-engine-id"
-    });
-    const buttonContainer = contentEl.createEl("div", {
-      cls: "story-engine-buttons"
-    });
-    const cloneButton = buttonContainer.createEl("button", {
-      text: "Clone Story",
-      cls: "mod-cta"
-    });
-    cloneButton.onclick = async () => {
-      cloneButton.disabled = true;
-      cloneButton.setText("Cloning...");
-      try {
-        if (!this.plugin.settings.tenantId) {
-          throw new Error("Tenant ID not configured");
-        }
-        const clonedStory = await this.plugin.apiClient.cloneStory(
-          this.story.id,
-          this.plugin.settings.tenantId
-        );
-        this.close();
-        new _StoryDetailsModal(this.plugin, clonedStory).open();
-      } catch (err) {
-        cloneButton.setText(
-          err instanceof Error ? err.message : "Clone failed"
-        );
-        setTimeout(() => {
-          cloneButton.disabled = false;
-          cloneButton.setText("Clone Story");
-        }, 3e3);
-      }
-    };
-    const copyIdButton = buttonContainer.createEl("button", {
-      text: "Copy ID"
-    });
-    copyIdButton.onclick = () => {
-      const textarea = contentEl.createEl("textarea");
-      textarea.value = this.story.id;
-      textarea.style.position = "fixed";
-      textarea.style.opacity = "0";
-      textarea.style.left = "-9999px";
-      textarea.select();
-      try {
-        const doc = contentEl.ownerDocument || globalThis.document;
-        if (doc && doc.execCommand) {
-          doc.execCommand("copy");
-          copyIdButton.setText("Copied!");
-          setTimeout(() => {
-            copyIdButton.setText("Copy ID");
-          }, 2e3);
-        }
-      } catch (err) {
-        console.error("Failed to copy ID:", err);
-      }
-      textarea.remove();
-    };
-  }
-  onClose() {
-    const { contentEl } = this;
-    contentEl.empty();
-  }
-};
-
 // src/views/CreateStoryModal.ts
-var import_obsidian5 = require("obsidian");
-var CreateStoryModal = class extends import_obsidian5.Modal {
+var import_obsidian4 = require("obsidian");
+var CreateStoryModal = class extends import_obsidian4.Modal {
   constructor(app, onSubmit) {
     super(app);
     this.title = "";
@@ -610,7 +520,7 @@ var CreateStoryModal = class extends import_obsidian5.Modal {
   onOpen() {
     const { contentEl } = this;
     contentEl.createEl("h2", { text: "Create New Story" });
-    new import_obsidian5.Setting(contentEl).setName("Story Title").setDesc("Enter the title for your new story").addText(
+    new import_obsidian4.Setting(contentEl).setName("Story Title").setDesc("Enter the title for your new story").addText(
       (text) => text.setPlaceholder("My New Story").setValue(this.title).onChange((value) => {
         this.title = value;
       }).inputEl.addEventListener("keypress", (e) => {
@@ -619,7 +529,7 @@ var CreateStoryModal = class extends import_obsidian5.Modal {
         }
       })
     );
-    new import_obsidian5.Setting(contentEl).setName("Sync to Obsidian").setDesc("Automatically sync the story files to your vault after creation").addToggle(
+    new import_obsidian4.Setting(contentEl).setName("Sync to Obsidian").setDesc("Automatically sync the story files to your vault after creation").addToggle(
       (toggle) => toggle.setValue(this.shouldSync).onChange((value) => {
         this.shouldSync = value;
       })
@@ -642,7 +552,7 @@ var CreateStoryModal = class extends import_obsidian5.Modal {
   submit() {
     const trimmedTitle = this.title.trim();
     if (!trimmedTitle) {
-      new import_obsidian5.Notice("Please enter a story title", 3e3);
+      new import_obsidian4.Notice("Please enter a story title", 3e3);
       return;
     }
     this.close();
@@ -655,7 +565,7 @@ var CreateStoryModal = class extends import_obsidian5.Modal {
 };
 
 // src/sync/fileManager.ts
-var import_obsidian6 = require("obsidian");
+var import_obsidian5 = require("obsidian");
 var FileManager = class {
   constructor(vault, baseFolder) {
     this.vault = vault;
@@ -750,7 +660,7 @@ Status: ${story.status}
 `;
     const filePath = `${folderPath}/story.md`;
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian5.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -793,7 +703,7 @@ Status: ${story.status}
 `;
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian5.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -803,7 +713,7 @@ Status: ${story.status}
   async readStoryMetadata(folderPath) {
     const filePath = `${folderPath}/story.md`;
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian6.TFile)) {
+    if (!(file instanceof import_obsidian5.TFile)) {
       throw new Error(`Story metadata file not found: ${filePath}`);
     }
     const content = await this.vault.read(file);
@@ -852,7 +762,7 @@ Status: ${story.status}
     }
     await this.ensureFolderExists(versionFolderPath);
     const storyFolder = this.vault.getAbstractFileByPath(storyFolderPath);
-    if (!(storyFolder instanceof import_obsidian6.TFolder)) {
+    if (!(storyFolder instanceof import_obsidian5.TFolder)) {
       throw new Error(`Story folder not found: ${storyFolderPath}`);
     }
     await this.copyFolderContents(storyFolder, versionFolderPath, "versions");
@@ -861,12 +771,12 @@ Status: ${story.status}
   // Recursively copy folder contents
   async copyFolderContents(sourceFolder, destPath, excludeFolderName) {
     for (const child of sourceFolder.children) {
-      if (child instanceof import_obsidian6.TFile) {
+      if (child instanceof import_obsidian5.TFile) {
         const relativePath = child.path.replace(sourceFolder.path + "/", "");
         const destFilePath = `${destPath}/${relativePath}`;
         const content = await this.vault.read(child);
         await this.vault.create(destFilePath, content);
-      } else if (child instanceof import_obsidian6.TFolder) {
+      } else if (child instanceof import_obsidian5.TFolder) {
         if (excludeFolderName && child.name === excludeFolderName) {
           continue;
         }
@@ -937,7 +847,7 @@ Status: ${story.status}
       }
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian5.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -975,7 +885,7 @@ Status: ${story.status}
 `;
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian5.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -985,12 +895,12 @@ Status: ${story.status}
   async listChapterFiles(storyFolderPath) {
     const chaptersPath = `${storyFolderPath}/chapters`;
     const folder = this.vault.getAbstractFileByPath(chaptersPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
     }
     const chapterFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian5.TFile && child.extension === "md") {
         chapterFiles.push(child.path);
       }
     }
@@ -1000,12 +910,12 @@ Status: ${story.status}
   async listSceneFiles(chapterFolderPath) {
     const scenesPath = `${chapterFolderPath}/scenes`;
     const folder = this.vault.getAbstractFileByPath(scenesPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
     }
     const sceneFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian5.TFile && child.extension === "md") {
         sceneFiles.push(child.path);
       }
     }
@@ -1015,12 +925,12 @@ Status: ${story.status}
   async listBeatFiles(sceneFolderPath) {
     const beatsPath = `${sceneFolderPath}/beats`;
     const folder = this.vault.getAbstractFileByPath(beatsPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
     }
     const beatFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian5.TFile && child.extension === "md") {
         beatFiles.push(child.path);
       }
     }
@@ -1029,7 +939,7 @@ Status: ${story.status}
 };
 
 // src/sync/syncService.ts
-var import_obsidian7 = require("obsidian");
+var import_obsidian6 = require("obsidian");
 var SyncService = class {
   constructor(apiClient, fileManager, settings) {
     this.apiClient = apiClient;
@@ -1066,10 +976,10 @@ var SyncService = class {
         );
       }
       await this.syncVersionHistory(storyData.story.root_story_id, folderPath);
-      new import_obsidian7.Notice(`Story "${storyData.story.title}" synced successfully`);
+      new import_obsidian6.Notice(`Story "${storyData.story.title}" synced successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-      new import_obsidian7.Notice(`Error syncing story: ${errorMessage}`, 5e3);
+      new import_obsidian6.Notice(`Error syncing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
@@ -1132,7 +1042,7 @@ var SyncService = class {
         console.error(`Failed to sync story ${story.id}:`, err);
       }
     }
-    new import_obsidian7.Notice(`Synced ${stories.length} stories`);
+    new import_obsidian6.Notice(`Synced ${stories.length} stories`);
   }
   // Push story from Obsidian to service (Obsidian → Service)
   async pushStory(folderPath) {
@@ -1151,30 +1061,35 @@ var SyncService = class {
       for (const chapterFilePath of chapterFiles) {
         console.log(`Would update chapter: ${chapterFilePath}`);
       }
-      new import_obsidian7.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
+      new import_obsidian6.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-      new import_obsidian7.Notice(`Error pushing story: ${errorMessage}`, 5e3);
+      new import_obsidian6.Notice(`Error pushing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
 };
 
 // src/views/StoryListView.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian7 = require("obsidian");
 var STORY_LIST_VIEW_TYPE = "story-engine-list-view";
-var StoryListView = class extends import_obsidian8.ItemView {
+var StoryListView = class extends import_obsidian7.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.stories = [];
     this.loading = true;
     this.error = null;
+    this.currentStory = null;
+    this.viewMode = "list";
     this.plugin = plugin;
   }
   getViewType() {
     return STORY_LIST_VIEW_TYPE;
   }
   getDisplayText() {
+    if (this.viewMode === "details" && this.currentStory) {
+      return this.currentStory.title;
+    }
     return "Stories";
   }
   getIcon() {
@@ -1191,9 +1106,20 @@ var StoryListView = class extends import_obsidian8.ItemView {
   }
   async render(container) {
     container.empty();
-    const header = container.createDiv({ cls: "story-engine-view-header" });
-    header.createEl("h2", { text: "Stories" });
-    const headerActions = header.createDiv({ cls: "story-engine-header-actions" });
+    this.headerEl = container.createDiv({ cls: "story-engine-view-header" });
+    this.contentEl = container.createDiv({ cls: "story-engine-view-content" });
+    if (this.viewMode === "details" && this.currentStory) {
+      this.renderDetails();
+    } else {
+      this.renderListHeader();
+    }
+  }
+  renderListHeader() {
+    if (!this.headerEl)
+      return;
+    this.headerEl.empty();
+    this.headerEl.createEl("h2", { text: "Stories" });
+    const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
     const refreshButton = headerActions.createEl("button", {
       text: "Refresh",
       cls: "story-engine-refresh-btn"
@@ -1207,16 +1133,16 @@ var StoryListView = class extends import_obsidian8.ItemView {
     });
     syncAllButton.onclick = async () => {
       if (!this.plugin.settings.tenantId) {
-        new import_obsidian8.Notice("Please configure Tenant ID in settings", 5e3);
+        new import_obsidian7.Notice("Please configure Tenant ID in settings", 5e3);
         return;
       }
       try {
-        new import_obsidian8.Notice("Syncing all stories...");
+        new import_obsidian7.Notice("Syncing all stories...");
         await this.plugin.syncService.pullAllStories();
         await this.loadStories();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
-        new import_obsidian8.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const createButton = headerActions.createEl("button", {
@@ -1226,7 +1152,38 @@ var StoryListView = class extends import_obsidian8.ItemView {
     createButton.onclick = () => {
       this.plugin.createStoryCommand();
     };
-    this.contentEl = container.createDiv({ cls: "story-engine-view-content" });
+  }
+  renderDetailsHeader() {
+    var _a;
+    if (!this.headerEl)
+      return;
+    this.headerEl.empty();
+    const headerLeft = this.headerEl.createDiv({ cls: "story-engine-header-left" });
+    const backButton = headerLeft.createEl("button", {
+      text: "\u2190 Back",
+      cls: "story-engine-back-btn"
+    });
+    backButton.onclick = () => {
+      this.showList();
+    };
+    headerLeft.createEl("h2", { text: ((_a = this.currentStory) == null ? void 0 : _a.title) || "Story Details" });
+    const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
+    if (this.currentStory) {
+      const cloneButton = headerActions.createEl("button", {
+        text: "Clone Story",
+        cls: "mod-cta story-engine-clone-btn"
+      });
+      cloneButton.onclick = async () => {
+        await this.cloneStory();
+      };
+      const copyIdButton = headerActions.createEl("button", {
+        text: "Copy ID",
+        cls: "story-engine-copy-id-btn"
+      });
+      copyIdButton.onclick = () => {
+        this.copyStoryId();
+      };
+    }
   }
   renderStories() {
     if (!this.contentEl)
@@ -1266,7 +1223,7 @@ var StoryListView = class extends import_obsidian8.ItemView {
         text: `Status: ${story.status}`
       });
       storyItem.onclick = () => {
-        new StoryDetailsModal(this.plugin, story).open();
+        this.showStoryDetails(story);
       };
     }
   }
@@ -1295,6 +1252,130 @@ var StoryListView = class extends import_obsidian8.ItemView {
   async refresh() {
     await this.loadStories();
   }
+  showStoryDetails(story) {
+    this.currentStory = story;
+    this.viewMode = "details";
+    this.renderDetails();
+  }
+  showList() {
+    this.currentStory = null;
+    this.viewMode = "list";
+    this.renderListHeader();
+    this.renderStories();
+  }
+  renderDetails() {
+    if (!this.contentEl || !this.currentStory)
+      return;
+    this.renderDetailsHeader();
+    this.contentEl.empty();
+    const story = this.currentStory;
+    const details = this.contentEl.createDiv({ cls: "story-engine-details" });
+    details.createEl("p", {
+      text: `Status: ${story.status}`
+    });
+    details.createEl("p", {
+      text: `Version: ${story.version_number}`
+    });
+    details.createEl("p", {
+      text: `Created: ${new Date(story.created_at).toLocaleString()}`
+    });
+    details.createEl("p", {
+      text: `Updated: ${new Date(story.updated_at).toLocaleString()}`
+    });
+    details.createEl("p", {
+      text: `ID: ${story.id}`,
+      cls: "story-engine-id"
+    });
+    const actionsSection = this.contentEl.createDiv({ cls: "story-engine-details-actions" });
+    const syncButton = actionsSection.createEl("button", {
+      text: "Sync from Service",
+      cls: "story-engine-sync-btn"
+    });
+    syncButton.onclick = async () => {
+      try {
+        new import_obsidian7.Notice(`Syncing story "${story.title}"...`);
+        await this.plugin.syncService.pullStory(story.id);
+        new import_obsidian7.Notice(`Story synced successfully!`);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
+        new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
+      }
+    };
+    const pushButton = actionsSection.createEl("button", {
+      text: "Push to Service",
+      cls: "story-engine-push-btn"
+    });
+    pushButton.onclick = async () => {
+      try {
+        const folderPath = this.plugin.fileManager.getStoryFolderPath(story.title);
+        new import_obsidian7.Notice(`Pushing story "${story.title}"...`);
+        await this.plugin.syncService.pushStory(folderPath);
+        new import_obsidian7.Notice(`Story pushed successfully!`);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to push story";
+        new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
+      }
+    };
+  }
+  async cloneStory() {
+    var _a;
+    if (!this.currentStory)
+      return;
+    const cloneButton = (_a = this.headerEl) == null ? void 0 : _a.querySelector(".story-engine-clone-btn");
+    if (cloneButton) {
+      cloneButton.disabled = true;
+      cloneButton.setText("Cloning...");
+    }
+    try {
+      if (!this.plugin.settings.tenantId) {
+        throw new Error("Tenant ID not configured");
+      }
+      const clonedStory = await this.plugin.apiClient.cloneStory(
+        this.currentStory.id,
+        this.plugin.settings.tenantId
+      );
+      new import_obsidian7.Notice(`Story "${clonedStory.title}" cloned successfully!`);
+      await this.loadStories();
+      this.showStoryDetails(clonedStory);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Clone failed";
+      new import_obsidian7.Notice(`Error: ${errorMessage}`, 5e3);
+      if (cloneButton) {
+        cloneButton.setText("Clone Story");
+        cloneButton.disabled = false;
+      }
+    }
+  }
+  copyStoryId() {
+    var _a;
+    if (!this.currentStory)
+      return;
+    const textarea = document.createElement("textarea");
+    textarea.value = this.currentStory.id;
+    textarea.style.position = "fixed";
+    textarea.style.opacity = "0";
+    textarea.style.left = "-9999px";
+    document.body.appendChild(textarea);
+    textarea.select();
+    try {
+      const doc = document;
+      if (doc.execCommand) {
+        doc.execCommand("copy");
+        const copyButton = (_a = this.headerEl) == null ? void 0 : _a.querySelector(".story-engine-copy-id-btn");
+        if (copyButton) {
+          copyButton.setText("Copied!");
+          setTimeout(() => {
+            copyButton.setText("Copy ID");
+          }, 2e3);
+        }
+        new import_obsidian7.Notice("Story ID copied to clipboard");
+      }
+    } catch (err) {
+      console.error("Failed to copy ID:", err);
+      new import_obsidian7.Notice("Failed to copy ID", 3e3);
+    }
+    document.body.removeChild(textarea);
+  }
 };
 
 // src/main.ts
@@ -1307,7 +1388,7 @@ var DEFAULT_SETTINGS = {
   autoVersionSnapshots: true,
   conflictResolution: "service"
 };
-var StoryEnginePlugin = class extends import_obsidian9.Plugin {
+var StoryEnginePlugin = class extends import_obsidian8.Plugin {
   async onload() {
     await this.loadSettings();
     this.apiClient = new StoryEngineClient(
@@ -1363,34 +1444,40 @@ var StoryEnginePlugin = class extends import_obsidian9.Plugin {
     var _a;
     const tenantId = (_a = this.settings.tenantId) == null ? void 0 : _a.trim();
     if (!tenantId) {
-      new import_obsidian9.Notice("Please configure Tenant ID in settings", 5e3);
+      new import_obsidian8.Notice("Please configure Tenant ID in settings", 5e3);
       return;
     }
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(tenantId)) {
-      new import_obsidian9.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
+      new import_obsidian8.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
       return;
     }
     new CreateStoryModal(this.app, async (title, shouldSync) => {
       try {
-        new import_obsidian9.Notice(`Creating story "${title}"...`);
+        new import_obsidian8.Notice(`Creating story "${title}"...`);
         const story = await this.apiClient.createStory(tenantId, title);
-        new import_obsidian9.Notice(`Story "${title}" created successfully`);
+        new import_obsidian8.Notice(`Story "${title}" created successfully`);
         if (shouldSync) {
           try {
-            new import_obsidian9.Notice(`Syncing story to Obsidian...`);
+            new import_obsidian8.Notice(`Syncing story to Obsidian...`);
             await this.syncService.pullStory(story.id);
-            new import_obsidian9.Notice(`Story synced to your vault!`);
+            new import_obsidian8.Notice(`Story synced to your vault!`);
           } catch (syncErr) {
             const syncErrorMessage = syncErr instanceof Error ? syncErr.message : "Failed to sync story";
-            new import_obsidian9.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
+            new import_obsidian8.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
           }
-        } else {
-          new StoryDetailsModal(this, story).open();
+        }
+        const openView = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+        if (openView) {
+          const view = openView.view;
+          await view.refresh();
+          if (!shouldSync) {
+            view.showStoryDetails(story);
+          }
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to create story";
-        new import_obsidian9.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian8.Notice(`Error: ${errorMessage}`, 5e3);
       }
     }).open();
   }
@@ -1400,7 +1487,7 @@ var StoryEnginePlugin = class extends import_obsidian9.Plugin {
     if (!leaf) {
       const rightLeaf = workspace.getRightLeaf(false);
       if (!rightLeaf) {
-        new import_obsidian9.Notice("Could not create view. Please try again.", 3e3);
+        new import_obsidian8.Notice("Could not create view. Please try again.", 3e3);
         return;
       }
       leaf = rightLeaf;

@@ -1,7 +1,6 @@
 import { ItemView, WorkspaceLeaf, Notice } from "obsidian";
 import StoryEnginePlugin from "../main";
 import { Story } from "../types";
-import { StoryDetailsModal } from "./StoryDetailsModal";
 
 export const STORY_LIST_VIEW_TYPE = "story-engine-list-view";
 
@@ -11,6 +10,9 @@ export class StoryListView extends ItemView {
 	loading: boolean = true;
 	error: string | null = null;
 	contentEl!: HTMLElement;
+	headerEl!: HTMLElement;
+	currentStory: Story | null = null;
+	viewMode: "list" | "details" = "list";
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
 		super(leaf);
@@ -22,6 +24,9 @@ export class StoryListView extends ItemView {
 	}
 
 	getDisplayText(): string {
+		if (this.viewMode === "details" && this.currentStory) {
+			return this.currentStory.title;
+		}
 		return "Stories";
 	}
 
@@ -45,11 +50,27 @@ export class StoryListView extends ItemView {
 	async render(container: HTMLElement) {
 		container.empty();
 
-		// Header with title and create button
-		const header = container.createDiv({ cls: "story-engine-view-header" });
-		header.createEl("h2", { text: "Stories" });
+		// Header - will be updated based on view mode
+		this.headerEl = container.createDiv({ cls: "story-engine-view-header" });
+		
+		// Content area
+		this.contentEl = container.createDiv({ cls: "story-engine-view-content" });
 
-		const headerActions = header.createDiv({ cls: "story-engine-header-actions" });
+		// Render based on current mode
+		if (this.viewMode === "details" && this.currentStory) {
+			this.renderDetails();
+		} else {
+			this.renderListHeader();
+		}
+	}
+
+	renderListHeader() {
+		if (!this.headerEl) return;
+
+		this.headerEl.empty();
+		this.headerEl.createEl("h2", { text: "Stories" });
+
+		const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
 		
 		const refreshButton = headerActions.createEl("button", {
 			text: "Refresh",
@@ -87,9 +108,44 @@ export class StoryListView extends ItemView {
 		createButton.onclick = () => {
 			this.plugin.createStoryCommand();
 		};
+	}
 
-		// Content area for stories list
-		this.contentEl = container.createDiv({ cls: "story-engine-view-content" });
+	renderDetailsHeader() {
+		if (!this.headerEl) return;
+
+		this.headerEl.empty();
+		
+		const headerLeft = this.headerEl.createDiv({ cls: "story-engine-header-left" });
+		
+		const backButton = headerLeft.createEl("button", {
+			text: "← Back",
+			cls: "story-engine-back-btn",
+		});
+		backButton.onclick = () => {
+			this.showList();
+		};
+
+		headerLeft.createEl("h2", { text: this.currentStory?.title || "Story Details" });
+
+		const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
+		
+		if (this.currentStory) {
+			const cloneButton = headerActions.createEl("button", {
+				text: "Clone Story",
+				cls: "mod-cta story-engine-clone-btn",
+			});
+			cloneButton.onclick = async () => {
+				await this.cloneStory();
+			};
+
+			const copyIdButton = headerActions.createEl("button", {
+				text: "Copy ID",
+				cls: "story-engine-copy-id-btn",
+			});
+			copyIdButton.onclick = () => {
+				this.copyStoryId();
+			};
+		}
 	}
 
 	renderStories() {
@@ -138,7 +194,7 @@ export class StoryListView extends ItemView {
 			});
 
 			storyItem.onclick = () => {
-				new StoryDetailsModal(this.plugin, story).open();
+				this.showStoryDetails(story);
 			};
 		}
 	}
@@ -170,6 +226,152 @@ export class StoryListView extends ItemView {
 	// Method to refresh the view
 	async refresh() {
 		await this.loadStories();
+	}
+
+	showStoryDetails(story: Story) {
+		this.currentStory = story;
+		this.viewMode = "details";
+		this.renderDetails();
+	}
+
+	showList() {
+		this.currentStory = null;
+		this.viewMode = "list";
+		this.renderListHeader();
+		this.renderStories();
+	}
+
+	renderDetails() {
+		if (!this.contentEl || !this.currentStory) return;
+
+		this.renderDetailsHeader();
+		this.contentEl.empty();
+
+		const story = this.currentStory;
+		const details = this.contentEl.createDiv({ cls: "story-engine-details" });
+
+		details.createEl("p", {
+			text: `Status: ${story.status}`,
+		});
+
+		details.createEl("p", {
+			text: `Version: ${story.version_number}`,
+		});
+
+		details.createEl("p", {
+			text: `Created: ${new Date(story.created_at).toLocaleString()}`,
+		});
+
+		details.createEl("p", {
+			text: `Updated: ${new Date(story.updated_at).toLocaleString()}`,
+		});
+
+		details.createEl("p", {
+			text: `ID: ${story.id}`,
+			cls: "story-engine-id",
+		});
+
+		// Action buttons section
+		const actionsSection = this.contentEl.createDiv({ cls: "story-engine-details-actions" });
+		
+		const syncButton = actionsSection.createEl("button", {
+			text: "Sync from Service",
+			cls: "story-engine-sync-btn",
+		});
+		syncButton.onclick = async () => {
+			try {
+				new Notice(`Syncing story "${story.title}"...`);
+				await this.plugin.syncService.pullStory(story.id);
+				new Notice(`Story synced successfully!`);
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error ? err.message : "Failed to sync story";
+				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		};
+
+		const pushButton = actionsSection.createEl("button", {
+			text: "Push to Service",
+			cls: "story-engine-push-btn",
+		});
+		pushButton.onclick = async () => {
+			try {
+				const folderPath = this.plugin.fileManager.getStoryFolderPath(story.title);
+				new Notice(`Pushing story "${story.title}"...`);
+				await this.plugin.syncService.pushStory(folderPath);
+				new Notice(`Story pushed successfully!`);
+			} catch (err) {
+				const errorMessage =
+					err instanceof Error ? err.message : "Failed to push story";
+				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		};
+	}
+
+	async cloneStory() {
+		if (!this.currentStory) return;
+
+		const cloneButton = this.headerEl?.querySelector(".story-engine-clone-btn") as HTMLButtonElement;
+		if (cloneButton) {
+			cloneButton.disabled = true;
+			cloneButton.setText("Cloning...");
+		}
+
+		try {
+			if (!this.plugin.settings.tenantId) {
+				throw new Error("Tenant ID not configured");
+			}
+
+			const clonedStory = await this.plugin.apiClient.cloneStory(
+				this.currentStory.id,
+				this.plugin.settings.tenantId
+			);
+			
+			new Notice(`Story "${clonedStory.title}" cloned successfully!`);
+			
+			// Refresh the list and show the cloned story
+			await this.loadStories();
+			this.showStoryDetails(clonedStory);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Clone failed";
+			new Notice(`Error: ${errorMessage}`, 5000);
+			if (cloneButton) {
+				cloneButton.setText("Clone Story");
+				cloneButton.disabled = false;
+			}
+		}
+	}
+
+	copyStoryId() {
+		if (!this.currentStory) return;
+
+		const textarea = document.createElement("textarea");
+		textarea.value = this.currentStory.id;
+		textarea.style.position = "fixed";
+		textarea.style.opacity = "0";
+		textarea.style.left = "-9999px";
+		document.body.appendChild(textarea);
+		textarea.select();
+		
+		try {
+			const doc = document;
+			if (doc.execCommand) {
+				doc.execCommand("copy");
+				const copyButton = this.headerEl?.querySelector(".story-engine-copy-id-btn") as HTMLButtonElement;
+				if (copyButton) {
+					copyButton.setText("Copied!");
+					setTimeout(() => {
+						copyButton.setText("Copy ID");
+					}, 2000);
+				}
+				new Notice("Story ID copied to clipboard");
+			}
+		} catch (err) {
+			console.error("Failed to copy ID:", err);
+			new Notice("Failed to copy ID", 3000);
+		}
+		
+		document.body.removeChild(textarea);
 	}
 }
 
