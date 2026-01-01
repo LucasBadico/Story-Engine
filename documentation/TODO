@@ -1,8 +1,9 @@
 
 - [x] make the scenes/beats possible not have a chapter_id
 - [x] make the scenes/beats move between chapters.scenes 
-- [ ] add character/locations 
+- [x] add character/locations 
 - [x] update prose/text entity
+- [ ] upload image endpoint
 
 
 
