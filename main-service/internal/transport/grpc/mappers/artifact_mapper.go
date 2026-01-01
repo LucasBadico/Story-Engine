@@ -12,7 +12,7 @@ func ArtifactToProto(a *world.Artifact) *artifactpb.Artifact {
 		return nil
 	}
 
-	pb := &artifactpb.Artifact{
+	return &artifactpb.Artifact{
 		Id:          a.ID.String(),
 		WorldId:     a.WorldID.String(),
 		Name:        a.Name,
@@ -21,15 +21,20 @@ func ArtifactToProto(a *world.Artifact) *artifactpb.Artifact {
 		CreatedAt:   timestamppb.New(a.CreatedAt),
 		UpdatedAt:   timestamppb.New(a.UpdatedAt),
 	}
+}
 
-	if a.CharacterID != nil {
-		pb.CharacterId = a.CharacterID.String()
+// ArtifactReferenceToProto converts an artifact reference domain entity to a protobuf message
+func ArtifactReferenceToProto(ref *world.ArtifactReference) *artifactpb.ArtifactReference {
+	if ref == nil {
+		return nil
 	}
 
-	if a.LocationID != nil {
-		pb.LocationId = a.LocationID.String()
+	return &artifactpb.ArtifactReference{
+		Id:         ref.ID.String(),
+		ArtifactId: ref.ArtifactID.String(),
+		EntityType: string(ref.EntityType),
+		EntityId:   ref.EntityID.String(),
+		CreatedAt:  timestamppb.New(ref.CreatedAt),
 	}
-
-	return pb
 }
 

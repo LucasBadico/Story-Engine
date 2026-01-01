@@ -13,17 +13,19 @@ import (
 
 // CreateArtifactUseCase handles artifact creation
 type CreateArtifactUseCase struct {
-	artifactRepo repositories.ArtifactRepository
-	worldRepo    repositories.WorldRepository
-	characterRepo repositories.CharacterRepository
-	locationRepo repositories.LocationRepository
-	auditLogRepo repositories.AuditLogRepository
-	logger       logger.Logger
+	artifactRepo         repositories.ArtifactRepository
+	artifactReferenceRepo repositories.ArtifactReferenceRepository
+	worldRepo            repositories.WorldRepository
+	characterRepo        repositories.CharacterRepository
+	locationRepo         repositories.LocationRepository
+	auditLogRepo         repositories.AuditLogRepository
+	logger               logger.Logger
 }
 
 // NewCreateArtifactUseCase creates a new CreateArtifactUseCase
 func NewCreateArtifactUseCase(
 	artifactRepo repositories.ArtifactRepository,
+	artifactReferenceRepo repositories.ArtifactReferenceRepository,
 	worldRepo repositories.WorldRepository,
 	characterRepo repositories.CharacterRepository,
 	locationRepo repositories.LocationRepository,
@@ -31,23 +33,24 @@ func NewCreateArtifactUseCase(
 	logger logger.Logger,
 ) *CreateArtifactUseCase {
 	return &CreateArtifactUseCase{
-		artifactRepo: artifactRepo,
-		worldRepo:    worldRepo,
-		characterRepo: characterRepo,
-		locationRepo: locationRepo,
-		auditLogRepo: auditLogRepo,
-		logger:       logger,
+		artifactRepo:         artifactRepo,
+		artifactReferenceRepo: artifactReferenceRepo,
+		worldRepo:            worldRepo,
+		characterRepo:        characterRepo,
+		locationRepo:         locationRepo,
+		auditLogRepo:         auditLogRepo,
+		logger:               logger,
 	}
 }
 
 // CreateArtifactInput represents the input for creating an artifact
 type CreateArtifactInput struct {
-	WorldID     uuid.UUID
-	CharacterID *uuid.UUID
-	LocationID  *uuid.UUID
-	Name        string
-	Description string
-	Rarity      string
+	WorldID      uuid.UUID
+	CharacterIDs []uuid.UUID
+	LocationIDs  []uuid.UUID
+	Name         string
+	Description  string
+	Rarity       string
 }
 
 // CreateArtifactOutput represents the output of creating an artifact
@@ -63,30 +66,30 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 		return nil, err
 	}
 
-	// Validate character exists if provided
-	if input.CharacterID != nil {
-		c, err := uc.characterRepo.GetByID(ctx, *input.CharacterID)
+	// Validate characters exist if provided
+	for _, characterID := range input.CharacterIDs {
+		c, err := uc.characterRepo.GetByID(ctx, characterID)
 		if err != nil {
 			return nil, err
 		}
 		if c.WorldID != input.WorldID {
 			return nil, &platformerrors.ValidationError{
-				Field:   "character_id",
-				Message: "character must belong to the same world",
+				Field:   "character_ids",
+				Message: "all characters must belong to the same world",
 			}
 		}
 	}
 
-	// Validate location exists if provided
-	if input.LocationID != nil {
-		l, err := uc.locationRepo.GetByID(ctx, *input.LocationID)
+	// Validate locations exist if provided
+	for _, locationID := range input.LocationIDs {
+		l, err := uc.locationRepo.GetByID(ctx, locationID)
 		if err != nil {
 			return nil, err
 		}
 		if l.WorldID != input.WorldID {
 			return nil, &platformerrors.ValidationError{
-				Field:   "location_id",
-				Message: "location must belong to the same world",
+				Field:   "location_ids",
+				Message: "all locations must belong to the same world",
 			}
 		}
 	}
@@ -96,12 +99,6 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 		return nil, err
 	}
 
-	if input.CharacterID != nil {
-		newArtifact.SetCharacter(input.CharacterID)
-	}
-	if input.LocationID != nil {
-		newArtifact.SetLocation(input.LocationID)
-	}
 	if input.Description != "" {
 		newArtifact.UpdateDescription(input.Description)
 	}
@@ -119,6 +116,30 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 	if err := uc.artifactRepo.Create(ctx, newArtifact); err != nil {
 		uc.logger.Error("failed to create artifact", "error", err, "name", input.Name)
 		return nil, err
+	}
+
+	// Create character references
+	for _, characterID := range input.CharacterIDs {
+		ref, err := world.NewArtifactReference(newArtifact.ID, world.ArtifactReferenceEntityTypeCharacter, characterID)
+		if err != nil {
+			return nil, err
+		}
+		if err := uc.artifactReferenceRepo.Create(ctx, ref); err != nil {
+			uc.logger.Error("failed to create character reference", "error", err)
+			return nil, err
+		}
+	}
+
+	// Create location references
+	for _, locationID := range input.LocationIDs {
+		ref, err := world.NewArtifactReference(newArtifact.ID, world.ArtifactReferenceEntityTypeLocation, locationID)
+		if err != nil {
+			return nil, err
+		}
+		if err := uc.artifactReferenceRepo.Create(ctx, ref); err != nil {
+			uc.logger.Error("failed to create location reference", "error", err)
+			return nil, err
+		}
 	}
 
 	auditLog := audit.NewAuditLog(

@@ -5,6 +5,7 @@ import (
 
 	"github.com/google/uuid"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
+	"github.com/story-engine/main-service/internal/core/world"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	artifactpb "github.com/story-engine/main-service/proto/artifact"
@@ -15,12 +16,15 @@ import (
 // ArtifactHandler implements the ArtifactService gRPC service
 type ArtifactHandler struct {
 	artifactpb.UnimplementedArtifactServiceServer
-	createArtifactUseCase *artifactapp.CreateArtifactUseCase
-	getArtifactUseCase    *artifactapp.GetArtifactUseCase
-	listArtifactsUseCase  *artifactapp.ListArtifactsUseCase
-	updateArtifactUseCase *artifactapp.UpdateArtifactUseCase
-	deleteArtifactUseCase *artifactapp.DeleteArtifactUseCase
-	logger                logger.Logger
+	createArtifactUseCase      *artifactapp.CreateArtifactUseCase
+	getArtifactUseCase         *artifactapp.GetArtifactUseCase
+	listArtifactsUseCase       *artifactapp.ListArtifactsUseCase
+	updateArtifactUseCase      *artifactapp.UpdateArtifactUseCase
+	deleteArtifactUseCase      *artifactapp.DeleteArtifactUseCase
+	getReferencesUseCase       *artifactapp.GetArtifactReferencesUseCase
+	addReferenceUseCase         *artifactapp.AddArtifactReferenceUseCase
+	removeReferenceUseCase      *artifactapp.RemoveArtifactReferenceUseCase
+	logger                      logger.Logger
 }
 
 // NewArtifactHandler creates a new ArtifactHandler
@@ -30,6 +34,9 @@ func NewArtifactHandler(
 	listArtifactsUseCase *artifactapp.ListArtifactsUseCase,
 	updateArtifactUseCase *artifactapp.UpdateArtifactUseCase,
 	deleteArtifactUseCase *artifactapp.DeleteArtifactUseCase,
+	getReferencesUseCase *artifactapp.GetArtifactReferencesUseCase,
+	addReferenceUseCase *artifactapp.AddArtifactReferenceUseCase,
+	removeReferenceUseCase *artifactapp.RemoveArtifactReferenceUseCase,
 	logger logger.Logger,
 ) *ArtifactHandler {
 	return &ArtifactHandler{
@@ -38,6 +45,9 @@ func NewArtifactHandler(
 		listArtifactsUseCase:  listArtifactsUseCase,
 		updateArtifactUseCase: updateArtifactUseCase,
 		deleteArtifactUseCase: deleteArtifactUseCase,
+		getReferencesUseCase:  getReferencesUseCase,
+		addReferenceUseCase:   addReferenceUseCase,
+		removeReferenceUseCase: removeReferenceUseCase,
 		logger:                logger,
 	}
 }
@@ -53,31 +63,31 @@ func (h *ArtifactHandler) CreateArtifact(ctx context.Context, req *artifactpb.Cr
 		return nil, status.Errorf(codes.InvalidArgument, "name is required")
 	}
 
-	var characterID *uuid.UUID
-	if req.CharacterId != "" {
-		cid, err := uuid.Parse(req.CharacterId)
+	characterIDs := make([]uuid.UUID, 0, len(req.CharacterIds))
+	for _, cidStr := range req.CharacterIds {
+		cid, err := uuid.Parse(cidStr)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 		}
-		characterID = &cid
+		characterIDs = append(characterIDs, cid)
 	}
 
-	var locationID *uuid.UUID
-	if req.LocationId != "" {
-		lid, err := uuid.Parse(req.LocationId)
+	locationIDs := make([]uuid.UUID, 0, len(req.LocationIds))
+	for _, lidStr := range req.LocationIds {
+		lid, err := uuid.Parse(lidStr)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
 		}
-		locationID = &lid
+		locationIDs = append(locationIDs, lid)
 	}
 
 	input := artifactapp.CreateArtifactInput{
-		WorldID:     worldID,
-		CharacterID: characterID,
-		LocationID:  locationID,
-		Name:        req.Name,
-		Description: req.Description,
-		Rarity:      req.Rarity,
+		WorldID:      worldID,
+		CharacterIDs: characterIDs,
+		LocationIDs:  locationIDs,
+		Name:         req.Name,
+		Description:  req.Description,
+		Rarity:       req.Rarity,
 	}
 
 	output, err := h.createArtifactUseCase.Execute(ctx, input)
@@ -169,30 +179,30 @@ func (h *ArtifactHandler) UpdateArtifact(ctx context.Context, req *artifactpb.Up
 		rarity = req.Rarity
 	}
 
-	var characterID *uuid.UUID
-	if req.CharacterId != nil {
-		if *req.CharacterId == "" {
-			characterID = nil
-		} else {
-			cid, err := uuid.Parse(*req.CharacterId)
+	var characterIDs *[]uuid.UUID
+	if req.CharacterIds != nil {
+		ids := make([]uuid.UUID, 0, len(req.CharacterIds.Ids))
+		for _, cidStr := range req.CharacterIds.Ids {
+			cid, err := uuid.Parse(cidStr)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 			}
-			characterID = &cid
+			ids = append(ids, cid)
 		}
+		characterIDs = &ids
 	}
 
-	var locationID *uuid.UUID
-	if req.LocationId != nil {
-		if *req.LocationId == "" {
-			locationID = nil
-		} else {
-			lid, err := uuid.Parse(*req.LocationId)
+	var locationIDs *[]uuid.UUID
+	if req.LocationIds != nil {
+		ids := make([]uuid.UUID, 0, len(req.LocationIds.Ids))
+		for _, lidStr := range req.LocationIds.Ids {
+			lid, err := uuid.Parse(lidStr)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
 			}
-			locationID = &lid
+			ids = append(ids, lid)
 		}
+		locationIDs = &ids
 	}
 
 	input := artifactapp.UpdateArtifactInput{
@@ -200,8 +210,8 @@ func (h *ArtifactHandler) UpdateArtifact(ctx context.Context, req *artifactpb.Up
 		Name:        name,
 		Description: description,
 		Rarity:      rarity,
-		CharacterID: characterID,
-		LocationID:  locationID,
+		CharacterIDs: characterIDs,
+		LocationIDs: locationIDs,
 	}
 
 	output, err := h.updateArtifactUseCase.Execute(ctx, input)
@@ -229,5 +239,87 @@ func (h *ArtifactHandler) DeleteArtifact(ctx context.Context, req *artifactpb.De
 	}
 
 	return &artifactpb.DeleteArtifactResponse{}, nil
+}
+
+// GetArtifactReferences retrieves all references for an artifact
+func (h *ArtifactHandler) GetArtifactReferences(ctx context.Context, req *artifactpb.GetArtifactReferencesRequest) (*artifactpb.GetArtifactReferencesResponse, error) {
+	artifactID, err := uuid.Parse(req.ArtifactId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
+	}
+
+	output, err := h.getReferencesUseCase.Execute(ctx, artifactapp.GetArtifactReferencesInput{
+		ArtifactID: artifactID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	references := make([]*artifactpb.ArtifactReference, len(output.References))
+	for i, ref := range output.References {
+		references[i] = mappers.ArtifactReferenceToProto(ref)
+	}
+
+	return &artifactpb.GetArtifactReferencesResponse{
+		References: references,
+	}, nil
+}
+
+// AddArtifactReference adds a reference to an artifact
+func (h *ArtifactHandler) AddArtifactReference(ctx context.Context, req *artifactpb.AddArtifactReferenceRequest) (*artifactpb.AddArtifactReferenceResponse, error) {
+	artifactID, err := uuid.Parse(req.ArtifactId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
+	}
+
+	entityID, err := uuid.Parse(req.EntityId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
+	}
+
+	entityType := world.ArtifactReferenceEntityType(req.EntityType)
+	if entityType != world.ArtifactReferenceEntityTypeCharacter && entityType != world.ArtifactReferenceEntityTypeLocation {
+		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character' or 'location'")
+	}
+
+	err = h.addReferenceUseCase.Execute(ctx, artifactapp.AddArtifactReferenceInput{
+		ArtifactID: artifactID,
+		EntityType: entityType,
+		EntityID:   entityID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &artifactpb.AddArtifactReferenceResponse{}, nil
+}
+
+// RemoveArtifactReference removes a reference from an artifact
+func (h *ArtifactHandler) RemoveArtifactReference(ctx context.Context, req *artifactpb.RemoveArtifactReferenceRequest) (*artifactpb.RemoveArtifactReferenceResponse, error) {
+	artifactID, err := uuid.Parse(req.ArtifactId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
+	}
+
+	entityID, err := uuid.Parse(req.EntityId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
+	}
+
+	entityType := world.ArtifactReferenceEntityType(req.EntityType)
+	if entityType != world.ArtifactReferenceEntityTypeCharacter && entityType != world.ArtifactReferenceEntityTypeLocation {
+		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character' or 'location'")
+	}
+
+	err = h.removeReferenceUseCase.Execute(ctx, artifactapp.RemoveArtifactReferenceInput{
+		ArtifactID: artifactID,
+		EntityType: entityType,
+		EntityID:   entityID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return &artifactpb.RemoveArtifactReferenceResponse{}, nil
 }
 

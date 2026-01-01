@@ -15,8 +15,6 @@ var (
 type Artifact struct {
 	ID          uuid.UUID  `json:"id"`
 	WorldID     uuid.UUID  `json:"world_id"`
-	CharacterID *uuid.UUID `json:"character_id,omitempty"`
-	LocationID  *uuid.UUID `json:"location_id,omitempty"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
 	Rarity      string     `json:"rarity"`
@@ -70,15 +68,4 @@ func (a *Artifact) UpdateRarity(rarity string) {
 	a.UpdatedAt = time.Now()
 }
 
-// SetCharacter sets the artifact's character
-func (a *Artifact) SetCharacter(characterID *uuid.UUID) {
-	a.CharacterID = characterID
-	a.UpdatedAt = time.Now()
-}
-
-// SetLocation sets the artifact's location
-func (a *Artifact) SetLocation(locationID *uuid.UUID) {
-	a.LocationID = locationID
-	a.UpdatedAt = time.Now()
-}
 

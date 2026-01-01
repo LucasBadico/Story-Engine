@@ -19,11 +19,14 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	ArtifactService_CreateArtifact_FullMethodName = "/artifact.ArtifactService/CreateArtifact"
-	ArtifactService_GetArtifact_FullMethodName    = "/artifact.ArtifactService/GetArtifact"
-	ArtifactService_UpdateArtifact_FullMethodName = "/artifact.ArtifactService/UpdateArtifact"
-	ArtifactService_ListArtifacts_FullMethodName  = "/artifact.ArtifactService/ListArtifacts"
-	ArtifactService_DeleteArtifact_FullMethodName = "/artifact.ArtifactService/DeleteArtifact"
+	ArtifactService_CreateArtifact_FullMethodName          = "/artifact.ArtifactService/CreateArtifact"
+	ArtifactService_GetArtifact_FullMethodName             = "/artifact.ArtifactService/GetArtifact"
+	ArtifactService_UpdateArtifact_FullMethodName          = "/artifact.ArtifactService/UpdateArtifact"
+	ArtifactService_ListArtifacts_FullMethodName           = "/artifact.ArtifactService/ListArtifacts"
+	ArtifactService_DeleteArtifact_FullMethodName          = "/artifact.ArtifactService/DeleteArtifact"
+	ArtifactService_GetArtifactReferences_FullMethodName   = "/artifact.ArtifactService/GetArtifactReferences"
+	ArtifactService_AddArtifactReference_FullMethodName    = "/artifact.ArtifactService/AddArtifactReference"
+	ArtifactService_RemoveArtifactReference_FullMethodName = "/artifact.ArtifactService/RemoveArtifactReference"
 )
 
 // ArtifactServiceClient is the client API for ArtifactService service.
@@ -35,6 +38,9 @@ type ArtifactServiceClient interface {
 	UpdateArtifact(ctx context.Context, in *UpdateArtifactRequest, opts ...grpc.CallOption) (*UpdateArtifactResponse, error)
 	ListArtifacts(ctx context.Context, in *ListArtifactsRequest, opts ...grpc.CallOption) (*ListArtifactsResponse, error)
 	DeleteArtifact(ctx context.Context, in *DeleteArtifactRequest, opts ...grpc.CallOption) (*DeleteArtifactResponse, error)
+	GetArtifactReferences(ctx context.Context, in *GetArtifactReferencesRequest, opts ...grpc.CallOption) (*GetArtifactReferencesResponse, error)
+	AddArtifactReference(ctx context.Context, in *AddArtifactReferenceRequest, opts ...grpc.CallOption) (*AddArtifactReferenceResponse, error)
+	RemoveArtifactReference(ctx context.Context, in *RemoveArtifactReferenceRequest, opts ...grpc.CallOption) (*RemoveArtifactReferenceResponse, error)
 }
 
 type artifactServiceClient struct {
@@ -90,6 +96,33 @@ func (c *artifactServiceClient) DeleteArtifact(ctx context.Context, in *DeleteAr
 	return out, nil
 }
 
+func (c *artifactServiceClient) GetArtifactReferences(ctx context.Context, in *GetArtifactReferencesRequest, opts ...grpc.CallOption) (*GetArtifactReferencesResponse, error) {
+	out := new(GetArtifactReferencesResponse)
+	err := c.cc.Invoke(ctx, ArtifactService_GetArtifactReferences_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *artifactServiceClient) AddArtifactReference(ctx context.Context, in *AddArtifactReferenceRequest, opts ...grpc.CallOption) (*AddArtifactReferenceResponse, error) {
+	out := new(AddArtifactReferenceResponse)
+	err := c.cc.Invoke(ctx, ArtifactService_AddArtifactReference_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *artifactServiceClient) RemoveArtifactReference(ctx context.Context, in *RemoveArtifactReferenceRequest, opts ...grpc.CallOption) (*RemoveArtifactReferenceResponse, error) {
+	out := new(RemoveArtifactReferenceResponse)
+	err := c.cc.Invoke(ctx, ArtifactService_RemoveArtifactReference_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArtifactServiceServer is the server API for ArtifactService service.
 // All implementations must embed UnimplementedArtifactServiceServer
 // for forward compatibility
@@ -99,6 +132,9 @@ type ArtifactServiceServer interface {
 	UpdateArtifact(context.Context, *UpdateArtifactRequest) (*UpdateArtifactResponse, error)
 	ListArtifacts(context.Context, *ListArtifactsRequest) (*ListArtifactsResponse, error)
 	DeleteArtifact(context.Context, *DeleteArtifactRequest) (*DeleteArtifactResponse, error)
+	GetArtifactReferences(context.Context, *GetArtifactReferencesRequest) (*GetArtifactReferencesResponse, error)
+	AddArtifactReference(context.Context, *AddArtifactReferenceRequest) (*AddArtifactReferenceResponse, error)
+	RemoveArtifactReference(context.Context, *RemoveArtifactReferenceRequest) (*RemoveArtifactReferenceResponse, error)
 	mustEmbedUnimplementedArtifactServiceServer()
 }
 
@@ -120,6 +156,15 @@ func (UnimplementedArtifactServiceServer) ListArtifacts(context.Context, *ListAr
 }
 func (UnimplementedArtifactServiceServer) DeleteArtifact(context.Context, *DeleteArtifactRequest) (*DeleteArtifactResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteArtifact not implemented")
+}
+func (UnimplementedArtifactServiceServer) GetArtifactReferences(context.Context, *GetArtifactReferencesRequest) (*GetArtifactReferencesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetArtifactReferences not implemented")
+}
+func (UnimplementedArtifactServiceServer) AddArtifactReference(context.Context, *AddArtifactReferenceRequest) (*AddArtifactReferenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddArtifactReference not implemented")
+}
+func (UnimplementedArtifactServiceServer) RemoveArtifactReference(context.Context, *RemoveArtifactReferenceRequest) (*RemoveArtifactReferenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveArtifactReference not implemented")
 }
 func (UnimplementedArtifactServiceServer) mustEmbedUnimplementedArtifactServiceServer() {}
 
@@ -224,6 +269,60 @@ func _ArtifactService_DeleteArtifact_Handler(srv interface{}, ctx context.Contex
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArtifactService_GetArtifactReferences_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetArtifactReferencesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArtifactServiceServer).GetArtifactReferences(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArtifactService_GetArtifactReferences_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArtifactServiceServer).GetArtifactReferences(ctx, req.(*GetArtifactReferencesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArtifactService_AddArtifactReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddArtifactReferenceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArtifactServiceServer).AddArtifactReference(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArtifactService_AddArtifactReference_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArtifactServiceServer).AddArtifactReference(ctx, req.(*AddArtifactReferenceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArtifactService_RemoveArtifactReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveArtifactReferenceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArtifactServiceServer).RemoveArtifactReference(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArtifactService_RemoveArtifactReference_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArtifactServiceServer).RemoveArtifactReference(ctx, req.(*RemoveArtifactReferenceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArtifactService_ServiceDesc is the grpc.ServiceDesc for ArtifactService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -250,6 +349,18 @@ var ArtifactService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteArtifact",
 			Handler:    _ArtifactService_DeleteArtifact_Handler,
+		},
+		{
+			MethodName: "GetArtifactReferences",
+			Handler:    _ArtifactService_GetArtifactReferences_Handler,
+		},
+		{
+			MethodName: "AddArtifactReference",
+			Handler:    _ArtifactService_AddArtifactReference_Handler,
+		},
+		{
+			MethodName: "RemoveArtifactReference",
+			Handler:    _ArtifactService_RemoveArtifactReference_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

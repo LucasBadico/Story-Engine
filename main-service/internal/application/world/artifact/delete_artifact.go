@@ -11,24 +11,27 @@ import (
 
 // DeleteArtifactUseCase handles artifact deletion
 type DeleteArtifactUseCase struct {
-	artifactRepo repositories.ArtifactRepository
-	worldRepo repositories.WorldRepository
-	auditLogRepo repositories.AuditLogRepository
-	logger       logger.Logger
+	artifactRepo         repositories.ArtifactRepository
+	artifactReferenceRepo repositories.ArtifactReferenceRepository
+	worldRepo            repositories.WorldRepository
+	auditLogRepo         repositories.AuditLogRepository
+	logger               logger.Logger
 }
 
 // NewDeleteArtifactUseCase creates a new DeleteArtifactUseCase
 func NewDeleteArtifactUseCase(
 	artifactRepo repositories.ArtifactRepository,
+	artifactReferenceRepo repositories.ArtifactReferenceRepository,
 	worldRepo repositories.WorldRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *DeleteArtifactUseCase {
 	return &DeleteArtifactUseCase{
-		artifactRepo: artifactRepo,
-		worldRepo: worldRepo,
-		auditLogRepo: auditLogRepo,
-		logger:       logger,
+		artifactRepo:         artifactRepo,
+		artifactReferenceRepo: artifactReferenceRepo,
+		worldRepo:            worldRepo,
+		auditLogRepo:         auditLogRepo,
+		logger:               logger,
 	}
 }
 
@@ -42,6 +45,11 @@ func (uc *DeleteArtifactUseCase) Execute(ctx context.Context, input DeleteArtifa
 	a, err := uc.artifactRepo.GetByID(ctx, input.ID)
 	if err != nil {
 		return err
+	}
+
+	// Delete all references (CASCADE should handle this, but being explicit)
+	if err := uc.artifactReferenceRepo.DeleteByArtifact(ctx, input.ID); err != nil {
+		uc.logger.Warn("failed to delete artifact references", "error", err)
 	}
 
 	if err := uc.artifactRepo.Delete(ctx, input.ID); err != nil {

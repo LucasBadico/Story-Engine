@@ -9,20 +9,27 @@ import "proto/common/common.proto";
 message Artifact {
   string id = 1;
   string world_id = 2;
-  string character_id = 3; // optional
-  string location_id = 4; // optional
-  string name = 5;
-  string description = 6;
-  string rarity = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  string name = 3;
+  string description = 4;
+  string rarity = 5;
+  google.protobuf.Timestamp created_at = 6;
+  google.protobuf.Timestamp updated_at = 7;
+}
+
+// ArtifactReference represents a reference from an artifact to an entity
+message ArtifactReference {
+  string id = 1;
+  string artifact_id = 2;
+  string entity_type = 3; // "character" or "location"
+  string entity_id = 4;
+  google.protobuf.Timestamp created_at = 5;
 }
 
 // CreateArtifactRequest is the request to create a new artifact
 message CreateArtifactRequest {
   string world_id = 1;
-  string character_id = 2; // optional
-  string location_id = 3; // optional
+  repeated string character_ids = 2;
+  repeated string location_ids = 3;
   string name = 4;
   string description = 5;
   string rarity = 6;
@@ -61,8 +68,13 @@ message UpdateArtifactRequest {
   optional string name = 2;
   optional string description = 3;
   optional string rarity = 4;
-  optional string character_id = 5;
-  optional string location_id = 6;
+  optional ArtifactReferenceUpdate character_ids = 5; // nil = no change, empty = remove all
+  optional ArtifactReferenceUpdate location_ids = 6; // nil = no change, empty = remove all
+}
+
+// ArtifactReferenceUpdate represents an update to artifact references
+message ArtifactReferenceUpdate {
+  repeated string ids = 1;
 }
 
 // UpdateArtifactResponse is the response after updating an artifact
@@ -79,6 +91,38 @@ message DeleteArtifactRequest {
 message DeleteArtifactResponse {
 }
 
+// GetArtifactReferencesRequest is the request to get references for an artifact
+message GetArtifactReferencesRequest {
+  string artifact_id = 1;
+}
+
+// GetArtifactReferencesResponse is the response containing artifact references
+message GetArtifactReferencesResponse {
+  repeated ArtifactReference references = 1;
+}
+
+// AddArtifactReferenceRequest is the request to add a reference to an artifact
+message AddArtifactReferenceRequest {
+  string artifact_id = 1;
+  string entity_type = 2; // "character" or "location"
+  string entity_id = 3;
+}
+
+// AddArtifactReferenceResponse is the response after adding a reference
+message AddArtifactReferenceResponse {
+}
+
+// RemoveArtifactReferenceRequest is the request to remove a reference from an artifact
+message RemoveArtifactReferenceRequest {
+  string artifact_id = 1;
+  string entity_type = 2; // "character" or "location"
+  string entity_id = 3;
+}
+
+// RemoveArtifactReferenceResponse is the response after removing a reference
+message RemoveArtifactReferenceResponse {
+}
+
 // ArtifactService provides artifact management operations
 service ArtifactService {
   rpc CreateArtifact(CreateArtifactRequest) returns (CreateArtifactResponse);
@@ -86,5 +130,8 @@ service ArtifactService {
   rpc UpdateArtifact(UpdateArtifactRequest) returns (UpdateArtifactResponse);
   rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
   rpc DeleteArtifact(DeleteArtifactRequest) returns (DeleteArtifactResponse);
+  rpc GetArtifactReferences(GetArtifactReferencesRequest) returns (GetArtifactReferencesResponse);
+  rpc AddArtifactReference(AddArtifactReferenceRequest) returns (AddArtifactReferenceResponse);
+  rpc RemoveArtifactReference(RemoveArtifactReferenceRequest) returns (RemoveArtifactReferenceResponse);
 }
 
