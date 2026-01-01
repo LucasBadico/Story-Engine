@@ -8,6 +8,7 @@ import (
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/interceptors"
 	archetypepb "github.com/story-engine/main-service/proto/archetype"
+	artifactpb "github.com/story-engine/main-service/proto/artifact"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	characterpb "github.com/story-engine/main-service/proto/character"
@@ -101,6 +102,12 @@ func (s *Server) RegisterLocationService(handler locationpb.LocationServiceServe
 func (s *Server) RegisterCharacterService(handler characterpb.CharacterServiceServer) {
 	characterpb.RegisterCharacterServiceServer(s.grpcServer, handler)
 	s.logger.Info("CharacterService registered")
+}
+
+// RegisterArtifactService registers the ArtifactService handler
+func (s *Server) RegisterArtifactService(handler artifactpb.ArtifactServiceServer) {
+	artifactpb.RegisterArtifactServiceServer(s.grpcServer, handler)
+	s.logger.Info("ArtifactService registered")
 }
 
 // RegisterChapterService registers the ChapterService handler

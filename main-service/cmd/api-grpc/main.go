@@ -9,6 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
+	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
@@ -49,6 +50,7 @@ func main() {
 	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
 	characterRepo := postgres.NewCharacterRepository(pgDB)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(pgDB)
+	artifactRepo := postgres.NewArtifactRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -94,6 +96,11 @@ func main() {
 	addTraitToCharacterUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
 	updateCharacterTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	removeTraitFromCharacterUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
+	getArtifactUseCase := artifactapp.NewGetArtifactUseCase(artifactRepo, log)
+	listArtifactsUseCase := artifactapp.NewListArtifactsUseCase(artifactRepo, log)
+	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
+	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, worldRepo, auditLogRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
@@ -112,6 +119,7 @@ func main() {
 	worldHandler := handlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	locationHandler := handlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
 	characterHandler := handlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, getCharacterTraitsUseCase, addTraitToCharacterUseCase, updateCharacterTraitUseCase, removeTraitFromCharacterUseCase, log)
+	artifactHandler := handlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, log)
 	traitHandler := handlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
 	archetypeHandler := handlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := handlers.NewStoryHandler(
@@ -128,6 +136,7 @@ func main() {
 	grpcServer.RegisterWorldService(worldHandler)
 	grpcServer.RegisterLocationService(locationHandler)
 	grpcServer.RegisterCharacterService(characterHandler)
+	grpcServer.RegisterArtifactService(artifactHandler)
 	grpcServer.RegisterTraitService(traitHandler)
 	grpcServer.RegisterArchetypeService(archetypeHandler)
 	grpcServer.RegisterStoryService(storyHandler)

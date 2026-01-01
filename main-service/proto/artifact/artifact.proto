@@ -1,0 +1,90 @@
+syntax = "proto3";
+package artifact;
+option go_package = "github.com/story-engine/main-service/proto/artifact";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Artifact represents an artifact entity
+message Artifact {
+  string id = 1;
+  string world_id = 2;
+  string character_id = 3; // optional
+  string location_id = 4; // optional
+  string name = 5;
+  string description = 6;
+  string rarity = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// CreateArtifactRequest is the request to create a new artifact
+message CreateArtifactRequest {
+  string world_id = 1;
+  string character_id = 2; // optional
+  string location_id = 3; // optional
+  string name = 4;
+  string description = 5;
+  string rarity = 6;
+}
+
+// CreateArtifactResponse is the response after creating an artifact
+message CreateArtifactResponse {
+  Artifact artifact = 1;
+}
+
+// GetArtifactRequest is the request to get an artifact by ID
+message GetArtifactRequest {
+  string id = 1;
+}
+
+// GetArtifactResponse is the response containing an artifact
+message GetArtifactResponse {
+  Artifact artifact = 1;
+}
+
+// ListArtifactsRequest is the request to list artifacts for a world
+message ListArtifactsRequest {
+  string world_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListArtifactsResponse is the response containing a list of artifacts
+message ListArtifactsResponse {
+  repeated Artifact artifacts = 1;
+  int32 total_count = 2;
+}
+
+// UpdateArtifactRequest is the request to update an artifact
+message UpdateArtifactRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string rarity = 4;
+  optional string character_id = 5;
+  optional string location_id = 6;
+}
+
+// UpdateArtifactResponse is the response after updating an artifact
+message UpdateArtifactResponse {
+  Artifact artifact = 1;
+}
+
+// DeleteArtifactRequest is the request to delete an artifact
+message DeleteArtifactRequest {
+  string id = 1;
+}
+
+// DeleteArtifactResponse is the response after deleting an artifact
+message DeleteArtifactResponse {
+}
+
+// ArtifactService provides artifact management operations
+service ArtifactService {
+  rpc CreateArtifact(CreateArtifactRequest) returns (CreateArtifactResponse);
+  rpc GetArtifact(GetArtifactRequest) returns (GetArtifactResponse);
+  rpc UpdateArtifact(UpdateArtifactRequest) returns (UpdateArtifactResponse);
+  rpc ListArtifacts(ListArtifactsRequest) returns (ListArtifactsResponse);
+  rpc DeleteArtifact(DeleteArtifactRequest) returns (DeleteArtifactResponse);
+}
+

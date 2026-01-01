@@ -1,0 +1,84 @@
+package world
+
+import (
+	"errors"
+	"time"
+
+	"github.com/google/uuid"
+)
+
+var (
+	ErrArtifactNameRequired = errors.New("artifact name is required")
+)
+
+// Artifact represents an artifact entity
+type Artifact struct {
+	ID          uuid.UUID  `json:"id"`
+	WorldID     uuid.UUID  `json:"world_id"`
+	CharacterID *uuid.UUID `json:"character_id,omitempty"`
+	LocationID  *uuid.UUID `json:"location_id,omitempty"`
+	Name        string     `json:"name"`
+	Description string     `json:"description"`
+	Rarity      string     `json:"rarity"`
+	CreatedAt   time.Time  `json:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"`
+}
+
+// NewArtifact creates a new artifact
+func NewArtifact(worldID uuid.UUID, name string) (*Artifact, error) {
+	if name == "" {
+		return nil, ErrArtifactNameRequired
+	}
+
+	now := time.Now()
+	return &Artifact{
+		ID:        uuid.New(),
+		WorldID:   worldID,
+		Name:      name,
+		CreatedAt: now,
+		UpdatedAt: now,
+	}, nil
+}
+
+// Validate validates the artifact entity
+func (a *Artifact) Validate() error {
+	if a.Name == "" {
+		return ErrArtifactNameRequired
+	}
+	return nil
+}
+
+// UpdateName updates the artifact name
+func (a *Artifact) UpdateName(name string) error {
+	if name == "" {
+		return ErrArtifactNameRequired
+	}
+	a.Name = name
+	a.UpdatedAt = time.Now()
+	return nil
+}
+
+// UpdateDescription updates the artifact description
+func (a *Artifact) UpdateDescription(description string) {
+	a.Description = description
+	a.UpdatedAt = time.Now()
+}
+
+// UpdateRarity updates the artifact rarity
+func (a *Artifact) UpdateRarity(rarity string) {
+	a.Rarity = rarity
+	a.UpdatedAt = time.Now()
+}
+
+// SetCharacter sets the artifact's character
+func (a *Artifact) SetCharacter(characterID *uuid.UUID) {
+	a.CharacterID = characterID
+	a.UpdatedAt = time.Now()
+}
+
+// SetLocation sets the artifact's location
+func (a *Artifact) SetLocation(locationID *uuid.UUID) {
+	a.LocationID = locationID
+	a.UpdatedAt = time.Now()
+}
+

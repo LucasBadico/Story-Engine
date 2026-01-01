@@ -36,6 +36,7 @@ const (
 	EntityTypeArchetype  EntityType = "archetype"
 	EntityTypeLocation   EntityType = "location"
 	EntityTypeCharacter  EntityType = "character"
+	EntityTypeArtifact   EntityType = "artifact"
 )
 
 // AuditLog represents an audit log entry
