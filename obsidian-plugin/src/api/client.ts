@@ -49,7 +49,7 @@ export class StoryEngineClient {
 		if (!response.ok) {
 			let error: ErrorResponse;
 			try {
-				error = await response.json();
+				error = (await response.json()) as ErrorResponse;
 			} catch {
 				error = {
 					error: "unknown_error",
@@ -61,7 +61,7 @@ export class StoryEngineClient {
 			throw new Error(errorMessage);
 		}
 
-		return response.json();
+		return response.json() as Promise<T>;
 	}
 
 	async listStories(tenantId: string): Promise<Story[]> {

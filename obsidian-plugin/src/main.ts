@@ -19,10 +19,10 @@ const DEFAULT_SETTINGS: StoryEngineSettings = {
 };
 
 export default class StoryEnginePlugin extends Plugin {
-	settings: StoryEngineSettings;
-	apiClient: StoryEngineClient;
-	fileManager: FileManager;
-	syncService: SyncService;
+	settings!: StoryEngineSettings;
+	apiClient!: StoryEngineClient;
+	fileManager!: FileManager;
+	syncService!: SyncService;
 
 	async onload() {
 		await this.loadSettings();

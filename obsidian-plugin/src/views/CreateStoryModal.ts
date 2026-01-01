@@ -26,7 +26,7 @@ export class CreateStoryModal extends Modal {
 					.onChange((value) => {
 						this.title = value;
 					})
-					.inputEl.addEventListener("keypress", (e) => {
+					.inputEl.addEventListener("keypress", (e: KeyboardEvent) => {
 						if (e.key === "Enter") {
 							this.submit();
 						}
@@ -60,9 +60,9 @@ export class CreateStoryModal extends Modal {
 		cancelButton.addEventListener("click", () => this.close());
 
 		// Focus on title input
-		const titleInput = contentEl.querySelector("input");
+		const titleInput = (contentEl as HTMLElement).querySelector("input") as HTMLInputElement | null;
 		if (titleInput) {
-			(titleInput as HTMLInputElement).focus();
+			titleInput.focus();
 		}
 	}
 

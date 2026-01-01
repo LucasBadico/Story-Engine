@@ -38,11 +38,11 @@ export class PromptModal extends Modal {
 		inputEl.style.width = "100%";
 		inputEl.style.marginBottom = "10px";
 
-		inputEl.addEventListener("input", (e) => {
+		inputEl.addEventListener("input", (e: Event) => {
 			this.value = (e.target as HTMLInputElement).value;
 		});
 
-		inputEl.addEventListener("keypress", (e) => {
+		inputEl.addEventListener("keypress", (e: KeyboardEvent) => {
 			if (e.key === "Enter") {
 				this.submit();
 			}
