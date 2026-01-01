@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 
 	"github.com/google/uuid"
@@ -41,13 +42,25 @@ func (r *ProseBlockRepository) GetByID(ctx context.Context, id uuid.UUID) (*stor
 		WHERE id = $1
 	`
 	var p story.ProseBlock
+	var chapterID sql.NullString
+	var orderNum sql.NullInt32
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&p.ID, &p.ChapterID, &p.OrderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
+		&p.ID, &chapterID, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("prose block not found")
 		}
 		return nil, err
+	}
+	if chapterID.Valid {
+		parsedID, err := uuid.Parse(chapterID.String)
+		if err == nil {
+			p.ChapterID = &parsedID
+		}
+	}
+	if orderNum.Valid {
+		order := int(orderNum.Int32)
+		p.OrderNum = &order
 	}
 	return &p, nil
 }
@@ -58,7 +71,7 @@ func (r *ProseBlockRepository) ListByChapter(ctx context.Context, chapterID uuid
 		SELECT id, chapter_id, order_num, kind, content, word_count, created_at, updated_at
 		FROM prose_blocks
 		WHERE chapter_id = $1
-		ORDER BY order_num ASC
+		ORDER BY COALESCE(order_num, 0) ASC
 	`
 	rows, err := r.db.Query(ctx, query, chapterID)
 	if err != nil {
@@ -66,17 +79,7 @@ func (r *ProseBlockRepository) ListByChapter(ctx context.Context, chapterID uuid
 	}
 	defer rows.Close()
 
-	var proseBlocks []*story.ProseBlock
-	for rows.Next() {
-		var p story.ProseBlock
-		err := rows.Scan(&p.ID, &p.ChapterID, &p.OrderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
-		if err != nil {
-			return nil, err
-		}
-		proseBlocks = append(proseBlocks, &p)
-	}
-
-	return proseBlocks, rows.Err()
+	return r.scanProseBlocks(rows)
 }
 
 // GetByChapterAndKind retrieves a prose block by chapter and kind
@@ -87,13 +90,25 @@ func (r *ProseBlockRepository) GetByChapterAndKind(ctx context.Context, chapterI
 		WHERE chapter_id = $1 AND kind = $2
 	`
 	var p story.ProseBlock
+	var chapterIDNull sql.NullString
+	var orderNum sql.NullInt32
 	err := r.db.QueryRow(ctx, query, chapterID, string(kind)).Scan(
-		&p.ID, &p.ChapterID, &p.OrderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
+		&p.ID, &chapterIDNull, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("prose block not found")
 		}
 		return nil, err
+	}
+	if chapterIDNull.Valid {
+		parsedID, err := uuid.Parse(chapterIDNull.String)
+		if err == nil {
+			p.ChapterID = &parsedID
+		}
+	}
+	if orderNum.Valid {
+		order := int(orderNum.Int32)
+		p.OrderNum = &order
 	}
 	return &p, nil
 }
@@ -121,5 +136,30 @@ func (r *ProseBlockRepository) DeleteByChapter(ctx context.Context, chapterID uu
 	query := `DELETE FROM prose_blocks WHERE chapter_id = $1`
 	_, err := r.db.Exec(ctx, query, chapterID)
 	return err
+}
+
+func (r *ProseBlockRepository) scanProseBlocks(rows pgx.Rows) ([]*story.ProseBlock, error) {
+	var proseBlocks []*story.ProseBlock
+	for rows.Next() {
+		var p story.ProseBlock
+		var chapterID sql.NullString
+		var orderNum sql.NullInt32
+		err := rows.Scan(&p.ID, &chapterID, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
+		if err != nil {
+			return nil, err
+		}
+		if chapterID.Valid {
+			parsedID, err := uuid.Parse(chapterID.String)
+			if err == nil {
+				p.ChapterID = &parsedID
+			}
+		}
+		if orderNum.Valid {
+			order := int(orderNum.Int32)
+			p.OrderNum = &order
+		}
+		proseBlocks = append(proseBlocks, &p)
+	}
+	return proseBlocks, rows.Err()
 }
 

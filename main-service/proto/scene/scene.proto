@@ -13,9 +13,8 @@ message Scene {
   string goal = 5;
   string time_ref = 6;
   optional string pov_character_id = 7;
-  optional string location_id = 8;
-  google.protobuf.Timestamp created_at = 9;
-  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
 }
 
 // CreateSceneRequest is the request to create a new scene
@@ -24,9 +23,8 @@ message CreateSceneRequest {
   optional string chapter_id = 2;
   int32 order_num = 3;
   optional string pov_character_id = 4;
-  optional string location_id = 5;
-  string time_ref = 6;
-  string goal = 7;
+  string time_ref = 5;
+  string goal = 6;
 }
 
 // CreateSceneResponse is the response after creating a scene
@@ -49,9 +47,8 @@ message UpdateSceneRequest {
   string id = 1;
   optional int32 order_num = 2;
   optional string pov_character_id = 3;
-  optional string location_id = 4;
-  optional string time_ref = 5;
-  optional string goal = 6;
+  optional string time_ref = 4;
+  optional string goal = 5;
 }
 
 // UpdateSceneResponse is the response after updating a scene

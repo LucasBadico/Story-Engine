@@ -36,19 +36,28 @@ func NewProseBlockHandler(
 
 // CreateProseBlock creates a new prose block
 func (h *ProseBlockHandler) CreateProseBlock(ctx context.Context, req *prosepb.CreateProseBlockRequest) (*prosepb.CreateProseBlockResponse, error) {
-	chapterID, err := uuid.Parse(req.ChapterId)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid chapter_id: %v", err)
+	var chapterID *uuid.UUID
+	if req.ChapterId != nil && *req.ChapterId != "" {
+		parsedChapterID, err := uuid.Parse(*req.ChapterId)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid chapter_id: %v", err)
+		}
+
+		// Validate chapter exists if provided
+		_, err = h.chapterRepo.GetByID(ctx, parsedChapterID)
+		if err != nil {
+			return nil, status.Errorf(codes.NotFound, "chapter not found: %v", err)
+		}
+		chapterID = &parsedChapterID
 	}
 
-	// Validate chapter exists
-	_, err = h.chapterRepo.GetByID(ctx, chapterID)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "chapter not found: %v", err)
-	}
-
-	if req.OrderNum < 1 {
-		return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
+	var orderNum *int
+	if req.OrderNum != nil {
+		if *req.OrderNum < 1 {
+			return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
+		}
+		order := int(*req.OrderNum)
+		orderNum = &order
 	}
 
 	kind := req.Kind
@@ -60,7 +69,7 @@ func (h *ProseBlockHandler) CreateProseBlock(ctx context.Context, req *prosepb.C
 		return nil, status.Errorf(codes.InvalidArgument, "content is required")
 	}
 
-	proseBlock, err := story.NewProseBlock(chapterID, int(req.OrderNum), story.ProseKind(kind), req.Content)
+	proseBlock, err := story.NewProseBlock(chapterID, orderNum, story.ProseKind(kind), req.Content)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid prose block: %v", err)
 	}
@@ -182,15 +191,22 @@ func (h *ProseBlockHandler) ListProseBlocksByChapter(ctx context.Context, req *p
 
 // proseBlockToProto converts a domain ProseBlock to a proto ProseBlock message
 func proseBlockToProto(p *story.ProseBlock) *prosepb.ProseBlock {
-	return &prosepb.ProseBlock{
+	pb := &prosepb.ProseBlock{
 		Id:        p.ID.String(),
-		ChapterId: p.ChapterID.String(),
-		OrderNum:  int32(p.OrderNum),
 		Kind:      string(p.Kind),
 		Content:   p.Content,
 		WordCount: int32(p.WordCount),
 		CreatedAt: timestamppb.New(p.CreatedAt),
 		UpdatedAt: timestamppb.New(p.UpdatedAt),
 	}
+	if p.ChapterID != nil {
+		chapterIDStr := p.ChapterID.String()
+		pb.ChapterId = &chapterIDStr
+	}
+	if p.OrderNum != nil {
+		orderNum := int32(*p.OrderNum)
+		pb.OrderNum = &orderNum
+	}
+	return pb
 }
 

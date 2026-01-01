@@ -7,8 +7,8 @@ import "google/protobuf/timestamp.proto";
 // ProseBlock represents a block of prose text
 message ProseBlock {
   string id = 1;
-  string chapter_id = 2;
-  int32 order_num = 3;
+  optional string chapter_id = 2;
+  optional int32 order_num = 3;
   string kind = 4; // final, alt_a, alt_b, cleaned, localized, draft
   string content = 5;
   int32 word_count = 6;
@@ -20,15 +20,15 @@ message ProseBlock {
 message ProseBlockReference {
   string id = 1;
   string prose_block_id = 2;
-  string entity_type = 3; // scene, beat, character, location, trait
+  string entity_type = 3; // scene, beat, chapter, character, location, artifact, event, world
   string entity_id = 4;
   google.protobuf.Timestamp created_at = 5;
 }
 
 // CreateProseBlockRequest is the request to create a new prose block
 message CreateProseBlockRequest {
-  string chapter_id = 1;
-  int32 order_num = 2;
+  optional string chapter_id = 1;
+  optional int32 order_num = 2;
   string kind = 3;
   string content = 4;
 }

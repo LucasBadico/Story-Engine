@@ -13,7 +13,6 @@ type Scene struct {
 	ChapterID      *uuid.UUID `json:"chapter_id,omitempty"` // nullable
 	OrderNum       int        `json:"order_num"`
 	POVCharacterID *uuid.UUID `json:"pov_character_id,omitempty"` // nullable
-	LocationID     *uuid.UUID `json:"location_id,omitempty"`      // nullable
 	TimeRef        string     `json:"time_ref"`
 	Goal           string     `json:"goal"`
 	CreatedAt      time.Time  `json:"created_at"`
@@ -54,12 +53,6 @@ func (s *Scene) UpdateGoal(goal string) {
 // UpdatePOV updates the POV character
 func (s *Scene) UpdatePOV(characterID *uuid.UUID) {
 	s.POVCharacterID = characterID
-	s.UpdatedAt = time.Now()
-}
-
-// UpdateLocation updates the location
-func (s *Scene) UpdateLocation(locationID *uuid.UUID) {
-	s.LocationID = locationID
 	s.UpdatedAt = time.Now()
 }
 

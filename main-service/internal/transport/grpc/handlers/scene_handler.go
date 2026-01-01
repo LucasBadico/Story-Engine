@@ -99,14 +99,6 @@ func (h *SceneHandler) CreateScene(ctx context.Context, req *scenepb.CreateScene
 		scene.UpdatePOV(&charID)
 	}
 
-	if req.LocationId != nil && *req.LocationId != "" {
-		locID, err := uuid.Parse(*req.LocationId)
-		if err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
-		}
-		scene.UpdateLocation(&locID)
-	}
-
 	if err := h.sceneRepo.Create(ctx, scene); err != nil {
 		h.logger.Error("failed to create scene", "error", err)
 		return nil, status.Errorf(codes.Internal, "failed to create scene: %v", err)
@@ -171,18 +163,6 @@ func (h *SceneHandler) UpdateScene(ctx context.Context, req *scenepb.UpdateScene
 				return nil, status.Errorf(codes.InvalidArgument, "invalid pov_character_id: %v", err)
 			}
 			scene.UpdatePOV(&charID)
-		}
-	}
-
-	if req.LocationId != nil {
-		if *req.LocationId == "" {
-			scene.UpdateLocation(nil)
-		} else {
-			locID, err := uuid.Parse(*req.LocationId)
-			if err != nil {
-				return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
-			}
-			scene.UpdateLocation(&locID)
 		}
 	}
 
@@ -432,10 +412,6 @@ func sceneToProto(s *story.Scene) *scenepb.Scene {
 	if s.POVCharacterID != nil {
 		povStr := s.POVCharacterID.String()
 		pb.PovCharacterId = &povStr
-	}
-	if s.LocationID != nil {
-		locStr := s.LocationID.String()
-		pb.LocationId = &locStr
 	}
 
 	return pb

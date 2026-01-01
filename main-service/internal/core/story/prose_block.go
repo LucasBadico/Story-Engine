@@ -21,22 +21,22 @@ const (
 
 // ProseBlock represents a prose block entity
 type ProseBlock struct {
-	ID        uuid.UUID `json:"id"`
-	ChapterID uuid.UUID `json:"chapter_id"`
-	OrderNum  int       `json:"order_num"`
-	Kind      ProseKind `json:"kind"`
-	Content   string    `json:"content"`
-	WordCount int       `json:"word_count"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID        uuid.UUID  `json:"id"`
+	ChapterID *uuid.UUID `json:"chapter_id,omitempty"` // nullable - can be related via references
+	OrderNum  *int       `json:"order_num,omitempty"`   // nullable - only needed if chapter_id is set
+	Kind      ProseKind  `json:"kind"`
+	Content   string     `json:"content"`
+	WordCount int        `json:"word_count"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }
 
 // NewProseBlock creates a new prose block
-func NewProseBlock(chapterID uuid.UUID, orderNum int, kind ProseKind, content string) (*ProseBlock, error) {
+func NewProseBlock(chapterID *uuid.UUID, orderNum *int, kind ProseKind, content string) (*ProseBlock, error) {
 	if !isValidProseKind(kind) {
 		return nil, ErrInvalidProseKind
 	}
-	if orderNum < 1 {
+	if orderNum != nil && *orderNum < 1 {
 		return nil, ErrInvalidOrderNumber
 	}
 
@@ -60,7 +60,7 @@ func (p *ProseBlock) Validate() error {
 	if !isValidProseKind(p.Kind) {
 		return ErrInvalidProseKind
 	}
-	if p.OrderNum < 1 {
+	if p.OrderNum != nil && *p.OrderNum < 1 {
 		return ErrInvalidOrderNumber
 	}
 	if p.WordCount < 0 {

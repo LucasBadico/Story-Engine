@@ -166,7 +166,12 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 		}
 
 		for _, oldProse := range proseBlocks {
-			newProse := versioning.CloneProseBlock(oldProse, newChapterID, oldProse.OrderNum)
+			var newOrderNum *int
+			if oldProse.OrderNum != nil {
+				order := *oldProse.OrderNum
+				newOrderNum = &order
+			}
+			newProse := versioning.CloneProseBlock(oldProse, &newChapterID, newOrderNum)
 			if err := uc.proseBlockRepo.Create(ctx, newProse); err != nil {
 				return nil, err
 			}

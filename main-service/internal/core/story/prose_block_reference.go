@@ -12,9 +12,12 @@ type EntityType string
 const (
 	EntityTypeScene     EntityType = "scene"
 	EntityTypeBeat      EntityType = "beat"
+	EntityTypeChapter   EntityType = "chapter"
 	EntityTypeCharacter EntityType = "character"
 	EntityTypeLocation  EntityType = "location"
-	EntityTypeTrait     EntityType = "trait"
+	EntityTypeArtifact  EntityType = "artifact"
+	EntityTypeEvent     EntityType = "event"
+	EntityTypeWorld     EntityType = "world"
 )
 
 // ProseBlockReference represents a reference from an entity to a prose block
@@ -52,8 +55,11 @@ func (r *ProseBlockReference) Validate() error {
 func isValidEntityType(entityType EntityType) bool {
 	return entityType == EntityTypeScene ||
 		entityType == EntityTypeBeat ||
+		entityType == EntityTypeChapter ||
 		entityType == EntityTypeCharacter ||
 		entityType == EntityTypeLocation ||
-		entityType == EntityTypeTrait
+		entityType == EntityTypeArtifact ||
+		entityType == EntityTypeEvent ||
+		entityType == EntityTypeWorld
 }
 

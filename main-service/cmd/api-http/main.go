@@ -18,6 +18,7 @@ import (
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
+	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
@@ -68,6 +69,8 @@ func main() {
 	beatRepo := postgres.NewBeatRepository(pgDB)
 	proseBlockRepo := postgres.NewProseBlockRepository(pgDB)
 	proseBlockReferenceRepo := postgres.NewProseBlockReferenceRepository(pgDB)
+	imageBlockRepo := postgres.NewImageBlockRepository(pgDB)
+	imageBlockReferenceRepo := postgres.NewImageBlockReferenceRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
 	transactionRepo := postgres.NewTransactionRepository(pgDB)
 
@@ -144,6 +147,14 @@ func main() {
 	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
 	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
 	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	createImageBlockUseCase := imageblockapp.NewCreateImageBlockUseCase(imageBlockRepo, chapterRepo, log)
+	getImageBlockUseCase := imageblockapp.NewGetImageBlockUseCase(imageBlockRepo, log)
+	listImageBlocksUseCase := imageblockapp.NewListImageBlocksUseCase(imageBlockRepo, log)
+	updateImageBlockUseCase := imageblockapp.NewUpdateImageBlockUseCase(imageBlockRepo, log)
+	deleteImageBlockUseCase := imageblockapp.NewDeleteImageBlockUseCase(imageBlockRepo, imageBlockReferenceRepo, log)
+	addImageBlockReferenceUseCase := imageblockapp.NewAddImageBlockReferenceUseCase(imageBlockRepo, imageBlockReferenceRepo, log)
+	removeImageBlockReferenceUseCase := imageblockapp.NewRemoveImageBlockReferenceUseCase(imageBlockReferenceRepo, log)
+	getImageBlockReferencesUseCase := imageblockapp.NewGetImageBlockReferencesUseCase(imageBlockReferenceRepo, log)
 
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -160,6 +171,7 @@ func main() {
 	beatHandler := httphandlers.NewBeatHandler(beatRepo, sceneRepo, storyRepo, log)
 	proseBlockHandler := httphandlers.NewProseBlockHandler(proseBlockRepo, chapterRepo, log)
 	proseBlockReferenceHandler := httphandlers.NewProseBlockReferenceHandler(proseBlockReferenceRepo, proseBlockRepo, log)
+	imageBlockHandler := httphandlers.NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, addImageBlockReferenceUseCase, removeImageBlockReferenceUseCase, getImageBlockReferencesUseCase, log)
 
 	// Create router
 	mux := http.NewServeMux()
@@ -274,6 +286,15 @@ func main() {
 	mux.HandleFunc("GET /api/v1/scenes/{id}/prose-blocks", proseBlockReferenceHandler.ListByScene)
 	mux.HandleFunc("GET /api/v1/beats/{id}/prose-blocks", proseBlockReferenceHandler.ListByBeat)
 	mux.HandleFunc("DELETE /api/v1/prose-block-references/{id}", proseBlockReferenceHandler.Delete)
+
+	mux.HandleFunc("GET /api/v1/chapters/{id}/image-blocks", imageBlockHandler.List)
+	mux.HandleFunc("POST /api/v1/chapters/{id}/image-blocks", imageBlockHandler.Create)
+	mux.HandleFunc("GET /api/v1/image-blocks/{id}", imageBlockHandler.Get)
+	mux.HandleFunc("PUT /api/v1/image-blocks/{id}", imageBlockHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/image-blocks/{id}", imageBlockHandler.Delete)
+	mux.HandleFunc("GET /api/v1/image-blocks/{id}/references", imageBlockHandler.GetReferences)
+	mux.HandleFunc("POST /api/v1/image-blocks/{id}/references", imageBlockHandler.AddReference)
+	mux.HandleFunc("DELETE /api/v1/image-blocks/{id}/references/{entity_type}/{entity_id}", imageBlockHandler.RemoveReference)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 

@@ -76,31 +76,35 @@ func (h *ProseBlockHandler) ListByChapter(w http.ResponseWriter, r *http.Request
 func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 	chapterIDStr := r.PathValue("id")
 
-	chapterID, err := uuid.Parse(chapterIDStr)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	// Validate chapter exists
-	_, err = h.chapterRepo.GetByID(r.Context(), chapterID)
-	if err != nil {
-		if err.Error() == "chapter not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "chapter",
-				ID:       chapterIDStr,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
+	var chapterID *uuid.UUID
+	if chapterIDStr != "" {
+		parsedChapterID, err := uuid.Parse(chapterIDStr)
+		if err != nil {
+			WriteError(w, &platformerrors.ValidationError{
+				Field:   "id",
+				Message: "invalid UUID format",
+			}, http.StatusBadRequest)
+			return
 		}
-		return
+
+		// Validate chapter exists if provided
+		_, err = h.chapterRepo.GetByID(r.Context(), parsedChapterID)
+		if err != nil {
+			if err.Error() == "chapter not found" {
+				WriteError(w, &platformerrors.NotFoundError{
+					Resource: "chapter",
+					ID:       chapterIDStr,
+				}, http.StatusNotFound)
+			} else {
+				WriteError(w, err, http.StatusInternalServerError)
+			}
+			return
+		}
+		chapterID = &parsedChapterID
 	}
 
 	var req struct {
-		OrderNum int    `json:"order_num"`
+		OrderNum *int   `json:"order_num,omitempty"`
 		Kind     string `json:"kind"`
 		Content  string `json:"content"`
 	}
@@ -113,7 +117,7 @@ func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.OrderNum < 1 {
+	if req.OrderNum != nil && *req.OrderNum < 1 {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "order_num",
 			Message: "must be greater than 0",

@@ -51,7 +51,6 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 		ChapterID      *string `json:"chapter_id,omitempty"`
 		OrderNum       int     `json:"order_num"`
 		POVCharacterID *string `json:"pov_character_id,omitempty"`
-		LocationID     *string `json:"location_id,omitempty"`
 		TimeRef        string  `json:"time_ref,omitempty"`
 		Goal           string  `json:"goal,omitempty"`
 	}
@@ -143,18 +142,6 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 		scene.UpdatePOV(&charID)
 	}
 
-	if req.LocationID != nil && *req.LocationID != "" {
-		locID, err := uuid.Parse(*req.LocationID)
-		if err != nil {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "location_id",
-				Message: "invalid UUID format",
-			}, http.StatusBadRequest)
-			return
-		}
-		scene.UpdateLocation(&locID)
-	}
-
 	if err := h.sceneRepo.Create(r.Context(), scene); err != nil {
 		h.logger.Error("failed to create scene", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
@@ -230,7 +217,6 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		OrderNum       *int    `json:"order_num,omitempty"`
 		POVCharacterID *string `json:"pov_character_id,omitempty"`
-		LocationID     *string `json:"location_id,omitempty"`
 		TimeRef        *string `json:"time_ref,omitempty"`
 		Goal           *string `json:"goal,omitempty"`
 	}
@@ -276,22 +262,6 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 			scene.UpdatePOV(&charID)
-		}
-	}
-
-	if req.LocationID != nil {
-		if *req.LocationID == "" {
-			scene.UpdateLocation(nil)
-		} else {
-			locID, err := uuid.Parse(*req.LocationID)
-			if err != nil {
-				WriteError(w, &platformerrors.ValidationError{
-					Field:   "location_id",
-					Message: "invalid UUID format",
-				}, http.StatusBadRequest)
-				return
-			}
-			scene.UpdateLocation(&locID)
 		}
 	}
 
