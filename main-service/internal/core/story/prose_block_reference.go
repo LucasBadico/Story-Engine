@@ -10,14 +10,18 @@ import (
 type EntityType string
 
 const (
-	EntityTypeScene     EntityType = "scene"
-	EntityTypeBeat      EntityType = "beat"
-	EntityTypeChapter   EntityType = "chapter"
-	EntityTypeCharacter EntityType = "character"
-	EntityTypeLocation  EntityType = "location"
-	EntityTypeArtifact  EntityType = "artifact"
-	EntityTypeEvent     EntityType = "event"
-	EntityTypeWorld     EntityType = "world"
+	EntityTypeScene         EntityType = "scene"
+	EntityTypeBeat          EntityType = "beat"
+	EntityTypeChapter       EntityType = "chapter"
+	EntityTypeCharacter     EntityType = "character"
+	EntityTypeLocation      EntityType = "location"
+	EntityTypeArtifact      EntityType = "artifact"
+	EntityTypeEvent         EntityType = "event"
+	EntityTypeWorld         EntityType = "world"
+	EntityTypeRPGSystem     EntityType = "rpg_system"
+	EntityTypeRPGSkill      EntityType = "rpg_skill"
+	EntityTypeRPGClass      EntityType = "rpg_class"
+	EntityTypeInventoryItem EntityType = "inventory_item"
 )
 
 // ProseBlockReference represents a reference from an entity to a prose block
@@ -60,6 +64,10 @@ func isValidEntityType(entityType EntityType) bool {
 		entityType == EntityTypeLocation ||
 		entityType == EntityTypeArtifact ||
 		entityType == EntityTypeEvent ||
-		entityType == EntityTypeWorld
+		entityType == EntityTypeWorld ||
+		entityType == EntityTypeRPGSystem ||
+		entityType == EntityTypeRPGSkill ||
+		entityType == EntityTypeRPGClass ||
+		entityType == EntityTypeInventoryItem
 }
 

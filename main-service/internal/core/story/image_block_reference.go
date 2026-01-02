@@ -15,14 +15,18 @@ var (
 type ImageBlockReferenceEntityType string
 
 const (
-	ImageBlockReferenceEntityTypeScene     ImageBlockReferenceEntityType = "scene"
-	ImageBlockReferenceEntityTypeBeat      ImageBlockReferenceEntityType = "beat"
-	ImageBlockReferenceEntityTypeChapter   ImageBlockReferenceEntityType = "chapter"
-	ImageBlockReferenceEntityTypeCharacter ImageBlockReferenceEntityType = "character"
-	ImageBlockReferenceEntityTypeLocation  ImageBlockReferenceEntityType = "location"
-	ImageBlockReferenceEntityTypeArtifact  ImageBlockReferenceEntityType = "artifact"
-	ImageBlockReferenceEntityTypeEvent     ImageBlockReferenceEntityType = "event"
-	ImageBlockReferenceEntityTypeWorld     ImageBlockReferenceEntityType = "world"
+	ImageBlockReferenceEntityTypeScene         ImageBlockReferenceEntityType = "scene"
+	ImageBlockReferenceEntityTypeBeat          ImageBlockReferenceEntityType = "beat"
+	ImageBlockReferenceEntityTypeChapter       ImageBlockReferenceEntityType = "chapter"
+	ImageBlockReferenceEntityTypeCharacter     ImageBlockReferenceEntityType = "character"
+	ImageBlockReferenceEntityTypeLocation      ImageBlockReferenceEntityType = "location"
+	ImageBlockReferenceEntityTypeArtifact      ImageBlockReferenceEntityType = "artifact"
+	ImageBlockReferenceEntityTypeEvent         ImageBlockReferenceEntityType = "event"
+	ImageBlockReferenceEntityTypeWorld         ImageBlockReferenceEntityType = "world"
+	ImageBlockReferenceEntityTypeRPGSystem     ImageBlockReferenceEntityType = "rpg_system"
+	ImageBlockReferenceEntityTypeRPGSkill      ImageBlockReferenceEntityType = "rpg_skill"
+	ImageBlockReferenceEntityTypeRPGClass      ImageBlockReferenceEntityType = "rpg_class"
+	ImageBlockReferenceEntityTypeInventoryItem ImageBlockReferenceEntityType = "inventory_item"
 )
 
 // ImageBlockReference represents a reference from an image block to an entity
@@ -65,6 +69,10 @@ func isValidImageBlockReferenceEntityType(entityType ImageBlockReferenceEntityTy
 		entityType == ImageBlockReferenceEntityTypeLocation ||
 		entityType == ImageBlockReferenceEntityTypeArtifact ||
 		entityType == ImageBlockReferenceEntityTypeEvent ||
-		entityType == ImageBlockReferenceEntityTypeWorld
+		entityType == ImageBlockReferenceEntityTypeWorld ||
+		entityType == ImageBlockReferenceEntityTypeRPGSystem ||
+		entityType == ImageBlockReferenceEntityTypeRPGSkill ||
+		entityType == ImageBlockReferenceEntityTypeRPGClass ||
+		entityType == ImageBlockReferenceEntityTypeInventoryItem
 }
 
