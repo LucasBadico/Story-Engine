@@ -107,7 +107,7 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.refRepo.Create(r.Context(), tenantID, ref); err != nil {
+	if err := h.refRepo.Create(r.Context(), ref); err != nil {
 		h.logger.Error("failed to create prose block reference", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return

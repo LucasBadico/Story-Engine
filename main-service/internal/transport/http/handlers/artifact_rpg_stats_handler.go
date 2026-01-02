@@ -39,6 +39,7 @@ func NewArtifactRPGStatsHandler(
 
 // GetActive handles GET /api/v1/artifacts/{id}/rpg-stats
 func (h *ArtifactRPGStatsHandler) GetActive(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -65,6 +66,7 @@ func (h *ArtifactRPGStatsHandler) GetActive(w http.ResponseWriter, r *http.Reque
 
 // Create handles POST /api/v1/artifacts/{id}/rpg-stats
 func (h *ArtifactRPGStatsHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -126,6 +128,7 @@ func (h *ArtifactRPGStatsHandler) Create(w http.ResponseWriter, r *http.Request)
 
 // ListHistory handles GET /api/v1/artifacts/{id}/rpg-stats/history
 func (h *ArtifactRPGStatsHandler) ListHistory(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -153,6 +156,7 @@ func (h *ArtifactRPGStatsHandler) ListHistory(w http.ResponseWriter, r *http.Req
 
 // ActivateVersion handles PUT /api/v1/artifacts/{id}/rpg-stats/{stats_id}/activate
 func (h *ArtifactRPGStatsHandler) ActivateVersion(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	statsIDStr := r.PathValue("stats_id")
 	statsID, err := uuid.Parse(statsIDStr)
 	if err != nil {

@@ -55,6 +55,7 @@ func NewLocationHandler(
 
 // Create handles POST /api/v1/worlds/:world_id/locations
 func (h *LocationHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -114,6 +115,7 @@ func (h *LocationHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/locations/{id}
 func (h *LocationHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationID, err := uuid.Parse(id)
 	if err != nil {
@@ -140,6 +142,7 @@ func (h *LocationHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/worlds/:world_id/locations?format=tree&limit=20&offset=0
 func (h *LocationHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -188,6 +191,7 @@ func (h *LocationHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/locations/{id}
 func (h *LocationHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationID, err := uuid.Parse(id)
 	if err != nil {
@@ -231,6 +235,7 @@ func (h *LocationHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/locations/{id}
 func (h *LocationHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationID, err := uuid.Parse(id)
 	if err != nil {
@@ -254,6 +259,7 @@ func (h *LocationHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // GetChildren handles GET /api/v1/locations/{id}/children
 func (h *LocationHandler) GetChildren(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationID, err := uuid.Parse(id)
 	if err != nil {
@@ -280,6 +286,7 @@ func (h *LocationHandler) GetChildren(w http.ResponseWriter, r *http.Request) {
 
 // GetAncestors handles GET /api/v1/locations/{id}/ancestors
 func (h *LocationHandler) GetAncestors(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationID, err := uuid.Parse(id)
 	if err != nil {
@@ -306,6 +313,7 @@ func (h *LocationHandler) GetAncestors(w http.ResponseWriter, r *http.Request) {
 
 // GetDescendants handles GET /api/v1/locations/{id}/descendants
 func (h *LocationHandler) GetDescendants(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationID, err := uuid.Parse(id)
 	if err != nil {
@@ -332,6 +340,7 @@ func (h *LocationHandler) GetDescendants(w http.ResponseWriter, r *http.Request)
 
 // Move handles PUT /api/v1/locations/{id}/move
 func (h *LocationHandler) Move(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationID, err := uuid.Parse(id)
 	if err != nil {

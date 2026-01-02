@@ -42,8 +42,8 @@ func NewRPGSystemHandler(
 
 // Create handles POST /api/v1/rpg-systems
 func (h *RPGSystemHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	var req struct {
-		TenantID          *string          `json:"tenant_id,omitempty"`
 		Name              string           `json:"name"`
 		Description       *string           `json:"description,omitempty"`
 		BaseStatsSchema   json.RawMessage  `json:"base_stats_schema"`
@@ -59,21 +59,8 @@ func (h *RPGSystemHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var tenantID *uuid.UUID
-	if req.TenantID != nil && *req.TenantID != "" {
-		parsedTenantID, err := uuid.Parse(*req.TenantID)
-		if err != nil {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "tenant_id",
-				Message: "invalid UUID format",
-			}, http.StatusBadRequest)
-			return
-		}
-		tenantID = &parsedTenantID
-	}
-
 	output, err := h.createRPGSystemUseCase.Execute(r.Context(), rpgsystemapp.CreateRPGSystemInput{
-		TenantID:          tenantID,
+		TenantID:          &tenantID,
 		Name:              req.Name,
 		Description:       req.Description,
 		BaseStatsSchema:   req.BaseStatsSchema,
@@ -94,6 +81,7 @@ func (h *RPGSystemHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/rpg-systems/{id}
 func (h *RPGSystemHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(id)
 	if err != nil {
@@ -120,22 +108,10 @@ func (h *RPGSystemHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/rpg-systems
 func (h *RPGSystemHandler) List(w http.ResponseWriter, r *http.Request) {
-	tenantIDStr := r.URL.Query().Get("tenant_id")
-	var tenantID *uuid.UUID
-	if tenantIDStr != "" {
-		parsedTenantID, err := uuid.Parse(tenantIDStr)
-		if err != nil {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "tenant_id",
-				Message: "invalid UUID format",
-			}, http.StatusBadRequest)
-			return
-		}
-		tenantID = &parsedTenantID
-	}
+	tenantID := middleware.GetTenantID(r.Context())
 
 	output, err := h.listRPGSystemsUseCase.Execute(r.Context(), rpgsystemapp.ListRPGSystemsInput{
-		TenantID: tenantID,
+		TenantID: &tenantID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -151,6 +127,7 @@ func (h *RPGSystemHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/rpg-systems/{id}
 func (h *RPGSystemHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(id)
 	if err != nil {
@@ -198,6 +175,7 @@ func (h *RPGSystemHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/rpg-systems/{id}
 func (h *RPGSystemHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(id)
 	if err != nil {

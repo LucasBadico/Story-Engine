@@ -13,14 +13,14 @@ import (
 
 // RPGClassHandler handles HTTP requests for RPG classes
 type RPGClassHandler struct {
-	createClassUseCase    *rpgclassapp.CreateRPGClassUseCase
-	getClassUseCase       *rpgclassapp.GetRPGClassUseCase
-	listClassesUseCase    *rpgclassapp.ListRPGClassesUseCase
-	updateClassUseCase    *rpgclassapp.UpdateRPGClassUseCase
-	deleteClassUseCase    *rpgclassapp.DeleteRPGClassUseCase
-	addSkillUseCase       *rpgclassapp.AddSkillToClassUseCase
+	createClassUseCase     *rpgclassapp.CreateRPGClassUseCase
+	getClassUseCase        *rpgclassapp.GetRPGClassUseCase
+	listClassesUseCase     *rpgclassapp.ListRPGClassesUseCase
+	updateClassUseCase     *rpgclassapp.UpdateRPGClassUseCase
+	deleteClassUseCase     *rpgclassapp.DeleteRPGClassUseCase
+	addSkillUseCase        *rpgclassapp.AddSkillToClassUseCase
 	listClassSkillsUseCase *rpgclassapp.ListClassSkillsUseCase
-	logger                logger.Logger
+	logger                 logger.Logger
 }
 
 // NewRPGClassHandler creates a new RPGClassHandler
@@ -35,19 +35,20 @@ func NewRPGClassHandler(
 	logger logger.Logger,
 ) *RPGClassHandler {
 	return &RPGClassHandler{
-		createClassUseCase:    createClassUseCase,
-		getClassUseCase:       getClassUseCase,
-		listClassesUseCase:    listClassesUseCase,
-		updateClassUseCase:    updateClassUseCase,
-		deleteClassUseCase:    deleteClassUseCase,
-		addSkillUseCase:       addSkillUseCase,
+		createClassUseCase:     createClassUseCase,
+		getClassUseCase:        getClassUseCase,
+		listClassesUseCase:     listClassesUseCase,
+		updateClassUseCase:     updateClassUseCase,
+		deleteClassUseCase:     deleteClassUseCase,
+		addSkillUseCase:        addSkillUseCase,
 		listClassSkillsUseCase: listClassSkillsUseCase,
-		logger:                logger,
+		logger:                 logger,
 	}
 }
 
 // Create handles POST /api/v1/rpg-systems/{id}/classes
 func (h *RPGClassHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -89,13 +90,13 @@ func (h *RPGClassHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.createClassUseCase.Execute(r.Context(), rpgclassapp.CreateRPGClassInput{
-		RPGSystemID:  rpgSystemID,
+		RPGSystemID:   rpgSystemID,
 		ParentClassID: parentClassID,
-		Name:         req.Name,
-		Tier:         req.Tier,
-		Description:  req.Description,
-		Requirements: req.Requirements,
-		StatBonuses:  req.StatBonuses,
+		Name:          req.Name,
+		Tier:          req.Tier,
+		Description:   req.Description,
+		Requirements:  req.Requirements,
+		StatBonuses:   req.StatBonuses,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -111,6 +112,7 @@ func (h *RPGClassHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/rpg-classes/{id}
 func (h *RPGClassHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -137,6 +139,7 @@ func (h *RPGClassHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/rpg-systems/{id}/classes
 func (h *RPGClassHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -162,7 +165,7 @@ func (h *RPGClassHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listClassesUseCase.Execute(r.Context(), rpgclassapp.ListRPGClassesInput{
-		RPGSystemID:  rpgSystemID,
+		RPGSystemID:   rpgSystemID,
 		ParentClassID: parentClassID,
 	})
 	if err != nil {
@@ -179,6 +182,7 @@ func (h *RPGClassHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/rpg-classes/{id}
 func (h *RPGClassHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -241,6 +245,7 @@ func (h *RPGClassHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/rpg-classes/{id}
 func (h *RPGClassHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -263,6 +268,7 @@ func (h *RPGClassHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // ListSkills handles GET /api/v1/rpg-classes/{id}/skills
 func (h *RPGClassHandler) ListSkills(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -290,6 +296,7 @@ func (h *RPGClassHandler) ListSkills(w http.ResponseWriter, r *http.Request) {
 
 // AddSkill handles POST /api/v1/rpg-classes/{id}/skills
 func (h *RPGClassHandler) AddSkill(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -329,5 +336,3 @@ func (h *RPGClassHandler) AddSkill(w http.ResponseWriter, r *http.Request) {
 		"class_skill": output.ClassSkill,
 	})
 }
-
-

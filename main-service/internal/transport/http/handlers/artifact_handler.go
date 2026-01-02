@@ -53,6 +53,7 @@ func NewArtifactHandler(
 
 // Create handles POST /api/v1/worlds/:world_id/artifacts
 func (h *ArtifactHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -127,6 +128,7 @@ func (h *ArtifactHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/artifacts/{id}
 func (h *ArtifactHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -153,6 +155,7 @@ func (h *ArtifactHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/worlds/:world_id/artifacts?limit=20&offset=0
 func (h *ArtifactHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -199,6 +202,7 @@ func (h *ArtifactHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/artifacts/{id}
 func (h *ArtifactHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -280,6 +284,7 @@ func (h *ArtifactHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/artifacts/{id}
 func (h *ArtifactHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -303,6 +308,7 @@ func (h *ArtifactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // GetReferences handles GET /api/v1/artifacts/{id}/references
 func (h *ArtifactHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -329,6 +335,7 @@ func (h *ArtifactHandler) GetReferences(w http.ResponseWriter, r *http.Request) 
 
 // AddReference handles POST /api/v1/artifacts/{id}/references
 func (h *ArtifactHandler) AddReference(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {
@@ -385,6 +392,7 @@ func (h *ArtifactHandler) AddReference(w http.ResponseWriter, r *http.Request) {
 
 // RemoveReference handles DELETE /api/v1/artifacts/{id}/references/{entity_type}/{entity_id}
 func (h *ArtifactHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactID, err := uuid.Parse(id)
 	if err != nil {

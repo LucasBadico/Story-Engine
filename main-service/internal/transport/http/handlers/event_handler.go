@@ -73,6 +73,7 @@ func NewEventHandler(
 
 // Create handles POST /api/v1/worlds/:world_id/events
 func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -121,6 +122,7 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/events/{id}
 func (h *EventHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -147,6 +149,7 @@ func (h *EventHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/worlds/:world_id/events
 func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -174,6 +177,7 @@ func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/events/{id}
 func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -221,6 +225,7 @@ func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/events/{id}
 func (h *EventHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -243,6 +248,7 @@ func (h *EventHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // AddCharacter handles POST /api/v1/events/{id}/characters
 func (h *EventHandler) AddCharacter(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -289,6 +295,7 @@ func (h *EventHandler) AddCharacter(w http.ResponseWriter, r *http.Request) {
 
 // RemoveCharacter handles DELETE /api/v1/events/{id}/characters/{character_id}
 func (h *EventHandler) RemoveCharacter(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterIDStr := r.PathValue("character_id")
 
@@ -323,6 +330,7 @@ func (h *EventHandler) RemoveCharacter(w http.ResponseWriter, r *http.Request) {
 
 // GetCharacters handles GET /api/v1/events/{id}/characters
 func (h *EventHandler) GetCharacters(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -350,6 +358,7 @@ func (h *EventHandler) GetCharacters(w http.ResponseWriter, r *http.Request) {
 
 // AddLocation handles POST /api/v1/events/{id}/locations
 func (h *EventHandler) AddLocation(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -396,6 +405,7 @@ func (h *EventHandler) AddLocation(w http.ResponseWriter, r *http.Request) {
 
 // RemoveLocation handles DELETE /api/v1/events/{id}/locations/{location_id}
 func (h *EventHandler) RemoveLocation(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	locationIDStr := r.PathValue("location_id")
 
@@ -430,6 +440,7 @@ func (h *EventHandler) RemoveLocation(w http.ResponseWriter, r *http.Request) {
 
 // GetLocations handles GET /api/v1/events/{id}/locations
 func (h *EventHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -457,6 +468,7 @@ func (h *EventHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 
 // AddArtifact handles POST /api/v1/events/{id}/artifacts
 func (h *EventHandler) AddArtifact(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -503,6 +515,7 @@ func (h *EventHandler) AddArtifact(w http.ResponseWriter, r *http.Request) {
 
 // RemoveArtifact handles DELETE /api/v1/events/{id}/artifacts/{artifact_id}
 func (h *EventHandler) RemoveArtifact(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	artifactIDStr := r.PathValue("artifact_id")
 
@@ -537,6 +550,7 @@ func (h *EventHandler) RemoveArtifact(w http.ResponseWriter, r *http.Request) {
 
 // GetArtifacts handles GET /api/v1/events/{id}/artifacts
 func (h *EventHandler) GetArtifacts(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -564,6 +578,7 @@ func (h *EventHandler) GetArtifacts(w http.ResponseWriter, r *http.Request) {
 
 // GetStatChanges handles GET /api/v1/events/{id}/stat-changes
 func (h *EventHandler) GetStatChanges(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
 	if err != nil {

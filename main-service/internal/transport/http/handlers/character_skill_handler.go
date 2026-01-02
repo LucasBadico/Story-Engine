@@ -39,6 +39,7 @@ func NewCharacterSkillHandler(
 
 // Learn handles POST /api/v1/characters/{id}/skills
 func (h *CharacterSkillHandler) Learn(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	characterIDStr := r.PathValue("id")
 	characterID, err := uuid.Parse(characterIDStr)
 	if err != nil {
@@ -79,6 +80,7 @@ func (h *CharacterSkillHandler) Learn(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/characters/{id}/skills
 func (h *CharacterSkillHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	characterIDStr := r.PathValue("id")
 	characterID, err := uuid.Parse(characterIDStr)
 	if err != nil {
@@ -109,6 +111,7 @@ func (h *CharacterSkillHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/characters/{id}/skills/{skill_id}
 func (h *CharacterSkillHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	_, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
@@ -156,6 +159,7 @@ func (h *CharacterSkillHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/characters/{id}/skills/{skill_id}
 func (h *CharacterSkillHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	_, err := uuid.Parse(r.PathValue("id"))
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
@@ -183,6 +187,7 @@ func (h *CharacterSkillHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // UpdateByID handles PUT /api/v1/character-skills/{id}
 func (h *CharacterSkillHandler) UpdateByID(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterSkillID, err := uuid.Parse(id)
 	if err != nil {
@@ -226,6 +231,7 @@ func (h *CharacterSkillHandler) UpdateByID(w http.ResponseWriter, r *http.Reques
 
 // DeleteByID handles DELETE /api/v1/character-skills/{id}
 func (h *CharacterSkillHandler) DeleteByID(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterSkillID, err := uuid.Parse(id)
 	if err != nil {

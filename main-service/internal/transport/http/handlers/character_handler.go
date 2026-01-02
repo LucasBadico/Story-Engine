@@ -62,6 +62,7 @@ func NewCharacterHandler(
 
 // Create handles POST /api/v1/worlds/:world_id/characters
 func (h *CharacterHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -119,6 +120,7 @@ func (h *CharacterHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/characters/{id}
 func (h *CharacterHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -145,6 +147,7 @@ func (h *CharacterHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/worlds/:world_id/characters?limit=20&offset=0
 func (h *CharacterHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	worldIDStr := r.PathValue("world_id")
 	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
@@ -191,6 +194,7 @@ func (h *CharacterHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/characters/{id}
 func (h *CharacterHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -251,6 +255,7 @@ func (h *CharacterHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/characters/{id}
 func (h *CharacterHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -274,6 +279,7 @@ func (h *CharacterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // GetTraits handles GET /api/v1/characters/{id}/traits
 func (h *CharacterHandler) GetTraits(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -300,6 +306,7 @@ func (h *CharacterHandler) GetTraits(w http.ResponseWriter, r *http.Request) {
 
 // AddTrait handles POST /api/v1/characters/{id}/traits
 func (h *CharacterHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -349,6 +356,7 @@ func (h *CharacterHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTrait handles DELETE /api/v1/characters/{id}/traits/{trait_id}
 func (h *CharacterHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -383,6 +391,7 @@ func (h *CharacterHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTrait handles PUT /api/v1/characters/{id}/traits/{trait_id}
 func (h *CharacterHandler) UpdateTrait(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -435,6 +444,7 @@ func (h *CharacterHandler) UpdateTrait(w http.ResponseWriter, r *http.Request) {
 
 // ChangeClass handles PUT /api/v1/characters/{id}/class
 func (h *CharacterHandler) ChangeClass(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -489,6 +499,7 @@ func (h *CharacterHandler) ChangeClass(w http.ResponseWriter, r *http.Request) {
 
 // GetAvailableClasses handles GET /api/v1/characters/{id}/available-classes
 func (h *CharacterHandler) GetAvailableClasses(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {

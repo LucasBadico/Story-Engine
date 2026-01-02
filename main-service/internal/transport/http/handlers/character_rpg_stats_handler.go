@@ -42,6 +42,7 @@ func NewCharacterRPGStatsHandler(
 
 // GetActive handles GET /api/v1/characters/{id}/rpg-stats
 func (h *CharacterRPGStatsHandler) GetActive(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -68,6 +69,7 @@ func (h *CharacterRPGStatsHandler) GetActive(w http.ResponseWriter, r *http.Requ
 
 // Create handles POST /api/v1/characters/{id}/rpg-stats
 func (h *CharacterRPGStatsHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -133,6 +135,7 @@ func (h *CharacterRPGStatsHandler) Create(w http.ResponseWriter, r *http.Request
 
 // ListHistory handles GET /api/v1/characters/{id}/rpg-stats/history
 func (h *CharacterRPGStatsHandler) ListHistory(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {
@@ -160,6 +163,7 @@ func (h *CharacterRPGStatsHandler) ListHistory(w http.ResponseWriter, r *http.Re
 
 // ActivateVersion handles PUT /api/v1/characters/{id}/rpg-stats/{stats_id}/activate
 func (h *CharacterRPGStatsHandler) ActivateVersion(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	statsIDStr := r.PathValue("stats_id")
 	statsID, err := uuid.Parse(statsIDStr)
 	if err != nil {
@@ -186,6 +190,7 @@ func (h *CharacterRPGStatsHandler) ActivateVersion(w http.ResponseWriter, r *htt
 
 // DeleteAll handles DELETE /api/v1/characters/{id}/rpg-stats
 func (h *CharacterRPGStatsHandler) DeleteAll(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	characterID, err := uuid.Parse(id)
 	if err != nil {

@@ -72,6 +72,7 @@ func NewInventoryHandler(
 
 // CreateSlot handles POST /api/v1/rpg-systems/{id}/inventory-slots
 func (h *InventoryHandler) CreateSlot(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -114,6 +115,7 @@ func (h *InventoryHandler) CreateSlot(w http.ResponseWriter, r *http.Request) {
 
 // ListSlots handles GET /api/v1/rpg-systems/{id}/inventory-slots
 func (h *InventoryHandler) ListSlots(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -141,6 +143,7 @@ func (h *InventoryHandler) ListSlots(w http.ResponseWriter, r *http.Request) {
 
 // CreateItem handles POST /api/v1/rpg-systems/{id}/inventory-items
 func (h *InventoryHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -216,6 +219,7 @@ func (h *InventoryHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 
 // GetItem handles GET /api/v1/inventory-items/{id}
 func (h *InventoryHandler) GetItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	itemID, err := uuid.Parse(id)
 	if err != nil {
@@ -242,6 +246,7 @@ func (h *InventoryHandler) GetItem(w http.ResponseWriter, r *http.Request) {
 
 // ListItems handles GET /api/v1/rpg-systems/{id}/inventory-items
 func (h *InventoryHandler) ListItems(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -284,6 +289,7 @@ func (h *InventoryHandler) ListItems(w http.ResponseWriter, r *http.Request) {
 
 // UpdateItem handles PUT /api/v1/inventory-items/{id}
 func (h *InventoryHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	itemID, err := uuid.Parse(id)
 	if err != nil {
@@ -358,6 +364,7 @@ func (h *InventoryHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 
 // DeleteItem handles DELETE /api/v1/inventory-items/{id}
 func (h *InventoryHandler) DeleteItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	itemID, err := uuid.Parse(id)
 	if err != nil {
@@ -380,6 +387,7 @@ func (h *InventoryHandler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 
 // AddItem handles POST /api/v1/characters/{id}/inventory
 func (h *InventoryHandler) AddItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	characterIDStr := r.PathValue("id")
 	characterID, err := uuid.Parse(characterIDStr)
 	if err != nil {
@@ -424,6 +432,7 @@ func (h *InventoryHandler) AddItem(w http.ResponseWriter, r *http.Request) {
 
 // ListInventory handles GET /api/v1/characters/{id}/inventory
 func (h *InventoryHandler) ListInventory(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	characterIDStr := r.PathValue("id")
 	characterID, err := uuid.Parse(characterIDStr)
 	if err != nil {
@@ -454,6 +463,7 @@ func (h *InventoryHandler) ListInventory(w http.ResponseWriter, r *http.Request)
 
 // UpdateInventory handles PUT /api/v1/character-inventory/{id}
 func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	inventoryID, err := uuid.Parse(id)
 	if err != nil {
@@ -499,6 +509,7 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 
 // EquipItem handles PUT /api/v1/character-inventory/{id}/equip
 func (h *InventoryHandler) EquipItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	inventoryID, err := uuid.Parse(id)
 	if err != nil {
@@ -525,6 +536,7 @@ func (h *InventoryHandler) EquipItem(w http.ResponseWriter, r *http.Request) {
 
 // UnequipItem handles PUT /api/v1/character-inventory/{id}/unequip
 func (h *InventoryHandler) UnequipItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	inventoryID, err := uuid.Parse(id)
 	if err != nil {
@@ -551,6 +563,7 @@ func (h *InventoryHandler) UnequipItem(w http.ResponseWriter, r *http.Request) {
 
 // DeleteInventory handles DELETE /api/v1/character-inventory/{id}
 func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	inventoryID, err := uuid.Parse(id)
 	if err != nil {
@@ -573,6 +586,7 @@ func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Reques
 
 // TransferItem handles POST /api/v1/character-inventory/{id}/transfer
 func (h *InventoryHandler) TransferItem(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	inventoryID, err := uuid.Parse(id)
 	if err != nil {

@@ -96,8 +96,7 @@ func (h *ArchetypeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getArchetypeUseCase.Execute(r.Context(), archetypeapp.GetArchetypeInput{
-		TenantID: tenantID,
-		ID:       archetypeID,
+		ID: archetypeID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -176,8 +175,7 @@ func (h *ArchetypeHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateArchetypeUseCase.Execute(r.Context(), archetypeapp.UpdateArchetypeInput{
-		TenantID:    tenantID,
-		ID:          archetypeID,
+		ID: archetypeID,
 		Name:        req.Name,
 		Description: req.Description,
 	})
@@ -207,8 +205,7 @@ func (h *ArchetypeHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteArchetypeUseCase.Execute(r.Context(), archetypeapp.DeleteArchetypeInput{
-		TenantID: tenantID,
-		ID:       archetypeID,
+		ID: archetypeID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -255,8 +252,7 @@ func (h *ArchetypeHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.addTraitUseCase.Execute(r.Context(), archetypeapp.AddTraitToArchetypeInput{
-		TenantID:     tenantID,
-		ArchetypeID:  archetypeID,
+		ArchetypeID: archetypeID,
 		TraitID:      traitID,
 		DefaultValue: req.DefaultValue,
 	})
@@ -293,7 +289,6 @@ func (h *ArchetypeHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.removeTraitUseCase.Execute(r.Context(), archetypeapp.RemoveTraitFromArchetypeInput{
-		TenantID:    tenantID,
 		ArchetypeID: archetypeID,
 		TraitID:     traitID,
 	})

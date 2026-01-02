@@ -98,8 +98,7 @@ func (h *WorldHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getWorldUseCase.Execute(r.Context(), worldapp.GetWorldInput{
-		TenantID: tenantID,
-		ID:       worldID,
+		ID: worldID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -179,8 +178,7 @@ func (h *WorldHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateWorldUseCase.Execute(r.Context(), worldapp.UpdateWorldInput{
-		TenantID:    tenantID,
-		ID:          worldID,
+		ID: worldID,
 		Name:        req.Name,
 		Description: req.Description,
 		Genre:       req.Genre,
@@ -211,8 +209,7 @@ func (h *WorldHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteWorldUseCase.Execute(r.Context(), worldapp.DeleteWorldInput{
-		TenantID: tenantID,
-		ID:       worldID,
+		ID: worldID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
