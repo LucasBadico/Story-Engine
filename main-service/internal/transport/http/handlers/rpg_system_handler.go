@@ -8,6 +8,7 @@ import (
 	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // RPGSystemHandler handles HTTP requests for RPG systems

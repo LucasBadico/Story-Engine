@@ -8,6 +8,7 @@ import (
 	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ArtifactRPGStatsHandler handles HTTP requests for artifact RPG stats

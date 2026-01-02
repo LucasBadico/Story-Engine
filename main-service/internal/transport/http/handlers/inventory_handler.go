@@ -11,6 +11,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/rpg"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // InventoryHandler handles HTTP requests for inventory operations

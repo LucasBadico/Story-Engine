@@ -8,6 +8,7 @@ import (
 	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // RPGClassHandler handles HTTP requests for RPG classes

@@ -8,6 +8,7 @@ import (
 	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // CharacterSkillHandler handles HTTP requests for character skills

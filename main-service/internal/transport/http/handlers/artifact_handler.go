@@ -10,6 +10,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ArtifactHandler handles HTTP requests for artifacts

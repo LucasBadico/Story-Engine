@@ -8,6 +8,7 @@ import (
 	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // CharacterRPGStatsHandler handles HTTP requests for character RPG stats

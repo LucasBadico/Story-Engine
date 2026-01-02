@@ -9,13 +9,14 @@ import (
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ProseBlockReferenceHandler handles HTTP requests for prose block references
 type ProseBlockReferenceHandler struct {
-	refRepo      repositories.ProseBlockReferenceRepository
+	refRepo        repositories.ProseBlockReferenceRepository
 	proseBlockRepo repositories.ProseBlockRepository
-	logger       logger.Logger
+	logger         logger.Logger
 }
 
 // NewProseBlockReferenceHandler creates a new ProseBlockReferenceHandler
@@ -33,6 +34,7 @@ func NewProseBlockReferenceHandler(
 
 // Create handles POST /api/v1/prose-blocks/{id}/references
 func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	proseBlockIDStr := r.PathValue("id")
 
 	proseBlockID, err := uuid.Parse(proseBlockIDStr)
@@ -45,7 +47,7 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Validate prose block exists
-	_, err = h.proseBlockRepo.GetByID(r.Context(), proseBlockID)
+	_, err = h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
 	if err != nil {
 		if err.Error() == "prose block not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -105,7 +107,7 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.refRepo.Create(r.Context(), ref); err != nil {
+	if err := h.refRepo.Create(r.Context(), tenantID, ref); err != nil {
 		h.logger.Error("failed to create prose block reference", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -120,6 +122,7 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 
 // ListByProseBlock handles GET /api/v1/prose-blocks/{id}/references
 func (h *ProseBlockReferenceHandler) ListByProseBlock(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	proseBlockIDStr := r.PathValue("id")
 
 	proseBlockID, err := uuid.Parse(proseBlockIDStr)
@@ -132,7 +135,7 @@ func (h *ProseBlockReferenceHandler) ListByProseBlock(w http.ResponseWriter, r *
 	}
 
 	// Validate prose block exists
-	_, err = h.proseBlockRepo.GetByID(r.Context(), proseBlockID)
+	_, err = h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
 	if err != nil {
 		if err.Error() == "prose block not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -145,7 +148,7 @@ func (h *ProseBlockReferenceHandler) ListByProseBlock(w http.ResponseWriter, r *
 		return
 	}
 
-	references, err := h.refRepo.ListByProseBlock(r.Context(), proseBlockID)
+	references, err := h.refRepo.ListByProseBlock(r.Context(), tenantID, proseBlockID)
 	if err != nil {
 		h.logger.Error("failed to list prose block references", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
@@ -161,6 +164,7 @@ func (h *ProseBlockReferenceHandler) ListByProseBlock(w http.ResponseWriter, r *
 
 // ListByScene handles GET /api/v1/scenes/{id}/prose-blocks
 func (h *ProseBlockReferenceHandler) ListByScene(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	entityIDStr := r.PathValue("id")
 	entityTypeStr := "scene"
 
@@ -181,7 +185,7 @@ func (h *ProseBlockReferenceHandler) ListByScene(w http.ResponseWriter, r *http.
 		return
 	}
 
-	references, err := h.refRepo.ListByEntity(r.Context(), story.EntityType(entityTypeStr), entityID)
+	references, err := h.refRepo.ListByEntity(r.Context(), tenantID, story.EntityType(entityTypeStr), entityID)
 	if err != nil {
 		h.logger.Error("failed to list prose block references by entity", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
@@ -191,7 +195,7 @@ func (h *ProseBlockReferenceHandler) ListByScene(w http.ResponseWriter, r *http.
 	// Get prose blocks for each reference
 	proseBlocks := make([]*story.ProseBlock, 0, len(references))
 	for _, ref := range references {
-		proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), ref.ProseBlockID)
+		proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, ref.ProseBlockID)
 		if err != nil {
 			h.logger.Error("failed to get prose block", "prose_block_id", ref.ProseBlockID, "error", err)
 			continue
@@ -208,6 +212,7 @@ func (h *ProseBlockReferenceHandler) ListByScene(w http.ResponseWriter, r *http.
 
 // ListByBeat handles GET /api/v1/beats/{id}/prose-blocks
 func (h *ProseBlockReferenceHandler) ListByBeat(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	entityIDStr := r.PathValue("id")
 	entityTypeStr := "beat"
 
@@ -220,7 +225,7 @@ func (h *ProseBlockReferenceHandler) ListByBeat(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	references, err := h.refRepo.ListByEntity(r.Context(), story.EntityType(entityTypeStr), entityID)
+	references, err := h.refRepo.ListByEntity(r.Context(), tenantID, story.EntityType(entityTypeStr), entityID)
 	if err != nil {
 		h.logger.Error("failed to list prose block references by entity", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
@@ -230,7 +235,7 @@ func (h *ProseBlockReferenceHandler) ListByBeat(w http.ResponseWriter, r *http.R
 	// Get prose blocks for each reference
 	proseBlocks := make([]*story.ProseBlock, 0, len(references))
 	for _, ref := range references {
-		proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), ref.ProseBlockID)
+		proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, ref.ProseBlockID)
 		if err != nil {
 			h.logger.Error("failed to get prose block", "prose_block_id", ref.ProseBlockID, "error", err)
 			continue
@@ -247,6 +252,7 @@ func (h *ProseBlockReferenceHandler) ListByBeat(w http.ResponseWriter, r *http.R
 
 // Delete handles DELETE /api/v1/prose-block-references/{id}
 func (h *ProseBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 
 	refID, err := uuid.Parse(id)
@@ -259,7 +265,7 @@ func (h *ProseBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Reque
 	}
 
 	// Check if reference exists
-	_, err = h.refRepo.GetByID(r.Context(), refID)
+	_, err = h.refRepo.GetByID(r.Context(), tenantID, refID)
 	if err != nil {
 		if err.Error() == "prose block reference not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -272,7 +278,7 @@ func (h *ProseBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := h.refRepo.Delete(r.Context(), refID); err != nil {
+	if err := h.refRepo.Delete(r.Context(), tenantID, refID); err != nil {
 		h.logger.Error("failed to delete prose block reference", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -280,4 +286,3 @@ func (h *ProseBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Reque
 
 	w.WriteHeader(http.StatusNoContent)
 }
-

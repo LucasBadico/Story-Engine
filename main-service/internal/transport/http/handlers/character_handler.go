@@ -10,6 +10,7 @@ import (
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // CharacterHandler handles HTTP requests for characters
