@@ -77,7 +77,7 @@ func TestCreateStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Verify story can be retrieved
-		retrieved, err := storyRepo.GetByID(ctx, output.Story.ID)
+		retrieved, err := storyRepo.GetByID(ctx, tenantOutput.Tenant.ID, output.Story.ID)
 		if err != nil {
 			t.Fatalf("failed to retrieve story: %v", err)
 		}

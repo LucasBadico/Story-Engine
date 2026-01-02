@@ -7,10 +7,26 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
+	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
+	"github.com/story-engine/main-service/internal/application/story"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	locationapp "github.com/story-engine/main-service/internal/application/world/location"
+	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
+	"github.com/story-engine/main-service/internal/application/tenant"
+	"github.com/story-engine/main-service/internal/application/world"
+	"github.com/story-engine/main-service/internal/platform/logger"
+	artifactpb "github.com/story-engine/main-service/proto/artifact"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
+	characterpb "github.com/story-engine/main-service/proto/character"
+	locationpb "github.com/story-engine/main-service/proto/location"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
+	worldpb "github.com/story-engine/main-service/proto/world"
+	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
@@ -331,6 +347,387 @@ func TestSceneHandler_DeleteScene(t *testing.T) {
 			t.Error("expected success to be true")
 		}
 	})
+}
+
+func TestSceneHandler_AddSceneReference(t *testing.T) {
+	conn, cleanup := setupTestServerWithSceneReferences(t)
+	defer cleanup()
+
+	sceneClient := scenepb.NewSceneServiceClient(conn)
+	storyClient := storypb.NewStoryServiceClient(conn)
+	characterClient := characterpb.NewCharacterServiceClient(conn)
+	locationClient := locationpb.NewLocationServiceClient(conn)
+	artifactClient := artifactpb.NewArtifactServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+	worldClient := worldpb.NewWorldServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Test Tenant for Scene References",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		StoryId:  storyResp.Story.Id,
+		OrderNum: 1,
+	})
+
+	t.Run("add character reference", func(t *testing.T) {
+		characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+			WorldId: worldResp.World.Id,
+			Name:    "Test Character",
+		})
+
+		addResp, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "character",
+			EntityId:   characterResp.Character.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if addResp.Reference.EntityType != "character" {
+			t.Errorf("expected entity_type 'character', got '%s'", addResp.Reference.EntityType)
+		}
+		if addResp.Reference.EntityId != characterResp.Character.Id {
+			t.Errorf("expected entity_id %s, got %s", characterResp.Character.Id, addResp.Reference.EntityId)
+		}
+	})
+
+	t.Run("add location reference", func(t *testing.T) {
+		locationResp, _ := locationClient.CreateLocation(ctx, &locationpb.CreateLocationRequest{
+			WorldId: worldResp.World.Id,
+			Name:    "Test Location",
+		})
+
+		addResp, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "location",
+			EntityId:   locationResp.Location.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if addResp.Reference.EntityType != "location" {
+			t.Errorf("expected entity_type 'location', got '%s'", addResp.Reference.EntityType)
+		}
+	})
+
+	t.Run("add artifact reference", func(t *testing.T) {
+		artifactResp, _ := artifactClient.CreateArtifact(ctx, &artifactpb.CreateArtifactRequest{
+			WorldId: worldResp.World.Id,
+			Name:    "Test Artifact",
+		})
+
+		addResp, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "artifact",
+			EntityId:   artifactResp.Artifact.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if addResp.Reference.EntityType != "artifact" {
+			t.Errorf("expected entity_type 'artifact', got '%s'", addResp.Reference.EntityType)
+		}
+	})
+
+	t.Run("invalid entity type", func(t *testing.T) {
+		_, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "invalid",
+			EntityId:   uuid.New().String(),
+		})
+		if err == nil {
+			t.Fatal("expected error for invalid entity type")
+		}
+		s, _ := status.FromError(err)
+		if s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", s.Code())
+		}
+	})
+
+	t.Run("invalid scene_id", func(t *testing.T) {
+		_, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    uuid.New().String(),
+			EntityType: "character",
+			EntityId:   uuid.New().String(),
+		})
+		if err == nil {
+			t.Fatal("expected error for invalid scene_id")
+		}
+		s, _ := status.FromError(err)
+		if s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", s.Code())
+		}
+	})
+}
+
+func TestSceneHandler_RemoveSceneReference(t *testing.T) {
+	conn, cleanup := setupTestServerWithSceneReferences(t)
+	defer cleanup()
+
+	sceneClient := scenepb.NewSceneServiceClient(conn)
+	storyClient := storypb.NewStoryServiceClient(conn)
+	characterClient := characterpb.NewCharacterServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+	worldClient := worldpb.NewWorldServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Test Tenant for Remove Reference",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		StoryId:  storyResp.Story.Id,
+		OrderNum: 1,
+	})
+	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+		WorldId: worldResp.World.Id,
+		Name:    "Test Character",
+	})
+
+	t.Run("successful remove", func(t *testing.T) {
+		// Add reference first
+		_, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "character",
+			EntityId:   characterResp.Character.Id,
+		})
+		if err != nil {
+			t.Fatalf("failed to add reference: %v", err)
+		}
+
+		// Remove reference
+		_, err = sceneClient.RemoveSceneReference(ctx, &scenepb.RemoveSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "character",
+			EntityId:   characterResp.Character.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify it's removed
+		getResp, err := sceneClient.GetSceneReferences(ctx, &scenepb.GetSceneReferencesRequest{
+			SceneId: sceneResp.Scene.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(getResp.References) != 0 {
+			t.Errorf("expected 0 references, got %d", len(getResp.References))
+		}
+	})
+
+	t.Run("remove non-existing reference", func(t *testing.T) {
+		_, err := sceneClient.RemoveSceneReference(ctx, &scenepb.RemoveSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "character",
+			EntityId:   uuid.New().String(),
+		})
+		if err == nil {
+			t.Fatal("expected error for non-existing reference")
+		}
+		s, _ := status.FromError(err)
+		if s.Code() != codes.NotFound {
+			t.Errorf("expected NotFound, got %v", s.Code())
+		}
+	})
+}
+
+func TestSceneHandler_GetSceneReferences(t *testing.T) {
+	conn, cleanup := setupTestServerWithSceneReferences(t)
+	defer cleanup()
+
+	sceneClient := scenepb.NewSceneServiceClient(conn)
+	storyClient := storypb.NewStoryServiceClient(conn)
+	characterClient := characterpb.NewCharacterServiceClient(conn)
+	locationClient := locationpb.NewLocationServiceClient(conn)
+	artifactClient := artifactpb.NewArtifactServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+	worldClient := worldpb.NewWorldServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Test Tenant for Get References",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		StoryId:  storyResp.Story.Id,
+		OrderNum: 1,
+	})
+
+	t.Run("get multiple references", func(t *testing.T) {
+		characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+			WorldId: worldResp.World.Id,
+			Name:    "Test Character",
+		})
+		locationResp, _ := locationClient.CreateLocation(ctx, &locationpb.CreateLocationRequest{
+			WorldId: worldResp.World.Id,
+			Name:    "Test Location",
+		})
+		artifactResp, _ := artifactClient.CreateArtifact(ctx, &artifactpb.CreateArtifactRequest{
+			WorldId: worldResp.World.Id,
+			Name:    "Test Artifact",
+		})
+
+		// Add references
+		_, _ = sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "character",
+			EntityId:   characterResp.Character.Id,
+		})
+		_, _ = sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "location",
+			EntityId:   locationResp.Location.Id,
+		})
+		_, _ = sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
+			SceneId:    sceneResp.Scene.Id,
+			EntityType: "artifact",
+			EntityId:   artifactResp.Artifact.Id,
+		})
+
+		// Get references
+		getResp, err := sceneClient.GetSceneReferences(ctx, &scenepb.GetSceneReferencesRequest{
+			SceneId: sceneResp.Scene.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(getResp.References) != 3 {
+			t.Errorf("expected 3 references, got %d", len(getResp.References))
+		}
+		if getResp.TotalCount != 3 {
+			t.Errorf("expected total_count 3, got %d", getResp.TotalCount)
+		}
+	})
+
+	t.Run("get empty references", func(t *testing.T) {
+		newSceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+			StoryId:  storyResp.Story.Id,
+			OrderNum: 2,
+		})
+
+		getResp, err := sceneClient.GetSceneReferences(ctx, &scenepb.GetSceneReferencesRequest{
+			SceneId: newSceneResp.Scene.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(getResp.References) != 0 {
+			t.Errorf("expected 0 references, got %d", len(getResp.References))
+		}
+	})
+
+	t.Run("invalid scene_id", func(t *testing.T) {
+		_, err := sceneClient.GetSceneReferences(ctx, &scenepb.GetSceneReferencesRequest{
+			SceneId: "not-a-uuid",
+		})
+		if err == nil {
+			t.Fatal("expected error for invalid scene_id")
+		}
+		s, _ := status.FromError(err)
+		if s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", s.Code())
+		}
+	})
+}
+
+// setupTestServerWithSceneReferences creates a test server with Scene, Character, Location, and Artifact handlers
+func setupTestServerWithSceneReferences(t *testing.T) (*grpc.ClientConn, func()) {
+	db, cleanupDB := postgres.SetupTestDB(t)
+
+	// Initialize repositories
+	tenantRepo := postgres.NewTenantRepository(db)
+	storyRepo := postgres.NewStoryRepository(db)
+	chapterRepo := postgres.NewChapterRepository(db)
+	sceneRepo := postgres.NewSceneRepository(db)
+	sceneReferenceRepo := postgres.NewSceneReferenceRepository(db)
+	characterRepo := postgres.NewCharacterRepository(db)
+	locationRepo := postgres.NewLocationRepository(db)
+	artifactRepo := postgres.NewArtifactRepository(db)
+	worldRepo := postgres.NewWorldRepository(db)
+	archetypeRepo := postgres.NewArchetypeRepository(db)
+	artifactReferenceRepo := postgres.NewArtifactReferenceRepository(db)
+	auditLogRepo := postgres.NewAuditLogRepository(db)
+
+	// Initialize use cases
+	log := logger.New()
+	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
+	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, postgres.NewBeatRepository(db), postgres.NewProseBlockRepository(db), auditLogRepo, postgres.NewTransactionRepository(db), log)
+	versionGraphUseCase := story.NewGetStoryVersionGraphUseCase(storyRepo, log)
+
+	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, log)
+	getChapterUseCase := chapterapp.NewGetChapterUseCase(chapterRepo, log)
+	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, log)
+	deleteChapterUseCase := chapterapp.NewDeleteChapterUseCase(chapterRepo, log)
+	listChaptersUseCase := chapterapp.NewListChaptersUseCase(chapterRepo, log)
+
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
+	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
+	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
+	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
+	addSceneReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
+	removeSceneReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
+	getSceneReferencesUC := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+
+	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
+	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
+	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
+	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
+
+	createLocationUseCase := locationapp.NewCreateLocationUseCase(locationRepo, worldRepo, auditLogRepo, log)
+	getLocationUseCase := locationapp.NewGetLocationUseCase(locationRepo, log)
+	listLocationsUseCase := locationapp.NewListLocationsUseCase(locationRepo, log)
+	updateLocationUseCase := locationapp.NewUpdateLocationUseCase(locationRepo, auditLogRepo, log)
+	deleteLocationUseCase := locationapp.NewDeleteLocationUseCase(locationRepo, auditLogRepo, log)
+
+	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
+	getArtifactUseCase := artifactapp.NewGetArtifactUseCase(artifactRepo, log)
+	listArtifactsUseCase := artifactapp.NewListArtifactsUseCase(artifactRepo, log)
+	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
+	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, auditLogRepo, log)
+
+	// Create handlers
+	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
+	storyHandler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, versionGraphUseCase, log)
+	chapterHandler := NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
+	sceneHandler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUC, removeSceneReferenceUC, getSceneReferencesUC, log)
+	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log), characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log), characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), postgres.NewTraitRepository(db), log), characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log), log)
+	locationHandler := NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, locationapp.NewGetChildrenUseCase(locationRepo, log), locationapp.NewGetAncestorsUseCase(locationRepo, log), locationapp.NewGetDescendantsUseCase(locationRepo, log), locationapp.NewMoveLocationUseCase(locationRepo, auditLogRepo, log), log)
+	artifactHandler := NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, artifactapp.NewGetArtifactReferencesUseCase(artifactReferenceRepo, log), artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, log), artifactapp.NewRemoveArtifactReferenceUseCase(artifactReferenceRepo, log), log)
+
+	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
+		TenantHandler:    tenantHandler,
+		StoryHandler:     storyHandler,
+		ChapterHandler:  chapterHandler,
+		SceneHandler:     sceneHandler,
+		CharacterHandler: characterHandler,
+		LocationHandler:  locationHandler,
+		ArtifactHandler:  artifactHandler,
+	})
+
+	cleanup := func() {
+		cleanupServer()
+		cleanupDB()
+	}
+
+	return conn, cleanup
 }
 
 

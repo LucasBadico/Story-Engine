@@ -491,6 +491,7 @@ func (h *CharacterHandler) ChangeClass(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.changeClassUseCase.Execute(r.Context(), rpgcharacterapp.ChangeCharacterClassInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		ClassID:     classID,
 		ClassLevel:  req.ClassLevel,
@@ -520,6 +521,7 @@ func (h *CharacterHandler) GetAvailableClasses(w http.ResponseWriter, r *http.Re
 	}
 
 	output, err := h.getAvailableClassesUseCase.Execute(r.Context(), rpgcharacterapp.GetAvailableClassesInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 	})
 	if err != nil {

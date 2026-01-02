@@ -65,6 +65,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 
 	t.Run("clone simple story (no chapters)", func(t *testing.T) {
 		input := CloneStoryInput{
+			TenantID:       tenantOutput.Tenant.ID,
 			SourceStoryID:  storyOutput.Story.ID,
 			CreatedByUserID: nil,
 		}
@@ -79,7 +80,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Verify new story exists
-		newStory, err := storyRepo.GetByID(ctx, output.NewStoryID)
+		newStory, err := storyRepo.GetByID(ctx, tenantOutput.Tenant.ID, output.NewStoryID)
 		if err != nil {
 			t.Fatalf("failed to retrieve cloned story: %v", err)
 		}
@@ -112,7 +113,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Create chapter
-		chapter, err := story.NewChapter(sourceStory.ID, 1, "Chapter 1")
+		chapter, err := story.NewChapter(tenantOutput.Tenant.ID, sourceStory.ID, 1, "Chapter 1")
 		if err != nil {
 			t.Fatalf("failed to create chapter: %v", err)
 		}
@@ -121,7 +122,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Create scene
-		scene, err := story.NewScene(sourceStory.ID, &chapter.ID, 1)
+		scene, err := story.NewScene(tenantOutput.Tenant.ID, sourceStory.ID, &chapter.ID, 1)
 		if err != nil {
 			t.Fatalf("failed to create scene: %v", err)
 		}
@@ -130,7 +131,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Create beat
-		beat, err := story.NewBeat(scene.ID, 1, story.BeatTypeSetup)
+		beat, err := story.NewBeat(tenantOutput.Tenant.ID, scene.ID, 1, story.BeatTypeSetup)
 		if err != nil {
 			t.Fatalf("failed to create beat: %v", err)
 		}
@@ -141,7 +142,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		// Create prose block
 		chapterID := chapter.ID
 		proseOrderNum := 1
-		prose, err := story.NewProseBlock(&chapterID, &proseOrderNum, story.ProseKindFinal, "This is the prose content.")
+		prose, err := story.NewProseBlock(tenantOutput.Tenant.ID, &chapterID, &proseOrderNum, story.ProseKindFinal, "This is the prose content.")
 		if err != nil {
 			t.Fatalf("failed to create prose block: %v", err)
 		}
@@ -151,6 +152,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 
 		// Clone the story
 		input := CloneStoryInput{
+			TenantID:       tenantOutput.Tenant.ID,
 			SourceStoryID:  sourceStory.ID,
 			CreatedByUserID: nil,
 		}
@@ -161,13 +163,13 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Verify all entities were copied
-		newStory, err := storyRepo.GetByID(ctx, output.NewStoryID)
+		newStory, err := storyRepo.GetByID(ctx, tenantOutput.Tenant.ID, output.NewStoryID)
 		if err != nil {
 			t.Fatalf("failed to retrieve cloned story: %v", err)
 		}
 
 		// Verify chapters
-		newChapters, err := chapterRepo.ListByStory(ctx, newStory.ID)
+		newChapters, err := chapterRepo.ListByStory(ctx, tenantOutput.Tenant.ID, newStory.ID)
 		if err != nil {
 			t.Fatalf("failed to list chapters: %v", err)
 		}
@@ -179,7 +181,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Verify scenes
-		newScenes, err := sceneRepo.ListByStory(ctx, newStory.ID)
+		newScenes, err := sceneRepo.ListByStory(ctx, tenantOutput.Tenant.ID, newStory.ID)
 		if err != nil {
 			t.Fatalf("failed to list scenes: %v", err)
 		}
@@ -191,7 +193,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Verify beats
-		newBeats, err := beatRepo.ListByScene(ctx, newScenes[0].ID)
+		newBeats, err := beatRepo.ListByScene(ctx, tenantOutput.Tenant.ID, newScenes[0].ID)
 		if err != nil {
 			t.Fatalf("failed to list beats: %v", err)
 		}
@@ -203,7 +205,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Verify prose blocks
-		newProseBlocks, err := proseBlockRepo.ListByChapter(ctx, newChapters[0].ID)
+		newProseBlocks, err := proseBlockRepo.ListByChapter(ctx, tenantOutput.Tenant.ID, newChapters[0].ID)
 		if err != nil {
 			t.Fatalf("failed to list prose blocks: %v", err)
 		}

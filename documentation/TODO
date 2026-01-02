@@ -4,9 +4,9 @@
 - [x] add character/locations 
 - [x] update prose/text entity
 - [ ] upload image endpoint
+- revisar tennat id: Atualizar Membership e AuditLog (requer mudança de interface)
 
-
-
+- revisar handlers q usam repo direto, provavelmente ta havendo duplicacao pq tem 2 tipos de handlers
 # Easy wins
 - [x] add tag date
 

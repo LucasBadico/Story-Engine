@@ -54,6 +54,7 @@ func (h *CharacterRPGStatsHandler) GetActive(w http.ResponseWriter, r *http.Requ
 	}
 
 	output, err := h.getActiveStatsUseCase.Execute(r.Context(), characterstatsapp.GetActiveCharacterStatsInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 	})
 	if err != nil {
@@ -112,7 +113,8 @@ func (h *CharacterRPGStatsHandler) Create(w http.ResponseWriter, r *http.Request
 	}
 
 	output, err := h.createStatsUseCase.Execute(r.Context(), characterstatsapp.CreateCharacterStatsInput{
-		CharacterID:        characterID,
+		TenantID:          tenantID,
+		CharacterID:       characterID,
 		EventID:            eventID,
 		BaseStats:          req.BaseStats,
 		DerivedStats:       req.DerivedStats,
@@ -147,6 +149,7 @@ func (h *CharacterRPGStatsHandler) ListHistory(w http.ResponseWriter, r *http.Re
 	}
 
 	output, err := h.listHistoryUseCase.Execute(r.Context(), characterstatsapp.ListCharacterStatsHistoryInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 	})
 	if err != nil {
@@ -175,7 +178,8 @@ func (h *CharacterRPGStatsHandler) ActivateVersion(w http.ResponseWriter, r *htt
 	}
 
 	output, err := h.activateVersionUseCase.Execute(r.Context(), characterstatsapp.ActivateCharacterStatsVersionInput{
-		StatsID: statsID,
+		TenantID: tenantID,
+		StatsID:  statsID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -202,6 +206,7 @@ func (h *CharacterRPGStatsHandler) DeleteAll(w http.ResponseWriter, r *http.Requ
 	}
 
 	if err := h.deleteAllStatsUseCase.Execute(r.Context(), characterstatsapp.DeleteAllCharacterStatsInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

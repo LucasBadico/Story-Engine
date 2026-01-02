@@ -72,8 +72,9 @@ func TestInventoryHandler_AddItemToInventory(t *testing.T) {
 		}
 
 		// Create inventory item using use case
+		tenantID, _ := uuid.Parse(tenantResp.Tenant.Id)
 		rpgSystemID, _ := uuid.Parse(rpgSystemResp.RpgSystem.Id)
-		item, err := rpg.NewInventoryItem(rpgSystemID, "Test Item")
+		item, err := rpg.NewInventoryItem(tenantID, rpgSystemID, "Test Item")
 		if err != nil {
 			t.Fatalf("failed to create inventory item: %v", err)
 		}
@@ -147,8 +148,9 @@ func TestInventoryHandler_ListInventory(t *testing.T) {
 		}
 
 		// Create inventory item
+		tenantID, _ := uuid.Parse(tenantResp.Tenant.Id)
 		rpgSystemID, _ := uuid.Parse(rpgSystemResp.RpgSystem.Id)
-		item, err := rpg.NewInventoryItem(rpgSystemID, "List Test Item")
+		item, err := rpg.NewInventoryItem(tenantID, rpgSystemID, "List Test Item")
 		if err != nil {
 			t.Fatalf("failed to create inventory item: %v", err)
 		}
@@ -178,6 +180,152 @@ func TestInventoryHandler_ListInventory(t *testing.T) {
 
 		if len(listResp.CharacterInventory) < 1 {
 			t.Errorf("expected at least 1 item, got %d", len(listResp.CharacterInventory))
+		}
+	})
+}
+
+func TestInventoryHandler_UpdateItemInInventory(t *testing.T) {
+	conn, db, cleanup := setupTestServerWithInventory(t)
+	defer cleanup()
+
+	inventoryClient := inventorypb.NewInventoryServiceClient(conn)
+	characterClient := characterpb.NewCharacterServiceClient(conn)
+	rpgSystemClient := rpgsystempb.NewRPGSystemServiceClient(conn)
+	worldClient := worldpb.NewWorldServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Update Item Test Tenant",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+		WorldId: worldResp.World.Id,
+		Name:    "Test Character",
+	})
+	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
+	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+		Name:            "Test System",
+		BaseStatsSchema: string(baseStatsSchema),
+	})
+	tenantID, _ := uuid.Parse(tenantResp.Tenant.Id)
+	rpgSystemID, _ := uuid.Parse(rpgSystemResp.RpgSystem.Id)
+	item, _ := rpg.NewInventoryItem(tenantID, rpgSystemID, "Test Item")
+	itemRepo := postgres.NewInventoryItemRepository(db)
+	itemRepo.Create(ctx, item)
+
+	t.Run("successful update", func(t *testing.T) {
+		// Add item first
+		addResp, _ := inventoryClient.AddItemToInventory(ctx, &inventorypb.AddItemToInventoryRequest{
+			CharacterId: characterResp.Character.Id,
+			ItemId:      item.ID.String(),
+			Quantity:    int32Ptr(1),
+		})
+
+		newQuantity := int32Ptr(5)
+		updateResp, err := inventoryClient.UpdateInventoryItem(ctx, &inventorypb.UpdateInventoryItemRequest{
+			Id:       addResp.CharacterInventory.Id,
+			Quantity: newQuantity,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if updateResp.CharacterInventory.CharacterId != characterResp.Character.Id {
+			t.Errorf("expected character_id %s, got %s", characterResp.Character.Id, updateResp.CharacterInventory.CharacterId)
+		}
+		if updateResp.CharacterInventory.ItemId != item.ID.String() {
+			t.Errorf("expected item_id %s, got %s", item.ID.String(), updateResp.CharacterInventory.ItemId)
+		}
+		if updateResp.CharacterInventory.Quantity != *newQuantity {
+			t.Errorf("expected quantity %d, got %d", *newQuantity, updateResp.CharacterInventory.Quantity)
+		}
+	})
+
+	t.Run("non-existing item", func(t *testing.T) {
+		newQuantity := int32Ptr(5)
+		_, err := inventoryClient.UpdateInventoryItem(ctx, &inventorypb.UpdateInventoryItemRequest{
+			Id:       uuid.New().String(),
+			Quantity: newQuantity,
+		})
+		if err == nil {
+			t.Fatal("expected error for non-existing item")
+		}
+	})
+}
+
+func TestInventoryHandler_DeleteItemFromInventory(t *testing.T) {
+	conn, db, cleanup := setupTestServerWithInventory(t)
+	defer cleanup()
+
+	inventoryClient := inventorypb.NewInventoryServiceClient(conn)
+	characterClient := characterpb.NewCharacterServiceClient(conn)
+	rpgSystemClient := rpgsystempb.NewRPGSystemServiceClient(conn)
+	worldClient := worldpb.NewWorldServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Delete Item Test Tenant",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+		WorldId: worldResp.World.Id,
+		Name:    "Test Character",
+	})
+	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
+	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+		Name:            "Test System",
+		BaseStatsSchema: string(baseStatsSchema),
+	})
+	tenantID, _ := uuid.Parse(tenantResp.Tenant.Id)
+	rpgSystemID, _ := uuid.Parse(rpgSystemResp.RpgSystem.Id)
+	item, _ := rpg.NewInventoryItem(tenantID, rpgSystemID, "Test Item")
+	itemRepo := postgres.NewInventoryItemRepository(db)
+	itemRepo.Create(ctx, item)
+
+	t.Run("successful delete", func(t *testing.T) {
+		// Add item first
+		addResp, _ := inventoryClient.AddItemToInventory(ctx, &inventorypb.AddItemToInventoryRequest{
+			CharacterId: characterResp.Character.Id,
+			ItemId:      item.ID.String(),
+			Quantity:    int32Ptr(1),
+		})
+
+		// Delete item
+		_, err := inventoryClient.RemoveItemFromInventory(ctx, &inventorypb.RemoveItemFromInventoryRequest{
+			Id: addResp.CharacterInventory.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify it's deleted
+		listResp, err := inventoryClient.ListInventory(ctx, &inventorypb.ListInventoryRequest{
+			CharacterId: characterResp.Character.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		found := false
+		for _, inv := range listResp.CharacterInventory {
+			if inv.ItemId == item.ID.String() {
+				found = true
+				break
+			}
+		}
+		if found {
+			t.Error("item should have been deleted")
+		}
+	})
+
+	t.Run("delete non-existing item", func(t *testing.T) {
+		_, err := inventoryClient.RemoveItemFromInventory(ctx, &inventorypb.RemoveItemFromInventoryRequest{
+			Id: uuid.New().String(),
+		})
+		if err == nil {
+			t.Fatal("expected error for non-existing item")
 		}
 	})
 }

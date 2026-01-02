@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
@@ -169,6 +170,160 @@ func TestCharacterSkillHandler_ListCharacterSkills(t *testing.T) {
 	})
 }
 
+func TestCharacterSkillHandler_UpdateCharacterSkill(t *testing.T) {
+	conn, cleanup := setupTestServerWithCharacterSkill(t)
+	defer cleanup()
+
+	characterSkillClient := characterskillpb.NewCharacterSkillServiceClient(conn)
+	characterClient := characterpb.NewCharacterServiceClient(conn)
+	skillClient := skillpb.NewSkillServiceClient(conn)
+	rpgSystemClient := rpgsystempb.NewRPGSystemServiceClient(conn)
+	worldClient := worldpb.NewWorldServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Update Skill Test Tenant",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+		WorldId: worldResp.World.Id,
+		Name:    "Test Character",
+	})
+	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
+	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+		Name:            "Test System",
+		BaseStatsSchema: string(baseStatsSchema),
+	})
+	skillResp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+		RpgSystemId: rpgSystemResp.RpgSystem.Id,
+		Name:        "Fireball",
+	})
+
+	t.Run("successful update", func(t *testing.T) {
+		// Add skill first
+		addResp, _ := characterSkillClient.AddCharacterSkill(ctx, &characterskillpb.AddCharacterSkillRequest{
+			CharacterId: characterResp.Character.Id,
+			SkillId:     skillResp.Skill.Id,
+		})
+
+		newRank := int32Ptr(5)
+		newXP := int32Ptr(100)
+		isActive := boolPtr(true)
+		updateResp, err := characterSkillClient.UpdateCharacterSkill(ctx, &characterskillpb.UpdateCharacterSkillRequest{
+			Id:        addResp.CharacterSkill.Id,
+			Rank:      newRank,
+			XpInSkill: newXP,
+			IsActive:  isActive,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if updateResp.CharacterSkill.CharacterId != characterResp.Character.Id {
+			t.Errorf("expected character_id %s, got %s", characterResp.Character.Id, updateResp.CharacterSkill.CharacterId)
+		}
+		if updateResp.CharacterSkill.SkillId != skillResp.Skill.Id {
+			t.Errorf("expected skill_id %s, got %s", skillResp.Skill.Id, updateResp.CharacterSkill.SkillId)
+		}
+		if updateResp.CharacterSkill.Rank != *newRank {
+			t.Errorf("expected rank %d, got %d", *newRank, updateResp.CharacterSkill.Rank)
+		}
+		if updateResp.CharacterSkill.XpInSkill != *newXP {
+			t.Errorf("expected xp_in_skill %d, got %d", *newXP, updateResp.CharacterSkill.XpInSkill)
+		}
+		if !updateResp.CharacterSkill.IsActive {
+			t.Errorf("expected is_active to be true")
+		}
+	})
+
+	t.Run("non-existing skill", func(t *testing.T) {
+		newRank := int32Ptr(5)
+		_, err := characterSkillClient.UpdateCharacterSkill(ctx, &characterskillpb.UpdateCharacterSkillRequest{
+			Id:   uuid.New().String(),
+			Rank: newRank,
+		})
+		if err == nil {
+			t.Fatal("expected error for non-existing skill")
+		}
+	})
+}
+
+func TestCharacterSkillHandler_DeleteCharacterSkill(t *testing.T) {
+	conn, cleanup := setupTestServerWithCharacterSkill(t)
+	defer cleanup()
+
+	characterSkillClient := characterskillpb.NewCharacterSkillServiceClient(conn)
+	characterClient := characterpb.NewCharacterServiceClient(conn)
+	skillClient := skillpb.NewSkillServiceClient(conn)
+	rpgSystemClient := rpgsystempb.NewRPGSystemServiceClient(conn)
+	worldClient := worldpb.NewWorldServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Delete Skill Test Tenant",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+		WorldId: worldResp.World.Id,
+		Name:    "Test Character",
+	})
+	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
+	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+		Name:            "Test System",
+		BaseStatsSchema: string(baseStatsSchema),
+	})
+	skillResp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+		RpgSystemId: rpgSystemResp.RpgSystem.Id,
+		Name:        "Fireball",
+	})
+
+	t.Run("successful delete", func(t *testing.T) {
+		// Add skill first
+		addResp, _ := characterSkillClient.AddCharacterSkill(ctx, &characterskillpb.AddCharacterSkillRequest{
+			CharacterId: characterResp.Character.Id,
+			SkillId:     skillResp.Skill.Id,
+		})
+
+		// Delete skill
+		_, err := characterSkillClient.RemoveCharacterSkill(ctx, &characterskillpb.RemoveCharacterSkillRequest{
+			Id: addResp.CharacterSkill.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify it's deleted
+		listResp, err := characterSkillClient.ListCharacterSkills(ctx, &characterskillpb.ListCharacterSkillsRequest{
+			CharacterId: characterResp.Character.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		found := false
+		for _, cs := range listResp.CharacterSkills {
+			if cs.SkillId == skillResp.Skill.Id {
+				found = true
+				break
+			}
+		}
+		if found {
+			t.Error("skill should have been deleted")
+		}
+	})
+
+	t.Run("delete non-existing skill", func(t *testing.T) {
+		_, err := characterSkillClient.RemoveCharacterSkill(ctx, &characterskillpb.RemoveCharacterSkillRequest{
+			Id: uuid.New().String(),
+		})
+		if err == nil {
+			t.Fatal("expected error for non-existing skill")
+		}
+	})
+}
+
 // Helper function to create a test server with character skill handler
 func setupTestServerWithCharacterSkill(t *testing.T) (*grpc.ClientConn, func()) {
 	db, cleanupDB := postgres.SetupTestDB(t)
@@ -236,5 +391,9 @@ func setupTestServerWithCharacterSkill(t *testing.T) (*grpc.ClientConn, func()) 
 
 func int32Ptr(i int32) *int32 {
 	return &i
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }
 

@@ -43,6 +43,7 @@ func CloneStory(sourceStory *story.Story, versionNumber int) (*story.Story, erro
 func CloneChapter(sourceChapter *story.Chapter, newStoryID uuid.UUID) *story.Chapter {
 	return &story.Chapter{
 		ID:        uuid.New(),
+		TenantID:  sourceChapter.TenantID,
 		StoryID:   newStoryID,
 		Number:    sourceChapter.Number,
 		Title:     sourceChapter.Title,
@@ -56,6 +57,7 @@ func CloneChapter(sourceChapter *story.Chapter, newStoryID uuid.UUID) *story.Cha
 func CloneScene(sourceScene *story.Scene, newStoryID uuid.UUID, newChapterID *uuid.UUID) *story.Scene {
 	return &story.Scene{
 		ID:             uuid.New(),
+		TenantID:       sourceScene.TenantID,
 		StoryID:        newStoryID,
 		ChapterID:      newChapterID,
 		OrderNum:       sourceScene.OrderNum,
@@ -71,6 +73,7 @@ func CloneScene(sourceScene *story.Scene, newStoryID uuid.UUID, newChapterID *uu
 func CloneBeat(sourceBeat *story.Beat, newSceneID uuid.UUID) *story.Beat {
 	return &story.Beat{
 		ID:        uuid.New(),
+		TenantID:  sourceBeat.TenantID,
 		SceneID:   newSceneID,
 		OrderNum:  sourceBeat.OrderNum,
 		Type:      sourceBeat.Type,
@@ -85,6 +88,7 @@ func CloneBeat(sourceBeat *story.Beat, newSceneID uuid.UUID) *story.Beat {
 func CloneProseBlock(sourceProse *story.ProseBlock, newChapterID *uuid.UUID, newOrderNum *int) *story.ProseBlock {
 	return &story.ProseBlock{
 		ID:        uuid.New(),
+		TenantID:  sourceProse.TenantID,
 		ChapterID: newChapterID,
 		OrderNum:  newOrderNum,
 		Kind:      sourceProse.Kind,

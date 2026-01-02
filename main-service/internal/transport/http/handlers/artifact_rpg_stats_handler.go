@@ -51,6 +51,7 @@ func (h *ArtifactRPGStatsHandler) GetActive(w http.ResponseWriter, r *http.Reque
 	}
 
 	output, err := h.getActiveStatsUseCase.Execute(r.Context(), artifactstatsapp.GetActiveArtifactStatsInput{
+		TenantID:   tenantID,
 		ArtifactID: artifactID,
 	})
 	if err != nil {
@@ -107,7 +108,8 @@ func (h *ArtifactRPGStatsHandler) Create(w http.ResponseWriter, r *http.Request)
 	}
 
 	output, err := h.createStatsUseCase.Execute(r.Context(), artifactstatsapp.CreateArtifactStatsInput{
-		ArtifactID:         artifactID,
+		TenantID:          tenantID,
+		ArtifactID:        artifactID,
 		EventID:            eventID,
 		Stats:              req.Stats,
 		Reason:             req.Reason,
@@ -140,6 +142,7 @@ func (h *ArtifactRPGStatsHandler) ListHistory(w http.ResponseWriter, r *http.Req
 	}
 
 	output, err := h.listHistoryUseCase.Execute(r.Context(), artifactstatsapp.ListArtifactStatsHistoryInput{
+		TenantID:   tenantID,
 		ArtifactID: artifactID,
 	})
 	if err != nil {
@@ -168,7 +171,8 @@ func (h *ArtifactRPGStatsHandler) ActivateVersion(w http.ResponseWriter, r *http
 	}
 
 	output, err := h.activateVersionUseCase.Execute(r.Context(), artifactstatsapp.ActivateArtifactStatsVersionInput{
-		StatsID: statsID,
+		TenantID: tenantID,
+		StatsID:  statsID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

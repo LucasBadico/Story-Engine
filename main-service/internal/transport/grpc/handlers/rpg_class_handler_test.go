@@ -401,6 +401,165 @@ func TestRPGClassHandler_AddSkillToClass(t *testing.T) {
 	})
 }
 
+func TestRPGClassHandler_RemoveSkillFromClass(t *testing.T) {
+	conn, cleanup := setupTestServerWithRPGClass(t)
+	defer cleanup()
+
+	rpgClassClient := rpgclasspb.NewRPGClassServiceClient(conn)
+	skillClient := skillpb.NewSkillServiceClient(conn)
+	rpgSystemClient := rpgsystempb.NewRPGSystemServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "Remove Skill Test Tenant",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
+	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+		Name:            "Remove Skill Test System",
+		BaseStatsSchema: string(baseStatsSchema),
+	})
+	classResp, _ := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
+		RpgSystemId: rpgSystemResp.RpgSystem.Id,
+		Name:        "Warrior",
+	})
+	skillResp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+		RpgSystemId: rpgSystemResp.RpgSystem.Id,
+		Name:        "Sword Mastery",
+	})
+
+	t.Run("successful remove", func(t *testing.T) {
+		// Add skill first
+		_, err := rpgClassClient.AddSkillToRPGClass(ctx, &rpgclasspb.AddSkillToRPGClassRequest{
+			RpgClassId: classResp.RpgClass.Id,
+			SkillId:    skillResp.Skill.Id,
+		})
+		if err != nil {
+			t.Fatalf("failed to add skill: %v", err)
+		}
+
+		// Remove skill
+		_, err = rpgClassClient.RemoveSkillFromRPGClass(ctx, &rpgclasspb.RemoveSkillFromRPGClassRequest{
+			RpgClassId: classResp.RpgClass.Id,
+			SkillId:    skillResp.Skill.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		// Verify it's removed
+		listResp, err := rpgClassClient.ListRPGClassSkills(ctx, &rpgclasspb.ListRPGClassSkillsRequest{
+			RpgClassId: classResp.RpgClass.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(listResp.SkillIds) != 0 {
+			t.Errorf("expected 0 skills, got %d", len(listResp.SkillIds))
+		}
+	})
+
+	t.Run("remove non-existing skill", func(t *testing.T) {
+		_, err := rpgClassClient.RemoveSkillFromRPGClass(ctx, &rpgclasspb.RemoveSkillFromRPGClassRequest{
+			RpgClassId: classResp.RpgClass.Id,
+			SkillId:    uuid.New().String(),
+		})
+		if err == nil {
+			t.Fatal("expected error for non-existing skill")
+		}
+		s, _ := status.FromError(err)
+		if s.Code() != codes.NotFound {
+			t.Errorf("expected NotFound, got %v", s.Code())
+		}
+	})
+}
+
+func TestRPGClassHandler_ListRPGClassSkills(t *testing.T) {
+	conn, cleanup := setupTestServerWithRPGClass(t)
+	defer cleanup()
+
+	rpgClassClient := rpgclasspb.NewRPGClassServiceClient(conn)
+	skillClient := skillpb.NewSkillServiceClient(conn)
+	rpgSystemClient := rpgsystempb.NewRPGSystemServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	// Setup
+	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		Name: "List Skills Test Tenant",
+	})
+	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
+	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+		Name:            "List Skills Test System",
+		BaseStatsSchema: string(baseStatsSchema),
+	})
+	classResp, _ := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
+		RpgSystemId: rpgSystemResp.RpgSystem.Id,
+		Name:        "Warrior",
+	})
+
+	t.Run("list multiple skills", func(t *testing.T) {
+		// Create and add multiple skills
+		skill1Resp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+			RpgSystemId: rpgSystemResp.RpgSystem.Id,
+			Name:        "Sword Mastery",
+		})
+		skill2Resp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+			RpgSystemId: rpgSystemResp.RpgSystem.Id,
+			Name:        "Shield Defense",
+		})
+		skill3Resp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+			RpgSystemId: rpgSystemResp.RpgSystem.Id,
+			Name:        "Combat Tactics",
+		})
+
+		_, _ = rpgClassClient.AddSkillToRPGClass(ctx, &rpgclasspb.AddSkillToRPGClassRequest{
+			RpgClassId: classResp.RpgClass.Id,
+			SkillId:    skill1Resp.Skill.Id,
+		})
+		_, _ = rpgClassClient.AddSkillToRPGClass(ctx, &rpgclasspb.AddSkillToRPGClassRequest{
+			RpgClassId: classResp.RpgClass.Id,
+			SkillId:    skill2Resp.Skill.Id,
+		})
+		_, _ = rpgClassClient.AddSkillToRPGClass(ctx, &rpgclasspb.AddSkillToRPGClassRequest{
+			RpgClassId: classResp.RpgClass.Id,
+			SkillId:    skill3Resp.Skill.Id,
+		})
+
+		// List skills
+		listResp, err := rpgClassClient.ListRPGClassSkills(ctx, &rpgclasspb.ListRPGClassSkillsRequest{
+			RpgClassId: classResp.RpgClass.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(listResp.SkillIds) != 3 {
+			t.Errorf("expected 3 skills, got %d", len(listResp.SkillIds))
+		}
+		if listResp.TotalCount != 3 {
+			t.Errorf("expected total_count 3, got %d", listResp.TotalCount)
+		}
+	})
+
+	t.Run("empty list for new class", func(t *testing.T) {
+		newClassResp, _ := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
+			RpgSystemId: rpgSystemResp.RpgSystem.Id,
+			Name:        "Mage",
+		})
+
+		listResp, err := rpgClassClient.ListRPGClassSkills(ctx, &rpgclasspb.ListRPGClassSkillsRequest{
+			RpgClassId: newClassResp.RpgClass.Id,
+		})
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if len(listResp.SkillIds) != 0 {
+			t.Errorf("expected 0 skills, got %d", len(listResp.SkillIds))
+		}
+	})
+}
+
 // Helper function to create a test server with RPG class handler
 func setupTestServerWithRPGClass(t *testing.T) (*grpc.ClientConn, func()) {
 	db, cleanupDB := postgres.SetupTestDB(t)
@@ -431,11 +590,12 @@ func setupTestServerWithRPGClass(t *testing.T) (*grpc.ClientConn, func()) {
 	deleteRPGClassUseCase := rpgclassapp.NewDeleteRPGClassUseCase(rpgClassRepo, log)
 	addSkillToClassUseCase := rpgclassapp.NewAddSkillToClassUseCase(rpgClassSkillRepo, rpgClassRepo, skillRepo, log)
 	listClassSkillsUseCase := rpgclassapp.NewListClassSkillsUseCase(rpgClassSkillRepo, log)
+	removeSkillFromClassUseCase := rpgclassapp.NewRemoveSkillFromClassUseCase(rpgClassSkillRepo, rpgClassRepo, log)
 
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	rpgSystemHandler := NewRPGSystemHandler(createRPGSystemUseCase, getRPGSystemUseCase, listRPGSystemsUseCase, updateRPGSystemUseCase, deleteRPGSystemUseCase, log)
 	skillHandler := NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
-	rpgClassHandler := NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, rpgClassSkillRepo, log)
+	rpgClassHandler := NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, removeSkillFromClassUseCase, log)
 
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
 		TenantHandler:    tenantHandler,
