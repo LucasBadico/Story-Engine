@@ -139,9 +139,9 @@ func (h *ImageBlockHandler) ListImageBlocks(ctx context.Context, req *imageblock
 		chapterID = &cid
 	}
 
-	var chapterIDParam *uuid.UUID
+	var chapterIDParam uuid.UUID
 	if chapterID != nil {
-		chapterIDParam = chapterID
+		chapterIDParam = *chapterID
 	}
 	output, err := h.listImageBlocksUseCase.Execute(ctx, imageblockapp.ListImageBlocksInput{
 		ChapterID: chapterIDParam,

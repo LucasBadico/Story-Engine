@@ -117,11 +117,6 @@ func (h *InventoryHandler) UpdateInventoryItem(ctx context.Context, req *invento
 		customStats = &stats
 	}
 
-	var isEquipped *bool
-	if req.IsEquipped != nil {
-		isEquipped = req.IsEquipped
-	}
-
 	input := inventoryapp.UpdateCharacterInventoryInput{
 		ID:          id,
 		Quantity:    quantity,

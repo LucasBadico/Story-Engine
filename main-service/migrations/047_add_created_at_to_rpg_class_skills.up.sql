@@ -1,0 +1,2 @@
+ALTER TABLE rpg_class_skills ADD COLUMN created_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+
