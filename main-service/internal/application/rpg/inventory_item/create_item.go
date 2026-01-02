@@ -35,6 +35,7 @@ func NewCreateInventoryItemUseCase(
 
 // CreateInventoryItemInput represents the input for creating an inventory item
 type CreateInventoryItemInput struct {
+	TenantID      uuid.UUID
 	RPGSystemID   uuid.UUID
 	ArtifactID    *uuid.UUID
 	Name          string
@@ -57,22 +58,23 @@ type CreateInventoryItemOutput struct {
 
 // Execute creates a new inventory item
 func (uc *CreateInventoryItemUseCase) Execute(ctx context.Context, input CreateInventoryItemInput) (*CreateInventoryItemOutput, error) {
+	tenantIDPtr := &input.TenantID
 	// Validate RPG system exists
-	_, err := uc.rpgSystemRepo.GetByID(ctx, input.RPGSystemID)
+	_, err := uc.rpgSystemRepo.GetByID(ctx, tenantIDPtr, input.RPGSystemID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate artifact exists if provided
 	if input.ArtifactID != nil {
-		_, err := uc.artifactRepo.GetByID(ctx, *input.ArtifactID)
+		_, err := uc.artifactRepo.GetByID(ctx, input.TenantID, *input.ArtifactID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Create item
-	item, err := rpg.NewInventoryItem(input.RPGSystemID, input.Name)
+	item, err := rpg.NewInventoryItem(input.TenantID, input.RPGSystemID, input.Name)
 	if err != nil {
 		return nil, err
 	}

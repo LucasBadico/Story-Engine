@@ -29,6 +29,7 @@ func NewUpdateInventoryItemUseCase(
 
 // UpdateInventoryItemInput represents the input for updating an inventory item
 type UpdateInventoryItemInput struct {
+	TenantID      uuid.UUID
 	ID            uuid.UUID
 	ArtifactID    *uuid.UUID
 	Name          *string
@@ -52,7 +53,7 @@ type UpdateInventoryItemOutput struct {
 // Execute updates an inventory item
 func (uc *UpdateInventoryItemUseCase) Execute(ctx context.Context, input UpdateInventoryItemInput) (*UpdateInventoryItemOutput, error) {
 	// Get existing item
-	item, err := uc.itemRepo.GetByID(ctx, input.ID)
+	item, err := uc.itemRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

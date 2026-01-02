@@ -35,6 +35,7 @@ func NewAddTraitToCharacterUseCase(
 
 // AddTraitToCharacterInput represents the input for adding a trait to a character
 type AddTraitToCharacterInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 	TraitID     uuid.UUID
 	Value       string
@@ -44,19 +45,19 @@ type AddTraitToCharacterInput struct {
 // Execute adds a trait to a character (creates a copy/snapshot)
 func (uc *AddTraitToCharacterUseCase) Execute(ctx context.Context, input AddTraitToCharacterInput) error {
 	// Validate character exists
-	_, err := uc.characterRepo.GetByID(ctx, input.CharacterID)
+	_, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return err
 	}
 
 	// Get trait template to copy its data
-	trait, err := uc.traitRepo.GetByID(ctx, input.TraitID)
+	trait, err := uc.traitRepo.GetByID(ctx, input.TenantID, input.TraitID)
 	if err != nil {
 		return err
 	}
 
 	// Check if trait already exists for this character
-	_, err = uc.characterTraitRepo.GetByCharacterAndTrait(ctx, input.CharacterID, input.TraitID)
+	_, err = uc.characterTraitRepo.GetByCharacterAndTrait(ctx, input.TenantID, input.CharacterID, input.TraitID)
 	if err == nil {
 		return &platformerrors.ValidationError{
 			Field:   "trait_id",

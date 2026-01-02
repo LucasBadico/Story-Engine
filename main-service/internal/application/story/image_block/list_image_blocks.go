@@ -28,6 +28,7 @@ func NewListImageBlocksUseCase(
 
 // ListImageBlocksInput represents the input for listing image blocks
 type ListImageBlocksInput struct {
+	TenantID  uuid.UUID
 	ChapterID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type ListImageBlocksOutput struct {
 
 // Execute lists image blocks for a chapter
 func (uc *ListImageBlocksUseCase) Execute(ctx context.Context, input ListImageBlocksInput) (*ListImageBlocksOutput, error) {
-	imageBlocks, err := uc.imageBlockRepo.ListByChapter(ctx, input.ChapterID)
+	imageBlocks, err := uc.imageBlockRepo.ListByChapter(ctx, input.TenantID, input.ChapterID)
 	if err != nil {
 		uc.logger.Error("failed to list image blocks", "error", err, "chapter_id", input.ChapterID)
 		return nil, err

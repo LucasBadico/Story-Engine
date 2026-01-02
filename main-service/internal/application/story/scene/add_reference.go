@@ -41,7 +41,8 @@ func NewAddSceneReferenceUseCase(
 
 // AddSceneReferenceInput represents the input for adding a reference
 type AddSceneReferenceInput struct {
-	SceneID   uuid.UUID
+	TenantID   uuid.UUID
+	SceneID    uuid.UUID
 	EntityType story.SceneReferenceEntityType
 	EntityID   uuid.UUID
 }
@@ -49,7 +50,7 @@ type AddSceneReferenceInput struct {
 // Execute adds a reference to a scene
 func (uc *AddSceneReferenceUseCase) Execute(ctx context.Context, input AddSceneReferenceInput) error {
 	// Validate scene exists
-	s, err := uc.sceneRepo.GetByID(ctx, input.SceneID)
+	s, err := uc.sceneRepo.GetByID(ctx, input.TenantID, input.SceneID)
 	if err != nil {
 		return err
 	}
@@ -59,19 +60,19 @@ func (uc *AddSceneReferenceUseCase) Execute(ctx context.Context, input AddSceneR
 	// For now, we'll just validate the entity exists
 	switch input.EntityType {
 	case story.SceneReferenceEntityTypeCharacter:
-		_, err := uc.characterRepo.GetByID(ctx, input.EntityID)
+		_, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
 		}
 		// TODO: Validate character belongs to same world as scene's story
 	case story.SceneReferenceEntityTypeLocation:
-		_, err := uc.locationRepo.GetByID(ctx, input.EntityID)
+		_, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
 		}
 		// TODO: Validate location belongs to same world as scene's story
 	case story.SceneReferenceEntityTypeArtifact:
-		_, err := uc.artifactRepo.GetByID(ctx, input.EntityID)
+		_, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
 		}
@@ -84,7 +85,7 @@ func (uc *AddSceneReferenceUseCase) Execute(ctx context.Context, input AddSceneR
 	}
 
 	// Prevent duplicate references
-	existingRefs, err := uc.sceneReferenceRepo.ListByScene(ctx, input.SceneID)
+	existingRefs, err := uc.sceneReferenceRepo.ListByScene(ctx, input.TenantID, input.SceneID)
 	if err == nil {
 		for _, ref := range existingRefs {
 			if ref.EntityType == input.EntityType && ref.EntityID == input.EntityID {

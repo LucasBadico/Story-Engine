@@ -27,12 +27,13 @@ func NewDeleteInventoryItemUseCase(
 
 // DeleteInventoryItemInput represents the input for deleting an inventory item
 type DeleteInventoryItemInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes an inventory item
 func (uc *DeleteInventoryItemUseCase) Execute(ctx context.Context, input DeleteInventoryItemInput) error {
-	if err := uc.itemRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.itemRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete inventory item", "error", err, "item_id", input.ID)
 		return err
 	}

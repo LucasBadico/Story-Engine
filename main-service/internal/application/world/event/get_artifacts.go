@@ -28,7 +28,8 @@ func NewGetEventArtifactsUseCase(
 
 // GetEventArtifactsInput represents the input for getting artifacts
 type GetEventArtifactsInput struct {
-	EventID uuid.UUID
+	TenantID uuid.UUID
+	EventID  uuid.UUID
 }
 
 // GetEventArtifactsOutput represents the output of getting artifacts
@@ -38,7 +39,7 @@ type GetEventArtifactsOutput struct {
 
 // Execute retrieves artifacts for an event
 func (uc *GetEventArtifactsUseCase) Execute(ctx context.Context, input GetEventArtifactsInput) (*GetEventArtifactsOutput, error) {
-	artifacts, err := uc.eventArtifactRepo.ListByEvent(ctx, input.EventID)
+	artifacts, err := uc.eventArtifactRepo.ListByEvent(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		uc.logger.Error("failed to get event artifacts", "error", err, "event_id", input.EventID)
 		return nil, err

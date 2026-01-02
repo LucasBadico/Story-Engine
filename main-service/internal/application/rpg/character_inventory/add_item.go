@@ -34,6 +34,7 @@ func NewAddItemToInventoryUseCase(
 
 // AddItemToInventoryInput represents the input for adding an item
 type AddItemToInventoryInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 	ItemID      uuid.UUID
 	Quantity    *int
@@ -48,13 +49,13 @@ type AddItemToInventoryOutput struct {
 // Execute adds an item to character inventory
 func (uc *AddItemToInventoryUseCase) Execute(ctx context.Context, input AddItemToInventoryInput) (*AddItemToInventoryOutput, error) {
 	// Validate character exists
-	_, err := uc.characterRepo.GetByID(ctx, input.CharacterID)
+	_, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate item exists
-	item, err := uc.itemRepo.GetByID(ctx, input.ItemID)
+	item, err := uc.itemRepo.GetByID(ctx, input.TenantID, input.ItemID)
 	if err != nil {
 		return nil, err
 	}
@@ -65,7 +66,7 @@ func (uc *AddItemToInventoryUseCase) Execute(ctx context.Context, input AddItemT
 		quantity = *input.Quantity
 	}
 
-	existing, err := uc.inventoryRepo.GetByCharacterAndItem(ctx, input.CharacterID, input.ItemID, input.SlotID)
+	existing, err := uc.inventoryRepo.GetByCharacterAndItem(ctx, input.TenantID, input.CharacterID, input.ItemID, input.SlotID)
 	if err == nil && existing != nil {
 		// Item exists, add to quantity if stackable
 		if item.MaxStack > 1 {
@@ -86,7 +87,7 @@ func (uc *AddItemToInventoryUseCase) Execute(ctx context.Context, input AddItemT
 	}
 
 	// Create new inventory entry
-	inventory, err := rpg.NewCharacterInventory(input.CharacterID, input.ItemID)
+	inventory, err := rpg.NewCharacterInventory(input.TenantID, input.CharacterID, input.ItemID)
 	if err != nil {
 		return nil, err
 	}

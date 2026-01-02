@@ -16,6 +16,7 @@ var (
 // ArtifactRPGStats represents RPG stats for an artifact with versioning
 type ArtifactRPGStats struct {
 	ID          uuid.UUID       `json:"id"`
+	TenantID    uuid.UUID       `json:"tenant_id"`
 	ArtifactID  uuid.UUID       `json:"artifact_id"`
 	EventID     *uuid.UUID      `json:"event_id,omitempty"`
 	Stats       json.RawMessage `json:"stats"` // JSONB
@@ -27,7 +28,7 @@ type ArtifactRPGStats struct {
 }
 
 // NewArtifactRPGStats creates a new artifact RPG stats entry
-func NewArtifactRPGStats(artifactID uuid.UUID, stats json.RawMessage) (*ArtifactRPGStats, error) {
+func NewArtifactRPGStats(tenantID, artifactID uuid.UUID, stats json.RawMessage) (*ArtifactRPGStats, error) {
 	if len(stats) == 0 {
 		return nil, ErrArtifactStatsRequired
 	}
@@ -40,6 +41,7 @@ func NewArtifactRPGStats(artifactID uuid.UUID, stats json.RawMessage) (*Artifact
 
 	return &ArtifactRPGStats{
 		ID:         uuid.New(),
+		TenantID:   tenantID,
 		ArtifactID: artifactID,
 		Stats:      stats,
 		IsActive:   true,

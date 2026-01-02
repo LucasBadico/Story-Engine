@@ -31,7 +31,8 @@ func NewGetEventStatChangesUseCase(
 
 // GetEventStatChangesInput represents the input for getting stat changes
 type GetEventStatChangesInput struct {
-	EventID uuid.UUID
+	TenantID uuid.UUID
+	EventID  uuid.UUID
 }
 
 // GetEventStatChangesOutput represents the output of getting stat changes
@@ -42,13 +43,13 @@ type GetEventStatChangesOutput struct {
 
 // Execute retrieves all stat changes caused by an event
 func (uc *GetEventStatChangesUseCase) Execute(ctx context.Context, input GetEventStatChangesInput) (*GetEventStatChangesOutput, error) {
-	characterStats, err := uc.characterStatsRepo.ListByEvent(ctx, input.EventID)
+	characterStats, err := uc.characterStatsRepo.ListByEvent(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		uc.logger.Error("failed to get character stats for event", "error", err, "event_id", input.EventID)
 		return nil, err
 	}
 
-	artifactStats, err := uc.artifactStatsRepo.ListByEvent(ctx, input.EventID)
+	artifactStats, err := uc.artifactStatsRepo.ListByEvent(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		uc.logger.Error("failed to get artifact stats for event", "error", err, "event_id", input.EventID)
 		return nil, err

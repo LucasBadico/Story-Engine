@@ -28,7 +28,8 @@ func NewGetCharacterUseCase(
 
 // GetCharacterInput represents the input for getting a character
 type GetCharacterInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetCharacterOutput represents the output of getting a character
@@ -38,7 +39,7 @@ type GetCharacterOutput struct {
 
 // Execute retrieves a character by ID
 func (uc *GetCharacterUseCase) Execute(ctx context.Context, input GetCharacterInput) (*GetCharacterOutput, error) {
-	c, err := uc.characterRepo.GetByID(ctx, input.ID)
+	c, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get character", "error", err, "character_id", input.ID)
 		return nil, err

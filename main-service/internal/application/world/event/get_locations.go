@@ -28,7 +28,8 @@ func NewGetEventLocationsUseCase(
 
 // GetEventLocationsInput represents the input for getting locations
 type GetEventLocationsInput struct {
-	EventID uuid.UUID
+	TenantID uuid.UUID
+	EventID  uuid.UUID
 }
 
 // GetEventLocationsOutput represents the output of getting locations
@@ -38,7 +39,7 @@ type GetEventLocationsOutput struct {
 
 // Execute retrieves locations for an event
 func (uc *GetEventLocationsUseCase) Execute(ctx context.Context, input GetEventLocationsInput) (*GetEventLocationsOutput, error) {
-	locations, err := uc.eventLocationRepo.ListByEvent(ctx, input.EventID)
+	locations, err := uc.eventLocationRepo.ListByEvent(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		uc.logger.Error("failed to get event locations", "error", err, "event_id", input.EventID)
 		return nil, err

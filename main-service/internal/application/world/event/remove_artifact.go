@@ -27,13 +27,14 @@ func NewRemoveArtifactFromEventUseCase(
 
 // RemoveArtifactFromEventInput represents the input for removing an artifact from an event
 type RemoveArtifactFromEventInput struct {
+	TenantID   uuid.UUID
 	EventID    uuid.UUID
 	ArtifactID uuid.UUID
 }
 
 // Execute removes an artifact from an event
 func (uc *RemoveArtifactFromEventUseCase) Execute(ctx context.Context, input RemoveArtifactFromEventInput) error {
-	if err := uc.eventArtifactRepo.DeleteByEventAndArtifact(ctx, input.EventID, input.ArtifactID); err != nil {
+	if err := uc.eventArtifactRepo.DeleteByEventAndArtifact(ctx, input.TenantID, input.EventID, input.ArtifactID); err != nil {
 		uc.logger.Error("failed to remove artifact from event", "error", err, "event_id", input.EventID, "artifact_id", input.ArtifactID)
 		return err
 	}

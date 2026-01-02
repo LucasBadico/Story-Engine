@@ -30,19 +30,20 @@ func NewDeleteImageBlockUseCase(
 
 // DeleteImageBlockInput represents the input for deleting an image block
 type DeleteImageBlockInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes an image block
 func (uc *DeleteImageBlockUseCase) Execute(ctx context.Context, input DeleteImageBlockInput) error {
 	// Delete references (will be handled by CASCADE, but explicit for clarity)
-	if err := uc.imageBlockReferenceRepo.DeleteByImageBlock(ctx, input.ID); err != nil {
+	if err := uc.imageBlockReferenceRepo.DeleteByImageBlock(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete image block references", "error", err)
 		// Continue anyway
 	}
 
 	// Delete image block
-	if err := uc.imageBlockRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.imageBlockRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete image block", "error", err, "image_block_id", input.ID)
 		return err
 	}

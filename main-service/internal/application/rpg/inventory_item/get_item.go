@@ -28,7 +28,8 @@ func NewGetInventoryItemUseCase(
 
 // GetInventoryItemInput represents the input for getting an inventory item
 type GetInventoryItemInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetInventoryItemOutput represents the output of getting an inventory item
@@ -38,7 +39,7 @@ type GetInventoryItemOutput struct {
 
 // Execute retrieves an inventory item by ID
 func (uc *GetInventoryItemUseCase) Execute(ctx context.Context, input GetInventoryItemInput) (*GetInventoryItemOutput, error) {
-	item, err := uc.itemRepo.GetByID(ctx, input.ID)
+	item, err := uc.itemRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get inventory item", "error", err, "item_id", input.ID)
 		return nil, err

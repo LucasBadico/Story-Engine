@@ -28,6 +28,7 @@ func NewRemoveImageBlockReferenceUseCase(
 
 // RemoveImageBlockReferenceInput represents the input for removing a reference
 type RemoveImageBlockReferenceInput struct {
+	TenantID     uuid.UUID
 	ImageBlockID uuid.UUID
 	EntityType   story.ImageBlockReferenceEntityType
 	EntityID     uuid.UUID
@@ -35,7 +36,7 @@ type RemoveImageBlockReferenceInput struct {
 
 // Execute removes a reference from an image block
 func (uc *RemoveImageBlockReferenceUseCase) Execute(ctx context.Context, input RemoveImageBlockReferenceInput) error {
-	if err := uc.imageBlockReferenceRepo.DeleteByImageBlockAndEntity(ctx, input.ImageBlockID, input.EntityType, input.EntityID); err != nil {
+	if err := uc.imageBlockReferenceRepo.DeleteByImageBlockAndEntity(ctx, input.TenantID, input.ImageBlockID, input.EntityType, input.EntityID); err != nil {
 		uc.logger.Error("failed to remove image block reference", "error", err, "image_block_id", input.ImageBlockID)
 		return err
 	}

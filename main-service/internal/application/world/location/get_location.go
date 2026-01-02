@@ -28,7 +28,8 @@ func NewGetLocationUseCase(
 
 // GetLocationInput represents the input for getting a location
 type GetLocationInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetLocationOutput represents the output of getting a location
@@ -38,7 +39,7 @@ type GetLocationOutput struct {
 
 // Execute retrieves a location by ID
 func (uc *GetLocationUseCase) Execute(ctx context.Context, input GetLocationInput) (*GetLocationOutput, error) {
-	l, err := uc.locationRepo.GetByID(ctx, input.ID)
+	l, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get location", "error", err, "location_id", input.ID)
 		return nil, err

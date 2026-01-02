@@ -29,6 +29,7 @@ func NewUpdateSkillUseCase(
 
 // UpdateSkillInput represents the input for updating a skill
 type UpdateSkillInput struct {
+	TenantID      uuid.UUID
 	ID            uuid.UUID
 	Name          *string
 	Category      *rpg.SkillCategory
@@ -47,7 +48,7 @@ type UpdateSkillOutput struct {
 // Execute updates a skill
 func (uc *UpdateSkillUseCase) Execute(ctx context.Context, input UpdateSkillInput) (*UpdateSkillOutput, error) {
 	// Get existing skill
-	skill, err := uc.skillRepo.GetByID(ctx, input.ID)
+	skill, err := uc.skillRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

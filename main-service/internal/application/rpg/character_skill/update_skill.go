@@ -32,6 +32,7 @@ func NewUpdateCharacterSkillUseCase(
 
 // UpdateCharacterSkillInput represents the input for updating a character skill
 type UpdateCharacterSkillInput struct {
+	TenantID  uuid.UUID
 	ID        uuid.UUID
 	Rank      *int
 	AddXP     *int
@@ -46,13 +47,13 @@ type UpdateCharacterSkillOutput struct {
 // Execute updates a character skill
 func (uc *UpdateCharacterSkillUseCase) Execute(ctx context.Context, input UpdateCharacterSkillInput) (*UpdateCharacterSkillOutput, error) {
 	// Get existing character skill
-	characterSkill, err := uc.characterSkillRepo.GetByID(ctx, input.ID)
+	characterSkill, err := uc.characterSkillRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Get skill to check max rank
-	skill, err := uc.skillRepo.GetByID(ctx, characterSkill.SkillID)
+	skill, err := uc.skillRepo.GetByID(ctx, input.TenantID, characterSkill.SkillID)
 	if err != nil {
 		return nil, err
 	}

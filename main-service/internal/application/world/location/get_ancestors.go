@@ -28,6 +28,7 @@ func NewGetAncestorsUseCase(
 
 // GetAncestorsInput represents the input for getting ancestors
 type GetAncestorsInput struct {
+	TenantID   uuid.UUID
 	LocationID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetAncestorsOutput struct {
 
 // Execute retrieves all ancestors of a location (path to root)
 func (uc *GetAncestorsUseCase) Execute(ctx context.Context, input GetAncestorsInput) (*GetAncestorsOutput, error) {
-	ancestors, err := uc.locationRepo.GetAncestors(ctx, input.LocationID)
+	ancestors, err := uc.locationRepo.GetAncestors(ctx, input.TenantID, input.LocationID)
 	if err != nil {
 		uc.logger.Error("failed to get ancestors", "error", err, "location_id", input.LocationID)
 		return nil, err

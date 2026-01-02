@@ -45,10 +45,11 @@ func NewUpdateArtifactUseCase(
 
 // UpdateArtifactInput represents the input for updating an artifact
 type UpdateArtifactInput struct {
-	ID          uuid.UUID
-	Name        *string
-	Description *string
-	Rarity      *string
+	TenantID     uuid.UUID
+	ID           uuid.UUID
+	Name         *string
+	Description  *string
+	Rarity       *string
 	CharacterIDs *[]uuid.UUID // nil = no change, empty slice = remove all
 	LocationIDs  *[]uuid.UUID // nil = no change, empty slice = remove all
 }
@@ -60,7 +61,7 @@ type UpdateArtifactOutput struct {
 
 // Execute updates an artifact
 func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifactInput) (*UpdateArtifactOutput, error) {
-	a, err := uc.artifactRepo.GetByID(ctx, input.ID)
+	a, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -95,11 +96,11 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 	// Update character references
 	if input.CharacterIDs != nil {
 		// Delete all existing character references
-		existingRefs, err := uc.artifactReferenceRepo.ListByArtifact(ctx, a.ID)
+		existingRefs, err := uc.artifactReferenceRepo.ListByArtifact(ctx, input.TenantID, a.ID)
 		if err == nil {
 			for _, ref := range existingRefs {
 				if ref.EntityType == world.ArtifactReferenceEntityTypeCharacter {
-					if err := uc.artifactReferenceRepo.Delete(ctx, ref.ID); err != nil {
+					if err := uc.artifactReferenceRepo.Delete(ctx, input.TenantID, ref.ID); err != nil {
 						uc.logger.Warn("failed to delete character reference", "error", err)
 					}
 				}
@@ -108,7 +109,7 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 
 		// Create new character references
 		for _, characterID := range *input.CharacterIDs {
-			c, err := uc.characterRepo.GetByID(ctx, characterID)
+			c, err := uc.characterRepo.GetByID(ctx, input.TenantID, characterID)
 			if err != nil {
 				return nil, err
 			}
@@ -132,11 +133,11 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 	// Update location references
 	if input.LocationIDs != nil {
 		// Delete all existing location references
-		existingRefs, err := uc.artifactReferenceRepo.ListByArtifact(ctx, a.ID)
+		existingRefs, err := uc.artifactReferenceRepo.ListByArtifact(ctx, input.TenantID, a.ID)
 		if err == nil {
 			for _, ref := range existingRefs {
 				if ref.EntityType == world.ArtifactReferenceEntityTypeLocation {
-					if err := uc.artifactReferenceRepo.Delete(ctx, ref.ID); err != nil {
+					if err := uc.artifactReferenceRepo.Delete(ctx, input.TenantID, ref.ID); err != nil {
 						uc.logger.Warn("failed to delete location reference", "error", err)
 					}
 				}
@@ -145,7 +146,7 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 
 		// Create new location references
 		for _, locationID := range *input.LocationIDs {
-			l, err := uc.locationRepo.GetByID(ctx, locationID)
+			l, err := uc.locationRepo.GetByID(ctx, input.TenantID, locationID)
 			if err != nil {
 				return nil, err
 			}
@@ -166,7 +167,7 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 		}
 	}
 
-	w, _ := uc.worldRepo.GetByID(ctx, a.WorldID)
+	w, _ := uc.worldRepo.GetByID(ctx, input.TenantID, a.WorldID)
 	auditLog := audit.NewAuditLog(
 		w.TenantID,
 		nil,

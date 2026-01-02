@@ -31,6 +31,7 @@ func NewCreateInventorySlotUseCase(
 
 // CreateInventorySlotInput represents the input for creating an inventory slot
 type CreateInventorySlotInput struct {
+	TenantID    uuid.UUID
 	RPGSystemID uuid.UUID
 	Name        string
 	SlotType    *rpg.SlotType
@@ -43,14 +44,15 @@ type CreateInventorySlotOutput struct {
 
 // Execute creates a new inventory slot
 func (uc *CreateInventorySlotUseCase) Execute(ctx context.Context, input CreateInventorySlotInput) (*CreateInventorySlotOutput, error) {
+	tenantIDPtr := &input.TenantID
 	// Validate RPG system exists
-	_, err := uc.rpgSystemRepo.GetByID(ctx, input.RPGSystemID)
+	_, err := uc.rpgSystemRepo.GetByID(ctx, tenantIDPtr, input.RPGSystemID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create slot
-	slot, err := rpg.NewInventorySlot(input.RPGSystemID, input.Name)
+	slot, err := rpg.NewInventorySlot(input.TenantID, input.RPGSystemID, input.Name)
 	if err != nil {
 		return nil, err
 	}

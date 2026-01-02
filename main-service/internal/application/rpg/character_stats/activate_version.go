@@ -28,7 +28,8 @@ func NewActivateCharacterStatsVersionUseCase(
 
 // ActivateCharacterStatsVersionInput represents the input for activating a version
 type ActivateCharacterStatsVersionInput struct {
-	StatsID uuid.UUID
+	TenantID uuid.UUID
+	StatsID  uuid.UUID
 }
 
 // ActivateCharacterStatsVersionOutput represents the output of activating a version
@@ -39,13 +40,13 @@ type ActivateCharacterStatsVersionOutput struct {
 // Execute activates a specific stats version (rollback)
 func (uc *ActivateCharacterStatsVersionUseCase) Execute(ctx context.Context, input ActivateCharacterStatsVersionInput) (*ActivateCharacterStatsVersionOutput, error) {
 	// Get the stats version
-	stats, err := uc.characterStatsRepo.GetByID(ctx, input.StatsID)
+	stats, err := uc.characterStatsRepo.GetByID(ctx, input.TenantID, input.StatsID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Deactivate all versions for this character
-	if err := uc.characterStatsRepo.DeactivateAllByCharacter(ctx, stats.CharacterID); err != nil {
+	if err := uc.characterStatsRepo.DeactivateAllByCharacter(ctx, input.TenantID, stats.CharacterID); err != nil {
 		return nil, err
 	}
 

@@ -28,7 +28,8 @@ func NewListClassSkillsUseCase(
 
 // ListClassSkillsInput represents the input for listing class skills
 type ListClassSkillsInput struct {
-	ClassID uuid.UUID
+	TenantID uuid.UUID
+	ClassID  uuid.UUID
 }
 
 // ListClassSkillsOutput represents the output of listing class skills
@@ -38,7 +39,7 @@ type ListClassSkillsOutput struct {
 
 // Execute lists skills for a class
 func (uc *ListClassSkillsUseCase) Execute(ctx context.Context, input ListClassSkillsInput) (*ListClassSkillsOutput, error) {
-	skills, err := uc.classSkillRepo.ListByClass(ctx, input.ClassID)
+	skills, err := uc.classSkillRepo.ListByClass(ctx, input.TenantID, input.ClassID)
 	if err != nil {
 		uc.logger.Error("failed to list class skills", "error", err, "class_id", input.ClassID)
 		return nil, err

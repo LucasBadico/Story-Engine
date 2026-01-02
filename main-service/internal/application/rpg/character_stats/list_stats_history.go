@@ -28,6 +28,7 @@ func NewListCharacterStatsHistoryUseCase(
 
 // ListCharacterStatsHistoryInput represents the input for listing stats history
 type ListCharacterStatsHistoryInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type ListCharacterStatsHistoryOutput struct {
 
 // Execute lists all stats versions for a character
 func (uc *ListCharacterStatsHistoryUseCase) Execute(ctx context.Context, input ListCharacterStatsHistoryInput) (*ListCharacterStatsHistoryOutput, error) {
-	statsList, err := uc.characterStatsRepo.ListByCharacter(ctx, input.CharacterID)
+	statsList, err := uc.characterStatsRepo.ListByCharacter(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		uc.logger.Error("failed to list character RPG stats history", "error", err, "character_id", input.CharacterID)
 		return nil, err

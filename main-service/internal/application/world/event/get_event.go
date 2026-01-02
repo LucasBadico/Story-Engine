@@ -28,7 +28,8 @@ func NewGetEventUseCase(
 
 // GetEventInput represents the input for getting an event
 type GetEventInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetEventOutput represents the output of getting an event
@@ -38,7 +39,7 @@ type GetEventOutput struct {
 
 // Execute retrieves an event by ID
 func (uc *GetEventUseCase) Execute(ctx context.Context, input GetEventInput) (*GetEventOutput, error) {
-	event, err := uc.eventRepo.GetByID(ctx, input.ID)
+	event, err := uc.eventRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get event", "error", err, "event_id", input.ID)
 		return nil, err

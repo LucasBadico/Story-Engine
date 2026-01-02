@@ -28,6 +28,7 @@ func NewListArtifactStatsHistoryUseCase(
 
 // ListArtifactStatsHistoryInput represents the input for listing stats history
 type ListArtifactStatsHistoryInput struct {
+	TenantID   uuid.UUID
 	ArtifactID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type ListArtifactStatsHistoryOutput struct {
 
 // Execute lists all stats versions for an artifact
 func (uc *ListArtifactStatsHistoryUseCase) Execute(ctx context.Context, input ListArtifactStatsHistoryInput) (*ListArtifactStatsHistoryOutput, error) {
-	statsList, err := uc.artifactStatsRepo.ListByArtifact(ctx, input.ArtifactID)
+	statsList, err := uc.artifactStatsRepo.ListByArtifact(ctx, input.TenantID, input.ArtifactID)
 	if err != nil {
 		uc.logger.Error("failed to list artifact RPG stats history", "error", err, "artifact_id", input.ArtifactID)
 		return nil, err

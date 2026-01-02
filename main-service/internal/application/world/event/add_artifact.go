@@ -35,6 +35,7 @@ func NewAddArtifactToEventUseCase(
 
 // AddArtifactToEventInput represents the input for adding an artifact to an event
 type AddArtifactToEventInput struct {
+	TenantID   uuid.UUID
 	EventID    uuid.UUID
 	ArtifactID uuid.UUID
 	Role       *string
@@ -43,13 +44,13 @@ type AddArtifactToEventInput struct {
 // Execute adds an artifact to an event
 func (uc *AddArtifactToEventUseCase) Execute(ctx context.Context, input AddArtifactToEventInput) error {
 	// Validate event exists
-	event, err := uc.eventRepo.GetByID(ctx, input.EventID)
+	event, err := uc.eventRepo.GetByID(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		return err
 	}
 
 	// Validate artifact exists and belongs to same world
-	artifact, err := uc.artifactRepo.GetByID(ctx, input.ArtifactID)
+	artifact, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.ArtifactID)
 	if err != nil {
 		return err
 	}

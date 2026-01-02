@@ -31,6 +31,7 @@ func NewCreateImageBlockUseCase(
 
 // CreateImageBlockInput represents the input for creating an image block
 type CreateImageBlockInput struct {
+	TenantID  uuid.UUID
 	ChapterID *uuid.UUID
 	OrderNum  *int
 	Kind      story.ImageKind
@@ -50,14 +51,14 @@ type CreateImageBlockOutput struct {
 func (uc *CreateImageBlockUseCase) Execute(ctx context.Context, input CreateImageBlockInput) (*CreateImageBlockOutput, error) {
 	// Validate chapter exists if provided
 	if input.ChapterID != nil {
-		_, err := uc.chapterRepo.GetByID(ctx, *input.ChapterID)
+		_, err := uc.chapterRepo.GetByID(ctx, input.TenantID, *input.ChapterID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Create image block
-	ib, err := story.NewImageBlock(input.ChapterID, input.OrderNum, input.Kind, input.ImageURL)
+	ib, err := story.NewImageBlock(input.TenantID, input.ChapterID, input.OrderNum, input.Kind, input.ImageURL)
 	if err != nil {
 		return nil, err
 	}

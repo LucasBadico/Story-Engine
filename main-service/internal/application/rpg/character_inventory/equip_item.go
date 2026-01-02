@@ -28,7 +28,8 @@ func NewEquipItemUseCase(
 
 // EquipItemInput represents the input for equipping an item
 type EquipItemInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // EquipItemOutput represents the output of equipping an item
@@ -39,7 +40,7 @@ type EquipItemOutput struct {
 // Execute equips an item
 func (uc *EquipItemUseCase) Execute(ctx context.Context, input EquipItemInput) (*EquipItemOutput, error) {
 	// Get inventory entry
-	inventory, err := uc.inventoryRepo.GetByID(ctx, input.ID)
+	inventory, err := uc.inventoryRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

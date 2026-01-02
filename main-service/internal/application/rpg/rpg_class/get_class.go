@@ -28,7 +28,8 @@ func NewGetRPGClassUseCase(
 
 // GetRPGClassInput represents the input for getting an RPG class
 type GetRPGClassInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetRPGClassOutput represents the output of getting an RPG class
@@ -38,7 +39,7 @@ type GetRPGClassOutput struct {
 
 // Execute retrieves an RPG class by ID
 func (uc *GetRPGClassUseCase) Execute(ctx context.Context, input GetRPGClassInput) (*GetRPGClassOutput, error) {
-	class, err := uc.classRepo.GetByID(ctx, input.ID)
+	class, err := uc.classRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get RPG class", "error", err, "class_id", input.ID)
 		return nil, err

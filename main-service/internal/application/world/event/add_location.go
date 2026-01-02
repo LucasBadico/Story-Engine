@@ -35,6 +35,7 @@ func NewAddLocationToEventUseCase(
 
 // AddLocationToEventInput represents the input for adding a location to an event
 type AddLocationToEventInput struct {
+	TenantID     uuid.UUID
 	EventID      uuid.UUID
 	LocationID   uuid.UUID
 	Significance *string
@@ -43,13 +44,13 @@ type AddLocationToEventInput struct {
 // Execute adds a location to an event
 func (uc *AddLocationToEventUseCase) Execute(ctx context.Context, input AddLocationToEventInput) error {
 	// Validate event exists
-	event, err := uc.eventRepo.GetByID(ctx, input.EventID)
+	event, err := uc.eventRepo.GetByID(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		return err
 	}
 
 	// Validate location exists and belongs to same world
-	location, err := uc.locationRepo.GetByID(ctx, input.LocationID)
+	location, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.LocationID)
 	if err != nil {
 		return err
 	}

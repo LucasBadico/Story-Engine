@@ -28,6 +28,7 @@ func NewListInventoryItemsUseCase(
 
 // ListInventoryItemsInput represents the input for listing items
 type ListInventoryItemsInput struct {
+	TenantID    uuid.UUID
 	RPGSystemID uuid.UUID
 	ArtifactID  *uuid.UUID // optional: filter by artifact
 }
@@ -43,9 +44,9 @@ func (uc *ListInventoryItemsUseCase) Execute(ctx context.Context, input ListInve
 	var err error
 
 	if input.ArtifactID != nil {
-		items, err = uc.itemRepo.ListByArtifact(ctx, *input.ArtifactID)
+		items, err = uc.itemRepo.ListByArtifact(ctx, input.TenantID, *input.ArtifactID)
 	} else {
-		items, err = uc.itemRepo.ListBySystem(ctx, input.RPGSystemID)
+		items, err = uc.itemRepo.ListBySystem(ctx, input.TenantID, input.RPGSystemID)
 	}
 
 	if err != nil {

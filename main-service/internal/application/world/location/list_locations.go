@@ -28,10 +28,11 @@ func NewListLocationsUseCase(
 
 // ListLocationsInput represents the input for listing locations
 type ListLocationsInput struct {
-	WorldID uuid.UUID
-	Format  string // "flat" or "tree"
-	Limit   int
-	Offset  int
+	TenantID uuid.UUID
+	WorldID  uuid.UUID
+	Format   string // "flat" or "tree"
+	Limit    int
+	Offset   int
 }
 
 // ListLocationsOutput represents the output of listing locations
@@ -46,7 +47,7 @@ func (uc *ListLocationsUseCase) Execute(ctx context.Context, input ListLocations
 	var err error
 
 	if input.Format == "tree" {
-		locations, err = uc.locationRepo.ListByWorldTree(ctx, input.WorldID)
+		locations, err = uc.locationRepo.ListByWorldTree(ctx, input.TenantID, input.WorldID)
 	} else {
 		limit := input.Limit
 		if limit <= 0 {
@@ -55,7 +56,7 @@ func (uc *ListLocationsUseCase) Execute(ctx context.Context, input ListLocations
 		if limit > 100 {
 			limit = 100
 		}
-		locations, err = uc.locationRepo.ListByWorld(ctx, input.WorldID, limit, input.Offset)
+		locations, err = uc.locationRepo.ListByWorld(ctx, input.TenantID, input.WorldID, limit, input.Offset)
 	}
 
 	if err != nil {
@@ -63,7 +64,7 @@ func (uc *ListLocationsUseCase) Execute(ctx context.Context, input ListLocations
 		return nil, err
 	}
 
-	total, err := uc.locationRepo.CountByWorld(ctx, input.WorldID)
+	total, err := uc.locationRepo.CountByWorld(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		uc.logger.Warn("failed to count locations", "error", err)
 		total = len(locations)

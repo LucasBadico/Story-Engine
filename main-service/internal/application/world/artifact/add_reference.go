@@ -38,6 +38,7 @@ func NewAddArtifactReferenceUseCase(
 
 // AddArtifactReferenceInput represents the input for adding a reference
 type AddArtifactReferenceInput struct {
+	TenantID   uuid.UUID
 	ArtifactID uuid.UUID
 	EntityType world.ArtifactReferenceEntityType
 	EntityID   uuid.UUID
@@ -46,7 +47,7 @@ type AddArtifactReferenceInput struct {
 // Execute adds a reference to an artifact
 func (uc *AddArtifactReferenceUseCase) Execute(ctx context.Context, input AddArtifactReferenceInput) error {
 	// Validate artifact exists
-	a, err := uc.artifactRepo.GetByID(ctx, input.ArtifactID)
+	a, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.ArtifactID)
 	if err != nil {
 		return err
 	}
@@ -54,7 +55,7 @@ func (uc *AddArtifactReferenceUseCase) Execute(ctx context.Context, input AddArt
 	// Validate entity exists and belongs to same world
 	switch input.EntityType {
 	case world.ArtifactReferenceEntityTypeCharacter:
-		c, err := uc.characterRepo.GetByID(ctx, input.EntityID)
+		c, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
 		}
@@ -65,7 +66,7 @@ func (uc *AddArtifactReferenceUseCase) Execute(ctx context.Context, input AddArt
 			}
 		}
 	case world.ArtifactReferenceEntityTypeLocation:
-		l, err := uc.locationRepo.GetByID(ctx, input.EntityID)
+		l, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
 		}

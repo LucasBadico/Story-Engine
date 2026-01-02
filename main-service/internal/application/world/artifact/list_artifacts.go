@@ -28,9 +28,10 @@ func NewListArtifactsUseCase(
 
 // ListArtifactsInput represents the input for listing artifacts
 type ListArtifactsInput struct {
-	WorldID uuid.UUID
-	Limit   int
-	Offset  int
+	TenantID uuid.UUID
+	WorldID  uuid.UUID
+	Limit    int
+	Offset   int
 }
 
 // ListArtifactsOutput represents the output of listing artifacts
@@ -49,13 +50,13 @@ func (uc *ListArtifactsUseCase) Execute(ctx context.Context, input ListArtifacts
 		limit = 100
 	}
 
-	artifacts, err := uc.artifactRepo.ListByWorld(ctx, input.WorldID, limit, input.Offset)
+	artifacts, err := uc.artifactRepo.ListByWorld(ctx, input.TenantID, input.WorldID, limit, input.Offset)
 	if err != nil {
 		uc.logger.Error("failed to list artifacts", "error", err, "world_id", input.WorldID)
 		return nil, err
 	}
 
-	total, err := uc.artifactRepo.CountByWorld(ctx, input.WorldID)
+	total, err := uc.artifactRepo.CountByWorld(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		uc.logger.Warn("failed to count artifacts", "error", err)
 		total = len(artifacts)

@@ -33,6 +33,7 @@ func NewUpdateLocationUseCase(
 
 // UpdateLocationInput represents the input for updating a location
 type UpdateLocationInput struct {
+	TenantID    uuid.UUID
 	ID          uuid.UUID
 	Name        *string
 	Type        *string
@@ -46,7 +47,7 @@ type UpdateLocationOutput struct {
 
 // Execute updates a location
 func (uc *UpdateLocationUseCase) Execute(ctx context.Context, input UpdateLocationInput) (*UpdateLocationOutput, error) {
-	l, err := uc.locationRepo.GetByID(ctx, input.ID)
+	l, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -79,7 +80,7 @@ func (uc *UpdateLocationUseCase) Execute(ctx context.Context, input UpdateLocati
 	}
 
 	auditLog := audit.NewAuditLog(
-		l.WorldID,
+		l.TenantID,
 		nil,
 		audit.ActionUpdate,
 		audit.EntityTypeLocation,

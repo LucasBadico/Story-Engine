@@ -34,6 +34,7 @@ func NewAddSkillToClassUseCase(
 
 // AddSkillToClassInput represents the input for adding a skill to a class
 type AddSkillToClassInput struct {
+	TenantID     uuid.UUID
 	ClassID      uuid.UUID
 	SkillID      uuid.UUID
 	UnlockLevel  int
@@ -47,19 +48,19 @@ type AddSkillToClassOutput struct {
 // Execute adds a skill to a class
 func (uc *AddSkillToClassUseCase) Execute(ctx context.Context, input AddSkillToClassInput) (*AddSkillToClassOutput, error) {
 	// Validate class exists
-	_, err := uc.classRepo.GetByID(ctx, input.ClassID)
+	_, err := uc.classRepo.GetByID(ctx, input.TenantID, input.ClassID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate skill exists
-	_, err = uc.skillRepo.GetByID(ctx, input.SkillID)
+	_, err = uc.skillRepo.GetByID(ctx, input.TenantID, input.SkillID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if skill already exists for this class
-	existing, err := uc.classSkillRepo.GetByClassAndSkill(ctx, input.ClassID, input.SkillID)
+	existing, err := uc.classSkillRepo.GetByClassAndSkill(ctx, input.TenantID, input.ClassID, input.SkillID)
 	if err == nil && existing != nil {
 		// Update unlock level if different
 		if existing.UnlockLevel != input.UnlockLevel {

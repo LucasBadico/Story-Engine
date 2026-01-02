@@ -28,6 +28,7 @@ func NewGetActiveCharacterStatsUseCase(
 
 // GetActiveCharacterStatsInput represents the input for getting active stats
 type GetActiveCharacterStatsInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetActiveCharacterStatsOutput struct {
 
 // Execute retrieves active character RPG stats
 func (uc *GetActiveCharacterStatsUseCase) Execute(ctx context.Context, input GetActiveCharacterStatsInput) (*GetActiveCharacterStatsOutput, error) {
-	stats, err := uc.characterStatsRepo.GetActiveByCharacter(ctx, input.CharacterID)
+	stats, err := uc.characterStatsRepo.GetActiveByCharacter(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		uc.logger.Error("failed to get active character RPG stats", "error", err, "character_id", input.CharacterID)
 		return nil, err

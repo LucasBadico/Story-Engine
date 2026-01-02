@@ -27,12 +27,13 @@ func NewDeleteCharacterSkillUseCase(
 
 // DeleteCharacterSkillInput represents the input for deleting a character skill
 type DeleteCharacterSkillInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes a character skill (unlearn)
 func (uc *DeleteCharacterSkillUseCase) Execute(ctx context.Context, input DeleteCharacterSkillInput) error {
-	if err := uc.characterSkillRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.characterSkillRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete character skill", "error", err, "id", input.ID)
 		return err
 	}

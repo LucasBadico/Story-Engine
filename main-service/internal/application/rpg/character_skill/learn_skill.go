@@ -34,6 +34,7 @@ func NewLearnSkillUseCase(
 
 // LearnSkillInput represents the input for learning a skill
 type LearnSkillInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 	SkillID     uuid.UUID
 }
@@ -46,19 +47,19 @@ type LearnSkillOutput struct {
 // Execute makes a character learn a skill
 func (uc *LearnSkillUseCase) Execute(ctx context.Context, input LearnSkillInput) (*LearnSkillOutput, error) {
 	// Validate character exists
-	_, err := uc.characterRepo.GetByID(ctx, input.CharacterID)
+	_, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate skill exists
-	_, err = uc.skillRepo.GetByID(ctx, input.SkillID)
+	_, err = uc.skillRepo.GetByID(ctx, input.TenantID, input.SkillID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if character already knows this skill
-	existing, err := uc.characterSkillRepo.GetByCharacterAndSkill(ctx, input.CharacterID, input.SkillID)
+	existing, err := uc.characterSkillRepo.GetByCharacterAndSkill(ctx, input.TenantID, input.CharacterID, input.SkillID)
 	if err == nil && existing != nil {
 		// Character already knows this skill
 		return &LearnSkillOutput{
@@ -87,5 +88,3 @@ func (uc *LearnSkillUseCase) Execute(ctx context.Context, input LearnSkillInput)
 		CharacterSkill: characterSkill,
 	}, nil
 }
-
-

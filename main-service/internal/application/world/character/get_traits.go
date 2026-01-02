@@ -28,6 +28,7 @@ func NewGetCharacterTraitsUseCase(
 
 // GetCharacterTraitsInput represents the input for getting character traits
 type GetCharacterTraitsInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetCharacterTraitsOutput struct {
 
 // Execute retrieves all traits for a character
 func (uc *GetCharacterTraitsUseCase) Execute(ctx context.Context, input GetCharacterTraitsInput) (*GetCharacterTraitsOutput, error) {
-	traits, err := uc.characterTraitRepo.GetByCharacter(ctx, input.CharacterID)
+	traits, err := uc.characterTraitRepo.GetByCharacter(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		uc.logger.Error("failed to get character traits", "error", err, "character_id", input.CharacterID)
 		return nil, err

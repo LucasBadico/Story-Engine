@@ -28,6 +28,7 @@ func NewListSkillsUseCase(
 
 // ListSkillsInput represents the input for listing skills
 type ListSkillsInput struct {
+	TenantID    uuid.UUID
 	RPGSystemID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type ListSkillsOutput struct {
 
 // Execute lists skills for an RPG system
 func (uc *ListSkillsUseCase) Execute(ctx context.Context, input ListSkillsInput) (*ListSkillsOutput, error) {
-	skills, err := uc.skillRepo.ListBySystem(ctx, input.RPGSystemID)
+	skills, err := uc.skillRepo.ListBySystem(ctx, input.TenantID, input.RPGSystemID)
 	if err != nil {
 		uc.logger.Error("failed to list skills", "error", err, "rpg_system_id", input.RPGSystemID)
 		return nil, err

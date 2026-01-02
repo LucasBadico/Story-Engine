@@ -32,6 +32,7 @@ func NewCreateRPGClassUseCase(
 
 // CreateRPGClassInput represents the input for creating an RPG class
 type CreateRPGClassInput struct {
+	TenantID     uuid.UUID
 	RPGSystemID  uuid.UUID
 	ParentClassID *uuid.UUID
 	Name         string
@@ -48,22 +49,23 @@ type CreateRPGClassOutput struct {
 
 // Execute creates a new RPG class
 func (uc *CreateRPGClassUseCase) Execute(ctx context.Context, input CreateRPGClassInput) (*CreateRPGClassOutput, error) {
+	tenantIDPtr := &input.TenantID
 	// Validate RPG system exists
-	_, err := uc.rpgSystemRepo.GetByID(ctx, input.RPGSystemID)
+	_, err := uc.rpgSystemRepo.GetByID(ctx, tenantIDPtr, input.RPGSystemID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate parent class exists if provided
 	if input.ParentClassID != nil {
-		_, err := uc.classRepo.GetByID(ctx, *input.ParentClassID)
+		_, err := uc.classRepo.GetByID(ctx, input.TenantID, *input.ParentClassID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Create class
-	class, err := rpg.NewRPGClass(input.RPGSystemID, input.Name)
+	class, err := rpg.NewRPGClass(input.TenantID, input.RPGSystemID, input.Name)
 	if err != nil {
 		return nil, err
 	}

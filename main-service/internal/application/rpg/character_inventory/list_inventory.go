@@ -28,7 +28,8 @@ func NewListCharacterInventoryUseCase(
 
 // ListCharacterInventoryInput represents the input for listing inventory
 type ListCharacterInventoryInput struct {
-	CharacterID uuid.UUID
+	TenantID     uuid.UUID
+	CharacterID  uuid.UUID
 	EquippedOnly bool
 }
 
@@ -43,9 +44,9 @@ func (uc *ListCharacterInventoryUseCase) Execute(ctx context.Context, input List
 	var err error
 
 	if input.EquippedOnly {
-		items, err = uc.inventoryRepo.ListEquippedByCharacter(ctx, input.CharacterID)
+		items, err = uc.inventoryRepo.ListEquippedByCharacter(ctx, input.TenantID, input.CharacterID)
 	} else {
-		items, err = uc.inventoryRepo.ListByCharacter(ctx, input.CharacterID)
+		items, err = uc.inventoryRepo.ListByCharacter(ctx, input.TenantID, input.CharacterID)
 	}
 
 	if err != nil {

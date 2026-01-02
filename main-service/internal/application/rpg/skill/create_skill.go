@@ -32,6 +32,7 @@ func NewCreateSkillUseCase(
 
 // CreateSkillInput represents the input for creating a skill
 type CreateSkillInput struct {
+	TenantID      uuid.UUID
 	RPGSystemID   uuid.UUID
 	Name          string
 	Category      *rpg.SkillCategory
@@ -49,14 +50,15 @@ type CreateSkillOutput struct {
 
 // Execute creates a new skill
 func (uc *CreateSkillUseCase) Execute(ctx context.Context, input CreateSkillInput) (*CreateSkillOutput, error) {
+	tenantIDPtr := &input.TenantID
 	// Validate RPG system exists
-	_, err := uc.rpgSystemRepo.GetByID(ctx, input.RPGSystemID)
+	_, err := uc.rpgSystemRepo.GetByID(ctx, tenantIDPtr, input.RPGSystemID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create skill
-	skill, err := rpg.NewSkill(input.RPGSystemID, input.Name)
+	skill, err := rpg.NewSkill(input.TenantID, input.RPGSystemID, input.Name)
 	if err != nil {
 		return nil, err
 	}

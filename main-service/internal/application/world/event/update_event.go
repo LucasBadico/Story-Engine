@@ -32,6 +32,7 @@ func NewUpdateEventUseCase(
 
 // UpdateEventInput represents the input for updating an event
 type UpdateEventInput struct {
+	TenantID    uuid.UUID
 	ID          uuid.UUID
 	Name        *string
 	Type        *string
@@ -48,7 +49,7 @@ type UpdateEventOutput struct {
 // Execute updates an event
 func (uc *UpdateEventUseCase) Execute(ctx context.Context, input UpdateEventInput) (*UpdateEventOutput, error) {
 	// Get existing event
-	event, err := uc.eventRepo.GetByID(ctx, input.ID)
+	event, err := uc.eventRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +86,7 @@ func (uc *UpdateEventUseCase) Execute(ctx context.Context, input UpdateEventInpu
 
 	// Log audit event
 	auditLog := audit.NewAuditLog(
-		event.WorldID, // Using WorldID as tenant context - TODO: get tenant from world
+		event.TenantID,
 		nil,
 		audit.ActionUpdate,
 		audit.EntityTypeEvent,

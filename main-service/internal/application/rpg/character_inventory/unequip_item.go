@@ -28,7 +28,8 @@ func NewUnequipItemUseCase(
 
 // UnequipItemInput represents the input for unequipping an item
 type UnequipItemInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // UnequipItemOutput represents the output of unequipping an item
@@ -39,7 +40,7 @@ type UnequipItemOutput struct {
 // Execute unequips an item
 func (uc *UnequipItemUseCase) Execute(ctx context.Context, input UnequipItemInput) (*UnequipItemOutput, error) {
 	// Get inventory entry
-	inventory, err := uc.inventoryRepo.GetByID(ctx, input.ID)
+	inventory, err := uc.inventoryRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

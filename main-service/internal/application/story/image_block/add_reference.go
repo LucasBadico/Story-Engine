@@ -32,6 +32,7 @@ func NewAddImageBlockReferenceUseCase(
 
 // AddImageBlockReferenceInput represents the input for adding a reference
 type AddImageBlockReferenceInput struct {
+	TenantID     uuid.UUID
 	ImageBlockID uuid.UUID
 	EntityType   story.ImageBlockReferenceEntityType
 	EntityID     uuid.UUID
@@ -40,13 +41,13 @@ type AddImageBlockReferenceInput struct {
 // Execute adds a reference to an image block
 func (uc *AddImageBlockReferenceUseCase) Execute(ctx context.Context, input AddImageBlockReferenceInput) error {
 	// Validate image block exists
-	_, err := uc.imageBlockRepo.GetByID(ctx, input.ImageBlockID)
+	_, err := uc.imageBlockRepo.GetByID(ctx, input.TenantID, input.ImageBlockID)
 	if err != nil {
 		return err
 	}
 
 	// Prevent duplicate references
-	existingRefs, err := uc.imageBlockReferenceRepo.ListByImageBlock(ctx, input.ImageBlockID)
+	existingRefs, err := uc.imageBlockReferenceRepo.ListByImageBlock(ctx, input.TenantID, input.ImageBlockID)
 	if err == nil {
 		for _, ref := range existingRefs {
 			if ref.EntityType == input.EntityType && ref.EntityID == input.EntityID {

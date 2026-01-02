@@ -31,6 +31,7 @@ func NewUpdateCharacterTraitUseCase(
 
 // UpdateCharacterTraitInput represents the input for updating a character trait
 type UpdateCharacterTraitInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 	TraitID     uuid.UUID
 	Value       *string
@@ -44,7 +45,7 @@ type UpdateCharacterTraitOutput struct {
 
 // Execute updates a character trait
 func (uc *UpdateCharacterTraitUseCase) Execute(ctx context.Context, input UpdateCharacterTraitInput) (*UpdateCharacterTraitOutput, error) {
-	ct, err := uc.characterTraitRepo.GetByCharacterAndTrait(ctx, input.CharacterID, input.TraitID)
+	ct, err := uc.characterTraitRepo.GetByCharacterAndTrait(ctx, input.TenantID, input.CharacterID, input.TraitID)
 	if err != nil {
 		return nil, err
 	}

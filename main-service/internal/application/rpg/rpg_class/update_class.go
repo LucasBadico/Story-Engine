@@ -29,6 +29,7 @@ func NewUpdateRPGClassUseCase(
 
 // UpdateRPGClassInput represents the input for updating an RPG class
 type UpdateRPGClassInput struct {
+	TenantID      uuid.UUID
 	ID            uuid.UUID
 	ParentClassID *uuid.UUID
 	Name          *string
@@ -46,14 +47,14 @@ type UpdateRPGClassOutput struct {
 // Execute updates an RPG class
 func (uc *UpdateRPGClassUseCase) Execute(ctx context.Context, input UpdateRPGClassInput) (*UpdateRPGClassOutput, error) {
 	// Get existing class
-	class, err := uc.classRepo.GetByID(ctx, input.ID)
+	class, err := uc.classRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate parent class exists if provided
 	if input.ParentClassID != nil {
-		_, err := uc.classRepo.GetByID(ctx, *input.ParentClassID)
+		_, err := uc.classRepo.GetByID(ctx, input.TenantID, *input.ParentClassID)
 		if err != nil {
 			return nil, err
 		}

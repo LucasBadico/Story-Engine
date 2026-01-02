@@ -101,6 +101,7 @@ func (h *CharacterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.createCharacterUseCase.Execute(r.Context(), characterapp.CreateCharacterInput{
+		TenantID:    tenantID,
 		WorldID:     worldID,
 		ArchetypeID: archetypeID,
 		Name:        req.Name,
@@ -132,7 +133,8 @@ func (h *CharacterHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getCharacterUseCase.Execute(r.Context(), characterapp.GetCharacterInput{
-		ID: characterID,
+		TenantID: tenantID,
+		ID:       characterID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -176,9 +178,10 @@ func (h *CharacterHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listCharactersUseCase.Execute(r.Context(), characterapp.ListCharactersInput{
-		WorldID: worldID,
-		Limit:   limit,
-		Offset:  offset,
+		TenantID: tenantID,
+		WorldID:  worldID,
+		Limit:    limit,
+		Offset:   offset,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -237,6 +240,7 @@ func (h *CharacterHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateCharacterUseCase.Execute(r.Context(), characterapp.UpdateCharacterInput{
+		TenantID:    tenantID,
 		ID:          characterID,
 		Name:        req.Name,
 		Description: req.Description,
@@ -267,7 +271,8 @@ func (h *CharacterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteCharacterUseCase.Execute(r.Context(), characterapp.DeleteCharacterInput{
-		ID: characterID,
+		TenantID: tenantID,
+		ID:       characterID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -291,6 +296,7 @@ func (h *CharacterHandler) GetTraits(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getTraitsUseCase.Execute(r.Context(), characterapp.GetCharacterTraitsInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 	})
 	if err != nil {
@@ -341,10 +347,11 @@ func (h *CharacterHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.addTraitUseCase.Execute(r.Context(), characterapp.AddTraitToCharacterInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
-		TraitID:      traitID,
-		Value:        req.Value,
-		Notes:        req.Notes,
+		TraitID:     traitID,
+		Value:       req.Value,
+		Notes:       req.Notes,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -378,6 +385,7 @@ func (h *CharacterHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.removeTraitUseCase.Execute(r.Context(), characterapp.RemoveTraitFromCharacterInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		TraitID:     traitID,
 	})
@@ -426,6 +434,7 @@ func (h *CharacterHandler) UpdateTrait(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateTraitUseCase.Execute(r.Context(), characterapp.UpdateCharacterTraitInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		TraitID:     traitID,
 		Value:       req.Value,

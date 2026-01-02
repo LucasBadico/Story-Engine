@@ -107,6 +107,7 @@ func (h *ArtifactHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.createArtifactUseCase.Execute(r.Context(), artifactapp.CreateArtifactInput{
+		TenantID:     tenantID,
 		WorldID:      worldID,
 		CharacterIDs: characterIDs,
 		LocationIDs:  locationIDs,
@@ -140,7 +141,8 @@ func (h *ArtifactHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getArtifactUseCase.Execute(r.Context(), artifactapp.GetArtifactInput{
-		ID: artifactID,
+		TenantID: tenantID,
+		ID:       artifactID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -184,9 +186,10 @@ func (h *ArtifactHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listArtifactsUseCase.Execute(r.Context(), artifactapp.ListArtifactsInput{
-		WorldID: worldID,
-		Limit:   limit,
-		Offset:  offset,
+		TenantID: tenantID,
+		WorldID:  worldID,
+		Limit:    limit,
+		Offset:   offset,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -264,12 +267,13 @@ func (h *ArtifactHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateArtifactUseCase.Execute(r.Context(), artifactapp.UpdateArtifactInput{
-		ID:          artifactID,
-		Name:        req.Name,
-		Description: req.Description,
-		Rarity:      req.Rarity,
+		TenantID:     tenantID,
+		ID:           artifactID,
+		Name:         req.Name,
+		Description:  req.Description,
+		Rarity:       req.Rarity,
 		CharacterIDs: characterIDs,
-		LocationIDs: locationIDs,
+		LocationIDs:  locationIDs,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -296,7 +300,8 @@ func (h *ArtifactHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteArtifactUseCase.Execute(r.Context(), artifactapp.DeleteArtifactInput{
-		ID: artifactID,
+		TenantID: tenantID,
+		ID:       artifactID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -320,6 +325,7 @@ func (h *ArtifactHandler) GetReferences(w http.ResponseWriter, r *http.Request) 
 	}
 
 	output, err := h.getReferencesUseCase.Execute(r.Context(), artifactapp.GetArtifactReferencesInput{
+		TenantID:   tenantID,
 		ArtifactID: artifactID,
 	})
 	if err != nil {
@@ -378,6 +384,7 @@ func (h *ArtifactHandler) AddReference(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.addReferenceUseCase.Execute(r.Context(), artifactapp.AddArtifactReferenceInput{
+		TenantID:   tenantID,
 		ArtifactID: artifactID,
 		EntityType: entityType,
 		EntityID:   entityID,
@@ -425,6 +432,7 @@ func (h *ArtifactHandler) RemoveReference(w http.ResponseWriter, r *http.Request
 	}
 
 	err = h.removeReferenceUseCase.Execute(r.Context(), artifactapp.RemoveArtifactReferenceInput{
+		TenantID:   tenantID,
 		ArtifactID: artifactID,
 		EntityType: entityType,
 		EntityID:   entityID,

@@ -39,6 +39,7 @@ func NewUpdateCharacterUseCase(
 
 // UpdateCharacterInput represents the input for updating a character
 type UpdateCharacterInput struct {
+	TenantID    uuid.UUID
 	ID          uuid.UUID
 	Name        *string
 	Description *string
@@ -52,7 +53,7 @@ type UpdateCharacterOutput struct {
 
 // Execute updates a character
 func (uc *UpdateCharacterUseCase) Execute(ctx context.Context, input UpdateCharacterInput) (*UpdateCharacterOutput, error) {
-	c, err := uc.characterRepo.GetByID(ctx, input.ID)
+	c, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +72,7 @@ func (uc *UpdateCharacterUseCase) Execute(ctx context.Context, input UpdateChara
 	if input.ArchetypeID != nil {
 		// Validate archetype exists if provided
 		if *input.ArchetypeID != uuid.Nil {
-			_, err := uc.archetypeRepo.GetByID(ctx, *input.ArchetypeID)
+			_, err := uc.archetypeRepo.GetByID(ctx, input.TenantID, *input.ArchetypeID)
 			if err != nil {
 				return nil, err
 			}
@@ -91,7 +92,7 @@ func (uc *UpdateCharacterUseCase) Execute(ctx context.Context, input UpdateChara
 		return nil, err
 	}
 
-	w, _ := uc.worldRepo.GetByID(ctx, c.WorldID)
+	w, _ := uc.worldRepo.GetByID(ctx, input.TenantID, c.WorldID)
 	auditLog := audit.NewAuditLog(
 		w.TenantID,
 		nil,

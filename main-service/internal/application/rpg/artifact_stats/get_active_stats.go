@@ -28,6 +28,7 @@ func NewGetActiveArtifactStatsUseCase(
 
 // GetActiveArtifactStatsInput represents the input for getting active stats
 type GetActiveArtifactStatsInput struct {
+	TenantID   uuid.UUID
 	ArtifactID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetActiveArtifactStatsOutput struct {
 
 // Execute retrieves active artifact RPG stats
 func (uc *GetActiveArtifactStatsUseCase) Execute(ctx context.Context, input GetActiveArtifactStatsInput) (*GetActiveArtifactStatsOutput, error) {
-	stats, err := uc.artifactStatsRepo.GetActiveByArtifact(ctx, input.ArtifactID)
+	stats, err := uc.artifactStatsRepo.GetActiveByArtifact(ctx, input.TenantID, input.ArtifactID)
 	if err != nil {
 		uc.logger.Error("failed to get active artifact RPG stats", "error", err, "artifact_id", input.ArtifactID)
 		return nil, err

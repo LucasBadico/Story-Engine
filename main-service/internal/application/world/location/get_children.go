@@ -28,6 +28,7 @@ func NewGetChildrenUseCase(
 
 // GetChildrenInput represents the input for getting children
 type GetChildrenInput struct {
+	TenantID   uuid.UUID
 	LocationID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetChildrenOutput struct {
 
 // Execute retrieves direct children of a location
 func (uc *GetChildrenUseCase) Execute(ctx context.Context, input GetChildrenInput) (*GetChildrenOutput, error) {
-	children, err := uc.locationRepo.GetChildren(ctx, input.LocationID)
+	children, err := uc.locationRepo.GetChildren(ctx, input.TenantID, input.LocationID)
 	if err != nil {
 		uc.logger.Error("failed to get children", "error", err, "location_id", input.LocationID)
 		return nil, err

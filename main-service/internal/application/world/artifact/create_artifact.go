@@ -45,6 +45,7 @@ func NewCreateArtifactUseCase(
 
 // CreateArtifactInput represents the input for creating an artifact
 type CreateArtifactInput struct {
+	TenantID     uuid.UUID
 	WorldID      uuid.UUID
 	CharacterIDs []uuid.UUID
 	LocationIDs  []uuid.UUID
@@ -61,14 +62,14 @@ type CreateArtifactOutput struct {
 // Execute creates a new artifact
 func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifactInput) (*CreateArtifactOutput, error) {
 	// Validate world exists
-	w, err := uc.worldRepo.GetByID(ctx, input.WorldID)
+	w, err := uc.worldRepo.GetByID(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate characters exist if provided
 	for _, characterID := range input.CharacterIDs {
-		c, err := uc.characterRepo.GetByID(ctx, characterID)
+		c, err := uc.characterRepo.GetByID(ctx, input.TenantID, characterID)
 		if err != nil {
 			return nil, err
 		}
@@ -82,7 +83,7 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 
 	// Validate locations exist if provided
 	for _, locationID := range input.LocationIDs {
-		l, err := uc.locationRepo.GetByID(ctx, locationID)
+		l, err := uc.locationRepo.GetByID(ctx, input.TenantID, locationID)
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +95,7 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 		}
 	}
 
-	newArtifact, err := world.NewArtifact(input.WorldID, input.Name)
+	newArtifact, err := world.NewArtifact(input.TenantID, input.WorldID, input.Name)
 	if err != nil {
 		return nil, err
 	}

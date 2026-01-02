@@ -27,12 +27,13 @@ func NewDeleteRPGClassUseCase(
 
 // DeleteRPGClassInput represents the input for deleting an RPG class
 type DeleteRPGClassInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes an RPG class
 func (uc *DeleteRPGClassUseCase) Execute(ctx context.Context, input DeleteRPGClassInput) error {
-	if err := uc.classRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.classRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete RPG class", "error", err, "class_id", input.ID)
 		return err
 	}

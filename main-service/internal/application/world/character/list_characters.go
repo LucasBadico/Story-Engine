@@ -28,9 +28,10 @@ func NewListCharactersUseCase(
 
 // ListCharactersInput represents the input for listing characters
 type ListCharactersInput struct {
-	WorldID uuid.UUID
-	Limit   int
-	Offset  int
+	TenantID uuid.UUID
+	WorldID  uuid.UUID
+	Limit    int
+	Offset   int
 }
 
 // ListCharactersOutput represents the output of listing characters
@@ -49,13 +50,13 @@ func (uc *ListCharactersUseCase) Execute(ctx context.Context, input ListCharacte
 		limit = 100
 	}
 
-	characters, err := uc.characterRepo.ListByWorld(ctx, input.WorldID, limit, input.Offset)
+	characters, err := uc.characterRepo.ListByWorld(ctx, input.TenantID, input.WorldID, limit, input.Offset)
 	if err != nil {
 		uc.logger.Error("failed to list characters", "error", err, "world_id", input.WorldID)
 		return nil, err
 	}
 
-	total, err := uc.characterRepo.CountByWorld(ctx, input.WorldID)
+	total, err := uc.characterRepo.CountByWorld(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		uc.logger.Warn("failed to count characters", "error", err)
 		total = len(characters)

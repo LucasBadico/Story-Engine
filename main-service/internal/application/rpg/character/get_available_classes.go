@@ -34,6 +34,7 @@ func NewGetAvailableClassesUseCase(
 
 // GetAvailableClassesInput represents the input for getting available classes
 type GetAvailableClassesInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 }
 
@@ -47,7 +48,7 @@ type GetAvailableClassesOutput struct {
 // In the future, can filter by requirements (level, stats, etc.)
 func (uc *GetAvailableClassesUseCase) Execute(ctx context.Context, input GetAvailableClassesInput) (*GetAvailableClassesOutput, error) {
 	// Get character
-	_, err := uc.characterRepo.GetByID(ctx, input.CharacterID)
+	_, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return nil, err
 	}

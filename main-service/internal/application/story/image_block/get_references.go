@@ -28,6 +28,7 @@ func NewGetImageBlockReferencesUseCase(
 
 // GetImageBlockReferencesInput represents the input for getting references
 type GetImageBlockReferencesInput struct {
+	TenantID    uuid.UUID
 	ImageBlockID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetImageBlockReferencesOutput struct {
 
 // Execute retrieves all references for an image block
 func (uc *GetImageBlockReferencesUseCase) Execute(ctx context.Context, input GetImageBlockReferencesInput) (*GetImageBlockReferencesOutput, error) {
-	references, err := uc.imageBlockReferenceRepo.ListByImageBlock(ctx, input.ImageBlockID)
+	references, err := uc.imageBlockReferenceRepo.ListByImageBlock(ctx, input.TenantID, input.ImageBlockID)
 	if err != nil {
 		uc.logger.Error("failed to get image block references", "error", err, "image_block_id", input.ImageBlockID)
 		return nil, err

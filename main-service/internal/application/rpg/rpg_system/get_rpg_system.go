@@ -28,7 +28,8 @@ func NewGetRPGSystemUseCase(
 
 // GetRPGSystemInput represents the input for getting an RPG system
 type GetRPGSystemInput struct {
-	ID uuid.UUID
+	TenantID *uuid.UUID // nil = builtin only
+	ID       uuid.UUID
 }
 
 // GetRPGSystemOutput represents the output of getting an RPG system
@@ -38,7 +39,7 @@ type GetRPGSystemOutput struct {
 
 // Execute retrieves an RPG system by ID
 func (uc *GetRPGSystemUseCase) Execute(ctx context.Context, input GetRPGSystemInput) (*GetRPGSystemOutput, error) {
-	system, err := uc.rpgSystemRepo.GetByID(ctx, input.ID)
+	system, err := uc.rpgSystemRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get RPG system", "error", err, "rpg_system_id", input.ID)
 		return nil, err

@@ -28,7 +28,8 @@ func NewListEventsUseCase(
 
 // ListEventsInput represents the input for listing events
 type ListEventsInput struct {
-	WorldID uuid.UUID
+	TenantID uuid.UUID
+	WorldID  uuid.UUID
 }
 
 // ListEventsOutput represents the output of listing events
@@ -38,7 +39,7 @@ type ListEventsOutput struct {
 
 // Execute lists events for a world
 func (uc *ListEventsUseCase) Execute(ctx context.Context, input ListEventsInput) (*ListEventsOutput, error) {
-	events, err := uc.eventRepo.ListByWorld(ctx, input.WorldID)
+	events, err := uc.eventRepo.ListByWorld(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		uc.logger.Error("failed to list events", "error", err, "world_id", input.WorldID)
 		return nil, err

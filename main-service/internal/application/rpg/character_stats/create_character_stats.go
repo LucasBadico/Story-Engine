@@ -35,13 +35,14 @@ func NewCreateCharacterStatsUseCase(
 
 // CreateCharacterStatsInput represents the input for creating character stats
 type CreateCharacterStatsInput struct {
-	CharacterID      uuid.UUID
-	EventID          *uuid.UUID
-	BaseStats        json.RawMessage
-	DerivedStats     *json.RawMessage
-	Progression      *json.RawMessage
-	Reason           *string
-	Timeline         *string
+	TenantID          uuid.UUID
+	CharacterID       uuid.UUID
+	EventID           *uuid.UUID
+	BaseStats         json.RawMessage
+	DerivedStats      *json.RawMessage
+	Progression       *json.RawMessage
+	Reason            *string
+	Timeline          *string
 	DeactivatePrevious bool // true = deactivate previous versions
 }
 
@@ -53,21 +54,21 @@ type CreateCharacterStatsOutput struct {
 // Execute creates new character RPG stats
 func (uc *CreateCharacterStatsUseCase) Execute(ctx context.Context, input CreateCharacterStatsInput) (*CreateCharacterStatsOutput, error) {
 	// Validate character exists
-	_, err := uc.characterRepo.GetByID(ctx, input.CharacterID)
+	_, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate event exists if provided
 	if input.EventID != nil {
-		_, err := uc.eventRepo.GetByID(ctx, *input.EventID)
+		_, err := uc.eventRepo.GetByID(ctx, input.TenantID, *input.EventID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Create stats
-	stats, err := rpg.NewCharacterRPGStats(input.CharacterID, input.BaseStats)
+	stats, err := rpg.NewCharacterRPGStats(input.TenantID, input.CharacterID, input.BaseStats)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +90,7 @@ func (uc *CreateCharacterStatsUseCase) Execute(ctx context.Context, input Create
 	}
 
 	// Get next version number
-	version, err := uc.characterStatsRepo.GetNextVersion(ctx, input.CharacterID)
+	version, err := uc.characterStatsRepo.GetNextVersion(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return nil, err
 	}
@@ -97,13 +98,13 @@ func (uc *CreateCharacterStatsUseCase) Execute(ctx context.Context, input Create
 
 	// Deactivate previous versions if requested
 	if input.DeactivatePrevious {
-		if err := uc.characterStatsRepo.DeactivateAllByCharacter(ctx, input.CharacterID); err != nil {
+		if err := uc.characterStatsRepo.DeactivateAllByCharacter(ctx, input.TenantID, input.CharacterID); err != nil {
 			return nil, err
 		}
 		stats.SetActive(true)
 	} else {
 		// Check if there's an active version
-		activeStats, err := uc.characterStatsRepo.GetActiveByCharacter(ctx, input.CharacterID)
+		activeStats, err := uc.characterStatsRepo.GetActiveByCharacter(ctx, input.TenantID, input.CharacterID)
 		if err == nil && activeStats != nil {
 			// There's an active version, this one should be inactive
 			stats.SetActive(false)

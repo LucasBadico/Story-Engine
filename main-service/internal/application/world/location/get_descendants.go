@@ -28,6 +28,7 @@ func NewGetDescendantsUseCase(
 
 // GetDescendantsInput represents the input for getting descendants
 type GetDescendantsInput struct {
+	TenantID   uuid.UUID
 	LocationID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetDescendantsOutput struct {
 
 // Execute retrieves all descendants of a location (recursive)
 func (uc *GetDescendantsUseCase) Execute(ctx context.Context, input GetDescendantsInput) (*GetDescendantsOutput, error) {
-	descendants, err := uc.locationRepo.GetDescendants(ctx, input.LocationID)
+	descendants, err := uc.locationRepo.GetDescendants(ctx, input.TenantID, input.LocationID)
 	if err != nil {
 		uc.logger.Error("failed to get descendants", "error", err, "location_id", input.LocationID)
 		return nil, err

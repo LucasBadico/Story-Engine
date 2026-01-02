@@ -28,14 +28,15 @@ func NewRemoveSceneReferenceUseCase(
 
 // RemoveSceneReferenceInput represents the input for removing a reference
 type RemoveSceneReferenceInput struct {
-	SceneID   uuid.UUID
+	TenantID   uuid.UUID
+	SceneID    uuid.UUID
 	EntityType story.SceneReferenceEntityType
 	EntityID   uuid.UUID
 }
 
 // Execute removes a reference from a scene
 func (uc *RemoveSceneReferenceUseCase) Execute(ctx context.Context, input RemoveSceneReferenceInput) error {
-	if err := uc.sceneReferenceRepo.DeleteBySceneAndEntity(ctx, input.SceneID, input.EntityType, input.EntityID); err != nil {
+	if err := uc.sceneReferenceRepo.DeleteBySceneAndEntity(ctx, input.TenantID, input.SceneID, input.EntityType, input.EntityID); err != nil {
 		uc.logger.Error("failed to remove scene reference", "error", err, "scene_id", input.SceneID)
 		return err
 	}

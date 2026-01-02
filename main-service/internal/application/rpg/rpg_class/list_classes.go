@@ -28,6 +28,7 @@ func NewListRPGClassesUseCase(
 
 // ListRPGClassesInput represents the input for listing RPG classes
 type ListRPGClassesInput struct {
+	TenantID     uuid.UUID
 	RPGSystemID  uuid.UUID
 	ParentClassID *uuid.UUID // optional: filter by parent
 }
@@ -43,9 +44,9 @@ func (uc *ListRPGClassesUseCase) Execute(ctx context.Context, input ListRPGClass
 	var err error
 
 	if input.ParentClassID != nil {
-		classes, err = uc.classRepo.ListByParent(ctx, *input.ParentClassID)
+		classes, err = uc.classRepo.ListByParent(ctx, input.TenantID, *input.ParentClassID)
 	} else {
-		classes, err = uc.classRepo.ListBySystem(ctx, input.RPGSystemID)
+		classes, err = uc.classRepo.ListBySystem(ctx, input.TenantID, input.RPGSystemID)
 	}
 
 	if err != nil {

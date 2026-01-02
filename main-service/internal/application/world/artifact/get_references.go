@@ -28,6 +28,7 @@ func NewGetArtifactReferencesUseCase(
 
 // GetArtifactReferencesInput represents the input for getting references
 type GetArtifactReferencesInput struct {
+	TenantID   uuid.UUID
 	ArtifactID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetArtifactReferencesOutput struct {
 
 // Execute retrieves all references for an artifact
 func (uc *GetArtifactReferencesUseCase) Execute(ctx context.Context, input GetArtifactReferencesInput) (*GetArtifactReferencesOutput, error) {
-	references, err := uc.artifactReferenceRepo.ListByArtifact(ctx, input.ArtifactID)
+	references, err := uc.artifactReferenceRepo.ListByArtifact(ctx, input.TenantID, input.ArtifactID)
 	if err != nil {
 		uc.logger.Error("failed to get artifact references", "error", err, "artifact_id", input.ArtifactID)
 		return nil, err

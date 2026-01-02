@@ -31,6 +31,7 @@ func NewChangeCharacterClassUseCase(
 
 // ChangeCharacterClassInput represents the input for changing a character's class
 type ChangeCharacterClassInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 	ClassID     *uuid.UUID // nil = remove class
 	ClassLevel  *int       // optional: set level (defaults to 1)
@@ -44,14 +45,14 @@ type ChangeCharacterClassOutput struct {
 // Execute changes a character's class
 func (uc *ChangeCharacterClassUseCase) Execute(ctx context.Context, input ChangeCharacterClassInput) (*ChangeCharacterClassOutput, error) {
 	// Get character
-	character, err := uc.characterRepo.GetByID(ctx, input.CharacterID)
+	character, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate class exists if provided
 	if input.ClassID != nil {
-		_, err := uc.classRepo.GetByID(ctx, *input.ClassID)
+		_, err := uc.classRepo.GetByID(ctx, input.TenantID, *input.ClassID)
 		if err != nil {
 			return nil, err
 		}

@@ -28,7 +28,8 @@ func NewGetImageBlockUseCase(
 
 // GetImageBlockInput represents the input for getting an image block
 type GetImageBlockInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetImageBlockOutput represents the output of getting an image block
@@ -38,7 +39,7 @@ type GetImageBlockOutput struct {
 
 // Execute retrieves an image block by ID
 func (uc *GetImageBlockUseCase) Execute(ctx context.Context, input GetImageBlockInput) (*GetImageBlockOutput, error) {
-	imageBlock, err := uc.imageBlockRepo.GetByID(ctx, input.ID)
+	imageBlock, err := uc.imageBlockRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get image block", "error", err, "image_block_id", input.ID)
 		return nil, err

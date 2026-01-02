@@ -49,7 +49,8 @@ func NewCloneStoryUseCase(
 
 // CloneStoryInput represents the input for cloning a story
 type CloneStoryInput struct {
-	SourceStoryID uuid.UUID
+	TenantID        uuid.UUID
+	SourceStoryID  uuid.UUID
 	CreatedByUserID *uuid.UUID
 }
 
@@ -61,7 +62,7 @@ type CloneStoryOutput struct {
 // Execute clones a story transactionally
 func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput) (*CloneStoryOutput, error) {
 	// Validate source story exists
-	sourceStory, err := uc.storyRepo.GetByID(ctx, input.SourceStoryID)
+	sourceStory, err := uc.storyRepo.GetByID(ctx, input.TenantID, input.SourceStoryID)
 	if err != nil {
 		if errors.Is(err, platformerrors.ErrNotFound) {
 			return nil, &platformerrors.NotFoundError{
@@ -73,7 +74,7 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 	}
 
 	// Get all versions to determine next version number
-	versions, err := uc.storyRepo.ListVersionsByRoot(ctx, sourceStory.RootStoryID)
+	versions, err := uc.storyRepo.ListVersionsByRoot(ctx, input.TenantID, sourceStory.RootStoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -96,7 +97,7 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 	}
 
 	// Clone all chapters
-	chapters, err := uc.chapterRepo.ListByStory(ctx, sourceStory.ID)
+	chapters, err := uc.chapterRepo.ListByStory(ctx, input.TenantID, sourceStory.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +112,7 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 	}
 
 	// Clone all scenes
-	scenes, err := uc.sceneRepo.ListByStory(ctx, sourceStory.ID)
+	scenes, err := uc.sceneRepo.ListByStory(ctx, input.TenantID, sourceStory.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +136,7 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 
 	// Clone all beats
 	for _, oldScene := range scenes {
-		beats, err := uc.beatRepo.ListByScene(ctx, oldScene.ID)
+		beats, err := uc.beatRepo.ListByScene(ctx, input.TenantID, oldScene.ID)
 		if err != nil {
 			return nil, err
 		}
@@ -155,7 +156,7 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 
 	// Clone all prose blocks
 	for _, oldChapter := range chapters {
-		proseBlocks, err := uc.proseBlockRepo.ListByChapter(ctx, oldChapter.ID)
+		proseBlocks, err := uc.proseBlockRepo.ListByChapter(ctx, input.TenantID, oldChapter.ID)
 		if err != nil {
 			return nil, err
 		}

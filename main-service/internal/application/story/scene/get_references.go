@@ -28,7 +28,8 @@ func NewGetSceneReferencesUseCase(
 
 // GetSceneReferencesInput represents the input for getting references
 type GetSceneReferencesInput struct {
-	SceneID uuid.UUID
+	TenantID uuid.UUID
+	SceneID  uuid.UUID
 }
 
 // GetSceneReferencesOutput represents the output of getting references
@@ -38,7 +39,7 @@ type GetSceneReferencesOutput struct {
 
 // Execute retrieves all references for a scene
 func (uc *GetSceneReferencesUseCase) Execute(ctx context.Context, input GetSceneReferencesInput) (*GetSceneReferencesOutput, error) {
-	references, err := uc.sceneReferenceRepo.ListByScene(ctx, input.SceneID)
+	references, err := uc.sceneReferenceRepo.ListByScene(ctx, input.TenantID, input.SceneID)
 	if err != nil {
 		uc.logger.Error("failed to get scene references", "error", err, "scene_id", input.SceneID)
 		return nil, err

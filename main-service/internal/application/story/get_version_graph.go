@@ -28,6 +28,7 @@ func NewGetStoryVersionGraphUseCase(
 
 // GetStoryVersionGraphInput represents the input for getting a version graph
 type GetStoryVersionGraphInput struct {
+	TenantID    uuid.UUID
 	RootStoryID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type GetStoryVersionGraphOutput struct {
 
 // Execute retrieves all versions for a root story ID
 func (uc *GetStoryVersionGraphUseCase) Execute(ctx context.Context, input GetStoryVersionGraphInput) (*GetStoryVersionGraphOutput, error) {
-	versions, err := uc.storyRepo.GetVersionGraph(ctx, input.RootStoryID)
+	versions, err := uc.storyRepo.GetVersionGraph(ctx, input.TenantID, input.RootStoryID)
 	if err != nil {
 		uc.logger.Error("failed to get version graph", "error", err, "root_story_id", input.RootStoryID)
 		return nil, err

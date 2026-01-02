@@ -31,23 +31,24 @@ func NewDeleteLocationUseCase(
 
 // DeleteLocationInput represents the input for deleting a location
 type DeleteLocationInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes a location
 func (uc *DeleteLocationUseCase) Execute(ctx context.Context, input DeleteLocationInput) error {
-	l, err := uc.locationRepo.GetByID(ctx, input.ID)
+	l, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
 	}
 
-	if err := uc.locationRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.locationRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete location", "error", err, "location_id", input.ID)
 		return err
 	}
 
 	auditLog := audit.NewAuditLog(
-		l.WorldID,
+		l.TenantID,
 		nil,
 		audit.ActionDelete,
 		audit.EntityTypeLocation,

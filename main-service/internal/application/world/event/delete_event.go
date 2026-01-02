@@ -40,40 +40,41 @@ func NewDeleteEventUseCase(
 
 // DeleteEventInput represents the input for deleting an event
 type DeleteEventInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes an event
 func (uc *DeleteEventUseCase) Execute(ctx context.Context, input DeleteEventInput) error {
-	// Get event to get world_id for audit log
-	event, err := uc.eventRepo.GetByID(ctx, input.ID)
+	// Get event to get tenant_id for audit log
+	event, err := uc.eventRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
 	}
 
 	// Delete junction table entries (will be handled by CASCADE, but explicit for clarity)
-	if err := uc.eventCharacterRepo.DeleteByEvent(ctx, input.ID); err != nil {
+	if err := uc.eventCharacterRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete event characters", "error", err)
 		// Continue anyway
 	}
-	if err := uc.eventLocationRepo.DeleteByEvent(ctx, input.ID); err != nil {
+	if err := uc.eventLocationRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete event locations", "error", err)
 		// Continue anyway
 	}
-	if err := uc.eventArtifactRepo.DeleteByEvent(ctx, input.ID); err != nil {
+	if err := uc.eventArtifactRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete event artifacts", "error", err)
 		// Continue anyway
 	}
 
 	// Delete event
-	if err := uc.eventRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.eventRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete event", "error", err, "event_id", input.ID)
 		return err
 	}
 
 	// Log audit event
 	auditLog := audit.NewAuditLog(
-		event.WorldID, // Using WorldID as tenant context - TODO: get tenant from world
+		event.TenantID,
 		nil,
 		audit.ActionDelete,
 		audit.EntityTypeEvent,

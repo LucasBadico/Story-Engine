@@ -101,6 +101,7 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.createEventUseCase.Execute(r.Context(), eventapp.CreateEventInput{
+		TenantID:    tenantID,
 		WorldID:     worldID,
 		Name:        req.Name,
 		Type:        req.Type,
@@ -134,7 +135,8 @@ func (h *EventHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getEventUseCase.Execute(r.Context(), eventapp.GetEventInput{
-		ID: eventID,
+		TenantID: tenantID,
+		ID:       eventID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -161,7 +163,8 @@ func (h *EventHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listEventsUseCase.Execute(r.Context(), eventapp.ListEventsInput{
-		WorldID: worldID,
+		TenantID: tenantID,
+		WorldID:  worldID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -205,6 +208,7 @@ func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateEventUseCase.Execute(r.Context(), eventapp.UpdateEventInput{
+		TenantID:    tenantID,
 		ID:          eventID,
 		Name:        req.Name,
 		Type:        req.Type,
@@ -237,7 +241,8 @@ func (h *EventHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.deleteEventUseCase.Execute(r.Context(), eventapp.DeleteEventInput{
-		ID: eventID,
+		TenantID: tenantID,
+		ID:       eventID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -282,6 +287,7 @@ func (h *EventHandler) AddCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.addCharacterUseCase.Execute(r.Context(), eventapp.AddCharacterToEventInput{
+		TenantID:    tenantID,
 		EventID:     eventID,
 		CharacterID: characterID,
 		Role:        req.Role,
@@ -318,6 +324,7 @@ func (h *EventHandler) RemoveCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.removeCharacterUseCase.Execute(r.Context(), eventapp.RemoveCharacterFromEventInput{
+		TenantID:    tenantID,
 		EventID:     eventID,
 		CharacterID: characterID,
 	}); err != nil {
@@ -342,7 +349,8 @@ func (h *EventHandler) GetCharacters(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getCharactersUseCase.Execute(r.Context(), eventapp.GetEventCharactersInput{
-		EventID: eventID,
+		TenantID: tenantID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -392,6 +400,7 @@ func (h *EventHandler) AddLocation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.addLocationUseCase.Execute(r.Context(), eventapp.AddLocationToEventInput{
+		TenantID:     tenantID,
 		EventID:      eventID,
 		LocationID:   locationID,
 		Significance: req.Significance,
@@ -428,6 +437,7 @@ func (h *EventHandler) RemoveLocation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.removeLocationUseCase.Execute(r.Context(), eventapp.RemoveLocationFromEventInput{
+		TenantID:   tenantID,
 		EventID:    eventID,
 		LocationID: locationID,
 	}); err != nil {
@@ -452,7 +462,8 @@ func (h *EventHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getLocationsUseCase.Execute(r.Context(), eventapp.GetEventLocationsInput{
-		EventID: eventID,
+		TenantID: tenantID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -502,6 +513,7 @@ func (h *EventHandler) AddArtifact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.addArtifactUseCase.Execute(r.Context(), eventapp.AddArtifactToEventInput{
+		TenantID:   tenantID,
 		EventID:    eventID,
 		ArtifactID: artifactID,
 		Role:       req.Role,
@@ -538,6 +550,7 @@ func (h *EventHandler) RemoveArtifact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.removeArtifactUseCase.Execute(r.Context(), eventapp.RemoveArtifactFromEventInput{
+		TenantID:   tenantID,
 		EventID:    eventID,
 		ArtifactID: artifactID,
 	}); err != nil {
@@ -562,7 +575,8 @@ func (h *EventHandler) GetArtifacts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getArtifactsUseCase.Execute(r.Context(), eventapp.GetEventArtifactsInput{
-		EventID: eventID,
+		TenantID: tenantID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

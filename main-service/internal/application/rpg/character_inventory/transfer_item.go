@@ -31,9 +31,10 @@ func NewTransferItemUseCase(
 
 // TransferItemInput represents the input for transferring an item
 type TransferItemInput struct {
-	InventoryID uuid.UUID
+	TenantID      uuid.UUID
+	InventoryID   uuid.UUID
 	ToCharacterID uuid.UUID
-	Quantity    *int // optional: transfer partial quantity
+	Quantity      *int // optional: transfer partial quantity
 }
 
 // TransferItemOutput represents the output of transferring an item
@@ -45,13 +46,13 @@ type TransferItemOutput struct {
 // Execute transfers an item from one character to another
 func (uc *TransferItemUseCase) Execute(ctx context.Context, input TransferItemInput) (*TransferItemOutput, error) {
 	// Get source inventory entry
-	fromInventory, err := uc.inventoryRepo.GetByID(ctx, input.InventoryID)
+	fromInventory, err := uc.inventoryRepo.GetByID(ctx, input.TenantID, input.InventoryID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate target character exists
-	_, err = uc.characterRepo.GetByID(ctx, input.ToCharacterID)
+	_, err = uc.characterRepo.GetByID(ctx, input.TenantID, input.ToCharacterID)
 	if err != nil {
 		return nil, err
 	}
@@ -63,7 +64,7 @@ func (uc *TransferItemUseCase) Execute(ctx context.Context, input TransferItemIn
 	}
 
 	// Check if target character already has this item
-	toInventory, err := uc.inventoryRepo.GetByCharacterAndItem(ctx, input.ToCharacterID, fromInventory.ItemID, nil)
+	toInventory, err := uc.inventoryRepo.GetByCharacterAndItem(ctx, input.TenantID, input.ToCharacterID, fromInventory.ItemID, nil)
 	if err == nil && toInventory != nil {
 		// Target has item, add quantity
 		if err := toInventory.AddQuantity(transferQuantity); err != nil {
@@ -74,7 +75,7 @@ func (uc *TransferItemUseCase) Execute(ctx context.Context, input TransferItemIn
 		}
 	} else {
 		// Create new inventory entry for target
-		toInventory, err = rpg.NewCharacterInventory(input.ToCharacterID, fromInventory.ItemID)
+		toInventory, err = rpg.NewCharacterInventory(input.TenantID, input.ToCharacterID, fromInventory.ItemID)
 		if err != nil {
 			return nil, err
 		}
@@ -91,7 +92,7 @@ func (uc *TransferItemUseCase) Execute(ctx context.Context, input TransferItemIn
 	itemID := fromInventory.ItemID
 	if transferQuantity >= fromInventory.Quantity {
 		// Transfer all, delete source
-		if err := uc.inventoryRepo.Delete(ctx, fromInventory.ID); err != nil {
+		if err := uc.inventoryRepo.Delete(ctx, input.TenantID, fromInventory.ID); err != nil {
 			return nil, err
 		}
 		fromInventory = nil

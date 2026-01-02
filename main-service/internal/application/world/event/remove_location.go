@@ -27,13 +27,14 @@ func NewRemoveLocationFromEventUseCase(
 
 // RemoveLocationFromEventInput represents the input for removing a location from an event
 type RemoveLocationFromEventInput struct {
+	TenantID   uuid.UUID
 	EventID    uuid.UUID
 	LocationID uuid.UUID
 }
 
 // Execute removes a location from an event
 func (uc *RemoveLocationFromEventUseCase) Execute(ctx context.Context, input RemoveLocationFromEventInput) error {
-	if err := uc.eventLocationRepo.DeleteByEventAndLocation(ctx, input.EventID, input.LocationID); err != nil {
+	if err := uc.eventLocationRepo.DeleteByEventAndLocation(ctx, input.TenantID, input.EventID, input.LocationID); err != nil {
 		uc.logger.Error("failed to remove location from event", "error", err, "event_id", input.EventID, "location_id", input.LocationID)
 		return err
 	}

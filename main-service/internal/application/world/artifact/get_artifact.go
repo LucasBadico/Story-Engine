@@ -28,7 +28,8 @@ func NewGetArtifactUseCase(
 
 // GetArtifactInput represents the input for getting an artifact
 type GetArtifactInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetArtifactOutput represents the output of getting an artifact
@@ -38,7 +39,7 @@ type GetArtifactOutput struct {
 
 // Execute retrieves an artifact by ID
 func (uc *GetArtifactUseCase) Execute(ctx context.Context, input GetArtifactInput) (*GetArtifactOutput, error) {
-	a, err := uc.artifactRepo.GetByID(ctx, input.ID)
+	a, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get artifact", "error", err, "artifact_id", input.ID)
 		return nil, err

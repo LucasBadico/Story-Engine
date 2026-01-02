@@ -27,12 +27,13 @@ func NewDeleteAllCharacterStatsUseCase(
 
 // DeleteAllCharacterStatsInput represents the input for deleting all stats
 type DeleteAllCharacterStatsInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 }
 
 // Execute deletes all stats for a character
 func (uc *DeleteAllCharacterStatsUseCase) Execute(ctx context.Context, input DeleteAllCharacterStatsInput) error {
-	if err := uc.characterStatsRepo.DeleteByCharacter(ctx, input.CharacterID); err != nil {
+	if err := uc.characterStatsRepo.DeleteByCharacter(ctx, input.TenantID, input.CharacterID); err != nil {
 		uc.logger.Error("failed to delete all character RPG stats", "error", err, "character_id", input.CharacterID)
 		return err
 	}

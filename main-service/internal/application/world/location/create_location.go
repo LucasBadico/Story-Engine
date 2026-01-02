@@ -36,6 +36,7 @@ func NewCreateLocationUseCase(
 
 // CreateLocationInput represents the input for creating a location
 type CreateLocationInput struct {
+	TenantID    uuid.UUID
 	WorldID     uuid.UUID
 	ParentID    *uuid.UUID
 	Name        string
@@ -51,14 +52,14 @@ type CreateLocationOutput struct {
 // Execute creates a new location
 func (uc *CreateLocationUseCase) Execute(ctx context.Context, input CreateLocationInput) (*CreateLocationOutput, error) {
 	// Validate world exists
-	_, err := uc.worldRepo.GetByID(ctx, input.WorldID)
+	_, err := uc.worldRepo.GetByID(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate parent exists if provided
 	if input.ParentID != nil {
-		parent, err := uc.locationRepo.GetByID(ctx, *input.ParentID)
+		parent, err := uc.locationRepo.GetByID(ctx, input.TenantID, *input.ParentID)
 		if err != nil {
 			return nil, err
 		}
@@ -70,7 +71,7 @@ func (uc *CreateLocationUseCase) Execute(ctx context.Context, input CreateLocati
 		}
 	}
 
-	newLocation, err := world.NewLocation(input.WorldID, input.Name, input.ParentID)
+	newLocation, err := world.NewLocation(input.TenantID, input.WorldID, input.Name, input.ParentID)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +96,7 @@ func (uc *CreateLocationUseCase) Execute(ctx context.Context, input CreateLocati
 	}
 
 	auditLog := audit.NewAuditLog(
-		input.WorldID, // Using world_id as tenant context
+		input.TenantID,
 		nil,
 		audit.ActionCreate,
 		audit.EntityTypeLocation,

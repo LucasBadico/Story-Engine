@@ -37,27 +37,28 @@ func NewDeleteCharacterUseCase(
 
 // DeleteCharacterInput represents the input for deleting a character
 type DeleteCharacterInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes a character
 func (uc *DeleteCharacterUseCase) Execute(ctx context.Context, input DeleteCharacterInput) error {
-	c, err := uc.characterRepo.GetByID(ctx, input.ID)
+	c, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
 	}
 
 	// Delete all character traits first (CASCADE should handle this, but being explicit)
-	if err := uc.characterTraitRepo.DeleteByCharacter(ctx, input.ID); err != nil {
+	if err := uc.characterTraitRepo.DeleteByCharacter(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Warn("failed to delete character traits", "error", err)
 	}
 
-	if err := uc.characterRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.characterRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete character", "error", err, "character_id", input.ID)
 		return err
 	}
 
-	w, _ := uc.worldRepo.GetByID(ctx, c.WorldID)
+	w, _ := uc.worldRepo.GetByID(ctx, input.TenantID, c.WorldID)
 	auditLog := audit.NewAuditLog(
 		w.TenantID,
 		nil,

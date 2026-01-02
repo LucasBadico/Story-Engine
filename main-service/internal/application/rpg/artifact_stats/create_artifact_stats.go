@@ -35,6 +35,7 @@ func NewCreateArtifactStatsUseCase(
 
 // CreateArtifactStatsInput represents the input for creating artifact stats
 type CreateArtifactStatsInput struct {
+	TenantID          uuid.UUID
 	ArtifactID        uuid.UUID
 	EventID           *uuid.UUID
 	Stats             json.RawMessage
@@ -51,21 +52,21 @@ type CreateArtifactStatsOutput struct {
 // Execute creates new artifact RPG stats
 func (uc *CreateArtifactStatsUseCase) Execute(ctx context.Context, input CreateArtifactStatsInput) (*CreateArtifactStatsOutput, error) {
 	// Validate artifact exists
-	_, err := uc.artifactRepo.GetByID(ctx, input.ArtifactID)
+	_, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.ArtifactID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate event exists if provided
 	if input.EventID != nil {
-		_, err := uc.eventRepo.GetByID(ctx, *input.EventID)
+		_, err := uc.eventRepo.GetByID(ctx, input.TenantID, *input.EventID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
 	// Create stats
-	stats, err := rpg.NewArtifactRPGStats(input.ArtifactID, input.Stats)
+	stats, err := rpg.NewArtifactRPGStats(input.TenantID, input.ArtifactID, input.Stats)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +82,7 @@ func (uc *CreateArtifactStatsUseCase) Execute(ctx context.Context, input CreateA
 	}
 
 	// Get next version number
-	version, err := uc.artifactStatsRepo.GetNextVersion(ctx, input.ArtifactID)
+	version, err := uc.artifactStatsRepo.GetNextVersion(ctx, input.TenantID, input.ArtifactID)
 	if err != nil {
 		return nil, err
 	}
@@ -89,13 +90,13 @@ func (uc *CreateArtifactStatsUseCase) Execute(ctx context.Context, input CreateA
 
 	// Deactivate previous versions if requested
 	if input.DeactivatePrevious {
-		if err := uc.artifactStatsRepo.DeactivateAllByArtifact(ctx, input.ArtifactID); err != nil {
+		if err := uc.artifactStatsRepo.DeactivateAllByArtifact(ctx, input.TenantID, input.ArtifactID); err != nil {
 			return nil, err
 		}
 		stats.SetActive(true)
 	} else {
 		// Check if there's an active version
-		activeStats, err := uc.artifactStatsRepo.GetActiveByArtifact(ctx, input.ArtifactID)
+		activeStats, err := uc.artifactStatsRepo.GetActiveByArtifact(ctx, input.TenantID, input.ArtifactID)
 		if err == nil && activeStats != nil {
 			// There's an active version, this one should be inactive
 			stats.SetActive(false)

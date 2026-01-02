@@ -37,27 +37,28 @@ func NewDeleteArtifactUseCase(
 
 // DeleteArtifactInput represents the input for deleting an artifact
 type DeleteArtifactInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes an artifact
 func (uc *DeleteArtifactUseCase) Execute(ctx context.Context, input DeleteArtifactInput) error {
-	a, err := uc.artifactRepo.GetByID(ctx, input.ID)
+	a, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
 	}
 
 	// Delete all references (CASCADE should handle this, but being explicit)
-	if err := uc.artifactReferenceRepo.DeleteByArtifact(ctx, input.ID); err != nil {
+	if err := uc.artifactReferenceRepo.DeleteByArtifact(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Warn("failed to delete artifact references", "error", err)
 	}
 
-	if err := uc.artifactRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.artifactRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete artifact", "error", err, "artifact_id", input.ID)
 		return err
 	}
 
-	w, _ := uc.worldRepo.GetByID(ctx, a.WorldID)
+	w, _ := uc.worldRepo.GetByID(ctx, input.TenantID, a.WorldID)
 	auditLog := audit.NewAuditLog(
 		w.TenantID,
 		nil,

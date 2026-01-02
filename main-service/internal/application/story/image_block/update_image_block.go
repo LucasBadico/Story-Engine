@@ -28,6 +28,7 @@ func NewUpdateImageBlockUseCase(
 
 // UpdateImageBlockInput represents the input for updating an image block
 type UpdateImageBlockInput struct {
+	TenantID  uuid.UUID
 	ID        uuid.UUID
 	ChapterID *uuid.UUID
 	OrderNum  *int
@@ -47,7 +48,7 @@ type UpdateImageBlockOutput struct {
 // Execute updates an image block
 func (uc *UpdateImageBlockUseCase) Execute(ctx context.Context, input UpdateImageBlockInput) (*UpdateImageBlockOutput, error) {
 	// Get existing image block
-	ib, err := uc.imageBlockRepo.GetByID(ctx, input.ID)
+	ib, err := uc.imageBlockRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

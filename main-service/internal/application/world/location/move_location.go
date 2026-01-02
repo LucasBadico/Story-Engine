@@ -33,6 +33,7 @@ func NewMoveLocationUseCase(
 
 // MoveLocationInput represents the input for moving a location
 type MoveLocationInput struct {
+	TenantID   uuid.UUID
 	LocationID uuid.UUID
 	NewParentID *uuid.UUID // nil = move to root
 }
@@ -44,14 +45,14 @@ type MoveLocationOutput struct {
 
 // Execute moves a location to a different parent
 func (uc *MoveLocationUseCase) Execute(ctx context.Context, input MoveLocationInput) (*MoveLocationOutput, error) {
-	l, err := uc.locationRepo.GetByID(ctx, input.LocationID)
+	l, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.LocationID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Prevent circular reference: new parent cannot be a descendant of this location
 	if input.NewParentID != nil {
-		descendants, err := uc.locationRepo.GetDescendants(ctx, input.LocationID)
+		descendants, err := uc.locationRepo.GetDescendants(ctx, input.TenantID, input.LocationID)
 		if err != nil {
 			return nil, err
 		}
@@ -65,7 +66,7 @@ func (uc *MoveLocationUseCase) Execute(ctx context.Context, input MoveLocationIn
 		}
 
 		// Validate new parent exists and belongs to same world
-		newParent, err := uc.locationRepo.GetByID(ctx, *input.NewParentID)
+		newParent, err := uc.locationRepo.GetByID(ctx, input.TenantID, *input.NewParentID)
 		if err != nil {
 			return nil, err
 		}
@@ -86,7 +87,7 @@ func (uc *MoveLocationUseCase) Execute(ctx context.Context, input MoveLocationIn
 	}
 
 	auditLog := audit.NewAuditLog(
-		l.WorldID,
+		l.TenantID,
 		nil,
 		audit.ActionUpdate,
 		audit.EntityTypeLocation,

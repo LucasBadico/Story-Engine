@@ -90,7 +90,7 @@ func (uc *CreateStoryUseCase) Execute(ctx context.Context, input CreateStoryInpu
 		uc.logger.Info("created implicit world for story", "world_id", worldID, "story_title", input.Title)
 	} else {
 		// Validate world exists
-		_, err := uc.worldRepo.GetByID(ctx, *worldID)
+		_, err := uc.worldRepo.GetByID(ctx, input.TenantID, *worldID)
 		if err != nil {
 			return nil, err
 		}

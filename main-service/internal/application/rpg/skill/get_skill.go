@@ -28,7 +28,8 @@ func NewGetSkillUseCase(
 
 // GetSkillInput represents the input for getting a skill
 type GetSkillInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetSkillOutput represents the output of getting a skill
@@ -38,7 +39,7 @@ type GetSkillOutput struct {
 
 // Execute retrieves a skill by ID
 func (uc *GetSkillUseCase) Execute(ctx context.Context, input GetSkillInput) (*GetSkillOutput, error) {
-	skill, err := uc.skillRepo.GetByID(ctx, input.ID)
+	skill, err := uc.skillRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get skill", "error", err, "skill_id", input.ID)
 		return nil, err

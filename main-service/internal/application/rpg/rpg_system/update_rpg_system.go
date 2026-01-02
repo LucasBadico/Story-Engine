@@ -30,6 +30,7 @@ func NewUpdateRPGSystemUseCase(
 
 // UpdateRPGSystemInput represents the input for updating an RPG system
 type UpdateRPGSystemInput struct {
+	TenantID          uuid.UUID
 	ID                uuid.UUID
 	Name              *string
 	Description       *string
@@ -45,8 +46,9 @@ type UpdateRPGSystemOutput struct {
 
 // Execute updates an RPG system
 func (uc *UpdateRPGSystemUseCase) Execute(ctx context.Context, input UpdateRPGSystemInput) (*UpdateRPGSystemOutput, error) {
+	tenantIDPtr := &input.TenantID
 	// Get existing system
-	system, err := uc.rpgSystemRepo.GetByID(ctx, input.ID)
+	system, err := uc.rpgSystemRepo.GetByID(ctx, tenantIDPtr, input.ID)
 	if err != nil {
 		return nil, err
 	}

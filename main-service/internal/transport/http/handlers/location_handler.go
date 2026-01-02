@@ -95,6 +95,7 @@ func (h *LocationHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.createLocationUseCase.Execute(r.Context(), locationapp.CreateLocationInput{
+		TenantID:    tenantID,
 		WorldID:     worldID,
 		ParentID:    parentID,
 		Name:        req.Name,
@@ -127,7 +128,8 @@ func (h *LocationHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getLocationUseCase.Execute(r.Context(), locationapp.GetLocationInput{
-		ID: locationID,
+		TenantID: tenantID,
+		ID:       locationID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -172,10 +174,11 @@ func (h *LocationHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listLocationsUseCase.Execute(r.Context(), locationapp.ListLocationsInput{
-		WorldID: worldID,
-		Format:  format,
-		Limit:   limit,
-		Offset:  offset,
+		TenantID: tenantID,
+		WorldID:  worldID,
+		Format:   format,
+		Limit:    limit,
+		Offset:   offset,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -217,6 +220,7 @@ func (h *LocationHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateLocationUseCase.Execute(r.Context(), locationapp.UpdateLocationInput{
+		TenantID:    tenantID,
 		ID:          locationID,
 		Name:        req.Name,
 		Type:        req.Type,
@@ -247,7 +251,8 @@ func (h *LocationHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteLocationUseCase.Execute(r.Context(), locationapp.DeleteLocationInput{
-		ID: locationID,
+		TenantID: tenantID,
+		ID:       locationID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -271,6 +276,7 @@ func (h *LocationHandler) GetChildren(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getChildrenUseCase.Execute(r.Context(), locationapp.GetChildrenInput{
+		TenantID:   tenantID,
 		LocationID: locationID,
 	})
 	if err != nil {
@@ -298,6 +304,7 @@ func (h *LocationHandler) GetAncestors(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getAncestorsUseCase.Execute(r.Context(), locationapp.GetAncestorsInput{
+		TenantID:   tenantID,
 		LocationID: locationID,
 	})
 	if err != nil {
@@ -325,6 +332,7 @@ func (h *LocationHandler) GetDescendants(w http.ResponseWriter, r *http.Request)
 	}
 
 	output, err := h.getDescendantsUseCase.Execute(r.Context(), locationapp.GetDescendantsInput{
+		TenantID:   tenantID,
 		LocationID: locationID,
 	})
 	if err != nil {
@@ -377,6 +385,7 @@ func (h *LocationHandler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.moveLocationUseCase.Execute(r.Context(), locationapp.MoveLocationInput{
+		TenantID:   tenantID,
 		LocationID: locationID,
 		NewParentID: parentID,
 	})

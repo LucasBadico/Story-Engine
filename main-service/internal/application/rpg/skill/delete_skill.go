@@ -27,12 +27,13 @@ func NewDeleteSkillUseCase(
 
 // DeleteSkillInput represents the input for deleting a skill
 type DeleteSkillInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes a skill
 func (uc *DeleteSkillUseCase) Execute(ctx context.Context, input DeleteSkillInput) error {
-	if err := uc.skillRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.skillRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete skill", "error", err, "skill_id", input.ID)
 		return err
 	}

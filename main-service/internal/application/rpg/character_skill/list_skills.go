@@ -28,6 +28,7 @@ func NewListCharacterSkillsUseCase(
 
 // ListCharacterSkillsInput represents the input for listing character skills
 type ListCharacterSkillsInput struct {
+	TenantID    uuid.UUID
 	CharacterID uuid.UUID
 	ActiveOnly  bool
 }
@@ -43,9 +44,9 @@ func (uc *ListCharacterSkillsUseCase) Execute(ctx context.Context, input ListCha
 	var err error
 
 	if input.ActiveOnly {
-		skills, err = uc.characterSkillRepo.ListActiveByCharacter(ctx, input.CharacterID)
+		skills, err = uc.characterSkillRepo.ListActiveByCharacter(ctx, input.TenantID, input.CharacterID)
 	} else {
-		skills, err = uc.characterSkillRepo.ListByCharacter(ctx, input.CharacterID)
+		skills, err = uc.characterSkillRepo.ListByCharacter(ctx, input.TenantID, input.CharacterID)
 	}
 
 	if err != nil {

@@ -35,6 +35,7 @@ func NewAddCharacterToEventUseCase(
 
 // AddCharacterToEventInput represents the input for adding a character to an event
 type AddCharacterToEventInput struct {
+	TenantID    uuid.UUID
 	EventID     uuid.UUID
 	CharacterID uuid.UUID
 	Role        *string
@@ -43,13 +44,13 @@ type AddCharacterToEventInput struct {
 // Execute adds a character to an event
 func (uc *AddCharacterToEventUseCase) Execute(ctx context.Context, input AddCharacterToEventInput) error {
 	// Validate event exists
-	event, err := uc.eventRepo.GetByID(ctx, input.EventID)
+	event, err := uc.eventRepo.GetByID(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		return err
 	}
 
 	// Validate character exists and belongs to same world
-	character, err := uc.characterRepo.GetByID(ctx, input.CharacterID)
+	character, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.CharacterID)
 	if err != nil {
 		return err
 	}

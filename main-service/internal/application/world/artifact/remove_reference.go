@@ -28,6 +28,7 @@ func NewRemoveArtifactReferenceUseCase(
 
 // RemoveArtifactReferenceInput represents the input for removing a reference
 type RemoveArtifactReferenceInput struct {
+	TenantID   uuid.UUID
 	ArtifactID uuid.UUID
 	EntityType world.ArtifactReferenceEntityType
 	EntityID   uuid.UUID
@@ -35,7 +36,7 @@ type RemoveArtifactReferenceInput struct {
 
 // Execute removes a reference from an artifact
 func (uc *RemoveArtifactReferenceUseCase) Execute(ctx context.Context, input RemoveArtifactReferenceInput) error {
-	if err := uc.artifactReferenceRepo.DeleteByArtifactAndEntity(ctx, input.ArtifactID, input.EntityType, input.EntityID); err != nil {
+	if err := uc.artifactReferenceRepo.DeleteByArtifactAndEntity(ctx, input.TenantID, input.ArtifactID, input.EntityType, input.EntityID); err != nil {
 		uc.logger.Error("failed to remove artifact reference", "error", err, "artifact_id", input.ArtifactID)
 		return err
 	}

@@ -28,7 +28,8 @@ func NewActivateArtifactStatsVersionUseCase(
 
 // ActivateArtifactStatsVersionInput represents the input for activating a version
 type ActivateArtifactStatsVersionInput struct {
-	StatsID uuid.UUID
+	TenantID uuid.UUID
+	StatsID  uuid.UUID
 }
 
 // ActivateArtifactStatsVersionOutput represents the output of activating a version
@@ -39,13 +40,13 @@ type ActivateArtifactStatsVersionOutput struct {
 // Execute activates a specific stats version (rollback)
 func (uc *ActivateArtifactStatsVersionUseCase) Execute(ctx context.Context, input ActivateArtifactStatsVersionInput) (*ActivateArtifactStatsVersionOutput, error) {
 	// Get the stats version
-	stats, err := uc.artifactStatsRepo.GetByID(ctx, input.StatsID)
+	stats, err := uc.artifactStatsRepo.GetByID(ctx, input.TenantID, input.StatsID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Deactivate all versions for this artifact
-	if err := uc.artifactStatsRepo.DeactivateAllByArtifact(ctx, stats.ArtifactID); err != nil {
+	if err := uc.artifactStatsRepo.DeactivateAllByArtifact(ctx, input.TenantID, stats.ArtifactID); err != nil {
 		return nil, err
 	}
 

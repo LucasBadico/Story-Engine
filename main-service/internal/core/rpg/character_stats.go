@@ -16,6 +16,7 @@ var (
 // CharacterRPGStats represents RPG stats for a character with versioning
 type CharacterRPGStats struct {
 	ID            uuid.UUID       `json:"id"`
+	TenantID      uuid.UUID       `json:"tenant_id"`
 	CharacterID   uuid.UUID       `json:"character_id"`
 	EventID       *uuid.UUID      `json:"event_id,omitempty"`
 	BaseStats     json.RawMessage `json:"base_stats"`     // JSONB
@@ -29,7 +30,7 @@ type CharacterRPGStats struct {
 }
 
 // NewCharacterRPGStats creates a new character RPG stats entry
-func NewCharacterRPGStats(characterID uuid.UUID, baseStats json.RawMessage) (*CharacterRPGStats, error) {
+func NewCharacterRPGStats(tenantID, characterID uuid.UUID, baseStats json.RawMessage) (*CharacterRPGStats, error) {
 	if len(baseStats) == 0 {
 		return nil, ErrCharacterStatsRequired
 	}
@@ -42,6 +43,7 @@ func NewCharacterRPGStats(characterID uuid.UUID, baseStats json.RawMessage) (*Ch
 
 	return &CharacterRPGStats{
 		ID:          uuid.New(),
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		BaseStats:   baseStats,
 		IsActive:    true,

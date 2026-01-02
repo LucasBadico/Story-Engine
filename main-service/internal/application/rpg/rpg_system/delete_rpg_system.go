@@ -28,13 +28,15 @@ func NewDeleteRPGSystemUseCase(
 
 // DeleteRPGSystemInput represents the input for deleting an RPG system
 type DeleteRPGSystemInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes an RPG system
 func (uc *DeleteRPGSystemUseCase) Execute(ctx context.Context, input DeleteRPGSystemInput) error {
+	tenantIDPtr := &input.TenantID
 	// Get existing system to check if it's builtin
-	system, err := uc.rpgSystemRepo.GetByID(ctx, input.ID)
+	system, err := uc.rpgSystemRepo.GetByID(ctx, tenantIDPtr, input.ID)
 	if err != nil {
 		return err
 	}
@@ -47,7 +49,7 @@ func (uc *DeleteRPGSystemUseCase) Execute(ctx context.Context, input DeleteRPGSy
 		}
 	}
 
-	if err := uc.rpgSystemRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.rpgSystemRepo.Delete(ctx, tenantIDPtr, input.ID); err != nil {
 		uc.logger.Error("failed to delete RPG system", "error", err, "rpg_system_id", input.ID)
 		return err
 	}

@@ -28,7 +28,8 @@ func NewGetEventCharactersUseCase(
 
 // GetEventCharactersInput represents the input for getting characters
 type GetEventCharactersInput struct {
-	EventID uuid.UUID
+	TenantID uuid.UUID
+	EventID  uuid.UUID
 }
 
 // GetEventCharactersOutput represents the output of getting characters
@@ -38,7 +39,7 @@ type GetEventCharactersOutput struct {
 
 // Execute retrieves characters for an event
 func (uc *GetEventCharactersUseCase) Execute(ctx context.Context, input GetEventCharactersInput) (*GetEventCharactersOutput, error) {
-	characters, err := uc.eventCharacterRepo.ListByEvent(ctx, input.EventID)
+	characters, err := uc.eventCharacterRepo.ListByEvent(ctx, input.TenantID, input.EventID)
 	if err != nil {
 		uc.logger.Error("failed to get event characters", "error", err, "event_id", input.EventID)
 		return nil, err

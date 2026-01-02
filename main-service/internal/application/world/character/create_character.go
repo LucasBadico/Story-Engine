@@ -39,6 +39,7 @@ func NewCreateCharacterUseCase(
 
 // CreateCharacterInput represents the input for creating a character
 type CreateCharacterInput struct {
+	TenantID    uuid.UUID
 	WorldID     uuid.UUID
 	ArchetypeID *uuid.UUID
 	Name        string
@@ -53,20 +54,20 @@ type CreateCharacterOutput struct {
 // Execute creates a new character
 func (uc *CreateCharacterUseCase) Execute(ctx context.Context, input CreateCharacterInput) (*CreateCharacterOutput, error) {
 	// Validate world exists
-	w, err := uc.worldRepo.GetByID(ctx, input.WorldID)
+	w, err := uc.worldRepo.GetByID(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Validate archetype exists if provided
 	if input.ArchetypeID != nil {
-		_, err := uc.archetypeRepo.GetByID(ctx, *input.ArchetypeID)
+		_, err := uc.archetypeRepo.GetByID(ctx, input.TenantID, *input.ArchetypeID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	newCharacter, err := world.NewCharacter(input.WorldID, input.Name)
+	newCharacter, err := world.NewCharacter(input.TenantID, input.WorldID, input.Name)
 	if err != nil {
 		return nil, err
 	}

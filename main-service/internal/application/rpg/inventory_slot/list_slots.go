@@ -28,6 +28,7 @@ func NewListInventorySlotsUseCase(
 
 // ListInventorySlotsInput represents the input for listing slots
 type ListInventorySlotsInput struct {
+	TenantID    uuid.UUID
 	RPGSystemID uuid.UUID
 }
 
@@ -38,7 +39,7 @@ type ListInventorySlotsOutput struct {
 
 // Execute lists inventory slots for an RPG system
 func (uc *ListInventorySlotsUseCase) Execute(ctx context.Context, input ListInventorySlotsInput) (*ListInventorySlotsOutput, error) {
-	slots, err := uc.slotRepo.ListBySystem(ctx, input.RPGSystemID)
+	slots, err := uc.slotRepo.ListBySystem(ctx, input.TenantID, input.RPGSystemID)
 	if err != nil {
 		uc.logger.Error("failed to list inventory slots", "error", err, "rpg_system_id", input.RPGSystemID)
 		return nil, err

@@ -35,6 +35,7 @@ func NewCreateEventUseCase(
 
 // CreateEventInput represents the input for creating an event
 type CreateEventInput struct {
+	TenantID    uuid.UUID
 	WorldID     uuid.UUID
 	Name        string
 	Type        *string
@@ -51,13 +52,13 @@ type CreateEventOutput struct {
 // Execute creates a new event
 func (uc *CreateEventUseCase) Execute(ctx context.Context, input CreateEventInput) (*CreateEventOutput, error) {
 	// Validate world exists
-	_, err := uc.worldRepo.GetByID(ctx, input.WorldID)
+	_, err := uc.worldRepo.GetByID(ctx, input.TenantID, input.WorldID)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create event
-	evt, err := world.NewEvent(input.WorldID, input.Name)
+	evt, err := world.NewEvent(input.TenantID, input.WorldID, input.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -88,7 +89,7 @@ func (uc *CreateEventUseCase) Execute(ctx context.Context, input CreateEventInpu
 
 	// Log audit event
 	auditLog := audit.NewAuditLog(
-		evt.WorldID, // Using WorldID as tenant context - TODO: get tenant from world
+		evt.TenantID,
 		nil,
 		audit.ActionCreate,
 		audit.EntityTypeEvent,
