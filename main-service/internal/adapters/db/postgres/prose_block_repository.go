@@ -26,26 +26,26 @@ func NewProseBlockRepository(db *DB) *ProseBlockRepository {
 // Create creates a new prose block
 func (r *ProseBlockRepository) Create(ctx context.Context, p *story.ProseBlock) error {
 	query := `
-		INSERT INTO prose_blocks (id, chapter_id, order_num, kind, content, word_count, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO prose_blocks (id, tenant_id, chapter_id, order_num, kind, content, word_count, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
 	_, err := r.db.Exec(ctx, query,
-		p.ID, p.ChapterID, p.OrderNum, string(p.Kind), p.Content, p.WordCount, p.CreatedAt, p.UpdatedAt)
+		p.ID, p.TenantID, p.ChapterID, p.OrderNum, string(p.Kind), p.Content, p.WordCount, p.CreatedAt, p.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a prose block by ID
-func (r *ProseBlockRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.ProseBlock, error) {
+func (r *ProseBlockRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.ProseBlock, error) {
 	query := `
-		SELECT id, chapter_id, order_num, kind, content, word_count, created_at, updated_at
+		SELECT id, tenant_id, chapter_id, order_num, kind, content, word_count, created_at, updated_at
 		FROM prose_blocks
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var p story.ProseBlock
 	var chapterID sql.NullString
 	var orderNum sql.NullInt32
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&p.ID, &chapterID, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&p.ID, &p.TenantID, &chapterID, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("prose block not found")
@@ -66,14 +66,14 @@ func (r *ProseBlockRepository) GetByID(ctx context.Context, id uuid.UUID) (*stor
 }
 
 // ListByChapter lists prose blocks for a chapter
-func (r *ProseBlockRepository) ListByChapter(ctx context.Context, chapterID uuid.UUID) ([]*story.ProseBlock, error) {
+func (r *ProseBlockRepository) ListByChapter(ctx context.Context, tenantID, chapterID uuid.UUID) ([]*story.ProseBlock, error) {
 	query := `
-		SELECT id, chapter_id, order_num, kind, content, word_count, created_at, updated_at
+		SELECT id, tenant_id, chapter_id, order_num, kind, content, word_count, created_at, updated_at
 		FROM prose_blocks
-		WHERE chapter_id = $1
+		WHERE tenant_id = $1 AND chapter_id = $2
 		ORDER BY COALESCE(order_num, 0) ASC
 	`
-	rows, err := r.db.Query(ctx, query, chapterID)
+	rows, err := r.db.Query(ctx, query, tenantID, chapterID)
 	if err != nil {
 		return nil, err
 	}
@@ -83,17 +83,17 @@ func (r *ProseBlockRepository) ListByChapter(ctx context.Context, chapterID uuid
 }
 
 // GetByChapterAndKind retrieves a prose block by chapter and kind
-func (r *ProseBlockRepository) GetByChapterAndKind(ctx context.Context, chapterID uuid.UUID, kind story.ProseKind) (*story.ProseBlock, error) {
+func (r *ProseBlockRepository) GetByChapterAndKind(ctx context.Context, tenantID, chapterID uuid.UUID, kind story.ProseKind) (*story.ProseBlock, error) {
 	query := `
-		SELECT id, chapter_id, order_num, kind, content, word_count, created_at, updated_at
+		SELECT id, tenant_id, chapter_id, order_num, kind, content, word_count, created_at, updated_at
 		FROM prose_blocks
-		WHERE chapter_id = $1 AND kind = $2
+		WHERE tenant_id = $1 AND chapter_id = $2 AND kind = $3
 	`
 	var p story.ProseBlock
 	var chapterIDNull sql.NullString
 	var orderNum sql.NullInt32
-	err := r.db.QueryRow(ctx, query, chapterID, string(kind)).Scan(
-		&p.ID, &chapterIDNull, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, tenantID, chapterID, string(kind)).Scan(
+		&p.ID, &p.TenantID, &chapterIDNull, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("prose block not found")
@@ -118,23 +118,23 @@ func (r *ProseBlockRepository) Update(ctx context.Context, p *story.ProseBlock) 
 	query := `
 		UPDATE prose_blocks
 		SET order_num = $2, kind = $3, content = $4, word_count = $5, updated_at = $6
-		WHERE id = $1
+		WHERE tenant_id = $7 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, p.ID, p.OrderNum, string(p.Kind), p.Content, p.WordCount, p.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, p.ID, p.OrderNum, string(p.Kind), p.Content, p.WordCount, p.UpdatedAt, p.TenantID)
 	return err
 }
 
 // Delete deletes a prose block
-func (r *ProseBlockRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM prose_blocks WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *ProseBlockRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM prose_blocks WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByChapter deletes all prose blocks for a chapter
-func (r *ProseBlockRepository) DeleteByChapter(ctx context.Context, chapterID uuid.UUID) error {
-	query := `DELETE FROM prose_blocks WHERE chapter_id = $1`
-	_, err := r.db.Exec(ctx, query, chapterID)
+func (r *ProseBlockRepository) DeleteByChapter(ctx context.Context, tenantID, chapterID uuid.UUID) error {
+	query := `DELETE FROM prose_blocks WHERE tenant_id = $1 AND chapter_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, chapterID)
 	return err
 }
 
@@ -144,7 +144,7 @@ func (r *ProseBlockRepository) scanProseBlocks(rows pgx.Rows) ([]*story.ProseBlo
 		var p story.ProseBlock
 		var chapterID sql.NullString
 		var orderNum sql.NullInt32
-		err := rows.Scan(&p.ID, &chapterID, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
+		err := rows.Scan(&p.ID, &p.TenantID, &chapterID, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

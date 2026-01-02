@@ -26,28 +26,28 @@ func NewSceneRepository(db *DB) *SceneRepository {
 // Create creates a new scene
 func (r *SceneRepository) Create(ctx context.Context, s *story.Scene) error {
 	query := `
-		INSERT INTO scenes (id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO scenes (id, tenant_id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err := r.db.Exec(ctx, query,
-		s.ID, s.StoryID, s.ChapterID, s.OrderNum, s.POVCharacterID,
+		s.ID, s.TenantID, s.StoryID, s.ChapterID, s.OrderNum, s.POVCharacterID,
 		s.TimeRef, s.Goal, s.CreatedAt, s.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a scene by ID
-func (r *SceneRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Scene, error) {
+func (r *SceneRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.Scene, error) {
 	query := `
-		SELECT id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
+		SELECT id, tenant_id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
 		FROM scenes
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var s story.Scene
 	var chapterID sql.NullString
 	var povCharacterID sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID,
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&s.ID, &s.TenantID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID,
 		&s.TimeRef, &s.Goal, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -71,19 +71,19 @@ func (r *SceneRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Sce
 }
 
 // ListByChapter lists scenes for a chapter
-func (r *SceneRepository) ListByChapter(ctx context.Context, chapterID uuid.UUID) ([]*story.Scene, error) {
-	return r.ListByChapterOrdered(ctx, chapterID)
+func (r *SceneRepository) ListByChapter(ctx context.Context, tenantID, chapterID uuid.UUID) ([]*story.Scene, error) {
+	return r.ListByChapterOrdered(ctx, tenantID, chapterID)
 }
 
 // ListByChapterOrdered lists scenes for a chapter ordered by order_num
-func (r *SceneRepository) ListByChapterOrdered(ctx context.Context, chapterID uuid.UUID) ([]*story.Scene, error) {
+func (r *SceneRepository) ListByChapterOrdered(ctx context.Context, tenantID, chapterID uuid.UUID) ([]*story.Scene, error) {
 	query := `
-		SELECT id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
+		SELECT id, tenant_id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
 		FROM scenes
-		WHERE chapter_id = $1
+		WHERE tenant_id = $1 AND chapter_id = $2
 		ORDER BY order_num ASC
 	`
-	rows, err := r.db.Query(ctx, query, chapterID)
+	rows, err := r.db.Query(ctx, query, tenantID, chapterID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,14 +93,14 @@ func (r *SceneRepository) ListByChapterOrdered(ctx context.Context, chapterID uu
 }
 
 // ListByStory lists scenes for a story
-func (r *SceneRepository) ListByStory(ctx context.Context, storyID uuid.UUID) ([]*story.Scene, error) {
+func (r *SceneRepository) ListByStory(ctx context.Context, tenantID, storyID uuid.UUID) ([]*story.Scene, error) {
 	query := `
-		SELECT id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
+		SELECT id, tenant_id, story_id, chapter_id, order_num, pov_character_id, time_ref, goal, created_at, updated_at
 		FROM scenes
-		WHERE story_id = $1
+		WHERE tenant_id = $1 AND story_id = $2
 		ORDER BY chapter_id, order_num ASC
 	`
-	rows, err := r.db.Query(ctx, query, storyID)
+	rows, err := r.db.Query(ctx, query, tenantID, storyID)
 	if err != nil {
 		return nil, err
 	}
@@ -114,30 +114,30 @@ func (r *SceneRepository) Update(ctx context.Context, s *story.Scene) error {
 	query := `
 		UPDATE scenes
 		SET chapter_id = $2, order_num = $3, pov_character_id = $4, time_ref = $5, goal = $6, updated_at = $7
-		WHERE id = $1
+		WHERE tenant_id = $8 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, s.ID, s.ChapterID, s.OrderNum, s.POVCharacterID, s.TimeRef, s.Goal, s.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, s.ID, s.ChapterID, s.OrderNum, s.POVCharacterID, s.TimeRef, s.Goal, s.UpdatedAt, s.TenantID)
 	return err
 }
 
 // Delete deletes a scene
-func (r *SceneRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM scenes WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *SceneRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM scenes WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByChapter deletes all scenes for a chapter
-func (r *SceneRepository) DeleteByChapter(ctx context.Context, chapterID uuid.UUID) error {
-	query := `DELETE FROM scenes WHERE chapter_id = $1`
-	_, err := r.db.Exec(ctx, query, chapterID)
+func (r *SceneRepository) DeleteByChapter(ctx context.Context, tenantID, chapterID uuid.UUID) error {
+	query := `DELETE FROM scenes WHERE tenant_id = $1 AND chapter_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, chapterID)
 	return err
 }
 
 // DeleteByStory deletes all scenes for a story
-func (r *SceneRepository) DeleteByStory(ctx context.Context, storyID uuid.UUID) error {
-	query := `DELETE FROM scenes WHERE story_id = $1`
-	_, err := r.db.Exec(ctx, query, storyID)
+func (r *SceneRepository) DeleteByStory(ctx context.Context, tenantID, storyID uuid.UUID) error {
+	query := `DELETE FROM scenes WHERE tenant_id = $1 AND story_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, storyID)
 	return err
 }
 
@@ -149,7 +149,7 @@ func (r *SceneRepository) scanScenes(rows pgx.Rows) ([]*story.Scene, error) {
 		var povCharacterID sql.NullString
 
 		err := rows.Scan(
-			&s.ID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID,
+			&s.ID, &s.TenantID, &s.StoryID, &chapterID, &s.OrderNum, &povCharacterID,
 			&s.TimeRef, &s.Goal, &s.CreatedAt, &s.UpdatedAt)
 		if err != nil {
 			return nil, err

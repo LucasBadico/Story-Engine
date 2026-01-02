@@ -26,25 +26,25 @@ func NewEventRepository(db *DB) *EventRepository {
 // Create creates a new event
 func (r *EventRepository) Create(ctx context.Context, e *world.Event) error {
 	query := `
-		INSERT INTO events (id, world_id, name, type, description, timeline, importance, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO events (id, tenant_id, world_id, name, type, description, timeline, importance, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err := r.db.Exec(ctx, query,
-		e.ID, e.WorldID, e.Name, e.Type, e.Description, e.Timeline, e.Importance, e.CreatedAt, e.UpdatedAt)
+		e.ID, e.TenantID, e.WorldID, e.Name, e.Type, e.Description, e.Timeline, e.Importance, e.CreatedAt, e.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves an event by ID
-func (r *EventRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.Event, error) {
+func (r *EventRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.Event, error) {
 	query := `
-		SELECT id, world_id, name, type, description, timeline, importance, created_at, updated_at
+		SELECT id, tenant_id, world_id, name, type, description, timeline, importance, created_at, updated_at
 		FROM events
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var e world.Event
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&e.ID, &e.WorldID, &e.Name, &e.Type, &e.Description, &e.Timeline, &e.Importance, &e.CreatedAt, &e.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&e.ID, &e.TenantID, &e.WorldID, &e.Name, &e.Type, &e.Description, &e.Timeline, &e.Importance, &e.CreatedAt, &e.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &platformerrors.NotFoundError{
@@ -59,14 +59,14 @@ func (r *EventRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.Eve
 }
 
 // ListByWorld lists events for a world
-func (r *EventRepository) ListByWorld(ctx context.Context, worldID uuid.UUID) ([]*world.Event, error) {
+func (r *EventRepository) ListByWorld(ctx context.Context, tenantID, worldID uuid.UUID) ([]*world.Event, error) {
 	query := `
-		SELECT id, world_id, name, type, description, timeline, importance, created_at, updated_at
+		SELECT id, tenant_id, world_id, name, type, description, timeline, importance, created_at, updated_at
 		FROM events
-		WHERE world_id = $1
+		WHERE tenant_id = $1 AND world_id = $2
 		ORDER BY created_at DESC
 	`
-	rows, err := r.db.Query(ctx, query, worldID)
+	rows, err := r.db.Query(ctx, query, tenantID, worldID)
 	if err != nil {
 		return nil, err
 	}
@@ -80,16 +80,16 @@ func (r *EventRepository) Update(ctx context.Context, e *world.Event) error {
 	query := `
 		UPDATE events
 		SET name = $2, type = $3, description = $4, timeline = $5, importance = $6, updated_at = $7
-		WHERE id = $1
+		WHERE tenant_id = $8 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, e.ID, e.Name, e.Type, e.Description, e.Timeline, e.Importance, e.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, e.ID, e.Name, e.Type, e.Description, e.Timeline, e.Importance, e.UpdatedAt, e.TenantID)
 	return err
 }
 
 // Delete deletes an event
-func (r *EventRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM events WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *EventRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM events WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
@@ -98,7 +98,7 @@ func (r *EventRepository) scanEvents(rows pgx.Rows) ([]*world.Event, error) {
 	for rows.Next() {
 		var e world.Event
 		err := rows.Scan(
-			&e.ID, &e.WorldID, &e.Name, &e.Type, &e.Description, &e.Timeline, &e.Importance, &e.CreatedAt, &e.UpdatedAt)
+			&e.ID, &e.TenantID, &e.WorldID, &e.Name, &e.Type, &e.Description, &e.Timeline, &e.Importance, &e.CreatedAt, &e.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

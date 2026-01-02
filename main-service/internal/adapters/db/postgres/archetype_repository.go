@@ -35,15 +35,15 @@ func (r *ArchetypeRepository) Create(ctx context.Context, a *world.Archetype) er
 }
 
 // GetByID retrieves an archetype by ID
-func (r *ArchetypeRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.Archetype, error) {
+func (r *ArchetypeRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.Archetype, error) {
 	query := `
 		SELECT id, tenant_id, name, description, created_at, updated_at
 		FROM archetypes
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var a world.Archetype
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&a.ID, &a.TenantID, &a.Name, &a.Description, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -81,16 +81,16 @@ func (r *ArchetypeRepository) Update(ctx context.Context, a *world.Archetype) er
 	query := `
 		UPDATE archetypes
 		SET name = $2, description = $3, updated_at = $4
-		WHERE id = $1
+		WHERE tenant_id = $5 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, a.ID, a.Name, a.Description, a.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, a.ID, a.Name, a.Description, a.UpdatedAt, a.TenantID)
 	return err
 }
 
 // Delete deletes an archetype
-func (r *ArchetypeRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM archetypes WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *ArchetypeRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM archetypes WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 

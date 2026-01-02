@@ -35,15 +35,15 @@ func (r *TraitRepository) Create(ctx context.Context, t *world.Trait) error {
 }
 
 // GetByID retrieves a trait by ID
-func (r *TraitRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.Trait, error) {
+func (r *TraitRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.Trait, error) {
 	query := `
 		SELECT id, tenant_id, name, category, description, created_at, updated_at
 		FROM traits
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var t world.Trait
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&t.ID, &t.TenantID, &t.Name, &t.Category, &t.Description, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -81,16 +81,16 @@ func (r *TraitRepository) Update(ctx context.Context, t *world.Trait) error {
 	query := `
 		UPDATE traits
 		SET name = $2, category = $3, description = $4, updated_at = $5
-		WHERE id = $1
+		WHERE tenant_id = $6 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, t.ID, t.Name, t.Category, t.Description, t.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, t.ID, t.Name, t.Category, t.Description, t.UpdatedAt, t.TenantID)
 	return err
 }
 
 // Delete deletes a trait
-func (r *TraitRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM traits WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *TraitRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM traits WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 

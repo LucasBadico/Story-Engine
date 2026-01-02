@@ -37,18 +37,18 @@ func (r *StoryRepository) Create(ctx context.Context, s *story.Story) error {
 }
 
 // GetByID retrieves a story by ID
-func (r *StoryRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Story, error) {
+func (r *StoryRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.Story, error) {
 	query := `
 		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, world_id, created_by_user_id, created_at, updated_at
 		FROM stories
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var s story.Story
 	var previousStoryID sql.NullString
 	var worldID sql.NullString
 	var createdByUserID sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&s.ID, &s.TenantID, &s.Title, &s.Status, &s.VersionNumber,
 		&s.RootStoryID, &previousStoryID, &worldID, &createdByUserID, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
@@ -99,14 +99,14 @@ func (r *StoryRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, 
 }
 
 // ListVersionsByRoot lists all versions of a story by root story ID
-func (r *StoryRepository) ListVersionsByRoot(ctx context.Context, rootStoryID uuid.UUID) ([]*story.Story, error) {
+func (r *StoryRepository) ListVersionsByRoot(ctx context.Context, tenantID, rootStoryID uuid.UUID) ([]*story.Story, error) {
 	query := `
 		SELECT id, tenant_id, title, status, version_number, root_story_id, previous_story_id, world_id, created_by_user_id, created_at, updated_at
 		FROM stories
-		WHERE root_story_id = $1
+		WHERE tenant_id = $1 AND root_story_id = $2
 		ORDER BY version_number ASC
 	`
-	rows, err := r.db.Query(ctx, query, rootStoryID)
+	rows, err := r.db.Query(ctx, query, tenantID, rootStoryID)
 	if err != nil {
 		return nil, err
 	}
@@ -116,8 +116,8 @@ func (r *StoryRepository) ListVersionsByRoot(ctx context.Context, rootStoryID uu
 }
 
 // GetVersionGraph retrieves all versions for building a version graph
-func (r *StoryRepository) GetVersionGraph(ctx context.Context, rootStoryID uuid.UUID) ([]*story.Story, error) {
-	return r.ListVersionsByRoot(ctx, rootStoryID)
+func (r *StoryRepository) GetVersionGraph(ctx context.Context, tenantID, rootStoryID uuid.UUID) ([]*story.Story, error) {
+	return r.ListVersionsByRoot(ctx, tenantID, rootStoryID)
 }
 
 // Update updates a story
@@ -125,16 +125,16 @@ func (r *StoryRepository) Update(ctx context.Context, s *story.Story) error {
 	query := `
 		UPDATE stories
 		SET title = $2, status = $3, version_number = $4, updated_at = $5
-		WHERE id = $1
+		WHERE tenant_id = $6 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, s.ID, s.Title, string(s.Status), s.VersionNumber, s.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, s.ID, s.Title, string(s.Status), s.VersionNumber, s.UpdatedAt, s.TenantID)
 	return err
 }
 
 // Delete deletes a story
-func (r *StoryRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM stories WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *StoryRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM stories WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 

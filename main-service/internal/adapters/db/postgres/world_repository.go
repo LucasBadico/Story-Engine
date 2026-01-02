@@ -36,16 +36,16 @@ func (r *WorldRepository) Create(ctx context.Context, w *world.World) error {
 }
 
 // GetByID retrieves a world by ID
-func (r *WorldRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.World, error) {
+func (r *WorldRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.World, error) {
 	query := `
 		SELECT id, tenant_id, name, description, genre, is_implicit, rpg_system_id, created_at, updated_at
 		FROM worlds
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var w world.World
 	var rpgSystemID sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&w.ID, &w.TenantID, &w.Name, &w.Description, &w.Genre, &w.IsImplicit, &rpgSystemID, &w.CreatedAt, &w.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -90,16 +90,16 @@ func (r *WorldRepository) Update(ctx context.Context, w *world.World) error {
 	query := `
 		UPDATE worlds
 		SET name = $2, description = $3, genre = $4, is_implicit = $5, rpg_system_id = $6, updated_at = $7
-		WHERE id = $1
+		WHERE tenant_id = $8 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, w.ID, w.Name, w.Description, w.Genre, w.IsImplicit, w.RPGSystemID, w.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, w.ID, w.Name, w.Description, w.Genre, w.IsImplicit, w.RPGSystemID, w.UpdatedAt, w.TenantID)
 	return err
 }
 
 // Delete deletes a world
-func (r *WorldRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM worlds WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *WorldRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM worlds WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 

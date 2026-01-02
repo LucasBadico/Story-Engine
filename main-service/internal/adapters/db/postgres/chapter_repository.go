@@ -25,24 +25,24 @@ func NewChapterRepository(db *DB) *ChapterRepository {
 // Create creates a new chapter
 func (r *ChapterRepository) Create(ctx context.Context, c *story.Chapter) error {
 	query := `
-		INSERT INTO chapters (id, story_id, number, title, status, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO chapters (id, tenant_id, story_id, number, title, status, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	_, err := r.db.Exec(ctx, query,
-		c.ID, c.StoryID, c.Number, c.Title, string(c.Status), c.CreatedAt, c.UpdatedAt)
+		c.ID, c.TenantID, c.StoryID, c.Number, c.Title, string(c.Status), c.CreatedAt, c.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a chapter by ID
-func (r *ChapterRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.Chapter, error) {
+func (r *ChapterRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.Chapter, error) {
 	query := `
-		SELECT id, story_id, number, title, status, created_at, updated_at
+		SELECT id, tenant_id, story_id, number, title, status, created_at, updated_at
 		FROM chapters
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var c story.Chapter
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&c.ID, &c.StoryID, &c.Number, &c.Title, &c.Status, &c.CreatedAt, &c.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&c.ID, &c.TenantID, &c.StoryID, &c.Number, &c.Title, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("chapter not found")
@@ -53,19 +53,19 @@ func (r *ChapterRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.C
 }
 
 // ListByStory lists chapters for a story
-func (r *ChapterRepository) ListByStory(ctx context.Context, storyID uuid.UUID) ([]*story.Chapter, error) {
-	return r.ListByStoryOrdered(ctx, storyID)
+func (r *ChapterRepository) ListByStory(ctx context.Context, tenantID, storyID uuid.UUID) ([]*story.Chapter, error) {
+	return r.ListByStoryOrdered(ctx, tenantID, storyID)
 }
 
 // ListByStoryOrdered lists chapters for a story ordered by number
-func (r *ChapterRepository) ListByStoryOrdered(ctx context.Context, storyID uuid.UUID) ([]*story.Chapter, error) {
+func (r *ChapterRepository) ListByStoryOrdered(ctx context.Context, tenantID, storyID uuid.UUID) ([]*story.Chapter, error) {
 	query := `
-		SELECT id, story_id, number, title, status, created_at, updated_at
+		SELECT id, tenant_id, story_id, number, title, status, created_at, updated_at
 		FROM chapters
-		WHERE story_id = $1
+		WHERE tenant_id = $1 AND story_id = $2
 		ORDER BY number ASC
 	`
-	rows, err := r.db.Query(ctx, query, storyID)
+	rows, err := r.db.Query(ctx, query, tenantID, storyID)
 	if err != nil {
 		return nil, err
 	}
@@ -74,7 +74,7 @@ func (r *ChapterRepository) ListByStoryOrdered(ctx context.Context, storyID uuid
 	var chapters []*story.Chapter
 	for rows.Next() {
 		var c story.Chapter
-		err := rows.Scan(&c.ID, &c.StoryID, &c.Number, &c.Title, &c.Status, &c.CreatedAt, &c.UpdatedAt)
+		err := rows.Scan(&c.ID, &c.TenantID, &c.StoryID, &c.Number, &c.Title, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
@@ -89,23 +89,23 @@ func (r *ChapterRepository) Update(ctx context.Context, c *story.Chapter) error 
 	query := `
 		UPDATE chapters
 		SET number = $2, title = $3, status = $4, updated_at = $5
-		WHERE id = $1
+		WHERE tenant_id = $6 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, c.ID, c.Number, c.Title, string(c.Status), c.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, c.ID, c.Number, c.Title, string(c.Status), c.UpdatedAt, c.TenantID)
 	return err
 }
 
 // Delete deletes a chapter
-func (r *ChapterRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM chapters WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *ChapterRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM chapters WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByStory deletes all chapters for a story
-func (r *ChapterRepository) DeleteByStory(ctx context.Context, storyID uuid.UUID) error {
-	query := `DELETE FROM chapters WHERE story_id = $1`
-	_, err := r.db.Exec(ctx, query, storyID)
+func (r *ChapterRepository) DeleteByStory(ctx context.Context, tenantID, storyID uuid.UUID) error {
+	query := `DELETE FROM chapters WHERE tenant_id = $1 AND story_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, storyID)
 	return err
 }
 

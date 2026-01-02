@@ -26,25 +26,25 @@ func NewArtifactRepository(db *DB) *ArtifactRepository {
 // Create creates a new artifact
 func (r *ArtifactRepository) Create(ctx context.Context, a *world.Artifact) error {
 	query := `
-		INSERT INTO artifacts (id, world_id, name, description, rarity, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO artifacts (id, tenant_id, world_id, name, description, rarity, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	_, err := r.db.Exec(ctx, query,
-		a.ID, a.WorldID, a.Name, a.Description, a.Rarity, a.CreatedAt, a.UpdatedAt)
+		a.ID, a.TenantID, a.WorldID, a.Name, a.Description, a.Rarity, a.CreatedAt, a.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves an artifact by ID
-func (r *ArtifactRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.Artifact, error) {
+func (r *ArtifactRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.Artifact, error) {
 	query := `
-		SELECT id, world_id, name, description, rarity, created_at, updated_at
+		SELECT id, tenant_id, world_id, name, description, rarity, created_at, updated_at
 		FROM artifacts
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var a world.Artifact
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&a.ID, &a.WorldID, &a.Name, &a.Description, &a.Rarity, &a.CreatedAt, &a.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&a.ID, &a.TenantID, &a.WorldID, &a.Name, &a.Description, &a.Rarity, &a.CreatedAt, &a.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &platformerrors.NotFoundError{
@@ -59,15 +59,15 @@ func (r *ArtifactRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.
 }
 
 // ListByWorld lists artifacts for a world
-func (r *ArtifactRepository) ListByWorld(ctx context.Context, worldID uuid.UUID, limit, offset int) ([]*world.Artifact, error) {
+func (r *ArtifactRepository) ListByWorld(ctx context.Context, tenantID, worldID uuid.UUID, limit, offset int) ([]*world.Artifact, error) {
 	query := `
-		SELECT id, world_id, name, description, rarity, created_at, updated_at
+		SELECT id, tenant_id, world_id, name, description, rarity, created_at, updated_at
 		FROM artifacts
-		WHERE world_id = $1
+		WHERE tenant_id = $1 AND world_id = $2
 		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3
+		LIMIT $3 OFFSET $4
 	`
-	rows, err := r.db.Query(ctx, query, worldID, limit, offset)
+	rows, err := r.db.Query(ctx, query, tenantID, worldID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -81,24 +81,24 @@ func (r *ArtifactRepository) Update(ctx context.Context, a *world.Artifact) erro
 	query := `
 		UPDATE artifacts
 		SET name = $2, description = $3, rarity = $4, updated_at = $5
-		WHERE id = $1
+		WHERE tenant_id = $6 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, a.ID, a.Name, a.Description, a.Rarity, a.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, a.ID, a.Name, a.Description, a.Rarity, a.UpdatedAt, a.TenantID)
 	return err
 }
 
 // Delete deletes an artifact
-func (r *ArtifactRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM artifacts WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *ArtifactRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM artifacts WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // CountByWorld counts artifacts for a world
-func (r *ArtifactRepository) CountByWorld(ctx context.Context, worldID uuid.UUID) (int, error) {
-	query := `SELECT COUNT(*) FROM artifacts WHERE world_id = $1`
+func (r *ArtifactRepository) CountByWorld(ctx context.Context, tenantID, worldID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM artifacts WHERE tenant_id = $1 AND world_id = $2`
 	var count int
-	err := r.db.QueryRow(ctx, query, worldID).Scan(&count)
+	err := r.db.QueryRow(ctx, query, tenantID, worldID).Scan(&count)
 	return count, err
 }
 
@@ -108,7 +108,7 @@ func (r *ArtifactRepository) scanArtifacts(rows pgx.Rows) ([]*world.Artifact, er
 		var a world.Artifact
 
 		err := rows.Scan(
-			&a.ID, &a.WorldID, &a.Name, &a.Description, &a.Rarity, &a.CreatedAt, &a.UpdatedAt)
+			&a.ID, &a.TenantID, &a.WorldID, &a.Name, &a.Description, &a.Rarity, &a.CreatedAt, &a.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}

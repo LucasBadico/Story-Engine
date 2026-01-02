@@ -27,7 +27,7 @@ func NewLocationRepository(db *DB) *LocationRepository {
 func (r *LocationRepository) Create(ctx context.Context, l *world.Location) error {
 	// If parent_id is provided, get parent's level to calculate hierarchy_level
 	if l.ParentID != nil {
-		parent, err := r.GetByID(ctx, *l.ParentID)
+		parent, err := r.GetByID(ctx, l.TenantID, *l.ParentID)
 		if err != nil {
 			return err
 		}
@@ -35,26 +35,26 @@ func (r *LocationRepository) Create(ctx context.Context, l *world.Location) erro
 	}
 
 	query := `
-		INSERT INTO locations (id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO locations (id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err := r.db.Exec(ctx, query,
-		l.ID, l.WorldID, l.ParentID, l.Name, l.Type, l.Description, l.HierarchyLevel, l.CreatedAt, l.UpdatedAt)
+		l.ID, l.TenantID, l.WorldID, l.ParentID, l.Name, l.Type, l.Description, l.HierarchyLevel, l.CreatedAt, l.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a location by ID
-func (r *LocationRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.Location, error) {
+func (r *LocationRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.Location, error) {
 	query := `
-		SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+		SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 		FROM locations
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var l world.Location
 	var parentID *uuid.UUID
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&l.ID, &l.WorldID, &parentID, &l.Name, &l.Type, &l.Description, &l.HierarchyLevel, &l.CreatedAt, &l.UpdatedAt)
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&l.ID, &l.TenantID, &l.WorldID, &parentID, &l.Name, &l.Type, &l.Description, &l.HierarchyLevel, &l.CreatedAt, &l.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &platformerrors.NotFoundError{
@@ -70,15 +70,15 @@ func (r *LocationRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.
 }
 
 // ListByWorld lists locations for a world (flat list)
-func (r *LocationRepository) ListByWorld(ctx context.Context, worldID uuid.UUID, limit, offset int) ([]*world.Location, error) {
+func (r *LocationRepository) ListByWorld(ctx context.Context, tenantID, worldID uuid.UUID, limit, offset int) ([]*world.Location, error) {
 	query := `
-		SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+		SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 		FROM locations
-		WHERE world_id = $1
+		WHERE tenant_id = $1 AND world_id = $2
 		ORDER BY hierarchy_level ASC, name ASC
-		LIMIT $2 OFFSET $3
+		LIMIT $3 OFFSET $4
 	`
-	rows, err := r.db.Query(ctx, query, worldID, limit, offset)
+	rows, err := r.db.Query(ctx, query, tenantID, worldID, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -88,14 +88,14 @@ func (r *LocationRepository) ListByWorld(ctx context.Context, worldID uuid.UUID,
 }
 
 // ListByWorldTree lists locations for a world in tree structure (all locations, ordered by hierarchy)
-func (r *LocationRepository) ListByWorldTree(ctx context.Context, worldID uuid.UUID) ([]*world.Location, error) {
+func (r *LocationRepository) ListByWorldTree(ctx context.Context, tenantID, worldID uuid.UUID) ([]*world.Location, error) {
 	query := `
-		SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+		SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 		FROM locations
-		WHERE world_id = $1
+		WHERE tenant_id = $1 AND world_id = $2
 		ORDER BY hierarchy_level ASC, name ASC
 	`
-	rows, err := r.db.Query(ctx, query, worldID)
+	rows, err := r.db.Query(ctx, query, tenantID, worldID)
 	if err != nil {
 		return nil, err
 	}
@@ -105,14 +105,14 @@ func (r *LocationRepository) ListByWorldTree(ctx context.Context, worldID uuid.U
 }
 
 // GetChildren retrieves direct children of a location
-func (r *LocationRepository) GetChildren(ctx context.Context, locationID uuid.UUID) ([]*world.Location, error) {
+func (r *LocationRepository) GetChildren(ctx context.Context, tenantID, locationID uuid.UUID) ([]*world.Location, error) {
 	query := `
-		SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+		SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 		FROM locations
-		WHERE parent_id = $1
+		WHERE tenant_id = $1 AND parent_id = $2
 		ORDER BY name ASC
 	`
-	rows, err := r.db.Query(ctx, query, locationID)
+	rows, err := r.db.Query(ctx, query, tenantID, locationID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,24 +122,25 @@ func (r *LocationRepository) GetChildren(ctx context.Context, locationID uuid.UU
 }
 
 // GetAncestors retrieves all ancestors of a location (path to root)
-func (r *LocationRepository) GetAncestors(ctx context.Context, locationID uuid.UUID) ([]*world.Location, error) {
+func (r *LocationRepository) GetAncestors(ctx context.Context, tenantID, locationID uuid.UUID) ([]*world.Location, error) {
 	// Use recursive CTE to get all ancestors
 	query := `
 		WITH RECURSIVE ancestors AS (
-			SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+			SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 			FROM locations
-			WHERE id = $1
+			WHERE tenant_id = $1 AND id = $2
 			UNION ALL
-			SELECT l.id, l.world_id, l.parent_id, l.name, l.type, l.description, l.hierarchy_level, l.created_at, l.updated_at
+			SELECT l.id, l.tenant_id, l.world_id, l.parent_id, l.name, l.type, l.description, l.hierarchy_level, l.created_at, l.updated_at
 			FROM locations l
 			INNER JOIN ancestors a ON l.id = a.parent_id
+			WHERE l.tenant_id = $1
 		)
-		SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+		SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 		FROM ancestors
-		WHERE id != $1
+		WHERE id != $2
 		ORDER BY hierarchy_level ASC
 	`
-	rows, err := r.db.Query(ctx, query, locationID)
+	rows, err := r.db.Query(ctx, query, tenantID, locationID)
 	if err != nil {
 		return nil, err
 	}
@@ -149,23 +150,24 @@ func (r *LocationRepository) GetAncestors(ctx context.Context, locationID uuid.U
 }
 
 // GetDescendants retrieves all descendants of a location (recursive)
-func (r *LocationRepository) GetDescendants(ctx context.Context, locationID uuid.UUID) ([]*world.Location, error) {
+func (r *LocationRepository) GetDescendants(ctx context.Context, tenantID, locationID uuid.UUID) ([]*world.Location, error) {
 	// Use recursive CTE to get all descendants
 	query := `
 		WITH RECURSIVE descendants AS (
-			SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+			SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 			FROM locations
-			WHERE parent_id = $1
+			WHERE tenant_id = $1 AND parent_id = $2
 			UNION ALL
-			SELECT l.id, l.world_id, l.parent_id, l.name, l.type, l.description, l.hierarchy_level, l.created_at, l.updated_at
+			SELECT l.id, l.tenant_id, l.world_id, l.parent_id, l.name, l.type, l.description, l.hierarchy_level, l.created_at, l.updated_at
 			FROM locations l
 			INNER JOIN descendants d ON l.parent_id = d.id
+			WHERE l.tenant_id = $1
 		)
-		SELECT id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
+		SELECT id, tenant_id, world_id, parent_id, name, type, description, hierarchy_level, created_at, updated_at
 		FROM descendants
 		ORDER BY hierarchy_level ASC, name ASC
 	`
-	rows, err := r.db.Query(ctx, query, locationID)
+	rows, err := r.db.Query(ctx, query, tenantID, locationID)
 	if err != nil {
 		return nil, err
 	}
@@ -179,24 +181,24 @@ func (r *LocationRepository) Update(ctx context.Context, l *world.Location) erro
 	query := `
 		UPDATE locations
 		SET name = $2, type = $3, description = $4, parent_id = $5, hierarchy_level = $6, updated_at = $7
-		WHERE id = $1
+		WHERE tenant_id = $8 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, l.ID, l.Name, l.Type, l.Description, l.ParentID, l.HierarchyLevel, l.UpdatedAt)
+	_, err := r.db.Exec(ctx, query, l.ID, l.Name, l.Type, l.Description, l.ParentID, l.HierarchyLevel, l.UpdatedAt, l.TenantID)
 	return err
 }
 
 // Delete deletes a location
-func (r *LocationRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM locations WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *LocationRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM locations WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // CountByWorld counts locations for a world
-func (r *LocationRepository) CountByWorld(ctx context.Context, worldID uuid.UUID) (int, error) {
-	query := `SELECT COUNT(*) FROM locations WHERE world_id = $1`
+func (r *LocationRepository) CountByWorld(ctx context.Context, tenantID, worldID uuid.UUID) (int, error) {
+	query := `SELECT COUNT(*) FROM locations WHERE tenant_id = $1 AND world_id = $2`
 	var count int
-	err := r.db.QueryRow(ctx, query, worldID).Scan(&count)
+	err := r.db.QueryRow(ctx, query, tenantID, worldID).Scan(&count)
 	return count, err
 }
 
@@ -207,7 +209,7 @@ func (r *LocationRepository) scanLocations(rows pgx.Rows) ([]*world.Location, er
 		var parentID *uuid.UUID
 
 		err := rows.Scan(
-			&l.ID, &l.WorldID, &parentID, &l.Name, &l.Type, &l.Description, &l.HierarchyLevel, &l.CreatedAt, &l.UpdatedAt)
+			&l.ID, &l.TenantID, &l.WorldID, &parentID, &l.Name, &l.Type, &l.Description, &l.HierarchyLevel, &l.CreatedAt, &l.UpdatedAt)
 		if err != nil {
 			return nil, err
 		}
