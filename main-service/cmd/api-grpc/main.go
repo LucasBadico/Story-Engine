@@ -15,8 +15,16 @@ import (
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/application/story"
+	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
+	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
+	characterinventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
+	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
+	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
+	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
+	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
+	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
 	"github.com/story-engine/main-service/internal/platform/logger"
@@ -66,6 +74,16 @@ func main() {
 	proseBlockRepo := postgres.NewProseBlockRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
 	transactionRepo := postgres.NewTransactionRepository(pgDB)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(pgDB)
+	skillRepo := postgres.NewSkillRepository(pgDB)
+	rpgClassRepo := postgres.NewRPGClassRepository(pgDB)
+	rpgClassSkillRepo := postgres.NewRPGClassSkillRepository(pgDB)
+	characterSkillRepo := postgres.NewCharacterSkillRepository(pgDB)
+	characterStatsRepo := postgres.NewCharacterRPGStatsRepository(pgDB)
+	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(pgDB)
+	imageBlockRepo := postgres.NewImageBlockRepository(pgDB)
+	inventoryRepo := postgres.NewCharacterInventoryRepository(pgDB)
+	inventoryItemRepo := postgres.NewInventoryItemRepository(pgDB)
 
 	// Initialize use cases
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
@@ -141,6 +159,46 @@ func main() {
 	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
 	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
 	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
+	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)
+	listRPGSystemsUseCase := rpgsystemapp.NewListRPGSystemsUseCase(rpgSystemRepo, log)
+	updateRPGSystemUseCase := rpgsystemapp.NewUpdateRPGSystemUseCase(rpgSystemRepo, log)
+	deleteRPGSystemUseCase := rpgsystemapp.NewDeleteRPGSystemUseCase(rpgSystemRepo, log)
+	createSkillUseCase := skillapp.NewCreateSkillUseCase(skillRepo, rpgSystemRepo, log)
+	getSkillUseCase := skillapp.NewGetSkillUseCase(skillRepo, log)
+	listSkillsUseCase := skillapp.NewListSkillsUseCase(skillRepo, log)
+	updateSkillUseCase := skillapp.NewUpdateSkillUseCase(skillRepo, log)
+	deleteSkillUseCase := skillapp.NewDeleteSkillUseCase(skillRepo, log)
+	createRPGClassUseCase := rpgclassapp.NewCreateRPGClassUseCase(rpgClassRepo, rpgSystemRepo, log)
+	getRPGClassUseCase := rpgclassapp.NewGetRPGClassUseCase(rpgClassRepo, log)
+	listRPGClassesUseCase := rpgclassapp.NewListRPGClassesUseCase(rpgClassRepo, log)
+	updateRPGClassUseCase := rpgclassapp.NewUpdateRPGClassUseCase(rpgClassRepo, log)
+	deleteRPGClassUseCase := rpgclassapp.NewDeleteRPGClassUseCase(rpgClassRepo, log)
+	addSkillToClassUseCase := rpgclassapp.NewAddSkillToClassUseCase(rpgClassSkillRepo, rpgClassRepo, skillRepo, log)
+	listClassSkillsUseCase := rpgclassapp.NewListClassSkillsUseCase(rpgClassSkillRepo, log)
+	learnSkillUseCase := characterskillapp.NewLearnSkillUseCase(characterSkillRepo, characterRepo, skillRepo, log)
+	updateCharacterSkillUseCase := characterskillapp.NewUpdateCharacterSkillUseCase(characterSkillRepo, skillRepo, log)
+	deleteCharacterSkillUseCase := characterskillapp.NewDeleteCharacterSkillUseCase(characterSkillRepo, log)
+	listCharacterSkillsUseCase := characterskillapp.NewListCharacterSkillsUseCase(characterSkillRepo, log)
+	createCharacterStatsUseCase := characterstatsapp.NewCreateCharacterStatsUseCase(characterStatsRepo, characterRepo, eventRepo, log)
+	getActiveCharacterStatsUseCase := characterstatsapp.NewGetActiveCharacterStatsUseCase(characterStatsRepo, log)
+	listCharacterStatsHistoryUseCase := characterstatsapp.NewListCharacterStatsHistoryUseCase(characterStatsRepo, log)
+	activateCharacterStatsVersionUseCase := characterstatsapp.NewActivateCharacterStatsVersionUseCase(characterStatsRepo, log)
+	deleteAllCharacterStatsUseCase := characterstatsapp.NewDeleteAllCharacterStatsUseCase(characterStatsRepo, log)
+	createArtifactStatsUseCase := artifactstatsapp.NewCreateArtifactStatsUseCase(artifactStatsRepo, artifactRepo, eventRepo, log)
+	getActiveArtifactStatsUseCase := artifactstatsapp.NewGetActiveArtifactStatsUseCase(artifactStatsRepo, log)
+	listArtifactStatsHistoryUseCase := artifactstatsapp.NewListArtifactStatsHistoryUseCase(artifactStatsRepo, log)
+	activateArtifactStatsVersionUseCase := artifactstatsapp.NewActivateArtifactStatsVersionUseCase(artifactStatsRepo, log)
+	createImageBlockUseCase := imageblockapp.NewCreateImageBlockUseCase(imageBlockRepo, chapterRepo, log)
+	getImageBlockUseCase := imageblockapp.NewGetImageBlockUseCase(imageBlockRepo, log)
+	listImageBlocksUseCase := imageblockapp.NewListImageBlocksUseCase(imageBlockRepo, log)
+	updateImageBlockUseCase := imageblockapp.NewUpdateImageBlockUseCase(imageBlockRepo, log)
+	imageBlockReferenceRepo := postgres.NewImageBlockReferenceRepository(pgDB)
+	deleteImageBlockUseCase := imageblockapp.NewDeleteImageBlockUseCase(imageBlockRepo, imageBlockReferenceRepo, log)
+	addItemToInventoryUseCase := characterinventoryapp.NewAddItemToInventoryUseCase(inventoryRepo, characterRepo, inventoryItemRepo, log)
+	updateInventoryItemUseCase := characterinventoryapp.NewUpdateCharacterInventoryUseCase(inventoryRepo, log)
+	deleteInventoryItemUseCase := characterinventoryapp.NewDeleteCharacterInventoryUseCase(inventoryRepo, log)
+	listInventoryUseCase := characterinventoryapp.NewListCharacterInventoryUseCase(inventoryRepo, log)
 
 	// Create handlers
 	tenantHandler := handlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -159,6 +217,14 @@ func main() {
 		log,
 	)
 	sceneHandler := handlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
+	rpgSystemHandler := handlers.NewRPGSystemHandler(createRPGSystemUseCase, getRPGSystemUseCase, listRPGSystemsUseCase, updateRPGSystemUseCase, deleteRPGSystemUseCase, log)
+	skillHandler := handlers.NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
+	rpgClassHandler := handlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, rpgClassSkillRepo, log)
+	characterSkillHandler := handlers.NewCharacterSkillHandler(learnSkillUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, listCharacterSkillsUseCase, log)
+	characterRPGStatsHandler := handlers.NewCharacterRPGStatsHandler(createCharacterStatsUseCase, getActiveCharacterStatsUseCase, listCharacterStatsHistoryUseCase, activateCharacterStatsVersionUseCase, deleteAllCharacterStatsUseCase, log)
+	artifactRPGStatsHandler := handlers.NewArtifactRPGStatsHandler(createArtifactStatsUseCase, getActiveArtifactStatsUseCase, listArtifactStatsHistoryUseCase, activateArtifactStatsVersionUseCase, log)
+	imageBlockHandler := handlers.NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, log)
+	inventoryHandler := handlers.NewInventoryHandler(addItemToInventoryUseCase, updateInventoryItemUseCase, deleteInventoryItemUseCase, listInventoryUseCase, log)
 
 	// Create and configure gRPC server
 	grpcServer := grpcserver.NewServer(cfg, log)
@@ -172,6 +238,14 @@ func main() {
 	grpcServer.RegisterArchetypeService(archetypeHandler)
 	grpcServer.RegisterStoryService(storyHandler)
 	grpcServer.RegisterSceneService(sceneHandler)
+	grpcServer.RegisterRPGSystemService(rpgSystemHandler)
+	grpcServer.RegisterSkillService(skillHandler)
+	grpcServer.RegisterRPGClassService(rpgClassHandler)
+	grpcServer.RegisterCharacterSkillService(characterSkillHandler)
+	grpcServer.RegisterCharacterRPGStatsService(characterRPGStatsHandler)
+	grpcServer.RegisterArtifactRPGStatsService(artifactRPGStatsHandler)
+	grpcServer.RegisterImageBlockService(imageBlockHandler)
+	grpcServer.RegisterInventoryService(inventoryHandler)
 
 	// Setup graceful shutdown
 	_, cancel := context.WithCancel(context.Background())

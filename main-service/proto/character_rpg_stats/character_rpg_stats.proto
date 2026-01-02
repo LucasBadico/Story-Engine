@@ -1,0 +1,93 @@
+syntax = "proto3";
+package character_rpg_stats;
+option go_package = "github.com/story-engine/main-service/proto/character_rpg_stats";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// CharacterRPGStats represents RPG stats for a character with versioning
+message CharacterRPGStats {
+  string id = 1;
+  string character_id = 2;
+  optional string event_id = 3;
+  string base_stats = 4; // JSON string
+  optional string derived_stats = 5; // JSON string
+  optional string progression = 6; // JSON string
+  bool is_active = 7;
+  int32 version = 8;
+  optional string reason = 9;
+  optional string timeline = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+// CreateCharacterRPGStatsRequest is the request to create new character RPG stats
+message CreateCharacterRPGStatsRequest {
+  string character_id = 1;
+  optional string event_id = 2;
+  string base_stats = 3; // JSON string
+  optional string derived_stats = 4; // JSON string
+  optional string progression = 5; // JSON string
+  optional string reason = 6;
+  optional string timeline = 7;
+}
+
+// CreateCharacterRPGStatsResponse is the response after creating character RPG stats
+message CreateCharacterRPGStatsResponse {
+  CharacterRPGStats character_rpg_stats = 1;
+}
+
+// GetCharacterRPGStatsRequest is the request to get active character RPG stats
+message GetCharacterRPGStatsRequest {
+  string character_id = 1;
+}
+
+// GetCharacterRPGStatsResponse is the response containing character RPG stats
+message GetCharacterRPGStatsResponse {
+  CharacterRPGStats character_rpg_stats = 1;
+}
+
+// ListCharacterRPGStatsHistoryRequest is the request to list all versions of character RPG stats
+message ListCharacterRPGStatsHistoryRequest {
+  string character_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListCharacterRPGStatsHistoryResponse is the response containing a list of character RPG stats versions
+message ListCharacterRPGStatsHistoryResponse {
+  repeated CharacterRPGStats character_rpg_stats = 1;
+  int32 total_count = 2;
+}
+
+// ActivateCharacterRPGStatsVersionRequest is the request to activate a specific version
+message ActivateCharacterRPGStatsVersionRequest {
+  string id = 1;
+}
+
+// ActivateCharacterRPGStatsVersionResponse is the response after activating a version
+message ActivateCharacterRPGStatsVersionResponse {
+  CharacterRPGStats character_rpg_stats = 1;
+}
+
+// DeleteCharacterRPGStatsRequest is the request to delete all stats for a character
+message DeleteCharacterRPGStatsRequest {
+  string character_id = 1;
+}
+
+// DeleteCharacterRPGStatsResponse is the response after deleting stats
+message DeleteCharacterRPGStatsResponse {
+}
+
+// CharacterRPGStatsService provides character RPG stats management operations
+service CharacterRPGStatsService {
+  // CreateCharacterRPGStats creates a new version of character RPG stats
+  rpc CreateCharacterRPGStats(CreateCharacterRPGStatsRequest) returns (CreateCharacterRPGStatsResponse);
+  // GetCharacterRPGStats retrieves active character RPG stats
+  rpc GetCharacterRPGStats(GetCharacterRPGStatsRequest) returns (GetCharacterRPGStatsResponse);
+  // ListCharacterRPGStatsHistory lists all versions of character RPG stats
+  rpc ListCharacterRPGStatsHistory(ListCharacterRPGStatsHistoryRequest) returns (ListCharacterRPGStatsHistoryResponse);
+  // ActivateCharacterRPGStatsVersion activates a specific version (rollback)
+  rpc ActivateCharacterRPGStatsVersion(ActivateCharacterRPGStatsVersionRequest) returns (ActivateCharacterRPGStatsVersionResponse);
+  // DeleteCharacterRPGStats deletes all stats for a character
+  rpc DeleteCharacterRPGStats(DeleteCharacterRPGStatsRequest) returns (DeleteCharacterRPGStatsResponse);
+}
+

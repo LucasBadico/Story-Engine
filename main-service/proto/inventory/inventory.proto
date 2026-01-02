@@ -1,0 +1,112 @@
+syntax = "proto3";
+package inventory;
+option go_package = "github.com/story-engine/main-service/proto/inventory";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// InventoryItem represents an inventory item definition
+message InventoryItem {
+  string id = 1;
+  string rpg_system_id = 2;
+  optional string artifact_id = 3;
+  string name = 4;
+  optional string category = 5; // weapon, armor, consumable, quest, misc
+  optional string description = 6;
+  int32 slots_required = 7;
+  optional double weight = 8;
+  optional string size = 9; // tiny, small, medium, large, huge
+  int32 max_stack = 10;
+  optional string equip_slots = 11; // JSON string
+  optional string requirements = 12; // JSON string
+  optional string item_stats = 13; // JSON string
+  bool is_template = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+// InventorySlot represents an inventory slot definition
+message InventorySlot {
+  string id = 1;
+  string rpg_system_id = 2;
+  string name = 3;
+  optional string slot_type = 4; // equipment, consumable, quest
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// CharacterInventory represents an item in a character's inventory
+message CharacterInventory {
+  string id = 1;
+  string character_id = 2;
+  string item_id = 3;
+  int32 quantity = 4;
+  optional string slot_id = 5;
+  bool is_equipped = 6;
+  optional string custom_name = 7;
+  optional string custom_stats = 8; // JSON string
+  google.protobuf.Timestamp acquired_at = 9;
+}
+
+// AddItemToInventoryRequest is the request to add an item to a character's inventory
+message AddItemToInventoryRequest {
+  string character_id = 1;
+  string item_id = 2;
+  optional int32 quantity = 3;
+  optional string slot_id = 4;
+  optional string custom_name = 5;
+  optional string custom_stats = 6; // JSON string
+}
+
+// AddItemToInventoryResponse is the response after adding an item
+message AddItemToInventoryResponse {
+  CharacterInventory character_inventory = 1;
+}
+
+// UpdateInventoryItemRequest is the request to update an inventory item
+message UpdateInventoryItemRequest {
+  string id = 1;
+  optional int32 quantity = 2;
+  optional string slot_id = 3;
+  optional bool is_equipped = 4;
+  optional string custom_name = 5;
+  optional string custom_stats = 6; // JSON string
+}
+
+// UpdateInventoryItemResponse is the response after updating an inventory item
+message UpdateInventoryItemResponse {
+  CharacterInventory character_inventory = 1;
+}
+
+// RemoveItemFromInventoryRequest is the request to remove an item from inventory
+message RemoveItemFromInventoryRequest {
+  string id = 1;
+}
+
+// RemoveItemFromInventoryResponse is the response after removing an item
+message RemoveItemFromInventoryResponse {
+}
+
+// ListInventoryRequest is the request to list items in a character's inventory
+message ListInventoryRequest {
+  string character_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListInventoryResponse is the response containing a list of inventory items
+message ListInventoryResponse {
+  repeated CharacterInventory character_inventory = 1;
+  int32 total_count = 2;
+}
+
+// InventoryService provides inventory management operations
+service InventoryService {
+  // AddItemToInventory adds an item to a character's inventory
+  rpc AddItemToInventory(AddItemToInventoryRequest) returns (AddItemToInventoryResponse);
+  // UpdateInventoryItem updates an inventory item
+  rpc UpdateInventoryItem(UpdateInventoryItemRequest) returns (UpdateInventoryItemResponse);
+  // RemoveItemFromInventory removes an item from inventory
+  rpc RemoveItemFromInventory(RemoveItemFromInventoryRequest) returns (RemoveItemFromInventoryResponse);
+  // ListInventory lists items in a character's inventory with pagination
+  rpc ListInventory(ListInventoryRequest) returns (ListInventoryResponse);
+}
+

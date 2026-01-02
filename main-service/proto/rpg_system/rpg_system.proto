@@ -1,0 +1,96 @@
+syntax = "proto3";
+package rpg_system;
+option go_package = "github.com/story-engine/main-service/proto/rpg_system";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// RPGSystem represents an RPG system definition
+message RPGSystem {
+  string id = 1;
+  optional string tenant_id = 2; // null = builtin
+  string name = 3;
+  optional string description = 4;
+  string base_stats_schema = 5; // JSON string
+  optional string derived_stats_schema = 6; // JSON string
+  optional string progression_schema = 7; // JSON string
+  bool is_builtin = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// CreateRPGSystemRequest is the request to create a new RPG system
+message CreateRPGSystemRequest {
+  optional string tenant_id = 1; // optional if provided in metadata
+  string name = 2;
+  optional string description = 3;
+  string base_stats_schema = 4; // JSON string
+  optional string derived_stats_schema = 5; // JSON string
+  optional string progression_schema = 6; // JSON string
+}
+
+// CreateRPGSystemResponse is the response after creating an RPG system
+message CreateRPGSystemResponse {
+  RPGSystem rpg_system = 1;
+}
+
+// GetRPGSystemRequest is the request to get an RPG system by ID
+message GetRPGSystemRequest {
+  string id = 1;
+}
+
+// GetRPGSystemResponse is the response containing an RPG system
+message GetRPGSystemResponse {
+  RPGSystem rpg_system = 1;
+}
+
+// ListRPGSystemsRequest is the request to list RPG systems
+message ListRPGSystemsRequest {
+  optional string tenant_id = 1; // optional if provided in metadata
+  common.PaginationRequest pagination = 2;
+}
+
+// ListRPGSystemsResponse is the response containing a list of RPG systems
+message ListRPGSystemsResponse {
+  repeated RPGSystem rpg_systems = 1;
+  int32 total_count = 2;
+}
+
+// UpdateRPGSystemRequest is the request to update an RPG system
+message UpdateRPGSystemRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string description = 3;
+  optional string base_stats_schema = 4; // JSON string
+  optional string derived_stats_schema = 5; // JSON string
+  optional string progression_schema = 6; // JSON string
+}
+
+// UpdateRPGSystemResponse is the response after updating an RPG system
+message UpdateRPGSystemResponse {
+  RPGSystem rpg_system = 1;
+}
+
+// DeleteRPGSystemRequest is the request to delete an RPG system
+message DeleteRPGSystemRequest {
+  string id = 1;
+}
+
+// DeleteRPGSystemResponse is the response after deleting an RPG system
+message DeleteRPGSystemResponse {
+}
+
+// RPGSystemService provides RPG system management operations
+service RPGSystemService {
+  // CreateRPGSystem creates a new RPG system
+  rpc CreateRPGSystem(CreateRPGSystemRequest) returns (CreateRPGSystemResponse);
+  // GetRPGSystem retrieves an RPG system by ID
+  rpc GetRPGSystem(GetRPGSystemRequest) returns (GetRPGSystemResponse);
+  // UpdateRPGSystem updates an existing RPG system
+  rpc UpdateRPGSystem(UpdateRPGSystemRequest) returns (UpdateRPGSystemResponse);
+  // ListRPGSystems lists RPG systems with pagination
+  rpc ListRPGSystems(ListRPGSystemsRequest) returns (ListRPGSystemsResponse);
+  // DeleteRPGSystem deletes an RPG system
+  rpc DeleteRPGSystem(DeleteRPGSystemRequest) returns (DeleteRPGSystemResponse);
+}
+

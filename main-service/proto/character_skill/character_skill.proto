@@ -1,0 +1,75 @@
+syntax = "proto3";
+package character_skill;
+option go_package = "github.com/story-engine/main-service/proto/character_skill";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// CharacterSkill represents a character's learned skill
+message CharacterSkill {
+  string id = 1;
+  string character_id = 2;
+  string skill_id = 3;
+  int32 rank = 4;
+  int32 xp_in_skill = 5;
+  bool is_active = 6;
+  google.protobuf.Timestamp acquired_at = 7;
+}
+
+// AddCharacterSkillRequest is the request to add a skill to a character
+message AddCharacterSkillRequest {
+  string character_id = 1;
+  string skill_id = 2;
+}
+
+// AddCharacterSkillResponse is the response after adding a skill
+message AddCharacterSkillResponse {
+  CharacterSkill character_skill = 1;
+}
+
+// UpdateCharacterSkillRequest is the request to update a character skill
+message UpdateCharacterSkillRequest {
+  string id = 1;
+  optional int32 rank = 2;
+  optional int32 xp_in_skill = 3;
+  optional bool is_active = 4;
+}
+
+// UpdateCharacterSkillResponse is the response after updating a character skill
+message UpdateCharacterSkillResponse {
+  CharacterSkill character_skill = 1;
+}
+
+// RemoveCharacterSkillRequest is the request to remove a skill from a character
+message RemoveCharacterSkillRequest {
+  string id = 1;
+}
+
+// RemoveCharacterSkillResponse is the response after removing a skill
+message RemoveCharacterSkillResponse {
+}
+
+// ListCharacterSkillsRequest is the request to list skills for a character
+message ListCharacterSkillsRequest {
+  string character_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListCharacterSkillsResponse is the response containing a list of character skills
+message ListCharacterSkillsResponse {
+  repeated CharacterSkill character_skills = 1;
+  int32 total_count = 2;
+}
+
+// CharacterSkillService provides character skill management operations
+service CharacterSkillService {
+  // AddCharacterSkill adds a skill to a character
+  rpc AddCharacterSkill(AddCharacterSkillRequest) returns (AddCharacterSkillResponse);
+  // UpdateCharacterSkill updates a character's skill
+  rpc UpdateCharacterSkill(UpdateCharacterSkillRequest) returns (UpdateCharacterSkillResponse);
+  // RemoveCharacterSkill removes a skill from a character
+  rpc RemoveCharacterSkill(RemoveCharacterSkillRequest) returns (RemoveCharacterSkillResponse);
+  // ListCharacterSkills lists skills for a character with pagination
+  rpc ListCharacterSkills(ListCharacterSkillsRequest) returns (ListCharacterSkillsResponse);
+}
+

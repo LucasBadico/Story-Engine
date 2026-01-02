@@ -1,0 +1,78 @@
+syntax = "proto3";
+package artifact_rpg_stats;
+option go_package = "github.com/story-engine/main-service/proto/artifact_rpg_stats";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// ArtifactRPGStats represents RPG stats for an artifact with versioning
+message ArtifactRPGStats {
+  string id = 1;
+  string artifact_id = 2;
+  optional string event_id = 3;
+  string stats = 4; // JSON string
+  bool is_active = 5;
+  int32 version = 6;
+  optional string reason = 7;
+  optional string timeline = 8;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+// CreateArtifactRPGStatsRequest is the request to create new artifact RPG stats
+message CreateArtifactRPGStatsRequest {
+  string artifact_id = 1;
+  optional string event_id = 2;
+  string stats = 3; // JSON string
+  optional string reason = 4;
+  optional string timeline = 5;
+}
+
+// CreateArtifactRPGStatsResponse is the response after creating artifact RPG stats
+message CreateArtifactRPGStatsResponse {
+  ArtifactRPGStats artifact_rpg_stats = 1;
+}
+
+// GetArtifactRPGStatsRequest is the request to get active artifact RPG stats
+message GetArtifactRPGStatsRequest {
+  string artifact_id = 1;
+}
+
+// GetArtifactRPGStatsResponse is the response containing artifact RPG stats
+message GetArtifactRPGStatsResponse {
+  ArtifactRPGStats artifact_rpg_stats = 1;
+}
+
+// ListArtifactRPGStatsHistoryRequest is the request to list all versions of artifact RPG stats
+message ListArtifactRPGStatsHistoryRequest {
+  string artifact_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListArtifactRPGStatsHistoryResponse is the response containing a list of artifact RPG stats versions
+message ListArtifactRPGStatsHistoryResponse {
+  repeated ArtifactRPGStats artifact_rpg_stats = 1;
+  int32 total_count = 2;
+}
+
+// ActivateArtifactRPGStatsVersionRequest is the request to activate a specific version
+message ActivateArtifactRPGStatsVersionRequest {
+  string id = 1;
+}
+
+// ActivateArtifactRPGStatsVersionResponse is the response after activating a version
+message ActivateArtifactRPGStatsVersionResponse {
+  ArtifactRPGStats artifact_rpg_stats = 1;
+}
+
+// ArtifactRPGStatsService provides artifact RPG stats management operations
+service ArtifactRPGStatsService {
+  // CreateArtifactRPGStats creates a new version of artifact RPG stats
+  rpc CreateArtifactRPGStats(CreateArtifactRPGStatsRequest) returns (CreateArtifactRPGStatsResponse);
+  // GetArtifactRPGStats retrieves active artifact RPG stats
+  rpc GetArtifactRPGStats(GetArtifactRPGStatsRequest) returns (GetArtifactRPGStatsResponse);
+  // ListArtifactRPGStatsHistory lists all versions of artifact RPG stats
+  rpc ListArtifactRPGStatsHistory(ListArtifactRPGStatsHistoryRequest) returns (ListArtifactRPGStatsHistoryResponse);
+  // ActivateArtifactRPGStatsVersion activates a specific version (rollback)
+  rpc ActivateArtifactRPGStatsVersion(ActivateArtifactRPGStatsVersionRequest) returns (ActivateArtifactRPGStatsVersionResponse);
+}
+

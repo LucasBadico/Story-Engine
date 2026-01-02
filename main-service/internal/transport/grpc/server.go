@@ -9,13 +9,21 @@ import (
 	"github.com/story-engine/main-service/internal/transport/grpc/interceptors"
 	archetypepb "github.com/story-engine/main-service/proto/archetype"
 	artifactpb "github.com/story-engine/main-service/proto/artifact"
+	artifactrpgstatspb "github.com/story-engine/main-service/proto/artifact_rpg_stats"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	characterpb "github.com/story-engine/main-service/proto/character"
+	characterskillpb "github.com/story-engine/main-service/proto/character_skill"
+	characterrpgstatspb "github.com/story-engine/main-service/proto/character_rpg_stats"
 	eventpb "github.com/story-engine/main-service/proto/event"
+	imageblockpb "github.com/story-engine/main-service/proto/image_block"
+	inventorypb "github.com/story-engine/main-service/proto/inventory"
 	locationpb "github.com/story-engine/main-service/proto/location"
 	prosepb "github.com/story-engine/main-service/proto/prose"
+	rpgclasspb "github.com/story-engine/main-service/proto/rpg_class"
+	rpgsystempb "github.com/story-engine/main-service/proto/rpg_system"
 	scenepb "github.com/story-engine/main-service/proto/scene"
+	skillpb "github.com/story-engine/main-service/proto/skill"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	traitpb "github.com/story-engine/main-service/proto/trait"
@@ -145,6 +153,54 @@ func (s *Server) RegisterProseBlockService(handler prosepb.ProseBlockServiceServ
 func (s *Server) RegisterProseBlockReferenceService(handler prosepb.ProseBlockReferenceServiceServer) {
 	prosepb.RegisterProseBlockReferenceServiceServer(s.grpcServer, handler)
 	s.logger.Info("ProseBlockReferenceService registered")
+}
+
+// RegisterRPGSystemService registers the RPGSystemService handler
+func (s *Server) RegisterRPGSystemService(handler rpgsystempb.RPGSystemServiceServer) {
+	rpgsystempb.RegisterRPGSystemServiceServer(s.grpcServer, handler)
+	s.logger.Info("RPGSystemService registered")
+}
+
+// RegisterSkillService registers the SkillService handler
+func (s *Server) RegisterSkillService(handler skillpb.SkillServiceServer) {
+	skillpb.RegisterSkillServiceServer(s.grpcServer, handler)
+	s.logger.Info("SkillService registered")
+}
+
+// RegisterRPGClassService registers the RPGClassService handler
+func (s *Server) RegisterRPGClassService(handler rpgclasspb.RPGClassServiceServer) {
+	rpgclasspb.RegisterRPGClassServiceServer(s.grpcServer, handler)
+	s.logger.Info("RPGClassService registered")
+}
+
+// RegisterCharacterSkillService registers the CharacterSkillService handler
+func (s *Server) RegisterCharacterSkillService(handler characterskillpb.CharacterSkillServiceServer) {
+	characterskillpb.RegisterCharacterSkillServiceServer(s.grpcServer, handler)
+	s.logger.Info("CharacterSkillService registered")
+}
+
+// RegisterCharacterRPGStatsService registers the CharacterRPGStatsService handler
+func (s *Server) RegisterCharacterRPGStatsService(handler characterrpgstatspb.CharacterRPGStatsServiceServer) {
+	characterrpgstatspb.RegisterCharacterRPGStatsServiceServer(s.grpcServer, handler)
+	s.logger.Info("CharacterRPGStatsService registered")
+}
+
+// RegisterArtifactRPGStatsService registers the ArtifactRPGStatsService handler
+func (s *Server) RegisterArtifactRPGStatsService(handler artifactrpgstatspb.ArtifactRPGStatsServiceServer) {
+	artifactrpgstatspb.RegisterArtifactRPGStatsServiceServer(s.grpcServer, handler)
+	s.logger.Info("ArtifactRPGStatsService registered")
+}
+
+// RegisterImageBlockService registers the ImageBlockService handler
+func (s *Server) RegisterImageBlockService(handler imageblockpb.ImageBlockServiceServer) {
+	imageblockpb.RegisterImageBlockServiceServer(s.grpcServer, handler)
+	s.logger.Info("ImageBlockService registered")
+}
+
+// RegisterInventoryService registers the InventoryService handler
+func (s *Server) RegisterInventoryService(handler inventorypb.InventoryServiceServer) {
+	inventorypb.RegisterInventoryServiceServer(s.grpcServer, handler)
+	s.logger.Info("InventoryService registered")
 }
 
 // Start starts the gRPC server

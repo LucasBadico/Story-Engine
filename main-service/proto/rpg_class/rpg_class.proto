@@ -1,0 +1,136 @@
+syntax = "proto3";
+package rpg_class;
+option go_package = "github.com/story-engine/main-service/proto/rpg_class";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// RPGClass represents an RPG class/job definition
+message RPGClass {
+  string id = 1;
+  string rpg_system_id = 2;
+  optional string parent_class_id = 3;
+  string name = 4;
+  int32 tier = 5; // 1-3
+  optional string description = 6;
+  optional string requirements = 7; // JSON string
+  optional string stat_bonuses = 8; // JSON string
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// CreateRPGClassRequest is the request to create a new RPG class
+message CreateRPGClassRequest {
+  string rpg_system_id = 1;
+  string name = 2;
+  optional string parent_class_id = 3;
+  optional int32 tier = 4;
+  optional string description = 5;
+  optional string requirements = 6; // JSON string
+  optional string stat_bonuses = 7; // JSON string
+}
+
+// CreateRPGClassResponse is the response after creating an RPG class
+message CreateRPGClassResponse {
+  RPGClass rpg_class = 1;
+}
+
+// GetRPGClassRequest is the request to get an RPG class by ID
+message GetRPGClassRequest {
+  string id = 1;
+}
+
+// GetRPGClassResponse is the response containing an RPG class
+message GetRPGClassResponse {
+  RPGClass rpg_class = 1;
+}
+
+// ListRPGClassesRequest is the request to list RPG classes for an RPG system
+message ListRPGClassesRequest {
+  string rpg_system_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListRPGClassesResponse is the response containing a list of RPG classes
+message ListRPGClassesResponse {
+  repeated RPGClass rpg_classes = 1;
+  int32 total_count = 2;
+}
+
+// UpdateRPGClassRequest is the request to update an RPG class
+message UpdateRPGClassRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string parent_class_id = 3;
+  optional int32 tier = 4;
+  optional string description = 5;
+  optional string requirements = 6; // JSON string
+  optional string stat_bonuses = 7; // JSON string
+}
+
+// UpdateRPGClassResponse is the response after updating an RPG class
+message UpdateRPGClassResponse {
+  RPGClass rpg_class = 1;
+}
+
+// DeleteRPGClassRequest is the request to delete an RPG class
+message DeleteRPGClassRequest {
+  string id = 1;
+}
+
+// DeleteRPGClassResponse is the response after deleting an RPG class
+message DeleteRPGClassResponse {
+}
+
+// AddSkillToRPGClassRequest is the request to add a skill to an RPG class
+message AddSkillToRPGClassRequest {
+  string rpg_class_id = 1;
+  string skill_id = 2;
+}
+
+// AddSkillToRPGClassResponse is the response after adding a skill
+message AddSkillToRPGClassResponse {
+}
+
+// RemoveSkillFromRPGClassRequest is the request to remove a skill from an RPG class
+message RemoveSkillFromRPGClassRequest {
+  string rpg_class_id = 1;
+  string skill_id = 2;
+}
+
+// RemoveSkillFromRPGClassResponse is the response after removing a skill
+message RemoveSkillFromRPGClassResponse {
+}
+
+// ListRPGClassSkillsRequest is the request to list skills for an RPG class
+message ListRPGClassSkillsRequest {
+  string rpg_class_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListRPGClassSkillsResponse is the response containing a list of skills
+message ListRPGClassSkillsResponse {
+  repeated string skill_ids = 1; // List of skill IDs
+  int32 total_count = 2;
+}
+
+// RPGClassService provides RPG class management operations
+service RPGClassService {
+  // CreateRPGClass creates a new RPG class
+  rpc CreateRPGClass(CreateRPGClassRequest) returns (CreateRPGClassResponse);
+  // GetRPGClass retrieves an RPG class by ID
+  rpc GetRPGClass(GetRPGClassRequest) returns (GetRPGClassResponse);
+  // UpdateRPGClass updates an existing RPG class
+  rpc UpdateRPGClass(UpdateRPGClassRequest) returns (UpdateRPGClassResponse);
+  // ListRPGClasses lists RPG classes for an RPG system with pagination
+  rpc ListRPGClasses(ListRPGClassesRequest) returns (ListRPGClassesResponse);
+  // DeleteRPGClass deletes an RPG class
+  rpc DeleteRPGClass(DeleteRPGClassRequest) returns (DeleteRPGClassResponse);
+  // AddSkillToRPGClass adds a skill to an RPG class
+  rpc AddSkillToRPGClass(AddSkillToRPGClassRequest) returns (AddSkillToRPGClassResponse);
+  // RemoveSkillFromRPGClass removes a skill from an RPG class
+  rpc RemoveSkillFromRPGClass(RemoveSkillFromRPGClassRequest) returns (RemoveSkillFromRPGClassResponse);
+  // ListRPGClassSkills lists skills for an RPG class
+  rpc ListRPGClassSkills(ListRPGClassSkillsRequest) returns (ListRPGClassSkillsResponse);
+}
+

@@ -1,0 +1,101 @@
+syntax = "proto3";
+package skill;
+option go_package = "github.com/story-engine/main-service/proto/skill";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Skill represents an RPG skill definition
+message Skill {
+  string id = 1;
+  string rpg_system_id = 2;
+  string name = 3;
+  optional string category = 4; // combat, magic, passive, utility
+  optional string type = 5; // active, passive, spell, ability
+  optional string description = 6;
+  optional string prerequisites = 7; // JSON string
+  int32 max_rank = 8;
+  optional string effects_schema = 9; // JSON string
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp updated_at = 11;
+}
+
+// CreateSkillRequest is the request to create a new skill
+message CreateSkillRequest {
+  string rpg_system_id = 1;
+  string name = 2;
+  optional string category = 3;
+  optional string type = 4;
+  optional string description = 5;
+  optional string prerequisites = 6; // JSON string
+  optional int32 max_rank = 7;
+  optional string effects_schema = 8; // JSON string
+}
+
+// CreateSkillResponse is the response after creating a skill
+message CreateSkillResponse {
+  Skill skill = 1;
+}
+
+// GetSkillRequest is the request to get a skill by ID
+message GetSkillRequest {
+  string id = 1;
+}
+
+// GetSkillResponse is the response containing a skill
+message GetSkillResponse {
+  Skill skill = 1;
+}
+
+// ListSkillsRequest is the request to list skills for an RPG system
+message ListSkillsRequest {
+  string rpg_system_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListSkillsResponse is the response containing a list of skills
+message ListSkillsResponse {
+  repeated Skill skills = 1;
+  int32 total_count = 2;
+}
+
+// UpdateSkillRequest is the request to update a skill
+message UpdateSkillRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string category = 3;
+  optional string type = 4;
+  optional string description = 5;
+  optional string prerequisites = 6; // JSON string
+  optional int32 max_rank = 7;
+  optional string effects_schema = 8; // JSON string
+}
+
+// UpdateSkillResponse is the response after updating a skill
+message UpdateSkillResponse {
+  Skill skill = 1;
+}
+
+// DeleteSkillRequest is the request to delete a skill
+message DeleteSkillRequest {
+  string id = 1;
+}
+
+// DeleteSkillResponse is the response after deleting a skill
+message DeleteSkillResponse {
+}
+
+// SkillService provides skill management operations
+service SkillService {
+  // CreateSkill creates a new skill
+  rpc CreateSkill(CreateSkillRequest) returns (CreateSkillResponse);
+  // GetSkill retrieves a skill by ID
+  rpc GetSkill(GetSkillRequest) returns (GetSkillResponse);
+  // UpdateSkill updates an existing skill
+  rpc UpdateSkill(UpdateSkillRequest) returns (UpdateSkillResponse);
+  // ListSkills lists skills for an RPG system with pagination
+  rpc ListSkills(ListSkillsRequest) returns (ListSkillsResponse);
+  // DeleteSkill deletes a skill
+  rpc DeleteSkill(DeleteSkillRequest) returns (DeleteSkillResponse);
+}
+
