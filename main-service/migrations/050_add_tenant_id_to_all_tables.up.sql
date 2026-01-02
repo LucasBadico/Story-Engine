@@ -95,7 +95,27 @@ CREATE INDEX idx_beats_tenant_id ON beats(tenant_id);
 
 -- Prose Blocks
 ALTER TABLE prose_blocks ADD COLUMN tenant_id UUID;
-UPDATE prose_blocks pb SET tenant_id = s.tenant_id FROM scenes sc JOIN stories s ON sc.story_id = s.id WHERE pb.scene_id = sc.id;
+-- Update prose_blocks with chapter_id
+UPDATE prose_blocks pb SET tenant_id = s.tenant_id FROM chapters ch JOIN stories s ON ch.story_id = s.id WHERE pb.chapter_id = ch.id;
+-- Handle prose_blocks without chapter_id (they can be NULL after migration 032)
+-- Get tenant_id from prose_block_references that point to chapters
+UPDATE prose_blocks pb SET tenant_id = (
+    SELECT s.tenant_id 
+    FROM prose_block_references pbr
+    JOIN chapters ch ON pbr.entity_type = 'chapter' AND pbr.entity_id = ch.id
+    JOIN stories s ON ch.story_id = s.id
+    WHERE pbr.prose_block_id = pb.id
+    LIMIT 1
+) WHERE pb.tenant_id IS NULL;
+-- Get tenant_id from prose_block_references that point to scenes
+UPDATE prose_blocks pb SET tenant_id = (
+    SELECT s.tenant_id 
+    FROM prose_block_references pbr
+    JOIN scenes sc ON pbr.entity_type = 'scene' AND pbr.entity_id = sc.id
+    JOIN stories s ON sc.story_id = s.id
+    WHERE pbr.prose_block_id = pb.id
+    LIMIT 1
+) WHERE pb.tenant_id IS NULL;
 ALTER TABLE prose_blocks ALTER COLUMN tenant_id SET NOT NULL;
 ALTER TABLE prose_blocks ADD CONSTRAINT prose_blocks_tenant_fk FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
 CREATE INDEX idx_prose_blocks_tenant_id ON prose_blocks(tenant_id);
@@ -116,7 +136,7 @@ CREATE INDEX idx_scene_references_tenant_id ON scene_references(tenant_id);
 
 -- Prose Block References
 ALTER TABLE prose_block_references ADD COLUMN tenant_id UUID;
-UPDATE prose_block_references pbr SET tenant_id = s.tenant_id FROM prose_blocks pb JOIN scenes sc ON pb.scene_id = sc.id JOIN stories s ON sc.story_id = s.id WHERE pbr.prose_block_id = pb.id;
+UPDATE prose_block_references pbr SET tenant_id = pb.tenant_id FROM prose_blocks pb WHERE pbr.prose_block_id = pb.id;
 ALTER TABLE prose_block_references ALTER COLUMN tenant_id SET NOT NULL;
 ALTER TABLE prose_block_references ADD CONSTRAINT prose_block_references_tenant_fk FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE;
 CREATE INDEX idx_prose_block_references_tenant_id ON prose_block_references(tenant_id);
