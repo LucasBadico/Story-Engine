@@ -24,24 +24,30 @@ func NewArchetypeTraitRepository(db *DB) *ArchetypeTraitRepository {
 
 // Create creates a new archetype-trait relationship
 func (r *ArchetypeTraitRepository) Create(ctx context.Context, at *world.ArchetypeTrait) error {
+	// Get tenant_id from archetype
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM archetypes WHERE id = $1", at.ArchetypeID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO archetype_traits (id, archetype_id, trait_id, default_value, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO archetype_traits (id, tenant_id, archetype_id, trait_id, default_value, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 	_, err := r.db.Exec(ctx, query,
-		at.ID, at.ArchetypeID, at.TraitID, at.DefaultValue, at.CreatedAt)
+		at.ID, tenantID, at.ArchetypeID, at.TraitID, at.DefaultValue, at.CreatedAt)
 	return err
 }
 
 // GetByArchetype retrieves all traits for an archetype
-func (r *ArchetypeTraitRepository) GetByArchetype(ctx context.Context, archetypeID uuid.UUID) ([]*world.ArchetypeTrait, error) {
+func (r *ArchetypeTraitRepository) GetByArchetype(ctx context.Context, tenantID, archetypeID uuid.UUID) ([]*world.ArchetypeTrait, error) {
 	query := `
 		SELECT id, archetype_id, trait_id, default_value, created_at
 		FROM archetype_traits
-		WHERE archetype_id = $1
+		WHERE tenant_id = $1 AND archetype_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, archetypeID)
+	rows, err := r.db.Query(ctx, query, tenantID, archetypeID)
 	if err != nil {
 		return nil, err
 	}
@@ -51,14 +57,14 @@ func (r *ArchetypeTraitRepository) GetByArchetype(ctx context.Context, archetype
 }
 
 // GetByTrait retrieves all archetypes that use a trait
-func (r *ArchetypeTraitRepository) GetByTrait(ctx context.Context, traitID uuid.UUID) ([]*world.ArchetypeTrait, error) {
+func (r *ArchetypeTraitRepository) GetByTrait(ctx context.Context, tenantID, traitID uuid.UUID) ([]*world.ArchetypeTrait, error) {
 	query := `
 		SELECT id, archetype_id, trait_id, default_value, created_at
 		FROM archetype_traits
-		WHERE trait_id = $1
+		WHERE tenant_id = $1 AND trait_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, traitID)
+	rows, err := r.db.Query(ctx, query, tenantID, traitID)
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +74,9 @@ func (r *ArchetypeTraitRepository) GetByTrait(ctx context.Context, traitID uuid.
 }
 
 // Delete deletes an archetype-trait relationship
-func (r *ArchetypeTraitRepository) Delete(ctx context.Context, archetypeID, traitID uuid.UUID) error {
-	query := `DELETE FROM archetype_traits WHERE archetype_id = $1 AND trait_id = $2`
-	result, err := r.db.Exec(ctx, query, archetypeID, traitID)
+func (r *ArchetypeTraitRepository) Delete(ctx context.Context, tenantID, archetypeID, traitID uuid.UUID) error {
+	query := `DELETE FROM archetype_traits WHERE tenant_id = $1 AND archetype_id = $2 AND trait_id = $3`
+	result, err := r.db.Exec(ctx, query, tenantID, archetypeID, traitID)
 	if err != nil {
 		return err
 	}
@@ -84,9 +90,9 @@ func (r *ArchetypeTraitRepository) Delete(ctx context.Context, archetypeID, trai
 }
 
 // DeleteByArchetype deletes all traits for an archetype
-func (r *ArchetypeTraitRepository) DeleteByArchetype(ctx context.Context, archetypeID uuid.UUID) error {
-	query := `DELETE FROM archetype_traits WHERE archetype_id = $1`
-	_, err := r.db.Exec(ctx, query, archetypeID)
+func (r *ArchetypeTraitRepository) DeleteByArchetype(ctx context.Context, tenantID, archetypeID uuid.UUID) error {
+	query := `DELETE FROM archetype_traits WHERE tenant_id = $1 AND archetype_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, archetypeID)
 	return err
 }
 

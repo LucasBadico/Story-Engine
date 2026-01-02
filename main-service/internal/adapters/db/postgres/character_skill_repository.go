@@ -25,27 +25,33 @@ func NewCharacterSkillRepository(db *DB) *CharacterSkillRepository {
 
 // Create creates a new character skill
 func (r *CharacterSkillRepository) Create(ctx context.Context, characterSkill *rpg.CharacterSkill) error {
+	// Get tenant_id from character
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM characters WHERE id = $1", characterSkill.CharacterID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO character_skills (id, character_id, skill_id, rank, xp_in_skill, is_active, acquired_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)
+		INSERT INTO character_skills (id, tenant_id, character_id, skill_id, rank, xp_in_skill, is_active, acquired_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 	`
 	_, err := r.db.Exec(ctx, query,
-		characterSkill.ID, characterSkill.CharacterID, characterSkill.SkillID,
+		characterSkill.ID, tenantID, characterSkill.CharacterID, characterSkill.SkillID,
 		characterSkill.Rank, characterSkill.XPInSkill, characterSkill.IsActive,
 		characterSkill.AcquiredAt)
 	return err
 }
 
 // GetByID retrieves a character skill by ID
-func (r *CharacterSkillRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.CharacterSkill, error) {
+func (r *CharacterSkillRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*rpg.CharacterSkill, error) {
 	query := `
 		SELECT id, character_id, skill_id, rank, xp_in_skill, is_active, acquired_at
 		FROM character_skills
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var cs rpg.CharacterSkill
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&cs.ID, &cs.CharacterID, &cs.SkillID, &cs.Rank, &cs.XPInSkill, &cs.IsActive, &cs.AcquiredAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -61,15 +67,15 @@ func (r *CharacterSkillRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 }
 
 // GetByCharacterAndSkill retrieves a character skill by character and skill IDs
-func (r *CharacterSkillRepository) GetByCharacterAndSkill(ctx context.Context, characterID, skillID uuid.UUID) (*rpg.CharacterSkill, error) {
+func (r *CharacterSkillRepository) GetByCharacterAndSkill(ctx context.Context, tenantID, characterID, skillID uuid.UUID) (*rpg.CharacterSkill, error) {
 	query := `
 		SELECT id, character_id, skill_id, rank, xp_in_skill, is_active, acquired_at
 		FROM character_skills
-		WHERE character_id = $1 AND skill_id = $2
+		WHERE tenant_id = $1 AND character_id = $2 AND skill_id = $3
 	`
 	var cs rpg.CharacterSkill
 
-	err := r.db.QueryRow(ctx, query, characterID, skillID).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, characterID, skillID).Scan(
 		&cs.ID, &cs.CharacterID, &cs.SkillID, &cs.Rank, &cs.XPInSkill, &cs.IsActive, &cs.AcquiredAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -85,14 +91,14 @@ func (r *CharacterSkillRepository) GetByCharacterAndSkill(ctx context.Context, c
 }
 
 // ListByCharacter lists all skills for a character
-func (r *CharacterSkillRepository) ListByCharacter(ctx context.Context, characterID uuid.UUID) ([]*rpg.CharacterSkill, error) {
+func (r *CharacterSkillRepository) ListByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) ([]*rpg.CharacterSkill, error) {
 	query := `
 		SELECT id, character_id, skill_id, rank, xp_in_skill, is_active, acquired_at
 		FROM character_skills
-		WHERE character_id = $1
+		WHERE tenant_id = $1 AND character_id = $2
 		ORDER BY acquired_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, characterID)
+	rows, err := r.db.Query(ctx, query, tenantID, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -102,14 +108,14 @@ func (r *CharacterSkillRepository) ListByCharacter(ctx context.Context, characte
 }
 
 // ListActiveByCharacter lists active skills for a character
-func (r *CharacterSkillRepository) ListActiveByCharacter(ctx context.Context, characterID uuid.UUID) ([]*rpg.CharacterSkill, error) {
+func (r *CharacterSkillRepository) ListActiveByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) ([]*rpg.CharacterSkill, error) {
 	query := `
 		SELECT id, character_id, skill_id, rank, xp_in_skill, is_active, acquired_at
 		FROM character_skills
-		WHERE character_id = $1 AND is_active = TRUE
+		WHERE tenant_id = $1 AND character_id = $2 AND is_active = TRUE
 		ORDER BY acquired_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, characterID)
+	rows, err := r.db.Query(ctx, query, tenantID, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -120,27 +126,33 @@ func (r *CharacterSkillRepository) ListActiveByCharacter(ctx context.Context, ch
 
 // Update updates a character skill
 func (r *CharacterSkillRepository) Update(ctx context.Context, characterSkill *rpg.CharacterSkill) error {
+	// Get tenant_id from character
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM characters WHERE id = $1", characterSkill.CharacterID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE character_skills
 		SET rank = $2, xp_in_skill = $3, is_active = $4
-		WHERE id = $1
+		WHERE tenant_id = $5 AND id = $1
 	`
 	_, err := r.db.Exec(ctx, query,
-		characterSkill.ID, characterSkill.Rank, characterSkill.XPInSkill, characterSkill.IsActive)
+		characterSkill.ID, characterSkill.Rank, characterSkill.XPInSkill, characterSkill.IsActive, tenantID)
 	return err
 }
 
 // Delete deletes a character skill
-func (r *CharacterSkillRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM character_skills WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *CharacterSkillRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM character_skills WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByCharacter deletes all skills for a character
-func (r *CharacterSkillRepository) DeleteByCharacter(ctx context.Context, characterID uuid.UUID) error {
-	query := `DELETE FROM character_skills WHERE character_id = $1`
-	_, err := r.db.Exec(ctx, query, characterID)
+func (r *CharacterSkillRepository) DeleteByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) error {
+	query := `DELETE FROM character_skills WHERE tenant_id = $1 AND character_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, characterID)
 	return err
 }
 

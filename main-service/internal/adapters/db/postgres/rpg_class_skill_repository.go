@@ -25,25 +25,31 @@ func NewRPGClassSkillRepository(db *DB) *RPGClassSkillRepository {
 
 // Create creates a new RPG class skill
 func (r *RPGClassSkillRepository) Create(ctx context.Context, classSkill *rpg.RPGClassSkill) error {
+	// Get tenant_id from class
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM rpg_classes WHERE id = $1", classSkill.ClassID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO rpg_class_skills (id, class_id, skill_id, unlock_level, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO rpg_class_skills (id, tenant_id, class_id, skill_id, unlock_level, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 	_, err := r.db.Exec(ctx, query,
-		classSkill.ID, classSkill.ClassID, classSkill.SkillID, classSkill.UnlockLevel, classSkill.CreatedAt)
+		classSkill.ID, tenantID, classSkill.ClassID, classSkill.SkillID, classSkill.UnlockLevel, classSkill.CreatedAt)
 	return err
 }
 
 // GetByID retrieves an RPG class skill by ID
-func (r *RPGClassSkillRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.RPGClassSkill, error) {
+func (r *RPGClassSkillRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*rpg.RPGClassSkill, error) {
 	query := `
 		SELECT id, class_id, skill_id, unlock_level, created_at
 		FROM rpg_class_skills
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var cs rpg.RPGClassSkill
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&cs.ID, &cs.ClassID, &cs.SkillID, &cs.UnlockLevel, &cs.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -59,15 +65,15 @@ func (r *RPGClassSkillRepository) GetByID(ctx context.Context, id uuid.UUID) (*r
 }
 
 // GetByClassAndSkill retrieves an RPG class skill by class and skill IDs
-func (r *RPGClassSkillRepository) GetByClassAndSkill(ctx context.Context, classID, skillID uuid.UUID) (*rpg.RPGClassSkill, error) {
+func (r *RPGClassSkillRepository) GetByClassAndSkill(ctx context.Context, tenantID, classID, skillID uuid.UUID) (*rpg.RPGClassSkill, error) {
 	query := `
 		SELECT id, class_id, skill_id, unlock_level, created_at
 		FROM rpg_class_skills
-		WHERE class_id = $1 AND skill_id = $2
+		WHERE tenant_id = $1 AND class_id = $2 AND skill_id = $3
 	`
 	var cs rpg.RPGClassSkill
 
-	err := r.db.QueryRow(ctx, query, classID, skillID).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, classID, skillID).Scan(
 		&cs.ID, &cs.ClassID, &cs.SkillID, &cs.UnlockLevel, &cs.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -83,14 +89,14 @@ func (r *RPGClassSkillRepository) GetByClassAndSkill(ctx context.Context, classI
 }
 
 // ListByClass lists all skills for a class
-func (r *RPGClassSkillRepository) ListByClass(ctx context.Context, classID uuid.UUID) ([]*rpg.RPGClassSkill, error) {
+func (r *RPGClassSkillRepository) ListByClass(ctx context.Context, tenantID, classID uuid.UUID) ([]*rpg.RPGClassSkill, error) {
 	query := `
 		SELECT id, class_id, skill_id, unlock_level, created_at
 		FROM rpg_class_skills
-		WHERE class_id = $1
+		WHERE tenant_id = $1 AND class_id = $2
 		ORDER BY unlock_level ASC
 	`
-	rows, err := r.db.Query(ctx, query, classID)
+	rows, err := r.db.Query(ctx, query, tenantID, classID)
 	if err != nil {
 		return nil, err
 	}
@@ -101,26 +107,32 @@ func (r *RPGClassSkillRepository) ListByClass(ctx context.Context, classID uuid.
 
 // Update updates an RPG class skill
 func (r *RPGClassSkillRepository) Update(ctx context.Context, classSkill *rpg.RPGClassSkill) error {
+	// Get tenant_id from class
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM rpg_classes WHERE id = $1", classSkill.ClassID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE rpg_class_skills
 		SET unlock_level = $2
-		WHERE id = $1
+		WHERE tenant_id = $3 AND id = $1
 	`
-	_, err := r.db.Exec(ctx, query, classSkill.ID, classSkill.UnlockLevel)
+	_, err := r.db.Exec(ctx, query, classSkill.ID, classSkill.UnlockLevel, tenantID)
 	return err
 }
 
 // Delete deletes an RPG class skill
-func (r *RPGClassSkillRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM rpg_class_skills WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *RPGClassSkillRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM rpg_class_skills WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByClass deletes all skills for a class
-func (r *RPGClassSkillRepository) DeleteByClass(ctx context.Context, classID uuid.UUID) error {
-	query := `DELETE FROM rpg_class_skills WHERE class_id = $1`
-	_, err := r.db.Exec(ctx, query, classID)
+func (r *RPGClassSkillRepository) DeleteByClass(ctx context.Context, tenantID, classID uuid.UUID) error {
+	query := `DELETE FROM rpg_class_skills WHERE tenant_id = $1 AND class_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, classID)
 	return err
 }
 
@@ -139,5 +151,3 @@ func (r *RPGClassSkillRepository) scanRPGClassSkills(rows pgx.Rows) ([]*rpg.RPGC
 	}
 	return skills, rows.Err()
 }
-
-

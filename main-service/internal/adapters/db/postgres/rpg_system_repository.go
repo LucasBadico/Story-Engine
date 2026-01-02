@@ -39,20 +39,37 @@ func (r *RPGSystemRepository) Create(ctx context.Context, system *rpg.RPGSystem)
 }
 
 // GetByID retrieves an RPG system by ID
-func (r *RPGSystemRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.RPGSystem, error) {
-	query := `
-		SELECT id, tenant_id, name, description, base_stats_schema, derived_stats_schema, progression_schema, is_builtin, created_at, updated_at
-		FROM rpg_systems
-		WHERE id = $1
-	`
+// tenantID can be nil for builtin systems
+func (r *RPGSystemRepository) GetByID(ctx context.Context, tenantID *uuid.UUID, id uuid.UUID) (*rpg.RPGSystem, error) {
+	var query string
+	var args []interface{}
+
+	if tenantID == nil {
+		// Builtin system - no tenant filter
+		query = `
+			SELECT id, tenant_id, name, description, base_stats_schema, derived_stats_schema, progression_schema, is_builtin, created_at, updated_at
+			FROM rpg_systems
+			WHERE id = $1 AND is_builtin = TRUE
+		`
+		args = []interface{}{id}
+	} else {
+		// Tenant system - filter by tenant_id
+		query = `
+			SELECT id, tenant_id, name, description, base_stats_schema, derived_stats_schema, progression_schema, is_builtin, created_at, updated_at
+			FROM rpg_systems
+			WHERE id = $1 AND (tenant_id = $2 OR is_builtin = TRUE)
+		`
+		args = []interface{}{id, *tenantID}
+	}
+
 	var system rpg.RPGSystem
-	var tenantID sql.NullString
+	var tenantIDNull sql.NullString
 	var description sql.NullString
 	var derivedStatsSchema sql.NullString
 	var progressionSchema sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&system.ID, &tenantID, &system.Name, &description,
+	err := r.db.QueryRow(ctx, query, args...).Scan(
+		&system.ID, &tenantIDNull, &system.Name, &description,
 		&system.BaseStatsSchema, &derivedStatsSchema, &progressionSchema,
 		&system.IsBuiltin, &system.CreatedAt, &system.UpdatedAt)
 	if err != nil {
@@ -65,8 +82,8 @@ func (r *RPGSystemRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.R
 		return nil, err
 	}
 
-	if tenantID.Valid {
-		parsedID, err := uuid.Parse(tenantID.String)
+	if tenantIDNull.Valid {
+		parsedID, err := uuid.Parse(tenantIDNull.String)
 		if err == nil {
 			system.TenantID = &parsedID
 		}
@@ -122,22 +139,52 @@ func (r *RPGSystemRepository) List(ctx context.Context, tenantID *uuid.UUID) ([]
 
 // Update updates an RPG system
 func (r *RPGSystemRepository) Update(ctx context.Context, system *rpg.RPGSystem) error {
-	query := `
-		UPDATE rpg_systems
-		SET name = $2, description = $3, base_stats_schema = $4, derived_stats_schema = $5, progression_schema = $6, updated_at = $7
-		WHERE id = $1
-	`
-	_, err := r.db.Exec(ctx, query,
-		system.ID, system.Name, system.Description,
-		system.BaseStatsSchema, system.DerivedStatsSchema, system.ProgressionSchema,
-		system.UpdatedAt)
+	var query string
+	var args []interface{}
+
+	if system.TenantID == nil {
+		// Builtin system
+		query = `
+			UPDATE rpg_systems
+			SET name = $2, description = $3, base_stats_schema = $4, derived_stats_schema = $5, progression_schema = $6, updated_at = $7
+			WHERE id = $1 AND is_builtin = TRUE
+		`
+		args = []interface{}{system.ID, system.Name, system.Description,
+			system.BaseStatsSchema, system.DerivedStatsSchema, system.ProgressionSchema,
+			system.UpdatedAt}
+	} else {
+		// Tenant system
+		query = `
+			UPDATE rpg_systems
+			SET name = $2, description = $3, base_stats_schema = $4, derived_stats_schema = $5, progression_schema = $6, updated_at = $7
+			WHERE id = $1 AND tenant_id = $8
+		`
+		args = []interface{}{system.ID, system.Name, system.Description,
+			system.BaseStatsSchema, system.DerivedStatsSchema, system.ProgressionSchema,
+			system.UpdatedAt, *system.TenantID}
+	}
+
+	_, err := r.db.Exec(ctx, query, args...)
 	return err
 }
 
 // Delete deletes an RPG system
-func (r *RPGSystemRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM rpg_systems WHERE id = $1 AND is_builtin = FALSE`
-	_, err := r.db.Exec(ctx, query, id)
+// tenantID can be nil for builtin systems
+func (r *RPGSystemRepository) Delete(ctx context.Context, tenantID *uuid.UUID, id uuid.UUID) error {
+	var query string
+	var args []interface{}
+
+	if tenantID == nil {
+		// Builtin system - should not be deleted via this method
+		query = `DELETE FROM rpg_systems WHERE id = $1 AND is_builtin = TRUE`
+		args = []interface{}{id}
+	} else {
+		// Tenant system
+		query = `DELETE FROM rpg_systems WHERE id = $1 AND tenant_id = $2 AND is_builtin = FALSE`
+		args = []interface{}{id, *tenantID}
+	}
+
+	_, err := r.db.Exec(ctx, query, args...)
 	return err
 }
 

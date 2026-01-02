@@ -27,12 +27,18 @@ func NewCharacterRPGStatsRepository(db *DB) *CharacterRPGStatsRepository {
 
 // Create creates new character RPG stats
 func (r *CharacterRPGStatsRepository) Create(ctx context.Context, stats *rpg.CharacterRPGStats) error {
+	// Get tenant_id from character
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM characters WHERE id = $1", stats.CharacterID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO character_rpg_stats (id, character_id, event_id, base_stats, derived_stats, progression, is_active, version, reason, timeline, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO character_rpg_stats (id, tenant_id, character_id, event_id, base_stats, derived_stats, progression, is_active, version, reason, timeline, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 	_, err := r.db.Exec(ctx, query,
-		stats.ID, stats.CharacterID, stats.EventID,
+		stats.ID, tenantID, stats.CharacterID, stats.EventID,
 		stats.BaseStats, stats.DerivedStats, stats.Progression,
 		stats.IsActive, stats.Version, stats.Reason, stats.Timeline,
 		stats.CreatedAt)
@@ -40,11 +46,11 @@ func (r *CharacterRPGStatsRepository) Create(ctx context.Context, stats *rpg.Cha
 }
 
 // GetByID retrieves character RPG stats by ID
-func (r *CharacterRPGStatsRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.CharacterRPGStats, error) {
+func (r *CharacterRPGStatsRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*rpg.CharacterRPGStats, error) {
 	query := `
 		SELECT id, character_id, event_id, base_stats, derived_stats, progression, is_active, version, reason, timeline, created_at
 		FROM character_rpg_stats
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var stats rpg.CharacterRPGStats
 	var eventID sql.NullString
@@ -53,7 +59,7 @@ func (r *CharacterRPGStatsRepository) GetByID(ctx context.Context, id uuid.UUID)
 	var reason sql.NullString
 	var timeline sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&stats.ID, &stats.CharacterID, &eventID,
 		&stats.BaseStats, &derivedStats, &progression,
 		&stats.IsActive, &stats.Version, &reason, &timeline,
@@ -93,11 +99,11 @@ func (r *CharacterRPGStatsRepository) GetByID(ctx context.Context, id uuid.UUID)
 }
 
 // GetActiveByCharacter retrieves the active stats for a character
-func (r *CharacterRPGStatsRepository) GetActiveByCharacter(ctx context.Context, characterID uuid.UUID) (*rpg.CharacterRPGStats, error) {
+func (r *CharacterRPGStatsRepository) GetActiveByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) (*rpg.CharacterRPGStats, error) {
 	query := `
 		SELECT id, character_id, event_id, base_stats, derived_stats, progression, is_active, version, reason, timeline, created_at
 		FROM character_rpg_stats
-		WHERE character_id = $1 AND is_active = TRUE
+		WHERE tenant_id = $1 AND character_id = $2 AND is_active = TRUE
 		ORDER BY version DESC
 		LIMIT 1
 	`
@@ -108,7 +114,7 @@ func (r *CharacterRPGStatsRepository) GetActiveByCharacter(ctx context.Context, 
 	var reason sql.NullString
 	var timeline sql.NullString
 
-	err := r.db.QueryRow(ctx, query, characterID).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, characterID).Scan(
 		&stats.ID, &stats.CharacterID, &eventID,
 		&stats.BaseStats, &derivedStats, &progression,
 		&stats.IsActive, &stats.Version, &reason, &timeline,
@@ -148,14 +154,14 @@ func (r *CharacterRPGStatsRepository) GetActiveByCharacter(ctx context.Context, 
 }
 
 // ListByCharacter lists all stats versions for a character
-func (r *CharacterRPGStatsRepository) ListByCharacter(ctx context.Context, characterID uuid.UUID) ([]*rpg.CharacterRPGStats, error) {
+func (r *CharacterRPGStatsRepository) ListByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) ([]*rpg.CharacterRPGStats, error) {
 	query := `
 		SELECT id, character_id, event_id, base_stats, derived_stats, progression, is_active, version, reason, timeline, created_at
 		FROM character_rpg_stats
-		WHERE character_id = $1
+		WHERE tenant_id = $1 AND character_id = $2
 		ORDER BY version ASC
 	`
-	rows, err := r.db.Query(ctx, query, characterID)
+	rows, err := r.db.Query(ctx, query, tenantID, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -165,14 +171,14 @@ func (r *CharacterRPGStatsRepository) ListByCharacter(ctx context.Context, chara
 }
 
 // ListByEvent lists all stats versions caused by an event
-func (r *CharacterRPGStatsRepository) ListByEvent(ctx context.Context, eventID uuid.UUID) ([]*rpg.CharacterRPGStats, error) {
+func (r *CharacterRPGStatsRepository) ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*rpg.CharacterRPGStats, error) {
 	query := `
 		SELECT id, character_id, event_id, base_stats, derived_stats, progression, is_active, version, reason, timeline, created_at
 		FROM character_rpg_stats
-		WHERE event_id = $1
+		WHERE tenant_id = $1 AND event_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, eventID)
+	rows, err := r.db.Query(ctx, query, tenantID, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -183,43 +189,49 @@ func (r *CharacterRPGStatsRepository) ListByEvent(ctx context.Context, eventID u
 
 // Update updates character RPG stats
 func (r *CharacterRPGStatsRepository) Update(ctx context.Context, stats *rpg.CharacterRPGStats) error {
+	// Get tenant_id from character
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM characters WHERE id = $1", stats.CharacterID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE character_rpg_stats
 		SET event_id = $2, base_stats = $3, derived_stats = $4, progression = $5, is_active = $6, version = $7, reason = $8, timeline = $9
-		WHERE id = $1
+		WHERE tenant_id = $10 AND id = $1
 	`
 	_, err := r.db.Exec(ctx, query,
 		stats.ID, stats.EventID, stats.BaseStats, stats.DerivedStats, stats.Progression,
-		stats.IsActive, stats.Version, stats.Reason, stats.Timeline)
+		stats.IsActive, stats.Version, stats.Reason, stats.Timeline, tenantID)
 	return err
 }
 
 // Delete deletes character RPG stats
-func (r *CharacterRPGStatsRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM character_rpg_stats WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *CharacterRPGStatsRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM character_rpg_stats WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByCharacter deletes all stats for a character
-func (r *CharacterRPGStatsRepository) DeleteByCharacter(ctx context.Context, characterID uuid.UUID) error {
-	query := `DELETE FROM character_rpg_stats WHERE character_id = $1`
-	_, err := r.db.Exec(ctx, query, characterID)
+func (r *CharacterRPGStatsRepository) DeleteByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) error {
+	query := `DELETE FROM character_rpg_stats WHERE tenant_id = $1 AND character_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, characterID)
 	return err
 }
 
 // DeactivateAllByCharacter deactivates all stats for a character
-func (r *CharacterRPGStatsRepository) DeactivateAllByCharacter(ctx context.Context, characterID uuid.UUID) error {
-	query := `UPDATE character_rpg_stats SET is_active = FALSE WHERE character_id = $1`
-	_, err := r.db.Exec(ctx, query, characterID)
+func (r *CharacterRPGStatsRepository) DeactivateAllByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) error {
+	query := `UPDATE character_rpg_stats SET is_active = FALSE WHERE tenant_id = $1 AND character_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, characterID)
 	return err
 }
 
 // GetNextVersion gets the next version number for a character
-func (r *CharacterRPGStatsRepository) GetNextVersion(ctx context.Context, characterID uuid.UUID) (int, error) {
-	query := `SELECT COALESCE(MAX(version), 0) + 1 FROM character_rpg_stats WHERE character_id = $1`
+func (r *CharacterRPGStatsRepository) GetNextVersion(ctx context.Context, tenantID, characterID uuid.UUID) (int, error) {
+	query := `SELECT COALESCE(MAX(version), 0) + 1 FROM character_rpg_stats WHERE tenant_id = $1 AND character_id = $2`
 	var version int
-	err := r.db.QueryRow(ctx, query, characterID).Scan(&version)
+	err := r.db.QueryRow(ctx, query, tenantID, characterID).Scan(&version)
 	return version, err
 }
 

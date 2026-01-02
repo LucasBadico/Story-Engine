@@ -25,25 +25,31 @@ func NewEventCharacterRepository(db *DB) *EventCharacterRepository {
 
 // Create creates a new event-character relationship
 func (r *EventCharacterRepository) Create(ctx context.Context, ec *world.EventCharacter) error {
+	// Get tenant_id from event
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM events WHERE id = $1", ec.EventID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO event_characters (id, event_id, character_id, role, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO event_characters (id, tenant_id, event_id, character_id, role, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (event_id, character_id) DO NOTHING
 	`
-	_, err := r.db.Exec(ctx, query, ec.ID, ec.EventID, ec.CharacterID, ec.Role, ec.CreatedAt)
+	_, err := r.db.Exec(ctx, query, ec.ID, tenantID, ec.EventID, ec.CharacterID, ec.Role, ec.CreatedAt)
 	return err
 }
 
 // GetByID retrieves an event-character relationship by ID
-func (r *EventCharacterRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.EventCharacter, error) {
+func (r *EventCharacterRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.EventCharacter, error) {
 	query := `
 		SELECT id, event_id, character_id, role, created_at
 		FROM event_characters
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var ec world.EventCharacter
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&ec.ID, &ec.EventID, &ec.CharacterID, &ec.Role, &ec.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -59,14 +65,14 @@ func (r *EventCharacterRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 }
 
 // ListByEvent lists event-character relationships for an event
-func (r *EventCharacterRepository) ListByEvent(ctx context.Context, eventID uuid.UUID) ([]*world.EventCharacter, error) {
+func (r *EventCharacterRepository) ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.EventCharacter, error) {
 	query := `
 		SELECT id, event_id, character_id, role, created_at
 		FROM event_characters
-		WHERE event_id = $1
+		WHERE tenant_id = $1 AND event_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, eventID)
+	rows, err := r.db.Query(ctx, query, tenantID, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -76,14 +82,14 @@ func (r *EventCharacterRepository) ListByEvent(ctx context.Context, eventID uuid
 }
 
 // ListByCharacter lists event-character relationships for a character
-func (r *EventCharacterRepository) ListByCharacter(ctx context.Context, characterID uuid.UUID) ([]*world.EventCharacter, error) {
+func (r *EventCharacterRepository) ListByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) ([]*world.EventCharacter, error) {
 	query := `
 		SELECT id, event_id, character_id, role, created_at
 		FROM event_characters
-		WHERE character_id = $1
+		WHERE tenant_id = $1 AND character_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, characterID)
+	rows, err := r.db.Query(ctx, query, tenantID, characterID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,23 +99,23 @@ func (r *EventCharacterRepository) ListByCharacter(ctx context.Context, characte
 }
 
 // Delete deletes an event-character relationship
-func (r *EventCharacterRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM event_characters WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *EventCharacterRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM event_characters WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByEventAndCharacter deletes an event-character relationship
-func (r *EventCharacterRepository) DeleteByEventAndCharacter(ctx context.Context, eventID, characterID uuid.UUID) error {
-	query := `DELETE FROM event_characters WHERE event_id = $1 AND character_id = $2`
-	_, err := r.db.Exec(ctx, query, eventID, characterID)
+func (r *EventCharacterRepository) DeleteByEventAndCharacter(ctx context.Context, tenantID, eventID, characterID uuid.UUID) error {
+	query := `DELETE FROM event_characters WHERE tenant_id = $1 AND event_id = $2 AND character_id = $3`
+	_, err := r.db.Exec(ctx, query, tenantID, eventID, characterID)
 	return err
 }
 
 // DeleteByEvent deletes all event-character relationships for an event
-func (r *EventCharacterRepository) DeleteByEvent(ctx context.Context, eventID uuid.UUID) error {
-	query := `DELETE FROM event_characters WHERE event_id = $1`
-	_, err := r.db.Exec(ctx, query, eventID)
+func (r *EventCharacterRepository) DeleteByEvent(ctx context.Context, tenantID, eventID uuid.UUID) error {
+	query := `DELETE FROM event_characters WHERE tenant_id = $1 AND event_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, eventID)
 	return err
 }
 

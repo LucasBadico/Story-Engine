@@ -25,25 +25,31 @@ func NewEventArtifactRepository(db *DB) *EventArtifactRepository {
 
 // Create creates a new event-artifact relationship
 func (r *EventArtifactRepository) Create(ctx context.Context, ea *world.EventArtifact) error {
+	// Get tenant_id from event
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM events WHERE id = $1", ea.EventID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO event_artifacts (id, event_id, artifact_id, role, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO event_artifacts (id, tenant_id, event_id, artifact_id, role, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 		ON CONFLICT (event_id, artifact_id) DO NOTHING
 	`
-	_, err := r.db.Exec(ctx, query, ea.ID, ea.EventID, ea.ArtifactID, ea.Role, ea.CreatedAt)
+	_, err := r.db.Exec(ctx, query, ea.ID, tenantID, ea.EventID, ea.ArtifactID, ea.Role, ea.CreatedAt)
 	return err
 }
 
 // GetByID retrieves an event-artifact relationship by ID
-func (r *EventArtifactRepository) GetByID(ctx context.Context, id uuid.UUID) (*world.EventArtifact, error) {
+func (r *EventArtifactRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.EventArtifact, error) {
 	query := `
 		SELECT id, event_id, artifact_id, role, created_at
 		FROM event_artifacts
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var ea world.EventArtifact
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&ea.ID, &ea.EventID, &ea.ArtifactID, &ea.Role, &ea.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -59,14 +65,14 @@ func (r *EventArtifactRepository) GetByID(ctx context.Context, id uuid.UUID) (*w
 }
 
 // ListByEvent lists event-artifact relationships for an event
-func (r *EventArtifactRepository) ListByEvent(ctx context.Context, eventID uuid.UUID) ([]*world.EventArtifact, error) {
+func (r *EventArtifactRepository) ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.EventArtifact, error) {
 	query := `
 		SELECT id, event_id, artifact_id, role, created_at
 		FROM event_artifacts
-		WHERE event_id = $1
+		WHERE tenant_id = $1 AND event_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, eventID)
+	rows, err := r.db.Query(ctx, query, tenantID, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -76,14 +82,14 @@ func (r *EventArtifactRepository) ListByEvent(ctx context.Context, eventID uuid.
 }
 
 // ListByArtifact lists event-artifact relationships for an artifact
-func (r *EventArtifactRepository) ListByArtifact(ctx context.Context, artifactID uuid.UUID) ([]*world.EventArtifact, error) {
+func (r *EventArtifactRepository) ListByArtifact(ctx context.Context, tenantID, artifactID uuid.UUID) ([]*world.EventArtifact, error) {
 	query := `
 		SELECT id, event_id, artifact_id, role, created_at
 		FROM event_artifacts
-		WHERE artifact_id = $1
+		WHERE tenant_id = $1 AND artifact_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, artifactID)
+	rows, err := r.db.Query(ctx, query, tenantID, artifactID)
 	if err != nil {
 		return nil, err
 	}
@@ -93,23 +99,23 @@ func (r *EventArtifactRepository) ListByArtifact(ctx context.Context, artifactID
 }
 
 // Delete deletes an event-artifact relationship
-func (r *EventArtifactRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM event_artifacts WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *EventArtifactRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM event_artifacts WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByEventAndArtifact deletes an event-artifact relationship
-func (r *EventArtifactRepository) DeleteByEventAndArtifact(ctx context.Context, eventID, artifactID uuid.UUID) error {
-	query := `DELETE FROM event_artifacts WHERE event_id = $1 AND artifact_id = $2`
-	_, err := r.db.Exec(ctx, query, eventID, artifactID)
+func (r *EventArtifactRepository) DeleteByEventAndArtifact(ctx context.Context, tenantID, eventID, artifactID uuid.UUID) error {
+	query := `DELETE FROM event_artifacts WHERE tenant_id = $1 AND event_id = $2 AND artifact_id = $3`
+	_, err := r.db.Exec(ctx, query, tenantID, eventID, artifactID)
 	return err
 }
 
 // DeleteByEvent deletes all event-artifact relationships for an event
-func (r *EventArtifactRepository) DeleteByEvent(ctx context.Context, eventID uuid.UUID) error {
-	query := `DELETE FROM event_artifacts WHERE event_id = $1`
-	_, err := r.db.Exec(ctx, query, eventID)
+func (r *EventArtifactRepository) DeleteByEvent(ctx context.Context, tenantID, eventID uuid.UUID) error {
+	query := `DELETE FROM event_artifacts WHERE tenant_id = $1 AND event_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, eventID)
 	return err
 }
 

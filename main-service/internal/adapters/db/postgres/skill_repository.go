@@ -28,8 +28,8 @@ func NewSkillRepository(db *DB) *SkillRepository {
 // Create creates a new skill
 func (r *SkillRepository) Create(ctx context.Context, skill *rpg.Skill) error {
 	query := `
-		INSERT INTO rpg_skills (id, rpg_system_id, name, category, type, description, prerequisites, max_rank, effects_schema, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+		INSERT INTO rpg_skills (id, tenant_id, rpg_system_id, name, category, type, description, prerequisites, max_rank, effects_schema, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
 	`
 	var category *string
 	var skillType *string
@@ -43,18 +43,18 @@ func (r *SkillRepository) Create(ctx context.Context, skill *rpg.Skill) error {
 	}
 
 	_, err := r.db.Exec(ctx, query,
-		skill.ID, skill.RPGSystemID, skill.Name, category, skillType, skill.Description,
+		skill.ID, skill.TenantID, skill.RPGSystemID, skill.Name, category, skillType, skill.Description,
 		skill.Prerequisites, skill.MaxRank, skill.EffectsSchema,
 		skill.CreatedAt, skill.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a skill by ID
-func (r *SkillRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.Skill, error) {
+func (r *SkillRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*rpg.Skill, error) {
 	query := `
-		SELECT id, rpg_system_id, name, category, type, description, prerequisites, max_rank, effects_schema, created_at, updated_at
+		SELECT id, tenant_id, rpg_system_id, name, category, type, description, prerequisites, max_rank, effects_schema, created_at, updated_at
 		FROM rpg_skills
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var skill rpg.Skill
 	var category sql.NullString
@@ -63,8 +63,8 @@ func (r *SkillRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.Skill
 	var prerequisites sql.NullString
 	var effectsSchema sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&skill.ID, &skill.RPGSystemID, &skill.Name, &category, &skillType, &description,
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&skill.ID, &skill.TenantID, &skill.RPGSystemID, &skill.Name, &category, &skillType, &description,
 		&prerequisites, &skill.MaxRank, &effectsSchema,
 		&skill.CreatedAt, &skill.UpdatedAt)
 	if err != nil {
@@ -101,14 +101,14 @@ func (r *SkillRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.Skill
 }
 
 // ListBySystem lists skills for an RPG system
-func (r *SkillRepository) ListBySystem(ctx context.Context, rpgSystemID uuid.UUID) ([]*rpg.Skill, error) {
+func (r *SkillRepository) ListBySystem(ctx context.Context, tenantID, rpgSystemID uuid.UUID) ([]*rpg.Skill, error) {
 	query := `
-		SELECT id, rpg_system_id, name, category, type, description, prerequisites, max_rank, effects_schema, created_at, updated_at
+		SELECT id, tenant_id, rpg_system_id, name, category, type, description, prerequisites, max_rank, effects_schema, created_at, updated_at
 		FROM rpg_skills
-		WHERE rpg_system_id = $1
+		WHERE tenant_id = $1 AND rpg_system_id = $2
 		ORDER BY name ASC
 	`
-	rows, err := r.db.Query(ctx, query, rpgSystemID)
+	rows, err := r.db.Query(ctx, query, tenantID, rpgSystemID)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +122,7 @@ func (r *SkillRepository) Update(ctx context.Context, skill *rpg.Skill) error {
 	query := `
 		UPDATE rpg_skills
 		SET name = $2, category = $3, type = $4, description = $5, prerequisites = $6, max_rank = $7, effects_schema = $8, updated_at = $9
-		WHERE id = $1
+		WHERE tenant_id = $10 AND id = $1
 	`
 	var category *string
 	var skillType *string
@@ -138,14 +138,14 @@ func (r *SkillRepository) Update(ctx context.Context, skill *rpg.Skill) error {
 	_, err := r.db.Exec(ctx, query,
 		skill.ID, skill.Name, category, skillType, skill.Description,
 		skill.Prerequisites, skill.MaxRank, skill.EffectsSchema,
-		skill.UpdatedAt)
+		skill.UpdatedAt, skill.TenantID)
 	return err
 }
 
 // Delete deletes a skill
-func (r *SkillRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM rpg_skills WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *SkillRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM rpg_skills WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
@@ -160,7 +160,7 @@ func (r *SkillRepository) scanSkills(rows pgx.Rows) ([]*rpg.Skill, error) {
 		var effectsSchema sql.NullString
 
 		err := rows.Scan(
-			&skill.ID, &skill.RPGSystemID, &skill.Name, &category, &skillType, &description,
+			&skill.ID, &skill.TenantID, &skill.RPGSystemID, &skill.Name, &category, &skillType, &description,
 			&prerequisites, &skill.MaxRank, &effectsSchema,
 			&skill.CreatedAt, &skill.UpdatedAt)
 		if err != nil {

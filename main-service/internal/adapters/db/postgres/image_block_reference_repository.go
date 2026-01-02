@@ -25,26 +25,32 @@ func NewImageBlockReferenceRepository(db *DB) *ImageBlockReferenceRepository {
 
 // Create creates a new image block reference
 func (r *ImageBlockReferenceRepository) Create(ctx context.Context, ref *story.ImageBlockReference) error {
+	// Get tenant_id from image_block
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM image_blocks WHERE id = $1", ref.ImageBlockID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO image_block_references (id, image_block_id, entity_type, entity_id, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO image_block_references (id, tenant_id, image_block_id, entity_type, entity_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 	_, err := r.db.Exec(ctx, query,
-		ref.ID, ref.ImageBlockID, string(ref.EntityType), ref.EntityID, ref.CreatedAt)
+		ref.ID, tenantID, ref.ImageBlockID, string(ref.EntityType), ref.EntityID, ref.CreatedAt)
 	return err
 }
 
 // GetByID retrieves an image block reference by ID
-func (r *ImageBlockReferenceRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.ImageBlockReference, error) {
+func (r *ImageBlockReferenceRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.ImageBlockReference, error) {
 	query := `
 		SELECT id, image_block_id, entity_type, entity_id, created_at
 		FROM image_block_references
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var ref story.ImageBlockReference
 	var entityTypeStr string
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&ref.ID, &ref.ImageBlockID, &entityTypeStr, &ref.EntityID, &ref.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -61,14 +67,14 @@ func (r *ImageBlockReferenceRepository) GetByID(ctx context.Context, id uuid.UUI
 }
 
 // ListByImageBlock lists image block references for an image block
-func (r *ImageBlockReferenceRepository) ListByImageBlock(ctx context.Context, imageBlockID uuid.UUID) ([]*story.ImageBlockReference, error) {
+func (r *ImageBlockReferenceRepository) ListByImageBlock(ctx context.Context, tenantID, imageBlockID uuid.UUID) ([]*story.ImageBlockReference, error) {
 	query := `
 		SELECT id, image_block_id, entity_type, entity_id, created_at
 		FROM image_block_references
-		WHERE image_block_id = $1
+		WHERE tenant_id = $1 AND image_block_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, imageBlockID)
+	rows, err := r.db.Query(ctx, query, tenantID, imageBlockID)
 	if err != nil {
 		return nil, err
 	}
@@ -78,14 +84,14 @@ func (r *ImageBlockReferenceRepository) ListByImageBlock(ctx context.Context, im
 }
 
 // ListByEntity lists image block references for an entity
-func (r *ImageBlockReferenceRepository) ListByEntity(ctx context.Context, entityType story.ImageBlockReferenceEntityType, entityID uuid.UUID) ([]*story.ImageBlockReference, error) {
+func (r *ImageBlockReferenceRepository) ListByEntity(ctx context.Context, tenantID uuid.UUID, entityType story.ImageBlockReferenceEntityType, entityID uuid.UUID) ([]*story.ImageBlockReference, error) {
 	query := `
 		SELECT id, image_block_id, entity_type, entity_id, created_at
 		FROM image_block_references
-		WHERE entity_type = $1 AND entity_id = $2
+		WHERE tenant_id = $1 AND entity_type = $2 AND entity_id = $3
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, string(entityType), entityID)
+	rows, err := r.db.Query(ctx, query, tenantID, string(entityType), entityID)
 	if err != nil {
 		return nil, err
 	}
@@ -95,23 +101,23 @@ func (r *ImageBlockReferenceRepository) ListByEntity(ctx context.Context, entity
 }
 
 // Delete deletes an image block reference
-func (r *ImageBlockReferenceRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM image_block_references WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *ImageBlockReferenceRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM image_block_references WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByImageBlock deletes all image block references for an image block
-func (r *ImageBlockReferenceRepository) DeleteByImageBlock(ctx context.Context, imageBlockID uuid.UUID) error {
-	query := `DELETE FROM image_block_references WHERE image_block_id = $1`
-	_, err := r.db.Exec(ctx, query, imageBlockID)
+func (r *ImageBlockReferenceRepository) DeleteByImageBlock(ctx context.Context, tenantID, imageBlockID uuid.UUID) error {
+	query := `DELETE FROM image_block_references WHERE tenant_id = $1 AND image_block_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, imageBlockID)
 	return err
 }
 
 // DeleteByImageBlockAndEntity deletes a specific image block reference
-func (r *ImageBlockReferenceRepository) DeleteByImageBlockAndEntity(ctx context.Context, imageBlockID uuid.UUID, entityType story.ImageBlockReferenceEntityType, entityID uuid.UUID) error {
-	query := `DELETE FROM image_block_references WHERE image_block_id = $1 AND entity_type = $2 AND entity_id = $3`
-	_, err := r.db.Exec(ctx, query, imageBlockID, string(entityType), entityID)
+func (r *ImageBlockReferenceRepository) DeleteByImageBlockAndEntity(ctx context.Context, tenantID, imageBlockID uuid.UUID, entityType story.ImageBlockReferenceEntityType, entityID uuid.UUID) error {
+	query := `DELETE FROM image_block_references WHERE tenant_id = $1 AND image_block_id = $2 AND entity_type = $3 AND entity_id = $4`
+	_, err := r.db.Exec(ctx, query, tenantID, imageBlockID, string(entityType), entityID)
 	return err
 }
 

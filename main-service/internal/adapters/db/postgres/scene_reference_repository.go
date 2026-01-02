@@ -25,26 +25,32 @@ func NewSceneReferenceRepository(db *DB) *SceneReferenceRepository {
 
 // Create creates a new scene reference
 func (r *SceneReferenceRepository) Create(ctx context.Context, ref *story.SceneReference) error {
+	// Get tenant_id from scene
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM scenes WHERE id = $1", ref.SceneID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO scene_references (id, scene_id, entity_type, entity_id, created_at)
-		VALUES ($1, $2, $3, $4, $5)
+		INSERT INTO scene_references (id, tenant_id, scene_id, entity_type, entity_id, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6)
 	`
 	_, err := r.db.Exec(ctx, query,
-		ref.ID, ref.SceneID, string(ref.EntityType), ref.EntityID, ref.CreatedAt)
+		ref.ID, tenantID, ref.SceneID, string(ref.EntityType), ref.EntityID, ref.CreatedAt)
 	return err
 }
 
 // GetByID retrieves a scene reference by ID
-func (r *SceneReferenceRepository) GetByID(ctx context.Context, id uuid.UUID) (*story.SceneReference, error) {
+func (r *SceneReferenceRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.SceneReference, error) {
 	query := `
 		SELECT id, scene_id, entity_type, entity_id, created_at
 		FROM scene_references
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var ref story.SceneReference
 	var entityTypeStr string
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&ref.ID, &ref.SceneID, &entityTypeStr, &ref.EntityID, &ref.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
@@ -61,14 +67,14 @@ func (r *SceneReferenceRepository) GetByID(ctx context.Context, id uuid.UUID) (*
 }
 
 // ListByScene lists scene references for a scene
-func (r *SceneReferenceRepository) ListByScene(ctx context.Context, sceneID uuid.UUID) ([]*story.SceneReference, error) {
+func (r *SceneReferenceRepository) ListByScene(ctx context.Context, tenantID, sceneID uuid.UUID) ([]*story.SceneReference, error) {
 	query := `
 		SELECT id, scene_id, entity_type, entity_id, created_at
 		FROM scene_references
-		WHERE scene_id = $1
+		WHERE tenant_id = $1 AND scene_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, sceneID)
+	rows, err := r.db.Query(ctx, query, tenantID, sceneID)
 	if err != nil {
 		return nil, err
 	}
@@ -78,14 +84,14 @@ func (r *SceneReferenceRepository) ListByScene(ctx context.Context, sceneID uuid
 }
 
 // ListByEntity lists scene references for an entity
-func (r *SceneReferenceRepository) ListByEntity(ctx context.Context, entityType story.SceneReferenceEntityType, entityID uuid.UUID) ([]*story.SceneReference, error) {
+func (r *SceneReferenceRepository) ListByEntity(ctx context.Context, tenantID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) ([]*story.SceneReference, error) {
 	query := `
 		SELECT id, scene_id, entity_type, entity_id, created_at
 		FROM scene_references
-		WHERE entity_type = $1 AND entity_id = $2
+		WHERE tenant_id = $1 AND entity_type = $2 AND entity_id = $3
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, string(entityType), entityID)
+	rows, err := r.db.Query(ctx, query, tenantID, string(entityType), entityID)
 	if err != nil {
 		return nil, err
 	}
@@ -95,23 +101,23 @@ func (r *SceneReferenceRepository) ListByEntity(ctx context.Context, entityType 
 }
 
 // Delete deletes a scene reference
-func (r *SceneReferenceRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM scene_references WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *SceneReferenceRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM scene_references WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByScene deletes all scene references for a scene
-func (r *SceneReferenceRepository) DeleteByScene(ctx context.Context, sceneID uuid.UUID) error {
-	query := `DELETE FROM scene_references WHERE scene_id = $1`
-	_, err := r.db.Exec(ctx, query, sceneID)
+func (r *SceneReferenceRepository) DeleteByScene(ctx context.Context, tenantID, sceneID uuid.UUID) error {
+	query := `DELETE FROM scene_references WHERE tenant_id = $1 AND scene_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, sceneID)
 	return err
 }
 
 // DeleteBySceneAndEntity deletes a specific scene reference
-func (r *SceneReferenceRepository) DeleteBySceneAndEntity(ctx context.Context, sceneID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) error {
-	query := `DELETE FROM scene_references WHERE scene_id = $1 AND entity_type = $2 AND entity_id = $3`
-	_, err := r.db.Exec(ctx, query, sceneID, string(entityType), entityID)
+func (r *SceneReferenceRepository) DeleteBySceneAndEntity(ctx context.Context, tenantID, sceneID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) error {
+	query := `DELETE FROM scene_references WHERE tenant_id = $1 AND scene_id = $2 AND entity_type = $3 AND entity_id = $4`
+	_, err := r.db.Exec(ctx, query, tenantID, sceneID, string(entityType), entityID)
 	return err
 }
 
