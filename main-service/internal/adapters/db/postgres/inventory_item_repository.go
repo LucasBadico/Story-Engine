@@ -28,8 +28,8 @@ func NewInventoryItemRepository(db *DB) *InventoryItemRepository {
 // Create creates a new inventory item
 func (r *InventoryItemRepository) Create(ctx context.Context, item *rpg.InventoryItem) error {
 	query := `
-		INSERT INTO inventory_items (id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+		INSERT INTO inventory_items (id, tenant_id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
 	var category *string
 	var size *string
@@ -43,7 +43,7 @@ func (r *InventoryItemRepository) Create(ctx context.Context, item *rpg.Inventor
 	}
 
 	_, err := r.db.Exec(ctx, query,
-		item.ID, item.RPGSystemID, item.ArtifactID, item.Name, category, item.Description,
+		item.ID, item.TenantID, item.RPGSystemID, item.ArtifactID, item.Name, category, item.Description,
 		item.SlotsRequired, item.Weight, size, item.MaxStack,
 		item.EquipSlots, item.Requirements, item.ItemStats,
 		item.IsTemplate, item.CreatedAt, item.UpdatedAt)
@@ -51,11 +51,11 @@ func (r *InventoryItemRepository) Create(ctx context.Context, item *rpg.Inventor
 }
 
 // GetByID retrieves an inventory item by ID
-func (r *InventoryItemRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.InventoryItem, error) {
+func (r *InventoryItemRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*rpg.InventoryItem, error) {
 	query := `
-		SELECT id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at
+		SELECT id, tenant_id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at
 		FROM inventory_items
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var item rpg.InventoryItem
 	var artifactID sql.NullString
@@ -67,8 +67,8 @@ func (r *InventoryItemRepository) GetByID(ctx context.Context, id uuid.UUID) (*r
 	var requirements sql.NullString
 	var itemStats sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
-		&item.ID, &item.RPGSystemID, &artifactID, &item.Name, &category, &description,
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
+		&item.ID, &item.TenantID, &item.RPGSystemID, &artifactID, &item.Name, &category, &description,
 		&item.SlotsRequired, &weight, &size, &item.MaxStack,
 		&equipSlots, &requirements, &itemStats,
 		&item.IsTemplate, &item.CreatedAt, &item.UpdatedAt)
@@ -119,14 +119,14 @@ func (r *InventoryItemRepository) GetByID(ctx context.Context, id uuid.UUID) (*r
 }
 
 // ListBySystem lists items for an RPG system
-func (r *InventoryItemRepository) ListBySystem(ctx context.Context, rpgSystemID uuid.UUID) ([]*rpg.InventoryItem, error) {
+func (r *InventoryItemRepository) ListBySystem(ctx context.Context, tenantID, rpgSystemID uuid.UUID) ([]*rpg.InventoryItem, error) {
 	query := `
-		SELECT id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at
+		SELECT id, tenant_id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at
 		FROM inventory_items
-		WHERE rpg_system_id = $1
+		WHERE tenant_id = $1 AND rpg_system_id = $2
 		ORDER BY name ASC
 	`
-	rows, err := r.db.Query(ctx, query, rpgSystemID)
+	rows, err := r.db.Query(ctx, query, tenantID, rpgSystemID)
 	if err != nil {
 		return nil, err
 	}
@@ -136,14 +136,14 @@ func (r *InventoryItemRepository) ListBySystem(ctx context.Context, rpgSystemID 
 }
 
 // ListByArtifact lists items linked to an artifact
-func (r *InventoryItemRepository) ListByArtifact(ctx context.Context, artifactID uuid.UUID) ([]*rpg.InventoryItem, error) {
+func (r *InventoryItemRepository) ListByArtifact(ctx context.Context, tenantID, artifactID uuid.UUID) ([]*rpg.InventoryItem, error) {
 	query := `
-		SELECT id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at
+		SELECT id, tenant_id, rpg_system_id, artifact_id, name, category, description, slots_required, weight, size, max_stack, equip_slots, requirements, item_stats, is_template, created_at, updated_at
 		FROM inventory_items
-		WHERE artifact_id = $1
+		WHERE tenant_id = $1 AND artifact_id = $2
 		ORDER BY name ASC
 	`
-	rows, err := r.db.Query(ctx, query, artifactID)
+	rows, err := r.db.Query(ctx, query, tenantID, artifactID)
 	if err != nil {
 		return nil, err
 	}
@@ -157,7 +157,7 @@ func (r *InventoryItemRepository) Update(ctx context.Context, item *rpg.Inventor
 	query := `
 		UPDATE inventory_items
 		SET artifact_id = $2, name = $3, category = $4, description = $5, slots_required = $6, weight = $7, size = $8, max_stack = $9, equip_slots = $10, requirements = $11, item_stats = $12, is_template = $13, updated_at = $14
-		WHERE id = $1
+		WHERE tenant_id = $15 AND id = $1
 	`
 	var category *string
 	var size *string
@@ -174,14 +174,14 @@ func (r *InventoryItemRepository) Update(ctx context.Context, item *rpg.Inventor
 		item.ID, item.ArtifactID, item.Name, category, item.Description,
 		item.SlotsRequired, item.Weight, size, item.MaxStack,
 		item.EquipSlots, item.Requirements, item.ItemStats,
-		item.IsTemplate, item.UpdatedAt)
+		item.IsTemplate, item.UpdatedAt, item.TenantID)
 	return err
 }
 
 // Delete deletes an inventory item
-func (r *InventoryItemRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM inventory_items WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *InventoryItemRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM inventory_items WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
@@ -199,7 +199,7 @@ func (r *InventoryItemRepository) scanInventoryItems(rows pgx.Rows) ([]*rpg.Inve
 		var itemStats sql.NullString
 
 		err := rows.Scan(
-			&item.ID, &item.RPGSystemID, &artifactID, &item.Name, &category, &description,
+			&item.ID, &item.TenantID, &item.RPGSystemID, &artifactID, &item.Name, &category, &description,
 			&item.SlotsRequired, &weight, &size, &item.MaxStack,
 			&equipSlots, &requirements, &itemStats,
 			&item.IsTemplate, &item.CreatedAt, &item.UpdatedAt)

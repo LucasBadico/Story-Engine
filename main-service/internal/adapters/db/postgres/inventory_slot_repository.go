@@ -27,8 +27,8 @@ func NewInventorySlotRepository(db *DB) *InventorySlotRepository {
 // Create creates a new inventory slot
 func (r *InventorySlotRepository) Create(ctx context.Context, slot *rpg.InventorySlot) error {
 	query := `
-		INSERT INTO inventory_slots (id, rpg_system_id, name, slot_type)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO inventory_slots (id, tenant_id, rpg_system_id, name, slot_type)
+		VALUES ($1, $2, $3, $4, $5)
 	`
 	var slotType *string
 	if slot.SlotType != nil {
@@ -36,21 +36,21 @@ func (r *InventorySlotRepository) Create(ctx context.Context, slot *rpg.Inventor
 		slotType = &typeStr
 	}
 
-	_, err := r.db.Exec(ctx, query, slot.ID, slot.RPGSystemID, slot.Name, slotType)
+	_, err := r.db.Exec(ctx, query, slot.ID, slot.TenantID, slot.RPGSystemID, slot.Name, slotType)
 	return err
 }
 
 // GetByID retrieves an inventory slot by ID
-func (r *InventorySlotRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.InventorySlot, error) {
+func (r *InventorySlotRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*rpg.InventorySlot, error) {
 	query := `
-		SELECT id, rpg_system_id, name, slot_type
+		SELECT id, tenant_id, rpg_system_id, name, slot_type
 		FROM inventory_slots
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var slot rpg.InventorySlot
 	var slotType sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(&slot.ID, &slot.RPGSystemID, &slot.Name, &slotType)
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(&slot.ID, &slot.TenantID, &slot.RPGSystemID, &slot.Name, &slotType)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, &platformerrors.NotFoundError{
@@ -70,14 +70,14 @@ func (r *InventorySlotRepository) GetByID(ctx context.Context, id uuid.UUID) (*r
 }
 
 // ListBySystem lists slots for an RPG system
-func (r *InventorySlotRepository) ListBySystem(ctx context.Context, rpgSystemID uuid.UUID) ([]*rpg.InventorySlot, error) {
+func (r *InventorySlotRepository) ListBySystem(ctx context.Context, tenantID, rpgSystemID uuid.UUID) ([]*rpg.InventorySlot, error) {
 	query := `
-		SELECT id, rpg_system_id, name, slot_type
+		SELECT id, tenant_id, rpg_system_id, name, slot_type
 		FROM inventory_slots
-		WHERE rpg_system_id = $1
+		WHERE tenant_id = $1 AND rpg_system_id = $2
 		ORDER BY name ASC
 	`
-	rows, err := r.db.Query(ctx, query, rpgSystemID)
+	rows, err := r.db.Query(ctx, query, tenantID, rpgSystemID)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (r *InventorySlotRepository) Update(ctx context.Context, slot *rpg.Inventor
 	query := `
 		UPDATE inventory_slots
 		SET name = $2, slot_type = $3
-		WHERE id = $1
+		WHERE tenant_id = $4 AND id = $1
 	`
 	var slotType *string
 	if slot.SlotType != nil {
@@ -99,14 +99,14 @@ func (r *InventorySlotRepository) Update(ctx context.Context, slot *rpg.Inventor
 		slotType = &typeStr
 	}
 
-	_, err := r.db.Exec(ctx, query, slot.ID, slot.Name, slotType)
+	_, err := r.db.Exec(ctx, query, slot.ID, slot.Name, slotType, slot.TenantID)
 	return err
 }
 
 // Delete deletes an inventory slot
-func (r *InventorySlotRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM inventory_slots WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *InventorySlotRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM inventory_slots WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
@@ -116,7 +116,7 @@ func (r *InventorySlotRepository) scanInventorySlots(rows pgx.Rows) ([]*rpg.Inve
 		var slot rpg.InventorySlot
 		var slotType sql.NullString
 
-		err := rows.Scan(&slot.ID, &slot.RPGSystemID, &slot.Name, &slotType)
+		err := rows.Scan(&slot.ID, &slot.TenantID, &slot.RPGSystemID, &slot.Name, &slotType)
 		if err != nil {
 			return nil, err
 		}

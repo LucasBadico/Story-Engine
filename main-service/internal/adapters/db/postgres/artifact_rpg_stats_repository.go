@@ -26,30 +26,36 @@ func NewArtifactRPGStatsRepository(db *DB) *ArtifactRPGStatsRepository {
 
 // Create creates new artifact RPG stats
 func (r *ArtifactRPGStatsRepository) Create(ctx context.Context, stats *rpg.ArtifactRPGStats) error {
+	// Get tenant_id from artifact
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM artifacts WHERE id = $1", stats.ArtifactID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
-		INSERT INTO artifact_rpg_stats (id, artifact_id, event_id, stats, is_active, version, reason, timeline, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+		INSERT INTO artifact_rpg_stats (id, tenant_id, artifact_id, event_id, stats, is_active, version, reason, timeline, created_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
 	`
 	_, err := r.db.Exec(ctx, query,
-		stats.ID, stats.ArtifactID, stats.EventID, stats.Stats,
+		stats.ID, tenantID, stats.ArtifactID, stats.EventID, stats.Stats,
 		stats.IsActive, stats.Version, stats.Reason, stats.Timeline,
 		stats.CreatedAt)
 	return err
 }
 
 // GetByID retrieves artifact RPG stats by ID
-func (r *ArtifactRPGStatsRepository) GetByID(ctx context.Context, id uuid.UUID) (*rpg.ArtifactRPGStats, error) {
+func (r *ArtifactRPGStatsRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*rpg.ArtifactRPGStats, error) {
 	query := `
 		SELECT id, artifact_id, event_id, stats, is_active, version, reason, timeline, created_at
 		FROM artifact_rpg_stats
-		WHERE id = $1
+		WHERE tenant_id = $1 AND id = $2
 	`
 	var stats rpg.ArtifactRPGStats
 	var eventID sql.NullString
 	var reason sql.NullString
 	var timeline sql.NullString
 
-	err := r.db.QueryRow(ctx, query, id).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, id).Scan(
 		&stats.ID, &stats.ArtifactID, &eventID, &stats.Stats,
 		&stats.IsActive, &stats.Version, &reason, &timeline,
 		&stats.CreatedAt)
@@ -80,11 +86,11 @@ func (r *ArtifactRPGStatsRepository) GetByID(ctx context.Context, id uuid.UUID) 
 }
 
 // GetActiveByArtifact retrieves the active stats for an artifact
-func (r *ArtifactRPGStatsRepository) GetActiveByArtifact(ctx context.Context, artifactID uuid.UUID) (*rpg.ArtifactRPGStats, error) {
+func (r *ArtifactRPGStatsRepository) GetActiveByArtifact(ctx context.Context, tenantID, artifactID uuid.UUID) (*rpg.ArtifactRPGStats, error) {
 	query := `
 		SELECT id, artifact_id, event_id, stats, is_active, version, reason, timeline, created_at
 		FROM artifact_rpg_stats
-		WHERE artifact_id = $1 AND is_active = TRUE
+		WHERE tenant_id = $1 AND artifact_id = $2 AND is_active = TRUE
 		ORDER BY version DESC
 		LIMIT 1
 	`
@@ -93,7 +99,7 @@ func (r *ArtifactRPGStatsRepository) GetActiveByArtifact(ctx context.Context, ar
 	var reason sql.NullString
 	var timeline sql.NullString
 
-	err := r.db.QueryRow(ctx, query, artifactID).Scan(
+	err := r.db.QueryRow(ctx, query, tenantID, artifactID).Scan(
 		&stats.ID, &stats.ArtifactID, &eventID, &stats.Stats,
 		&stats.IsActive, &stats.Version, &reason, &timeline,
 		&stats.CreatedAt)
@@ -124,14 +130,14 @@ func (r *ArtifactRPGStatsRepository) GetActiveByArtifact(ctx context.Context, ar
 }
 
 // ListByArtifact lists all stats versions for an artifact
-func (r *ArtifactRPGStatsRepository) ListByArtifact(ctx context.Context, artifactID uuid.UUID) ([]*rpg.ArtifactRPGStats, error) {
+func (r *ArtifactRPGStatsRepository) ListByArtifact(ctx context.Context, tenantID, artifactID uuid.UUID) ([]*rpg.ArtifactRPGStats, error) {
 	query := `
 		SELECT id, artifact_id, event_id, stats, is_active, version, reason, timeline, created_at
 		FROM artifact_rpg_stats
-		WHERE artifact_id = $1
+		WHERE tenant_id = $1 AND artifact_id = $2
 		ORDER BY version ASC
 	`
-	rows, err := r.db.Query(ctx, query, artifactID)
+	rows, err := r.db.Query(ctx, query, tenantID, artifactID)
 	if err != nil {
 		return nil, err
 	}
@@ -141,14 +147,14 @@ func (r *ArtifactRPGStatsRepository) ListByArtifact(ctx context.Context, artifac
 }
 
 // ListByEvent lists all stats versions caused by an event
-func (r *ArtifactRPGStatsRepository) ListByEvent(ctx context.Context, eventID uuid.UUID) ([]*rpg.ArtifactRPGStats, error) {
+func (r *ArtifactRPGStatsRepository) ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*rpg.ArtifactRPGStats, error) {
 	query := `
 		SELECT id, artifact_id, event_id, stats, is_active, version, reason, timeline, created_at
 		FROM artifact_rpg_stats
-		WHERE event_id = $1
+		WHERE tenant_id = $1 AND event_id = $2
 		ORDER BY created_at ASC
 	`
-	rows, err := r.db.Query(ctx, query, eventID)
+	rows, err := r.db.Query(ctx, query, tenantID, eventID)
 	if err != nil {
 		return nil, err
 	}
@@ -159,43 +165,49 @@ func (r *ArtifactRPGStatsRepository) ListByEvent(ctx context.Context, eventID uu
 
 // Update updates artifact RPG stats
 func (r *ArtifactRPGStatsRepository) Update(ctx context.Context, stats *rpg.ArtifactRPGStats) error {
+	// Get tenant_id from artifact
+	var tenantID uuid.UUID
+	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM artifacts WHERE id = $1", stats.ArtifactID).Scan(&tenantID); err != nil {
+		return err
+	}
+
 	query := `
 		UPDATE artifact_rpg_stats
 		SET event_id = $2, stats = $3, is_active = $4, version = $5, reason = $6, timeline = $7
-		WHERE id = $1
+		WHERE tenant_id = $8 AND id = $1
 	`
 	_, err := r.db.Exec(ctx, query,
 		stats.ID, stats.EventID, stats.Stats,
-		stats.IsActive, stats.Version, stats.Reason, stats.Timeline)
+		stats.IsActive, stats.Version, stats.Reason, stats.Timeline, tenantID)
 	return err
 }
 
 // Delete deletes artifact RPG stats
-func (r *ArtifactRPGStatsRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	query := `DELETE FROM artifact_rpg_stats WHERE id = $1`
-	_, err := r.db.Exec(ctx, query, id)
+func (r *ArtifactRPGStatsRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
+	query := `DELETE FROM artifact_rpg_stats WHERE tenant_id = $1 AND id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, id)
 	return err
 }
 
 // DeleteByArtifact deletes all stats for an artifact
-func (r *ArtifactRPGStatsRepository) DeleteByArtifact(ctx context.Context, artifactID uuid.UUID) error {
-	query := `DELETE FROM artifact_rpg_stats WHERE artifact_id = $1`
-	_, err := r.db.Exec(ctx, query, artifactID)
+func (r *ArtifactRPGStatsRepository) DeleteByArtifact(ctx context.Context, tenantID, artifactID uuid.UUID) error {
+	query := `DELETE FROM artifact_rpg_stats WHERE tenant_id = $1 AND artifact_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, artifactID)
 	return err
 }
 
 // DeactivateAllByArtifact deactivates all stats for an artifact
-func (r *ArtifactRPGStatsRepository) DeactivateAllByArtifact(ctx context.Context, artifactID uuid.UUID) error {
-	query := `UPDATE artifact_rpg_stats SET is_active = FALSE WHERE artifact_id = $1`
-	_, err := r.db.Exec(ctx, query, artifactID)
+func (r *ArtifactRPGStatsRepository) DeactivateAllByArtifact(ctx context.Context, tenantID, artifactID uuid.UUID) error {
+	query := `UPDATE artifact_rpg_stats SET is_active = FALSE WHERE tenant_id = $1 AND artifact_id = $2`
+	_, err := r.db.Exec(ctx, query, tenantID, artifactID)
 	return err
 }
 
 // GetNextVersion gets the next version number for an artifact
-func (r *ArtifactRPGStatsRepository) GetNextVersion(ctx context.Context, artifactID uuid.UUID) (int, error) {
-	query := `SELECT COALESCE(MAX(version), 0) + 1 FROM artifact_rpg_stats WHERE artifact_id = $1`
+func (r *ArtifactRPGStatsRepository) GetNextVersion(ctx context.Context, tenantID, artifactID uuid.UUID) (int, error) {
+	query := `SELECT COALESCE(MAX(version), 0) + 1 FROM artifact_rpg_stats WHERE tenant_id = $1 AND artifact_id = $2`
 	var version int
-	err := r.db.QueryRow(ctx, query, artifactID).Scan(&version)
+	err := r.db.QueryRow(ctx, query, tenantID, artifactID).Scan(&version)
 	return version, err
 }
 
