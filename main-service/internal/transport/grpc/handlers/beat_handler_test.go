@@ -348,3 +348,4 @@ func TestBeatHandler_DeleteBeat(t *testing.T) {
 	})
 }
 
+

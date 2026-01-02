@@ -42,3 +42,4 @@ func (uc *RemoveArtifactFromEventUseCase) Execute(ctx context.Context, input Rem
 	return nil
 }
 
+

@@ -49,3 +49,4 @@ type EventArtifactRepository interface {
 	DeleteByEvent(ctx context.Context, eventID uuid.UUID) error
 }
 
+

@@ -12,3 +12,4 @@ CREATE TABLE IF NOT EXISTS traits (
 CREATE INDEX idx_traits_tenant_id ON traits(tenant_id);
 CREATE INDEX idx_traits_category ON traits(tenant_id, category);
 
+

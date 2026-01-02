@@ -219,3 +219,4 @@ func (r *LocationRepository) scanLocations(rows pgx.Rows) ([]*world.Location, er
 	return locations, rows.Err()
 }
 
+

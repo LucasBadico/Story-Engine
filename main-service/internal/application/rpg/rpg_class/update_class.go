@@ -101,3 +101,4 @@ func (uc *UpdateRPGClassUseCase) Execute(ctx context.Context, input UpdateRPGCla
 	}, nil
 }
 
+

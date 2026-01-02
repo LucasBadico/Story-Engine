@@ -170,3 +170,4 @@ func TestSearchMemoryUseCase_calculateSimilarity(t *testing.T) {
 	}
 }
 
+

@@ -17,3 +17,4 @@ type ProseBlockReferenceRepository interface {
 	DeleteByProseBlock(ctx context.Context, proseBlockID uuid.UUID) error
 }
 
+

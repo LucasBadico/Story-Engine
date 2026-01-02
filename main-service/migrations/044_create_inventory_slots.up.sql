@@ -11,3 +11,4 @@ CREATE TABLE IF NOT EXISTS inventory_slots (
 CREATE INDEX idx_inventory_slots_rpg_system ON inventory_slots(rpg_system_id);
 CREATE INDEX idx_inventory_slots_type ON inventory_slots(slot_type);
 
+

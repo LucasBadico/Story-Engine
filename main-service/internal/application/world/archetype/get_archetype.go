@@ -49,3 +49,4 @@ func (uc *GetArchetypeUseCase) Execute(ctx context.Context, input GetArchetypeIn
 	}, nil
 }
 
+

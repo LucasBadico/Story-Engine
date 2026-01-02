@@ -49,3 +49,4 @@ func (uc *GetActiveArtifactStatsUseCase) Execute(ctx context.Context, input GetA
 	}, nil
 }
 
+

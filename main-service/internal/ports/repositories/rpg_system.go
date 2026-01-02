@@ -45,3 +45,4 @@ type ArtifactRPGStatsRepository interface {
 	GetNextVersion(ctx context.Context, artifactID uuid.UUID) (int, error)
 }
 
+

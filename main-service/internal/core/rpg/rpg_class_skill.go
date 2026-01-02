@@ -65,3 +65,4 @@ func (cs *RPGClassSkill) SetUnlockLevel(level int) error {
 	return nil
 }
 
+

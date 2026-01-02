@@ -49,3 +49,4 @@ func (uc *ListArtifactStatsHistoryUseCase) Execute(ctx context.Context, input Li
 	}, nil
 }
 
+

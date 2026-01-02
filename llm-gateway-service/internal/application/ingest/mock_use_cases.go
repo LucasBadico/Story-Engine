@@ -78,3 +78,4 @@ func (m *MockIngestProseBlockUseCase) Execute(ctx context.Context, input IngestP
 	return m.Output, nil
 }
 
+

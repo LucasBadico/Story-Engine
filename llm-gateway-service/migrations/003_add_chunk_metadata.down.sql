@@ -19,3 +19,4 @@ ALTER TABLE embedding_chunks
     DROP COLUMN IF EXISTS beat_id,
     DROP COLUMN IF EXISTS scene_id;
 
+

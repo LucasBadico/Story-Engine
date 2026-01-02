@@ -21,3 +21,4 @@ type LocationRepository interface {
 	CountByWorld(ctx context.Context, worldID uuid.UUID) (int, error)
 }
 
+

@@ -108,3 +108,4 @@ func (uc *CreateEventUseCase) Execute(ctx context.Context, input CreateEventInpu
 	}, nil
 }
 
+

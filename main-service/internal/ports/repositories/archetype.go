@@ -26,3 +26,4 @@ type ArchetypeTraitRepository interface {
 	DeleteByArchetype(ctx context.Context, archetypeID uuid.UUID) error
 }
 
+

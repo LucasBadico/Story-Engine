@@ -612,3 +612,4 @@ func (h *InventoryHandler) TransferItem(w http.ResponseWriter, r *http.Request) 
 	})
 }
 
+

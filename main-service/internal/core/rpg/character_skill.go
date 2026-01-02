@@ -81,3 +81,4 @@ func (cs *CharacterSkill) SetActive(isActive bool) {
 	cs.IsActive = isActive
 }
 
+

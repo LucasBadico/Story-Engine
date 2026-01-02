@@ -49,3 +49,4 @@ func (uc *GetCharacterUseCase) Execute(ctx context.Context, input GetCharacterIn
 	}, nil
 }
 
+

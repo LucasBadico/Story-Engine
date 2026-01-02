@@ -134,3 +134,4 @@ func (r *ArtifactReferenceRepository) scanArtifactReferences(rows pgx.Rows) ([]*
 	return references, rows.Err()
 }
 
+

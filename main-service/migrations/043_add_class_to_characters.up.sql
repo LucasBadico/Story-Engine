@@ -3,3 +3,4 @@ ALTER TABLE characters ADD COLUMN class_level INT DEFAULT 1;
 
 CREATE INDEX idx_characters_current_class ON characters(current_class_id);
 
+

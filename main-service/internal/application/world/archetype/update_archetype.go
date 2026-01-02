@@ -95,3 +95,4 @@ func (uc *UpdateArchetypeUseCase) Execute(ctx context.Context, input UpdateArche
 	}, nil
 }
 
+

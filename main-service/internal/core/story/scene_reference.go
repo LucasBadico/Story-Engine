@@ -58,3 +58,4 @@ func isValidSceneReferenceEntityType(entityType SceneReferenceEntityType) bool {
 		entityType == SceneReferenceEntityTypeArtifact
 }
 
+

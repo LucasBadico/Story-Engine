@@ -102,3 +102,4 @@ service ArchetypeService {
   rpc RemoveTraitFromArchetype(RemoveTraitFromArchetypeRequest) returns (RemoveTraitFromArchetypeResponse);
 }
 
+

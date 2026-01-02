@@ -49,3 +49,4 @@ func (uc *ListSkillsUseCase) Execute(ctx context.Context, input ListSkillsInput)
 	}, nil
 }
 
+

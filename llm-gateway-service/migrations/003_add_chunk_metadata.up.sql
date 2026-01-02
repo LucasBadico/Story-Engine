@@ -21,3 +21,4 @@ CREATE INDEX idx_embedding_chunks_prose_kind ON embedding_chunks(prose_kind);
 -- GIN index for JSONB characters array for efficient searching
 CREATE INDEX idx_embedding_chunks_characters_gin ON embedding_chunks USING GIN (characters);
 
+

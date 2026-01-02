@@ -14,3 +14,4 @@ CREATE INDEX idx_locations_world_id ON locations(world_id);
 CREATE INDEX idx_locations_parent_id ON locations(parent_id);
 CREATE INDEX idx_locations_world_parent ON locations(world_id, parent_id);
 
+

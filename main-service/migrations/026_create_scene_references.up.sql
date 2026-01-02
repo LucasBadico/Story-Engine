@@ -11,3 +11,4 @@ CREATE TABLE IF NOT EXISTS scene_references (
 CREATE INDEX idx_scene_references_scene_id ON scene_references(scene_id);
 CREATE INDEX idx_scene_references_entity ON scene_references(entity_type, entity_id);
 
+

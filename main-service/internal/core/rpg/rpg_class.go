@@ -137,3 +137,4 @@ func (c *RPGClass) UpdateStatBonuses(statBonuses *json.RawMessage) error {
 	return nil
 }
 
+

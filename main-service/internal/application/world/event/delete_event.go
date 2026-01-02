@@ -89,3 +89,4 @@ func (uc *DeleteEventUseCase) Execute(ctx context.Context, input DeleteEventInpu
 	return nil
 }
 
+

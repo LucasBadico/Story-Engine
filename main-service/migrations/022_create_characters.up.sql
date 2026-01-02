@@ -11,3 +11,4 @@ CREATE TABLE IF NOT EXISTS characters (
 CREATE INDEX idx_characters_world_id ON characters(world_id);
 CREATE INDEX idx_characters_archetype_id ON characters(archetype_id);
 
+

@@ -72,3 +72,4 @@ func (s *InventorySlot) UpdateSlotType(slotType *SlotType) {
 	s.SlotType = slotType
 }
 
+

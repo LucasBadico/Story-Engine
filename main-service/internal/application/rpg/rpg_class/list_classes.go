@@ -58,3 +58,4 @@ func (uc *ListRPGClassesUseCase) Execute(ctx context.Context, input ListRPGClass
 	}, nil
 }
 
+

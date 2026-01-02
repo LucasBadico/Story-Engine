@@ -42,3 +42,4 @@ func (uc *DeleteSkillUseCase) Execute(ctx context.Context, input DeleteSkillInpu
 	return nil
 }
 
+

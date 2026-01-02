@@ -30,3 +30,4 @@ CREATE INDEX idx_inventory_items_artifact ON inventory_items(artifact_id);
 CREATE INDEX idx_inventory_items_category ON inventory_items(category);
 CREATE INDEX idx_inventory_items_template ON inventory_items(is_template);
 
+

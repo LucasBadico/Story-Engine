@@ -106,3 +106,4 @@ func (uc *CreateRPGClassUseCase) Execute(ctx context.Context, input CreateRPGCla
 	}, nil
 }
 
+

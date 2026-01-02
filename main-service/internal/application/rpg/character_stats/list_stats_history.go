@@ -49,3 +49,4 @@ func (uc *ListCharacterStatsHistoryUseCase) Execute(ctx context.Context, input L
 	}, nil
 }
 
+

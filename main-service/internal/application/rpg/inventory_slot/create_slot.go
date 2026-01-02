@@ -75,3 +75,4 @@ func (uc *CreateInventorySlotUseCase) Execute(ctx context.Context, input CreateI
 	}, nil
 }
 
+

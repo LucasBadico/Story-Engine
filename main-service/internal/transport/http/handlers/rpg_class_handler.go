@@ -329,3 +329,4 @@ func (h *RPGClassHandler) AddSkill(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+

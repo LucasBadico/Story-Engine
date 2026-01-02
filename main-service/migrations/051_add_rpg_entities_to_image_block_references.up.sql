@@ -10,3 +10,4 @@ CHECK (entity_type IN (
     'rpg_system', 'rpg_skill', 'rpg_class', 'inventory_item'
 ));
 
+

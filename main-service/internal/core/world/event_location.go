@@ -26,3 +26,4 @@ func NewEventLocation(eventID, locationID uuid.UUID, significance *string) *Even
 	}
 }
 
+

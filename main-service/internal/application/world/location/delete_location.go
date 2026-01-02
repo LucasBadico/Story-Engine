@@ -65,3 +65,4 @@ func (uc *DeleteLocationUseCase) Execute(ctx context.Context, input DeleteLocati
 	return nil
 }
 
+

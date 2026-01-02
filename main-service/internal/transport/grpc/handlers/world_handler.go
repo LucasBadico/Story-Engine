@@ -209,3 +209,4 @@ func (h *WorldHandler) DeleteWorld(ctx context.Context, req *worldpb.DeleteWorld
 	return &worldpb.DeleteWorldResponse{}, nil
 }
 
+

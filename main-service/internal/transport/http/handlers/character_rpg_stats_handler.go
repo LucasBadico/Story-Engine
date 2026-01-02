@@ -205,3 +205,4 @@ func (h *CharacterRPGStatsHandler) DeleteAll(w http.ResponseWriter, r *http.Requ
 	w.WriteHeader(http.StatusNoContent)
 }
 
+

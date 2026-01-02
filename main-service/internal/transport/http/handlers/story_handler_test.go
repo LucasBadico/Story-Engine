@@ -13,6 +13,7 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	"github.com/story-engine/main-service/internal/application/story"
 	"github.com/story-engine/main-service/internal/application/tenant"
+	"github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
 
@@ -23,6 +24,7 @@ func TestStoryHandler_Create(t *testing.T) {
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
+	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
 
 	// Create a tenant first
@@ -53,7 +55,8 @@ func TestStoryHandler_Create(t *testing.T) {
 		t.Fatalf("tenant response missing id: %v", tenantObj)
 	}
 
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	handler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
 
 	t.Run("successful creation", func(t *testing.T) {
@@ -119,6 +122,7 @@ func TestStoryHandler_Get(t *testing.T) {
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
+	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
 
 	// Create a tenant and story
@@ -149,7 +153,8 @@ func TestStoryHandler_Get(t *testing.T) {
 		t.Fatalf("tenant response missing id: %v", tenantObj)
 	}
 
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	storyBody := `{"title": "Get Test Story"}`
 	storyReq := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(storyBody))
 	storyReq.Header.Set("Content-Type", "application/json")
@@ -222,6 +227,7 @@ func TestStoryHandler_List(t *testing.T) {
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
+	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
 
 	// Create a tenant
@@ -252,7 +258,8 @@ func TestStoryHandler_List(t *testing.T) {
 		t.Fatalf("tenant response missing id: %v", tenantObj)
 	}
 
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	handler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
 
 	// Create multiple stories

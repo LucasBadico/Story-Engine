@@ -160,3 +160,4 @@ func (r *CharacterSkillRepository) scanCharacterSkills(rows pgx.Rows) ([]*rpg.Ch
 	return skills, rows.Err()
 }
 
+

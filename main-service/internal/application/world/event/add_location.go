@@ -71,3 +71,4 @@ func (uc *AddLocationToEventUseCase) Execute(ctx context.Context, input AddLocat
 	return nil
 }
 
+

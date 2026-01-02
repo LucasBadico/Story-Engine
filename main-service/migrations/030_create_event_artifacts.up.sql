@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS event_artifacts (
 CREATE INDEX idx_event_artifacts_event_id ON event_artifacts(event_id);
 CREATE INDEX idx_event_artifacts_artifact_id ON event_artifacts(artifact_id);
 
+

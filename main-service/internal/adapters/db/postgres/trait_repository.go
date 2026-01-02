@@ -119,3 +119,4 @@ func (r *TraitRepository) scanTraits(rows pgx.Rows) ([]*world.Trait, error) {
 	return traits, rows.Err()
 }
 
+

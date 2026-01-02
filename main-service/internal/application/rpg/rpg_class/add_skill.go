@@ -95,3 +95,4 @@ func (uc *AddSkillToClassUseCase) Execute(ctx context.Context, input AddSkillToC
 	}, nil
 }
 
+

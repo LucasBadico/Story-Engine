@@ -268,3 +268,4 @@ func (r *CharacterRPGStatsRepository) scanCharacterRPGStats(rows pgx.Rows) ([]*r
 	return statsList, rows.Err()
 }
 
+

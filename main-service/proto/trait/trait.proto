@@ -82,3 +82,4 @@ service TraitService {
   rpc DeleteTrait(DeleteTraitRequest) returns (DeleteTraitResponse);
 }
 
+

@@ -7,3 +7,4 @@ CREATE UNIQUE INDEX scenes_chapter_order_unique ON scenes(chapter_id, order_num)
 -- Re-add unique constraint for beats
 ALTER TABLE beats ADD CONSTRAINT beats_scene_order_unique UNIQUE (scene_id, order_num);
 
+

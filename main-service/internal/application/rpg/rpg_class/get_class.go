@@ -49,3 +49,4 @@ func (uc *GetRPGClassUseCase) Execute(ctx context.Context, input GetRPGClassInpu
 	}, nil
 }
 
+

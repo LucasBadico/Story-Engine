@@ -26,3 +26,4 @@ func NewEventCharacter(eventID, characterID uuid.UUID, role *string) *EventChara
 	}
 }
 
+

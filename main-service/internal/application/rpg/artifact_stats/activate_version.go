@@ -63,3 +63,4 @@ func (uc *ActivateArtifactStatsVersionUseCase) Execute(ctx context.Context, inpu
 	}, nil
 }
 
+

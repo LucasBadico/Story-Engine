@@ -99,3 +99,4 @@ func (uc *UpdateLocationUseCase) Execute(ctx context.Context, input UpdateLocati
 	}, nil
 }
 
+

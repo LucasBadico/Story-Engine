@@ -119,3 +119,4 @@ func (r *ArchetypeRepository) scanArchetypes(rows pgx.Rows) ([]*world.Archetype,
 	return archetypes, rows.Err()
 }
 
+

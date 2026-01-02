@@ -202,3 +202,4 @@ func (h *TraitHandler) DeleteTrait(ctx context.Context, req *traitpb.DeleteTrait
 	return &traitpb.DeleteTraitResponse{}, nil
 }
 
+

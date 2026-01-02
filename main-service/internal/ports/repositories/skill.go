@@ -28,3 +28,4 @@ type CharacterSkillRepository interface {
 	DeleteByCharacter(ctx context.Context, characterID uuid.UUID) error
 }
 
+

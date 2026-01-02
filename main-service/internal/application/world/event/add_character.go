@@ -71,3 +71,4 @@ func (uc *AddCharacterToEventUseCase) Execute(ctx context.Context, input AddChar
 	return nil
 }
 
+

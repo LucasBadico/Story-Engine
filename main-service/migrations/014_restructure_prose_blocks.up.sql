@@ -42,3 +42,4 @@ CREATE INDEX idx_prose_blocks_chapter_order ON prose_blocks(chapter_id, order_nu
 -- Drop old scene_id column
 ALTER TABLE prose_blocks DROP COLUMN scene_id;
 
+

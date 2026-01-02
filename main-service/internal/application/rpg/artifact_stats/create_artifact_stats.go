@@ -121,3 +121,4 @@ func (uc *CreateArtifactStatsUseCase) Execute(ctx context.Context, input CreateA
 	}, nil
 }
 
+

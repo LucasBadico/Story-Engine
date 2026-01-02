@@ -67,3 +67,4 @@ func (uc *ListCharactersUseCase) Execute(ctx context.Context, input ListCharacte
 	}, nil
 }
 
+

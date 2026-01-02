@@ -18,3 +18,4 @@ CREATE UNIQUE INDEX idx_rpg_systems_tenant_name ON rpg_systems(tenant_id, name) 
 CREATE UNIQUE INDEX idx_rpg_systems_builtin_name ON rpg_systems(name) WHERE is_builtin = TRUE;
 CREATE INDEX idx_rpg_systems_tenant_id ON rpg_systems(tenant_id);
 
+

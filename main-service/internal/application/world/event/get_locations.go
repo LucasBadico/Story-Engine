@@ -49,3 +49,4 @@ func (uc *GetEventLocationsUseCase) Execute(ctx context.Context, input GetEventL
 	}, nil
 }
 
+

@@ -68,3 +68,4 @@ func (t *Trait) UpdateDescription(description string) {
 	t.UpdatedAt = time.Now()
 }
 
+

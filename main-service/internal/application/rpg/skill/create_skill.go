@@ -102,3 +102,4 @@ func (uc *CreateSkillUseCase) Execute(ctx context.Context, input CreateSkillInpu
 	}, nil
 }
 
+

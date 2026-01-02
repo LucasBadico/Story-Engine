@@ -49,3 +49,4 @@ func (uc *ListInventorySlotsUseCase) Execute(ctx context.Context, input ListInve
 	}, nil
 }
 
+

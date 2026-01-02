@@ -18,3 +18,4 @@ CREATE TABLE IF NOT EXISTS image_blocks (
 CREATE INDEX idx_image_blocks_chapter_id ON image_blocks(chapter_id);
 CREATE INDEX idx_image_blocks_kind ON image_blocks(kind);
 
+

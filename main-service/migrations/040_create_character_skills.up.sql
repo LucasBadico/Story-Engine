@@ -16,3 +16,4 @@ CREATE INDEX idx_character_skills_character ON character_skills(character_id);
 CREATE INDEX idx_character_skills_skill ON character_skills(skill_id);
 CREATE INDEX idx_character_skills_active ON character_skills(character_id, is_active);
 
+

@@ -63,3 +63,4 @@ func (uc *AddTraitToArchetypeUseCase) Execute(ctx context.Context, input AddTrai
 	return nil
 }
 
+

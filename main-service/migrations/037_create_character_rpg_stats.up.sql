@@ -18,3 +18,4 @@ CREATE INDEX idx_character_rpg_stats_character ON character_rpg_stats(character_
 CREATE UNIQUE INDEX idx_character_rpg_stats_active ON character_rpg_stats(character_id) WHERE is_active = TRUE;
 CREATE INDEX idx_character_rpg_stats_event ON character_rpg_stats(event_id);
 
+

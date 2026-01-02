@@ -49,3 +49,4 @@ func (uc *GetEventArtifactsUseCase) Execute(ctx context.Context, input GetEventA
 	}, nil
 }
 
+

@@ -145,3 +145,4 @@ service CharacterService {
   rpc RemoveTraitFromCharacter(RemoveTraitFromCharacterRequest) returns (RemoveTraitFromCharacterResponse);
 }
 
+

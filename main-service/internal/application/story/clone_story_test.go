@@ -8,6 +8,7 @@ import (
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	"github.com/story-engine/main-service/internal/application/tenant"
+	"github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/core/story"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -32,6 +33,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 	proseBlockRepo := postgres.NewProseBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
+	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
 
 	// Create a tenant
@@ -45,7 +47,8 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 	}
 
 	// Create a story
-	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	storyOutput, err := createStoryUseCase.Execute(ctx, CreateStoryInput{
 		TenantID:       tenantOutput.Tenant.ID,
 		Title:          "Test Story",
@@ -136,7 +139,9 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 		}
 
 		// Create prose block
-		prose, err := story.NewProseBlock(chapter.ID, 1, story.ProseKindFinal, "This is the prose content.")
+		chapterID := chapter.ID
+		proseOrderNum := 1
+		prose, err := story.NewProseBlock(&chapterID, &proseOrderNum, story.ProseKindFinal, "This is the prose content.")
 		if err != nil {
 			t.Fatalf("failed to create prose block: %v", err)
 		}

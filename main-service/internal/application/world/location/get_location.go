@@ -49,3 +49,4 @@ func (uc *GetLocationUseCase) Execute(ctx context.Context, input GetLocationInpu
 	}, nil
 }
 
+

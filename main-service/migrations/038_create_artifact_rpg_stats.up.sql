@@ -16,3 +16,4 @@ CREATE INDEX idx_artifact_rpg_stats_artifact ON artifact_rpg_stats(artifact_id);
 CREATE UNIQUE INDEX idx_artifact_rpg_stats_active ON artifact_rpg_stats(artifact_id) WHERE is_active = TRUE;
 CREATE INDEX idx_artifact_rpg_stats_event ON artifact_rpg_stats(event_id);
 
+

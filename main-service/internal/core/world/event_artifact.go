@@ -26,3 +26,4 @@ func NewEventArtifact(eventID, artifactID uuid.UUID, role *string) *EventArtifac
 	}
 }
 
+

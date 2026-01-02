@@ -60,3 +60,4 @@ func (uc *GetEventStatChangesUseCase) Execute(ctx context.Context, input GetEven
 	}, nil
 }
 
+

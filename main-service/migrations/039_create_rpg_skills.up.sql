@@ -22,3 +22,4 @@ CREATE INDEX idx_rpg_skills_rpg_system ON rpg_skills(rpg_system_id);
 CREATE INDEX idx_rpg_skills_category ON rpg_skills(category);
 CREATE INDEX idx_rpg_skills_type ON rpg_skills(type);
 
+

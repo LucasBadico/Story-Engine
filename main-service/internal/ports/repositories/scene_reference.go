@@ -18,3 +18,4 @@ type SceneReferenceRepository interface {
 	DeleteBySceneAndEntity(ctx context.Context, sceneID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) error
 }
 
+

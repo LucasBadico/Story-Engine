@@ -248,3 +248,4 @@ func (h *ArchetypeHandler) RemoveTraitFromArchetype(ctx context.Context, req *ar
 	return &archetypepb.RemoveTraitFromArchetypeResponse{}, nil
 }
 
+

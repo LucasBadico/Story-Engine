@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS event_locations (
 CREATE INDEX idx_event_locations_event_id ON event_locations(event_id);
 CREATE INDEX idx_event_locations_location_id ON event_locations(location_id);
 
+

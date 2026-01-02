@@ -7,7 +7,9 @@ import (
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	"github.com/story-engine/main-service/internal/application/story"
+	"github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
+	"github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	"google.golang.org/grpc"
@@ -29,11 +31,17 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	proseBlockRefRepo := postgres.NewProseBlockReferenceRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
+	worldRepo := postgres.NewWorldRepository(db)
+	sceneReferenceRepo := postgres.NewSceneReferenceRepository(db)
+	characterRepo := postgres.NewCharacterRepository(db)
+	locationRepo := postgres.NewLocationRepository(db)
+	artifactRepo := postgres.NewArtifactRepository(db)
 
 	// Initialize use cases
 	log := logger.New()
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
 		chapterRepo,
@@ -56,7 +64,13 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 		log,
 	)
 	chapterHandler := NewChapterHandler(chapterRepo, storyRepo, log)
-	sceneHandler := NewSceneHandler(sceneRepo, chapterRepo, storyRepo, log)
+	
+	// Scene reference use cases
+	addSceneReferenceUC := scene.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
+	removeSceneReferenceUC := scene.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
+	getSceneReferencesUC := scene.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	
+	sceneHandler := NewSceneHandler(sceneRepo, chapterRepo, storyRepo, addSceneReferenceUC, removeSceneReferenceUC, getSceneReferencesUC, log)
 	beatHandler := NewBeatHandler(beatRepo, sceneRepo, storyRepo, log)
 	proseBlockHandler := NewProseBlockHandler(proseBlockRepo, chapterRepo, log)
 	proseBlockRefHandler := NewProseBlockReferenceHandler(proseBlockRefRepo, proseBlockRepo, log)

@@ -73,3 +73,4 @@ func (uc *DeleteArchetypeUseCase) Execute(ctx context.Context, input DeleteArche
 	return nil
 }
 
+

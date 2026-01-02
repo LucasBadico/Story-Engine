@@ -17,3 +17,4 @@ CREATE TABLE IF NOT EXISTS character_traits (
 CREATE INDEX idx_character_traits_character_id ON character_traits(character_id);
 CREATE INDEX idx_character_traits_trait_id ON character_traits(trait_id);
 
+

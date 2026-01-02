@@ -30,3 +30,4 @@ func LocationToProto(l *world.Location) *locationpb.Location {
 	return pb
 }
 
+

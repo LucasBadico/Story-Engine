@@ -65,3 +65,4 @@ func (uc *DeleteTraitUseCase) Execute(ctx context.Context, input DeleteTraitInpu
 	return nil
 }
 
+

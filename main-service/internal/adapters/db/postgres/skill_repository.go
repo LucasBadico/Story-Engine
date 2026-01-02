@@ -192,3 +192,4 @@ func (r *SkillRepository) scanSkills(rows pgx.Rows) ([]*rpg.Skill, error) {
 	return skills, rows.Err()
 }
 
+

@@ -127,3 +127,4 @@ func (r *EventCharacterRepository) scanEventCharacters(rows pgx.Rows) ([]*world.
 	return eventCharacters, rows.Err()
 }
 
+

@@ -107,3 +107,4 @@ func (uc *MoveLocationUseCase) Execute(ctx context.Context, input MoveLocationIn
 	}, nil
 }
 
+

@@ -49,3 +49,4 @@ func (uc *GetCharacterTraitsUseCase) Execute(ctx context.Context, input GetChara
 	}, nil
 }
 
+

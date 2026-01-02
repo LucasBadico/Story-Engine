@@ -67,3 +67,4 @@ func (uc *ListTraitsUseCase) Execute(ctx context.Context, input ListTraitsInput)
 	}, nil
 }
 
+

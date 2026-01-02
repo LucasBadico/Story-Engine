@@ -231,3 +231,4 @@ func (r *CharacterInventoryRepository) scanCharacterInventory(rows pgx.Rows) ([]
 	return items, rows.Err()
 }
 
+

@@ -154,3 +154,4 @@ func (r *CharacterTraitRepository) scanCharacterTraits(rows pgx.Rows) ([]*world.
 	return characterTraits, rows.Err()
 }
 
+

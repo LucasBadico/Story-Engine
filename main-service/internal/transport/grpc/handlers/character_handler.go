@@ -321,3 +321,4 @@ func (h *CharacterHandler) RemoveTraitFromCharacter(ctx context.Context, req *ch
 	return &characterpb.RemoveTraitFromCharacterResponse{}, nil
 }
 
+

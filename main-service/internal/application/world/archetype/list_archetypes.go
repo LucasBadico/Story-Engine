@@ -67,3 +67,4 @@ func (uc *ListArchetypesUseCase) Execute(ctx context.Context, input ListArchetyp
 	}, nil
 }
 
+

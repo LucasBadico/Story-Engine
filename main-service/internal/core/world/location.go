@@ -94,3 +94,4 @@ func (l *Location) SetHierarchyLevel(level int) {
 	l.UpdatedAt = time.Now()
 }
 
+

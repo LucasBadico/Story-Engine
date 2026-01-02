@@ -104,3 +104,4 @@ func (c *CharacterRPGStats) SetActive(isActive bool) {
 	c.IsActive = isActive
 }
 
+

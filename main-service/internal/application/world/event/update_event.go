@@ -103,3 +103,4 @@ func (uc *UpdateEventUseCase) Execute(ctx context.Context, input UpdateEventInpu
 	}, nil
 }
 
+

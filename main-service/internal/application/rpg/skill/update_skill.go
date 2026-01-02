@@ -99,3 +99,4 @@ func (uc *UpdateSkillUseCase) Execute(ctx context.Context, input UpdateSkillInpu
 	}, nil
 }
 
+

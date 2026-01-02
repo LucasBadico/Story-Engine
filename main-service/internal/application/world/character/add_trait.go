@@ -80,3 +80,4 @@ func (uc *AddTraitToCharacterUseCase) Execute(ctx context.Context, input AddTrai
 	return nil
 }
 
+

@@ -176,3 +176,4 @@ func (h *ArtifactRPGStatsHandler) ActivateVersion(w http.ResponseWriter, r *http
 	})
 }
 
+

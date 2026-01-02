@@ -26,3 +26,4 @@ func NewArchetypeTrait(archetypeID, traitID uuid.UUID, defaultValue string) *Arc
 	}
 }
 
+

@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS rpg_class_skills (
 CREATE INDEX idx_rpg_class_skills_class ON rpg_class_skills(class_id);
 CREATE INDEX idx_rpg_class_skills_skill ON rpg_class_skills(skill_id);
 
+

@@ -11,3 +11,4 @@ CREATE TABLE IF NOT EXISTS artifact_references (
 CREATE INDEX idx_artifact_references_artifact_id ON artifact_references(artifact_id);
 CREATE INDEX idx_artifact_references_entity ON artifact_references(entity_type, entity_id);
 
+

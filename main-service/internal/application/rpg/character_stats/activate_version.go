@@ -63,3 +63,4 @@ func (uc *ActivateCharacterStatsVersionUseCase) Execute(ctx context.Context, inp
 	}, nil
 }
 
+

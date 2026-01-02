@@ -107,3 +107,4 @@ func (r *EventRepository) scanEvents(rows pgx.Rows) ([]*world.Event, error) {
 	return events, rows.Err()
 }
 
+

@@ -10,3 +10,4 @@ CREATE TABLE IF NOT EXISTS archetype_traits (
 CREATE INDEX idx_archetype_traits_archetype_id ON archetype_traits(archetype_id);
 CREATE INDEX idx_archetype_traits_trait_id ON archetype_traits(trait_id);
 
+

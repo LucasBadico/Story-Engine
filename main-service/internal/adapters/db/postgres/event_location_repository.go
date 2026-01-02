@@ -127,3 +127,4 @@ func (r *EventLocationRepository) scanEventLocations(rows pgx.Rows) ([]*world.Ev
 	return eventLocations, rows.Err()
 }
 
+

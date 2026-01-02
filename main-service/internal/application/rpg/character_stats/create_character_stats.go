@@ -129,3 +129,4 @@ func (uc *CreateCharacterStatsUseCase) Execute(ctx context.Context, input Create
 	}, nil
 }
 
+

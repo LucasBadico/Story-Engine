@@ -131,3 +131,4 @@ func (r *InventorySlotRepository) scanInventorySlots(rows pgx.Rows) ([]*rpg.Inve
 	return slots, rows.Err()
 }
 
+

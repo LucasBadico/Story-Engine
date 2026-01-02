@@ -21,3 +21,4 @@ CREATE INDEX idx_prose_blocks_scene_id ON prose_blocks(scene_id);
 -- Drop chapter_id column
 ALTER TABLE prose_blocks DROP COLUMN chapter_id;
 
+

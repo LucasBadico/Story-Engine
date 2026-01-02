@@ -28,3 +28,4 @@ type CharacterTraitRepository interface {
 	DeleteByCharacter(ctx context.Context, characterID uuid.UUID) error
 }
 
+

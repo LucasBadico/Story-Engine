@@ -127,3 +127,4 @@ func (r *EventArtifactRepository) scanEventArtifacts(rows pgx.Rows) ([]*world.Ev
 	return eventArtifacts, rows.Err()
 }
 
+

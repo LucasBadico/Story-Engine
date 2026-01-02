@@ -49,3 +49,4 @@ func (uc *ListEventsUseCase) Execute(ctx context.Context, input ListEventsInput)
 	}, nil
 }
 
+

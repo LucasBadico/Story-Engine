@@ -123,3 +123,4 @@ func (uc *UpdateInventoryItemUseCase) Execute(ctx context.Context, input UpdateI
 	}, nil
 }
 
+

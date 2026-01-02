@@ -245,3 +245,4 @@ func (r *InventoryItemRepository) scanInventoryItems(rows pgx.Rows) ([]*rpg.Inve
 	return items, rows.Err()
 }
 
+

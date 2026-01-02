@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	"github.com/story-engine/main-service/internal/application/tenant"
+	"github.com/story-engine/main-service/internal/application/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -27,6 +28,7 @@ func TestCreateStoryUseCase_Execute(t *testing.T) {
 	// Create a tenant first
 	tenantRepo := postgres.NewTenantRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
+	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
 
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
@@ -39,7 +41,8 @@ func TestCreateStoryUseCase_Execute(t *testing.T) {
 	}
 
 	storyRepo := postgres.NewStoryRepository(db)
-	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, auditLogRepo, log)
+	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 
 	t.Run("successful creation", func(t *testing.T) {
 		input := CreateStoryInput{

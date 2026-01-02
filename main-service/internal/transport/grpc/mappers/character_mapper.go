@@ -48,3 +48,4 @@ func CharacterTraitToProto(ct *world.CharacterTrait) *characterpb.CharacterTrait
 	}
 }
 
+

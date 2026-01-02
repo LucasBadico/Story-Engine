@@ -42,3 +42,4 @@ func (uc *RemoveCharacterFromEventUseCase) Execute(ctx context.Context, input Re
 	return nil
 }
 
+

@@ -88,3 +88,4 @@ func (uc *LearnSkillUseCase) Execute(ctx context.Context, input LearnSkillInput)
 	}, nil
 }
 
+

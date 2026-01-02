@@ -9,3 +9,4 @@ CHECK (entity_type IN (
     'artifact', 'event', 'world'
 ));
 
+

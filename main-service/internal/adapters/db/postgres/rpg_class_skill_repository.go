@@ -140,3 +140,4 @@ func (r *RPGClassSkillRepository) scanRPGClassSkills(rows pgx.Rows) ([]*rpg.RPGC
 	return skills, rows.Err()
 }
 
+

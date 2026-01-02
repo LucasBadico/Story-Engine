@@ -28,3 +28,4 @@ type RPGClassSkillRepository interface {
 	DeleteByClass(ctx context.Context, classID uuid.UUID) error
 }
 
+

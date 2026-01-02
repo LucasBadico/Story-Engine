@@ -94,3 +94,4 @@ func EventArtifactToProto(ea *world.EventArtifact) *eventpb.EventArtifact {
 	return pb
 }
 
+

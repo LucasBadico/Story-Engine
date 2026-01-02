@@ -42,3 +42,4 @@ func (uc *RemoveLocationFromEventUseCase) Execute(ctx context.Context, input Rem
 	return nil
 }
 
+

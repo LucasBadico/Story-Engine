@@ -28,3 +28,4 @@ type ImageBlockReferenceRepository interface {
 	DeleteByImageBlockAndEntity(ctx context.Context, imageBlockID uuid.UUID, entityType story.ImageBlockReferenceEntityType, entityID uuid.UUID) error
 }
 
+

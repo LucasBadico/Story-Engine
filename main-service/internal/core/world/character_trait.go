@@ -58,3 +58,4 @@ func (ct *CharacterTrait) UpdateTraitSnapshot(trait *Trait) {
 	ct.UpdatedAt = time.Now()
 }
 
+

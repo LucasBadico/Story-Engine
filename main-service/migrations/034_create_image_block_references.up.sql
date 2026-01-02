@@ -12,3 +12,4 @@ CREATE INDEX idx_image_block_references_image_block_id ON image_block_references
 CREATE INDEX idx_image_block_references_entity ON image_block_references(entity_type, entity_id);
 CREATE INDEX idx_image_block_references_entity_id ON image_block_references(entity_id);
 
+

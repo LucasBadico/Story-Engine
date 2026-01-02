@@ -38,3 +38,4 @@ type CharacterInventoryRepository interface {
 	DeleteByCharacter(ctx context.Context, characterID uuid.UUID) error
 }
 
+

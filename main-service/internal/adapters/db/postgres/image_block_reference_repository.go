@@ -134,3 +134,4 @@ func (r *ImageBlockReferenceRepository) scanImageBlockReferences(rows pgx.Rows) 
 	return references, rows.Err()
 }
 
+

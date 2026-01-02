@@ -86,3 +86,4 @@ func (uc *ChangeCharacterClassUseCase) Execute(ctx context.Context, input Change
 	}, nil
 }
 
+

@@ -58,3 +58,4 @@ func (uc *ListCharacterInventoryUseCase) Execute(ctx context.Context, input List
 	}, nil
 }
 
+

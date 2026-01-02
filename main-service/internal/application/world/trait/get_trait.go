@@ -49,3 +49,4 @@ func (uc *GetTraitUseCase) Execute(ctx context.Context, input GetTraitInput) (*G
 	}, nil
 }
 
+

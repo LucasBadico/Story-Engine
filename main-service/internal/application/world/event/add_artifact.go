@@ -71,3 +71,4 @@ func (uc *AddArtifactToEventUseCase) Execute(ctx context.Context, input AddArtif
 	return nil
 }
 
+

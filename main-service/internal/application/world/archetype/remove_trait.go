@@ -43,3 +43,4 @@ func (uc *RemoveTraitFromArchetypeUseCase) Execute(ctx context.Context, input Re
 	return nil
 }
 
+

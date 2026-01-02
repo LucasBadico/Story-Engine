@@ -49,3 +49,4 @@ func (uc *GetActiveCharacterStatsUseCase) Execute(ctx context.Context, input Get
 	}, nil
 }
 
+

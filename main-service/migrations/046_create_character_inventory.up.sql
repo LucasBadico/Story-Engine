@@ -20,3 +20,4 @@ CREATE INDEX idx_character_inventory_item ON character_inventory(item_id);
 CREATE INDEX idx_character_inventory_slot ON character_inventory(slot_id);
 CREATE INDEX idx_character_inventory_equipped ON character_inventory(character_id, is_equipped);
 
+

@@ -49,3 +49,4 @@ func (uc *GetSkillUseCase) Execute(ctx context.Context, input GetSkillInput) (*G
 	}, nil
 }
 
+

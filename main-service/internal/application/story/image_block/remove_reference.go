@@ -45,3 +45,4 @@ func (uc *RemoveImageBlockReferenceUseCase) Execute(ctx context.Context, input R
 	return nil
 }
 
+

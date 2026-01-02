@@ -59,3 +59,4 @@ func (uc *EquipItemUseCase) Execute(ctx context.Context, input EquipItemInput) (
 	}, nil
 }
 
+

@@ -12,3 +12,4 @@ CREATE TABLE IF NOT EXISTS worlds (
 CREATE INDEX idx_worlds_tenant_id ON worlds(tenant_id);
 CREATE INDEX idx_worlds_implicit ON worlds(tenant_id, is_implicit);
 
+

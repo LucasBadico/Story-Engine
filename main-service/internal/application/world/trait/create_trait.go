@@ -100,3 +100,4 @@ func (uc *CreateTraitUseCase) Execute(ctx context.Context, input CreateTraitInpu
 	}, nil
 }
 
+

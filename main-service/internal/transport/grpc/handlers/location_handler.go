@@ -307,3 +307,4 @@ func (h *LocationHandler) MoveLocation(ctx context.Context, req *locationpb.Move
 	}, nil
 }
 
+

@@ -16,6 +16,10 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+// Helper functions for pointer conversions
+func ptrString(s string) *string { return &s }
+func ptrInt32(i int32) *int32    { return &i }
+
 func TestProseBlockHandler_CreateProseBlock(t *testing.T) {
 	conn, cleanup := setupTestServer(t)
 	defer cleanup()
@@ -39,8 +43,8 @@ func TestProseBlockHandler_CreateProseBlock(t *testing.T) {
 
 	t.Run("successful creation", func(t *testing.T) {
 		req := &prosepb.CreateProseBlockRequest{
-			ChapterId: chapterResp.Chapter.Id,
-			OrderNum:  1,
+			ChapterId: ptrString(chapterResp.Chapter.Id),
+			OrderNum:  ptrInt32(1),
 			Kind:      "final",
 			Content:   "This is the prose content for the chapter.",
 		}
@@ -61,8 +65,8 @@ func TestProseBlockHandler_CreateProseBlock(t *testing.T) {
 
 	t.Run("default kind", func(t *testing.T) {
 		req := &prosepb.CreateProseBlockRequest{
-			ChapterId: chapterResp.Chapter.Id,
-			OrderNum:  2,
+			ChapterId: ptrString(chapterResp.Chapter.Id),
+			OrderNum:  ptrInt32(2),
 			Kind:      "", // should default to "final"
 			Content:   "Some content",
 		}
@@ -77,8 +81,8 @@ func TestProseBlockHandler_CreateProseBlock(t *testing.T) {
 
 	t.Run("invalid chapter_id", func(t *testing.T) {
 		req := &prosepb.CreateProseBlockRequest{
-			ChapterId: uuid.New().String(),
-			OrderNum:  1,
+			ChapterId: ptrString(uuid.New().String()),
+			OrderNum:  ptrInt32(1),
 			Kind:      "final",
 			Content:   "Content",
 		}
@@ -94,8 +98,8 @@ func TestProseBlockHandler_CreateProseBlock(t *testing.T) {
 
 	t.Run("empty content", func(t *testing.T) {
 		req := &prosepb.CreateProseBlockRequest{
-			ChapterId: chapterResp.Chapter.Id,
-			OrderNum:  1,
+			ChapterId: ptrString(chapterResp.Chapter.Id),
+			OrderNum:  ptrInt32(1),
 			Kind:      "final",
 			Content:   "",
 		}
@@ -111,8 +115,8 @@ func TestProseBlockHandler_CreateProseBlock(t *testing.T) {
 
 	t.Run("invalid order_num", func(t *testing.T) {
 		req := &prosepb.CreateProseBlockRequest{
-			ChapterId: chapterResp.Chapter.Id,
-			OrderNum:  0,
+			ChapterId: ptrString(chapterResp.Chapter.Id),
+			OrderNum:  ptrInt32(0),
 			Kind:      "final",
 			Content:   "Content",
 		}
@@ -150,8 +154,8 @@ func TestProseBlockHandler_GetProseBlock(t *testing.T) {
 
 	t.Run("existing prose block", func(t *testing.T) {
 		createResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
-			ChapterId: chapterResp.Chapter.Id,
-			OrderNum:  1,
+			ChapterId: ptrString(chapterResp.Chapter.Id),
+			OrderNum:  ptrInt32(1),
 			Kind:      "final",
 			Content:   "Test content",
 		})
@@ -204,8 +208,8 @@ func TestProseBlockHandler_UpdateProseBlock(t *testing.T) {
 
 	t.Run("successful update", func(t *testing.T) {
 		createResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
-			ChapterId: chapterResp.Chapter.Id,
-			OrderNum:  1,
+			ChapterId: ptrString(chapterResp.Chapter.Id),
+			OrderNum:  ptrInt32(1),
 			Kind:      "draft",
 			Content:   "Original content",
 		})
@@ -255,8 +259,8 @@ func TestProseBlockHandler_DeleteProseBlock(t *testing.T) {
 
 	t.Run("successful delete", func(t *testing.T) {
 		createResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
-			ChapterId: chapterResp.Chapter.Id,
-			OrderNum:  1,
+			ChapterId: ptrString(chapterResp.Chapter.Id),
+			OrderNum:  ptrInt32(1),
 			Kind:      "final",
 			Content:   "Content to delete",
 		})
@@ -298,8 +302,8 @@ func TestProseBlockHandler_ListProseBlocksByChapter(t *testing.T) {
 		// Create multiple prose blocks
 		for i := 1; i <= 3; i++ {
 			_, err := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
-				ChapterId: chapterResp.Chapter.Id,
-				OrderNum:  int32(i),
+				ChapterId: ptrString(chapterResp.Chapter.Id),
+				OrderNum:  ptrInt32(int32(i)),
 				Kind:      "final",
 				Content:   "Prose block content",
 			})
@@ -342,8 +346,8 @@ func TestProseBlockReferenceHandler_CreateAndList(t *testing.T) {
 		Title:   "Chapter One",
 	})
 	proseResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
-		ChapterId: chapterResp.Chapter.Id,
-		OrderNum:  1,
+		ChapterId: ptrString(chapterResp.Chapter.Id),
+		OrderNum:  ptrInt32(1),
 		Kind:      "final",
 		Content:   "Test prose content",
 	})
@@ -401,4 +405,5 @@ func TestProseBlockReferenceHandler_CreateAndList(t *testing.T) {
 		}
 	})
 }
+
 

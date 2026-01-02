@@ -164,3 +164,4 @@ func (s *Skill) UpdateEffectsSchema(effectsSchema *json.RawMessage) error {
 	return nil
 }
 
+

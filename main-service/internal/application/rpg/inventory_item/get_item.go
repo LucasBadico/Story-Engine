@@ -49,3 +49,4 @@ func (uc *GetInventoryItemUseCase) Execute(ctx context.Context, input GetInvento
 	}, nil
 }
 
+

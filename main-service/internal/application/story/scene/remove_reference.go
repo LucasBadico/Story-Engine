@@ -45,3 +45,4 @@ func (uc *RemoveSceneReferenceUseCase) Execute(ctx context.Context, input Remove
 	return nil
 }
 
+

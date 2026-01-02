@@ -22,3 +22,4 @@ func ArchetypeToProto(a *world.Archetype) *archetypepb.Archetype {
 	}
 }
 
+

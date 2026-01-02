@@ -42,3 +42,4 @@ func (uc *DeleteRPGClassUseCase) Execute(ctx context.Context, input DeleteRPGCla
 	return nil
 }
 
+

@@ -21,3 +21,4 @@ CREATE INDEX idx_rpg_classes_rpg_system ON rpg_classes(rpg_system_id);
 CREATE INDEX idx_rpg_classes_parent ON rpg_classes(parent_class_id);
 CREATE INDEX idx_rpg_classes_tier ON rpg_classes(tier);
 
+

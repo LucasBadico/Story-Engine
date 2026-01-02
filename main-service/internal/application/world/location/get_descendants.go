@@ -49,3 +49,4 @@ func (uc *GetDescendantsUseCase) Execute(ctx context.Context, input GetDescendan
 	}, nil
 }
 
+

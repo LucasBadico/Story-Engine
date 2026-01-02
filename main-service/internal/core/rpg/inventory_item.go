@@ -225,3 +225,4 @@ func (i *InventoryItem) SetTemplate(isTemplate bool) {
 	i.UpdatedAt = time.Now()
 }
 
+

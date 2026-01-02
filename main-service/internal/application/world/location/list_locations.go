@@ -75,3 +75,4 @@ func (uc *ListLocationsUseCase) Execute(ctx context.Context, input ListLocations
 	}, nil
 }
 
+

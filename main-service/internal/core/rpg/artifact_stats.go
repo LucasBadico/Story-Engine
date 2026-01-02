@@ -88,3 +88,4 @@ func (a *ArtifactRPGStats) SetActive(isActive bool) {
 	a.IsActive = isActive
 }
 
+

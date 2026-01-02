@@ -42,3 +42,4 @@ func (uc *DeleteCharacterSkillUseCase) Execute(ctx context.Context, input Delete
 	return nil
 }
 
+

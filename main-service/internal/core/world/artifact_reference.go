@@ -56,3 +56,4 @@ func isValidArtifactReferenceEntityType(entityType ArtifactReferenceEntityType) 
 		entityType == ArtifactReferenceEntityTypeLocation
 }
 
+

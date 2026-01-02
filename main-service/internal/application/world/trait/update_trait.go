@@ -99,3 +99,4 @@ func (uc *UpdateTraitUseCase) Execute(ctx context.Context, input UpdateTraitInpu
 	}, nil
 }
 
+

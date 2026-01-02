@@ -17,3 +17,4 @@ type WorldRepository interface {
 	CountByTenant(ctx context.Context, tenantID uuid.UUID) (int, error)
 }
 
+

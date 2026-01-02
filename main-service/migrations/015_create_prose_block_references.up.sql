@@ -13,3 +13,4 @@ CREATE INDEX idx_prose_block_references_prose_block_id ON prose_block_references
 CREATE INDEX idx_prose_block_references_entity ON prose_block_references(entity_type, entity_id);
 CREATE INDEX idx_prose_block_references_entity_id ON prose_block_references(entity_id);
 
+

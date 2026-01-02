@@ -58,3 +58,4 @@ func (uc *ListCharacterSkillsUseCase) Execute(ctx context.Context, input ListCha
 	}, nil
 }
 
+

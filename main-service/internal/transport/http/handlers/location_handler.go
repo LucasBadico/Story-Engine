@@ -381,3 +381,4 @@ func (h *LocationHandler) Move(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+

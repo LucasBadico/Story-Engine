@@ -14,3 +14,4 @@ ALTER TABLE scenes ADD CONSTRAINT scenes_chapter_fk
 
 ALTER TABLE scenes ADD CONSTRAINT scenes_chapter_order_unique UNIQUE (chapter_id, order_num);
 
+

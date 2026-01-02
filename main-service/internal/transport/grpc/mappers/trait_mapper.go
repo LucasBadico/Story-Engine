@@ -23,3 +23,4 @@ func TraitToProto(t *world.Trait) *traitpb.Trait {
 	}
 }
 
+
