@@ -59,6 +59,7 @@ func TestImageBlockHandler_CreateImageBlock(t *testing.T) {
 
 		req := &imageblockpb.CreateImageBlockRequest{
 			ChapterId: stringPtr(chapterResp.Chapter.Id),
+			Kind:      "final",
 			ImageUrl:  "https://example.com/image.jpg",
 			AltText:   stringPtr("Test image"),
 		}
@@ -98,6 +99,7 @@ func TestImageBlockHandler_CreateImageBlock(t *testing.T) {
 
 		req := &imageblockpb.CreateImageBlockRequest{
 			ChapterId: stringPtr(chapterResp.Chapter.Id),
+			Kind:      "final",
 			ImageUrl:  "",
 		}
 		_, err = imageBlockClient.CreateImageBlock(ctx, req)
@@ -148,6 +150,7 @@ func TestImageBlockHandler_GetImageBlock(t *testing.T) {
 
 		createResp, err := imageBlockClient.CreateImageBlock(ctx, &imageblockpb.CreateImageBlockRequest{
 			ChapterId: stringPtr(chapterResp.Chapter.Id),
+			Kind:      "final",
 			ImageUrl:  "https://example.com/get-image.jpg",
 		})
 		if err != nil {
