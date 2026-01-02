@@ -411,23 +411,35 @@ func TestRPGClassHandler_RemoveSkillFromClass(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Remove Skill Test Tenant",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
-	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+	rpgSystemResp, err := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
 		Name:            "Remove Skill Test System",
 		BaseStatsSchema: string(baseStatsSchema),
 	})
-	classResp, _ := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
+	if err != nil {
+		t.Fatalf("failed to create rpg system: %v", err)
+	}
+	classResp, err := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
 		RpgSystemId: rpgSystemResp.RpgSystem.Id,
 		Name:        "Warrior",
 	})
-	skillResp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+	if err != nil {
+		t.Fatalf("failed to create rpg class: %v", err)
+	}
+	skillResp, err := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
 		RpgSystemId: rpgSystemResp.RpgSystem.Id,
 		Name:        "Sword Mastery",
 	})
+	if err != nil {
+		t.Fatalf("failed to create skill: %v", err)
+	}
 
 	t.Run("successful remove", func(t *testing.T) {
 		// Add skill first
@@ -485,34 +497,52 @@ func TestRPGClassHandler_ListRPGClassSkills(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "List Skills Test Tenant",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
-	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+	rpgSystemResp, err := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
 		Name:            "List Skills Test System",
 		BaseStatsSchema: string(baseStatsSchema),
 	})
-	classResp, _ := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
+	if err != nil {
+		t.Fatalf("failed to create rpg system: %v", err)
+	}
+	classResp, err := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
 		RpgSystemId: rpgSystemResp.RpgSystem.Id,
 		Name:        "Warrior",
 	})
+	if err != nil {
+		t.Fatalf("failed to create rpg class: %v", err)
+	}
 
 	t.Run("list multiple skills", func(t *testing.T) {
 		// Create and add multiple skills
-		skill1Resp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+		skill1Resp, err := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
 			RpgSystemId: rpgSystemResp.RpgSystem.Id,
 			Name:        "Sword Mastery",
 		})
-		skill2Resp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+		if err != nil {
+			t.Fatalf("failed to create skill1: %v", err)
+		}
+		skill2Resp, err := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
 			RpgSystemId: rpgSystemResp.RpgSystem.Id,
 			Name:        "Shield Defense",
 		})
-		skill3Resp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+		if err != nil {
+			t.Fatalf("failed to create skill2: %v", err)
+		}
+		skill3Resp, err := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
 			RpgSystemId: rpgSystemResp.RpgSystem.Id,
 			Name:        "Combat Tactics",
 		})
+		if err != nil {
+			t.Fatalf("failed to create skill3: %v", err)
+		}
 
 		_, _ = rpgClassClient.AddSkillToRPGClass(ctx, &rpgclasspb.AddSkillToRPGClassRequest{
 			RpgClassId: classResp.RpgClass.Id,
@@ -543,10 +573,13 @@ func TestRPGClassHandler_ListRPGClassSkills(t *testing.T) {
 	})
 
 	t.Run("empty list for new class", func(t *testing.T) {
-		newClassResp, _ := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
+		newClassResp, err := rpgClassClient.CreateRPGClass(ctx, &rpgclasspb.CreateRPGClassRequest{
 			RpgSystemId: rpgSystemResp.RpgSystem.Id,
 			Name:        "Mage",
 		})
+		if err != nil {
+			t.Fatalf("failed to create rpg class: %v", err)
+		}
 
 		listResp, err := rpgClassClient.ListRPGClassSkills(ctx, &rpgclasspb.ListRPGClassSkillsRequest{
 			RpgClassId: newClassResp.RpgClass.Id,

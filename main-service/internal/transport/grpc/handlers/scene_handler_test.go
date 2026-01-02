@@ -42,16 +42,25 @@ func TestSceneHandler_CreateScene(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Scene",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("successful creation with chapter", func(t *testing.T) {
 		chapterID := chapterResp.Chapter.Id
@@ -129,18 +138,27 @@ func TestSceneHandler_GetScene(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Get Scene",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
 
 	t.Run("existing scene", func(t *testing.T) {
-		createResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		createResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 			StoryId:  storyResp.Story.Id,
 			OrderNum: 1,
 			Goal:     "Get Test Scene",
 		})
+		if err != nil {
+			t.Fatalf("failed to create scene: %v", err)
+		}
 
 		getResp, err := sceneClient.GetScene(ctx, &scenepb.GetSceneRequest{
 			Id: createResp.Scene.Id,
@@ -176,18 +194,27 @@ func TestSceneHandler_UpdateScene(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Update Scene",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
 
 	t.Run("successful update", func(t *testing.T) {
-		createResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		createResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 			StoryId:  storyResp.Story.Id,
 			OrderNum: 1,
 			Goal:     "Original Goal",
 		})
+		if err != nil {
+			t.Fatalf("failed to create scene: %v", err)
+		}
 
 		newGoal := "Updated Goal"
 		newTimeRef := "Evening"
@@ -218,29 +245,44 @@ func TestSceneHandler_MoveScene(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Move Scene",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapter1Resp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapter1Resp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
-	chapter2Resp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	if err != nil {
+		t.Fatalf("failed to create chapter1: %v", err)
+	}
+	chapter2Resp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  2,
 		Title:   "Chapter Two",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter2: %v", err)
+	}
 
 	t.Run("move to different chapter", func(t *testing.T) {
 		chapter1ID := chapter1Resp.Chapter.Id
-		createResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		createResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 			StoryId:   storyResp.Story.Id,
 			ChapterId: &chapter1ID,
 			OrderNum:  1,
 		})
+		if err != nil {
+			t.Fatalf("failed to create scene: %v", err)
+		}
 
 		chapter2ID := chapter2Resp.Chapter.Id
 		moveResp, err := sceneClient.MoveScene(ctx, &scenepb.MoveSceneRequest{
@@ -257,11 +299,14 @@ func TestSceneHandler_MoveScene(t *testing.T) {
 
 	t.Run("move to no chapter", func(t *testing.T) {
 		chapter1ID := chapter1Resp.Chapter.Id
-		createResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		createResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 			StoryId:   storyResp.Story.Id,
 			ChapterId: &chapter1ID,
 			OrderNum:  2,
 		})
+		if err != nil {
+			t.Fatalf("failed to create scene: %v", err)
+		}
 
 		moveResp, err := sceneClient.MoveScene(ctx, &scenepb.MoveSceneRequest{
 			Id: createResp.Scene.Id,
@@ -285,11 +330,17 @@ func TestSceneHandler_ListScenesByStory(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for List Scenes",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
 
 	t.Run("list scenes by story", func(t *testing.T) {
 		// Create multiple scenes
@@ -325,17 +376,26 @@ func TestSceneHandler_DeleteScene(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Delete Scene",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
 
 	t.Run("successful delete", func(t *testing.T) {
-		createResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		createResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 			StoryId:  storyResp.Story.Id,
 			OrderNum: 1,
 		})
+		if err != nil {
+			t.Fatalf("failed to create scene: %v", err)
+		}
 
 		deleteResp, err := sceneClient.DeleteScene(ctx, &scenepb.DeleteSceneRequest{
 			Id: createResp.Scene.Id,
@@ -362,22 +422,37 @@ func TestSceneHandler_AddSceneReference(t *testing.T) {
 	worldClient := worldpb.NewWorldServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Scene References",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	worldResp, err := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	if err != nil {
+		t.Fatalf("failed to create world: %v", err)
+	}
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
 
 	t.Run("add character reference", func(t *testing.T) {
-		characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+		characterResp, err := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
 			WorldId: worldResp.World.Id,
 			Name:    "Test Character",
 		})
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
 
 		addResp, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
 			SceneId:    sceneResp.Scene.Id,
@@ -396,10 +471,13 @@ func TestSceneHandler_AddSceneReference(t *testing.T) {
 	})
 
 	t.Run("add location reference", func(t *testing.T) {
-		locationResp, _ := locationClient.CreateLocation(ctx, &locationpb.CreateLocationRequest{
+		locationResp, err := locationClient.CreateLocation(ctx, &locationpb.CreateLocationRequest{
 			WorldId: worldResp.World.Id,
 			Name:    "Test Location",
 		})
+		if err != nil {
+			t.Fatalf("failed to create location: %v", err)
+		}
 
 		addResp, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
 			SceneId:    sceneResp.Scene.Id,
@@ -415,10 +493,13 @@ func TestSceneHandler_AddSceneReference(t *testing.T) {
 	})
 
 	t.Run("add artifact reference", func(t *testing.T) {
-		artifactResp, _ := artifactClient.CreateArtifact(ctx, &artifactpb.CreateArtifactRequest{
+		artifactResp, err := artifactClient.CreateArtifact(ctx, &artifactpb.CreateArtifactRequest{
 			WorldId: worldResp.World.Id,
 			Name:    "Test Artifact",
 		})
+		if err != nil {
+			t.Fatalf("failed to create artifact: %v", err)
+		}
 
 		addResp, err := sceneClient.AddSceneReference(ctx, &scenepb.AddSceneReferenceRequest{
 			SceneId:    sceneResp.Scene.Id,
@@ -475,20 +556,35 @@ func TestSceneHandler_RemoveSceneReference(t *testing.T) {
 	worldClient := worldpb.NewWorldServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Remove Reference",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	worldResp, err := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	if err != nil {
+		t.Fatalf("failed to create world: %v", err)
+	}
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
-	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
+	characterResp, err := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
 		WorldId: worldResp.World.Id,
 		Name:    "Test Character",
 	})
+	if err != nil {
+		t.Fatalf("failed to create character: %v", err)
+	}
 
 	t.Run("successful remove", func(t *testing.T) {
 		// Add reference first
@@ -552,27 +648,45 @@ func TestSceneHandler_GetSceneReferences(t *testing.T) {
 	worldClient := worldpb.NewWorldServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Get References",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	worldResp, err := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	if err != nil {
+		t.Fatalf("failed to create world: %v", err)
+	}
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
 
 	t.Run("get multiple references", func(t *testing.T) {
-		characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+		characterResp, err := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
 			WorldId: worldResp.World.Id,
 			Name:    "Test Character",
 		})
-		locationResp, _ := locationClient.CreateLocation(ctx, &locationpb.CreateLocationRequest{
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+		locationResp, err := locationClient.CreateLocation(ctx, &locationpb.CreateLocationRequest{
 			WorldId: worldResp.World.Id,
 			Name:    "Test Location",
 		})
-		artifactResp, _ := artifactClient.CreateArtifact(ctx, &artifactpb.CreateArtifactRequest{
+		if err != nil {
+			t.Fatalf("failed to create location: %v", err)
+		}
+		artifactResp, err := artifactClient.CreateArtifact(ctx, &artifactpb.CreateArtifactRequest{
 			WorldId: worldResp.World.Id,
 			Name:    "Test Artifact",
 		})
@@ -610,10 +724,13 @@ func TestSceneHandler_GetSceneReferences(t *testing.T) {
 	})
 
 	t.Run("get empty references", func(t *testing.T) {
-		newSceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+		newSceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 			StoryId:  storyResp.Story.Id,
 			OrderNum: 2,
 		})
+		if err != nil {
+			t.Fatalf("failed to create scene: %v", err)
+		}
 
 		getResp, err := sceneClient.GetSceneReferences(ctx, &scenepb.GetSceneReferencesRequest{
 			SceneId: newSceneResp.Scene.Id,

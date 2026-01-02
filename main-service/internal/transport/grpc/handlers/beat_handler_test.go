@@ -26,15 +26,24 @@ func TestBeatHandler_CreateBeat(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Beat",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
 
 	t.Run("successful creation", func(t *testing.T) {
 		req := &beatpb.CreateBeatRequest{
@@ -131,22 +140,34 @@ func TestBeatHandler_GetBeat(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Get Beat",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
 
 	t.Run("existing beat", func(t *testing.T) {
-		createResp, _ := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
+		createResp, err := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
 			SceneId:  sceneResp.Scene.Id,
 			OrderNum: 1,
 			Type:     "setup",
 		})
+		if err != nil {
+			t.Fatalf("failed to create beat: %v", err)
+		}
 
 		getResp, err := beatClient.GetBeat(ctx, &beatpb.GetBeatRequest{
 			Id: createResp.Beat.Id,
@@ -183,23 +204,35 @@ func TestBeatHandler_UpdateBeat(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Update Beat",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
 
 	t.Run("successful update", func(t *testing.T) {
-		createResp, _ := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
+		createResp, err := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
 			SceneId:  sceneResp.Scene.Id,
 			OrderNum: 1,
 			Type:     "setup",
 			Intent:   "Original intent",
 		})
+		if err != nil {
+			t.Fatalf("failed to create beat: %v", err)
+		}
 
 		newIntent := "Updated intent"
 		newOutcome := "New outcome"
@@ -230,26 +263,41 @@ func TestBeatHandler_MoveBeat(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Move Beat",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	scene1Resp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	scene1Resp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
-	scene2Resp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	if err != nil {
+		t.Fatalf("failed to create scene1: %v", err)
+	}
+	scene2Resp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 2,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene2: %v", err)
+	}
 
 	t.Run("move to different scene", func(t *testing.T) {
-		createResp, _ := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
+		createResp, err := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
 			SceneId:  scene1Resp.Scene.Id,
 			OrderNum: 1,
 			Type:     "setup",
 		})
+		if err != nil {
+			t.Fatalf("failed to create beat: %v", err)
+		}
 
 		moveResp, err := beatClient.MoveBeat(ctx, &beatpb.MoveBeatRequest{
 			Id:      createResp.Beat.Id,
@@ -274,15 +322,24 @@ func TestBeatHandler_ListBeatsByScene(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for List Beats",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
 
 	t.Run("list beats by scene", func(t *testing.T) {
 		beatTypes := []string{"setup", "turn", "reveal"}
@@ -319,22 +376,34 @@ func TestBeatHandler_DeleteBeat(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Delete Beat",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	sceneResp, _ := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	sceneResp, err := sceneClient.CreateScene(ctx, &scenepb.CreateSceneRequest{
 		StoryId:  storyResp.Story.Id,
 		OrderNum: 1,
 	})
+	if err != nil {
+		t.Fatalf("failed to create scene: %v", err)
+	}
 
 	t.Run("successful delete", func(t *testing.T) {
-		createResp, _ := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
+		createResp, err := beatClient.CreateBeat(ctx, &beatpb.CreateBeatRequest{
 			SceneId:  sceneResp.Scene.Id,
 			OrderNum: 1,
 			Type:     "setup",
 		})
+		if err != nil {
+			t.Fatalf("failed to create beat: %v", err)
+		}
 
 		deleteResp, err := beatClient.DeleteBeat(ctx, &beatpb.DeleteBeatRequest{
 			Id: createResp.Beat.Id,

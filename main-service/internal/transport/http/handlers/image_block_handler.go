@@ -9,7 +9,6 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ImageBlockHandler handles HTTP requests for image blocks
@@ -52,7 +51,6 @@ func NewImageBlockHandler(
 
 // Create handles POST /api/v1/chapters/{id}/image-blocks
 func (h *ImageBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	chapterIDStr := r.PathValue("id")
 
 	var chapterID *uuid.UUID
@@ -111,7 +109,6 @@ func (h *ImageBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/image-blocks/{id}
 func (h *ImageBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -138,7 +135,6 @@ func (h *ImageBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/chapters/{id}/image-blocks
 func (h *ImageBlockHandler) List(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	chapterIDStr := r.PathValue("id")
 	chapterID, err := uuid.Parse(chapterIDStr)
 	if err != nil {
@@ -166,7 +162,6 @@ func (h *ImageBlockHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/image-blocks/{id}
 func (h *ImageBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -226,7 +221,6 @@ func (h *ImageBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/image-blocks/{id}
 func (h *ImageBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -249,7 +243,6 @@ func (h *ImageBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // GetReferences handles GET /api/v1/image-blocks/{id}/references
 func (h *ImageBlockHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -277,7 +270,6 @@ func (h *ImageBlockHandler) GetReferences(w http.ResponseWriter, r *http.Request
 
 // AddReference handles POST /api/v1/image-blocks/{id}/references
 func (h *ImageBlockHandler) AddReference(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -333,7 +325,6 @@ func (h *ImageBlockHandler) AddReference(w http.ResponseWriter, r *http.Request)
 
 // RemoveReference handles DELETE /api/v1/image-blocks/{id}/references/{entity_type}/{entity_id}
 func (h *ImageBlockHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	entityTypeStr := r.PathValue("entity_type")
 	entityIDStr := r.PathValue("entity_id")

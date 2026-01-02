@@ -30,16 +30,25 @@ func TestProseBlockHandler_CreateProseBlock(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for ProseBlock",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("successful creation", func(t *testing.T) {
 		req := &prosepb.CreateProseBlockRequest{
@@ -141,24 +150,36 @@ func TestProseBlockHandler_GetProseBlock(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Get ProseBlock",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("existing prose block", func(t *testing.T) {
-		createResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
+		createResp, err := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
 			ChapterId: ptrString(chapterResp.Chapter.Id),
 			OrderNum:  ptrInt32(1),
 			Kind:      "final",
 			Content:   "Test content",
 		})
+		if err != nil {
+			t.Fatalf("failed to create prose block: %v", err)
+		}
 
 		getResp, err := proseClient.GetProseBlock(ctx, &prosepb.GetProseBlockRequest{
 			Id: createResp.ProseBlock.Id,
@@ -195,24 +216,36 @@ func TestProseBlockHandler_UpdateProseBlock(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Update ProseBlock",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("successful update", func(t *testing.T) {
-		createResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
+		createResp, err := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
 			ChapterId: ptrString(chapterResp.Chapter.Id),
 			OrderNum:  ptrInt32(1),
 			Kind:      "draft",
 			Content:   "Original content",
 		})
+		if err != nil {
+			t.Fatalf("failed to create prose block: %v", err)
+		}
 
 		newContent := "Updated content with more words"
 		newKind := "final"
@@ -246,24 +279,36 @@ func TestProseBlockHandler_DeleteProseBlock(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Delete ProseBlock",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("successful delete", func(t *testing.T) {
-		createResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
+		createResp, err := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
 			ChapterId: ptrString(chapterResp.Chapter.Id),
 			OrderNum:  ptrInt32(1),
 			Kind:      "final",
 			Content:   "Content to delete",
 		})
+		if err != nil {
+			t.Fatalf("failed to create prose block: %v", err)
+		}
 
 		deleteResp, err := proseClient.DeleteProseBlock(ctx, &prosepb.DeleteProseBlockRequest{
 			Id: createResp.ProseBlock.Id,
@@ -287,16 +332,25 @@ func TestProseBlockHandler_ListProseBlocksByChapter(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for List ProseBlocks",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("list prose blocks by chapter", func(t *testing.T) {
 		// Create multiple prose blocks
@@ -335,22 +389,34 @@ func TestProseBlockReferenceHandler_CreateAndList(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for ProseBlockReference",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Chapter One",
 	})
-	proseResp, _ := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
+	proseResp, err := proseClient.CreateProseBlock(ctx, &prosepb.CreateProseBlockRequest{
 		ChapterId: ptrString(chapterResp.Chapter.Id),
 		OrderNum:  ptrInt32(1),
 		Kind:      "final",
 		Content:   "Test prose content",
 	})
+	if err != nil {
+		t.Fatalf("failed to create prose block: %v", err)
+	}
 
 	t.Run("create and list references", func(t *testing.T) {
 		// Create a reference (using a fake scene ID for testing)

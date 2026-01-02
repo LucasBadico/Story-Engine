@@ -2,10 +2,8 @@ package postgres
 
 import (
 	"bytes"
-	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"os/exec"
 	"regexp"
 	"strings"
@@ -13,8 +11,8 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/main-service/internal/platform/config"
 	_ "github.com/lib/pq"
+	"github.com/story-engine/main-service/internal/platform/config"
 )
 
 const (
@@ -168,80 +166,31 @@ func (m *DatabaseManager) CloneDatabase(templateName, targetName string) error {
 		}
 	}
 
-	// Clone from template using pg_dump for schema only
-	if err := m.cloneSchemaWithPgDump(templateName, targetName); err != nil {
+	// Clone from template using CREATE DATABASE ... WITH TEMPLATE
+	// This is more reliable than pg_dump and doesn't depend on tool versions
+	if err := m.cloneDatabaseWithTemplate(templateName, targetName); err != nil {
 		return fmt.Errorf("failed to clone schema: %w", err)
 	}
 
 	return nil
 }
 
-// cloneSchemaWithPgDump runs: CREATE DATABASE + pg_dump --schema-only | psql
-func (m *DatabaseManager) cloneSchemaWithPgDump(templateDB, targetDB string) error {
-	// First create empty database
-	_, err := m.db.Exec(fmt.Sprintf("CREATE DATABASE %s", safeIdent(targetDB)))
+// cloneDatabaseWithTemplate uses PostgreSQL's native template cloning
+// This avoids version mismatch issues with pg_dump
+func (m *DatabaseManager) cloneDatabaseWithTemplate(templateDB, targetDB string) error {
+	// Terminate any connections to the template database to allow cloning
+	// (PostgreSQL requires template database to have no active connections)
+	_, _ = m.db.Exec(fmt.Sprintf(
+		"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = %s AND pid <> pg_backend_pid()",
+		safeLiteral(templateDB)))
+
+	// Clone database using PostgreSQL's native template feature
+	// This copies both schema and data, but for tests we only need schema
+	// We'll truncate data after cloning if needed
+	query := fmt.Sprintf("CREATE DATABASE %s WITH TEMPLATE %s", safeIdent(targetDB), safeIdent(templateDB))
+	_, err := m.db.Exec(query)
 	if err != nil {
-		return fmt.Errorf("failed to create empty database: %w", err)
-	}
-
-	// Build environment with PGPASSWORD
-	env := os.Environ()
-	if m.password != "" {
-		env = append(env, "PGPASSWORD="+m.password)
-	}
-
-	pgDumpArgs := []string{
-		"-h", m.host,
-		"-p", fmt.Sprintf("%d", m.port),
-		"-U", m.user,
-		"--schema-only",
-		"--no-owner",
-		"--no-privileges",
-		templateDB,
-	}
-	psqlArgs := []string{
-		"-h", m.host,
-		"-p", fmt.Sprintf("%d", m.port),
-		"-U", m.user,
-		targetDB,
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
-	defer cancel()
-
-	pgDump := exec.CommandContext(ctx, "pg_dump", pgDumpArgs...)
-	pgDump.Env = env
-
-	psql := exec.CommandContext(ctx, "psql", psqlArgs...)
-	psql.Env = env
-
-	// Pipe pg_dump stdout -> psql stdin
-	stdoutPipe, err := pgDump.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("pg_dump StdoutPipe: %w", err)
-	}
-	defer stdoutPipe.Close()
-
-	psql.Stdin = stdoutPipe
-
-	var dumpErr, psqlErr bytes.Buffer
-	pgDump.Stderr = &dumpErr
-	psql.Stderr = &psqlErr
-
-	if err := pgDump.Start(); err != nil {
-		return fmt.Errorf("pg_dump start: %w (%s)", err, dumpErr.String())
-	}
-	if err := psql.Start(); err != nil {
-		_ = pgDump.Process.Kill()
-		return fmt.Errorf("psql start: %w (%s)", err, psqlErr.String())
-	}
-
-	if err := pgDump.Wait(); err != nil {
-		_ = psql.Process.Kill()
-		return fmt.Errorf("pg_dump wait: %w (%s)", err, dumpErr.String())
-	}
-	if err := psql.Wait(); err != nil {
-		return fmt.Errorf("psql wait: %w (%s)", err, psqlErr.String())
+		return fmt.Errorf("failed to clone database: %w", err)
 	}
 
 	return nil
@@ -293,4 +242,3 @@ func safeIdent(ident string) string {
 func safeLiteral(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
-

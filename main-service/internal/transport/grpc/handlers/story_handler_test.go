@@ -139,9 +139,12 @@ func TestStoryHandler_GetStory(t *testing.T) {
 
 	t.Run("existing story", func(t *testing.T) {
 		// Create tenant and story
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Get",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		createResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
 			Title: "Get Test Story",
@@ -149,7 +152,7 @@ func TestStoryHandler_GetStory(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to create story: %v", err)
 		}
-		
+
 		// Debug: check the created story ID
 		if createResp.Story == nil {
 			t.Fatal("createResp.Story is nil")
@@ -178,15 +181,18 @@ func TestStoryHandler_GetStory(t *testing.T) {
 
 	t.Run("non-existing story", func(t *testing.T) {
 		// Create tenant first to get valid tenant_id
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Non-existing",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-		
+
 		req := &storypb.GetStoryRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := storyClient.GetStory(ctx, req)
+		_, err = storyClient.GetStory(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing story")
 		}
@@ -199,15 +205,18 @@ func TestStoryHandler_GetStory(t *testing.T) {
 
 	t.Run("invalid story ID", func(t *testing.T) {
 		// Create tenant first to get valid tenant_id
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Invalid ID",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-		
+
 		req := &storypb.GetStoryRequest{
 			Id: "not-a-uuid",
 		}
-		_, err := storyClient.GetStory(ctx, req)
+		_, err = storyClient.GetStory(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for invalid ID")
 		}
@@ -228,9 +237,12 @@ func TestStoryHandler_ListStories(t *testing.T) {
 
 	t.Run("with pagination", func(t *testing.T) {
 		// Create tenant
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for List",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 
 		// Create multiple stories
@@ -292,7 +304,7 @@ func TestStoryHandler_CloneStory(t *testing.T) {
 		if tenantResp.Tenant == nil {
 			t.Fatal("tenant response is nil")
 		}
-		
+
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		createResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
 			Title: "Clone Test Story",
@@ -330,15 +342,18 @@ func TestStoryHandler_CloneStory(t *testing.T) {
 
 	t.Run("non-existing source story", func(t *testing.T) {
 		// Create tenant first to get valid tenant_id
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Non-existing Clone",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-		
+
 		req := &storypb.CloneStoryRequest{
 			SourceStoryId: uuid.New().String(),
 		}
-		_, err := storyClient.CloneStory(ctx, req)
+		_, err = storyClient.CloneStory(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing source story")
 		}
@@ -368,7 +383,7 @@ func TestStoryHandler_ListStoryVersions(t *testing.T) {
 		if tenantResp.Tenant == nil {
 			t.Fatal("tenant response is nil")
 		}
-		
+
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		createResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
 			Title: "Version Test Story",
@@ -422,11 +437,14 @@ func TestStoryHandler_ListStoryVersions(t *testing.T) {
 
 	t.Run("non-existing root story", func(t *testing.T) {
 		// Create tenant first to get valid tenant_id
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Non-existing Root",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-		
+
 		req := &storypb.ListStoryVersionsRequest{
 			RootStoryId: uuid.New().String(),
 		}
@@ -482,13 +500,19 @@ func TestStoryHandler_UpdateStory(t *testing.T) {
 
 	t.Run("successful update status", func(t *testing.T) {
 		// Create tenant and story
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Update Story Status",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-		createResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
+		createResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{
 			Title: "Test Story",
 		})
+		if err != nil {
+			t.Fatalf("failed to create story: %v", err)
+		}
 
 		// Update status
 		newStatus := "published"
@@ -505,13 +529,16 @@ func TestStoryHandler_UpdateStory(t *testing.T) {
 	})
 
 	t.Run("non-existing story", func(t *testing.T) {
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Non-existing Update",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 
 		newTitle := "Updated Title"
-		_, err := storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
+		_, err = storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
 			Id:    uuid.New().String(),
 			Title: &newTitle,
 		})
@@ -525,13 +552,16 @@ func TestStoryHandler_UpdateStory(t *testing.T) {
 	})
 
 	t.Run("invalid story ID", func(t *testing.T) {
-		tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 			Name: "Test Tenant for Invalid Update ID",
 		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
 		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 
 		newTitle := "Updated Title"
-		_, err := storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
+		_, err = storyClient.UpdateStory(ctx, &storypb.UpdateStoryRequest{
 			Id:    "not-a-uuid",
 			Title: &newTitle,
 		})

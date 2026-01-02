@@ -9,20 +9,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
-	"github.com/story-engine/main-service/internal/application/tenant"
-	"github.com/story-engine/main-service/internal/application/world"
-	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	inventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
 	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
+	"github.com/story-engine/main-service/internal/application/tenant"
+	"github.com/story-engine/main-service/internal/application/world"
+	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	"github.com/story-engine/main-service/internal/core/rpg"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	characterpb "github.com/story-engine/main-service/proto/character"
 	inventorypb "github.com/story-engine/main-service/proto/inventory"
 	rpgsystempb "github.com/story-engine/main-service/proto/rpg_system"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	worldpb "github.com/story-engine/main-service/proto/world"
-	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -195,33 +195,59 @@ func TestInventoryHandler_UpdateItemInInventory(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Update Item Test Tenant",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
-	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+	worldResp, err := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	if err != nil {
+		t.Fatalf("failed to create world: %v", err)
+	}
+	characterResp, err := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
 		WorldId: worldResp.World.Id,
 		Name:    "Test Character",
 	})
+	if err != nil {
+		t.Fatalf("failed to create character: %v", err)
+	}
 	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
-	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+	rpgSystemResp, err := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
 		Name:            "Test System",
 		BaseStatsSchema: string(baseStatsSchema),
 	})
-	tenantID, _ := uuid.Parse(tenantResp.Tenant.Id)
-	rpgSystemID, _ := uuid.Parse(rpgSystemResp.RpgSystem.Id)
-	item, _ := rpg.NewInventoryItem(tenantID, rpgSystemID, "Test Item")
+	if err != nil {
+		t.Fatalf("failed to create rpg system: %v", err)
+	}
+	tenantID, err := uuid.Parse(tenantResp.Tenant.Id)
+	if err != nil {
+		t.Fatalf("failed to parse tenant ID: %v", err)
+	}
+	rpgSystemID, err := uuid.Parse(rpgSystemResp.RpgSystem.Id)
+	if err != nil {
+		t.Fatalf("failed to parse rpg system ID: %v", err)
+	}
+	item, err := rpg.NewInventoryItem(tenantID, rpgSystemID, "Test Item")
+	if err != nil {
+		t.Fatalf("failed to create inventory item: %v", err)
+	}
 	itemRepo := postgres.NewInventoryItemRepository(db)
-	itemRepo.Create(ctx, item)
+	if err := itemRepo.Create(ctx, item); err != nil {
+		t.Fatalf("failed to save inventory item: %v", err)
+	}
 
 	t.Run("successful update", func(t *testing.T) {
 		// Add item first
-		addResp, _ := inventoryClient.AddItemToInventory(ctx, &inventorypb.AddItemToInventoryRequest{
+		addResp, err := inventoryClient.AddItemToInventory(ctx, &inventorypb.AddItemToInventoryRequest{
 			CharacterId: characterResp.Character.Id,
 			ItemId:      item.ID.String(),
 			Quantity:    int32Ptr(1),
 		})
+		if err != nil {
+			t.Fatalf("failed to add item to inventory: %v", err)
+		}
 
 		newQuantity := int32Ptr(5)
 		updateResp, err := inventoryClient.UpdateInventoryItem(ctx, &inventorypb.UpdateInventoryItemRequest{
@@ -265,36 +291,62 @@ func TestInventoryHandler_DeleteItemFromInventory(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Delete Item Test Tenant",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
-	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+	worldResp, err := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	if err != nil {
+		t.Fatalf("failed to create world: %v", err)
+	}
+	characterResp, err := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
 		WorldId: worldResp.World.Id,
 		Name:    "Test Character",
 	})
+	if err != nil {
+		t.Fatalf("failed to create character: %v", err)
+	}
 	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
-	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+	rpgSystemResp, err := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
 		Name:            "Test System",
 		BaseStatsSchema: string(baseStatsSchema),
 	})
-	tenantID, _ := uuid.Parse(tenantResp.Tenant.Id)
-	rpgSystemID, _ := uuid.Parse(rpgSystemResp.RpgSystem.Id)
-	item, _ := rpg.NewInventoryItem(tenantID, rpgSystemID, "Test Item")
+	if err != nil {
+		t.Fatalf("failed to create rpg system: %v", err)
+	}
+	tenantID, err := uuid.Parse(tenantResp.Tenant.Id)
+	if err != nil {
+		t.Fatalf("failed to parse tenant ID: %v", err)
+	}
+	rpgSystemID, err := uuid.Parse(rpgSystemResp.RpgSystem.Id)
+	if err != nil {
+		t.Fatalf("failed to parse rpg system ID: %v", err)
+	}
+	item, err := rpg.NewInventoryItem(tenantID, rpgSystemID, "Test Item")
+	if err != nil {
+		t.Fatalf("failed to create inventory item: %v", err)
+	}
 	itemRepo := postgres.NewInventoryItemRepository(db)
-	itemRepo.Create(ctx, item)
+	if err := itemRepo.Create(ctx, item); err != nil {
+		t.Fatalf("failed to save inventory item: %v", err)
+	}
 
 	t.Run("successful delete", func(t *testing.T) {
 		// Add item first
-		addResp, _ := inventoryClient.AddItemToInventory(ctx, &inventorypb.AddItemToInventoryRequest{
+		addResp, err := inventoryClient.AddItemToInventory(ctx, &inventorypb.AddItemToInventoryRequest{
 			CharacterId: characterResp.Character.Id,
 			ItemId:      item.ID.String(),
 			Quantity:    int32Ptr(1),
 		})
+		if err != nil {
+			t.Fatalf("failed to add item to inventory: %v", err)
+		}
 
 		// Delete item
-		_, err := inventoryClient.RemoveItemFromInventory(ctx, &inventorypb.RemoveItemFromInventoryRequest{
+		_, err = inventoryClient.RemoveItemFromInventory(ctx, &inventorypb.RemoveItemFromInventoryRequest{
 			Id: addResp.CharacterInventory.Id,
 		})
 		if err != nil {
@@ -400,4 +452,3 @@ func setupTestServerWithInventory(t *testing.T) (*grpc.ClientConn, *postgres.DB,
 
 	return conn, db, cleanup
 }
-

@@ -9,20 +9,20 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
+	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
+	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
-	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
-	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	characterpb "github.com/story-engine/main-service/proto/character"
 	characterskillpb "github.com/story-engine/main-service/proto/character_skill"
 	rpgsystempb "github.com/story-engine/main-service/proto/rpg_system"
 	skillpb "github.com/story-engine/main-service/proto/skill"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	worldpb "github.com/story-engine/main-service/proto/world"
-	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -182,31 +182,49 @@ func TestCharacterSkillHandler_UpdateCharacterSkill(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Update Skill Test Tenant",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
-	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+	worldResp, err := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	if err != nil {
+		t.Fatalf("failed to create world: %v", err)
+	}
+	characterResp, err := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
 		WorldId: worldResp.World.Id,
 		Name:    "Test Character",
 	})
+	if err != nil {
+		t.Fatalf("failed to create character: %v", err)
+	}
 	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
-	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+	rpgSystemResp, err := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
 		Name:            "Test System",
 		BaseStatsSchema: string(baseStatsSchema),
 	})
-	skillResp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+	if err != nil {
+		t.Fatalf("failed to create rpg system: %v", err)
+	}
+	skillResp, err := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
 		RpgSystemId: rpgSystemResp.RpgSystem.Id,
 		Name:        "Fireball",
 	})
+	if err != nil {
+		t.Fatalf("failed to create skill: %v", err)
+	}
 
 	t.Run("successful update", func(t *testing.T) {
 		// Add skill first
-		addResp, _ := characterSkillClient.AddCharacterSkill(ctx, &characterskillpb.AddCharacterSkillRequest{
+		addResp, err := characterSkillClient.AddCharacterSkill(ctx, &characterskillpb.AddCharacterSkillRequest{
 			CharacterId: characterResp.Character.Id,
 			SkillId:     skillResp.Skill.Id,
 		})
+		if err != nil {
+			t.Fatalf("failed to add character skill: %v", err)
+		}
 
 		newRank := int32Ptr(5)
 		newXP := int32Ptr(100)
@@ -261,34 +279,52 @@ func TestCharacterSkillHandler_DeleteCharacterSkill(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Delete Skill Test Tenant",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	worldResp, _ := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
-	characterResp, _ := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
+	worldResp, err := worldClient.CreateWorld(ctx, &worldpb.CreateWorldRequest{Name: "Test World"})
+	if err != nil {
+		t.Fatalf("failed to create world: %v", err)
+	}
+	characterResp, err := characterClient.CreateCharacter(ctx, &characterpb.CreateCharacterRequest{
 		WorldId: worldResp.World.Id,
 		Name:    "Test Character",
 	})
+	if err != nil {
+		t.Fatalf("failed to create character: %v", err)
+	}
 	baseStatsSchema := json.RawMessage(`{"strength": 10}`)
-	rpgSystemResp, _ := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
+	rpgSystemResp, err := rpgSystemClient.CreateRPGSystem(ctx, &rpgsystempb.CreateRPGSystemRequest{
 		Name:            "Test System",
 		BaseStatsSchema: string(baseStatsSchema),
 	})
-	skillResp, _ := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
+	if err != nil {
+		t.Fatalf("failed to create rpg system: %v", err)
+	}
+	skillResp, err := skillClient.CreateSkill(ctx, &skillpb.CreateSkillRequest{
 		RpgSystemId: rpgSystemResp.RpgSystem.Id,
 		Name:        "Fireball",
 	})
+	if err != nil {
+		t.Fatalf("failed to create skill: %v", err)
+	}
 
 	t.Run("successful delete", func(t *testing.T) {
 		// Add skill first
-		addResp, _ := characterSkillClient.AddCharacterSkill(ctx, &characterskillpb.AddCharacterSkillRequest{
+		addResp, err := characterSkillClient.AddCharacterSkill(ctx, &characterskillpb.AddCharacterSkillRequest{
 			CharacterId: characterResp.Character.Id,
 			SkillId:     skillResp.Skill.Id,
 		})
+		if err != nil {
+			t.Fatalf("failed to add character skill: %v", err)
+		}
 
 		// Delete skill
-		_, err := characterSkillClient.RemoveCharacterSkill(ctx, &characterskillpb.RemoveCharacterSkillRequest{
+		_, err = characterSkillClient.RemoveCharacterSkill(ctx, &characterskillpb.RemoveCharacterSkillRequest{
 			Id: addResp.CharacterSkill.Id,
 		})
 		if err != nil {
@@ -373,11 +409,11 @@ func setupTestServerWithCharacterSkill(t *testing.T) (*grpc.ClientConn, func()) 
 	characterSkillHandler := NewCharacterSkillHandler(learnSkillUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, listCharacterSkillsUseCase, log)
 
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
-		TenantHandler:       tenantHandler,
-		WorldHandler:       worldHandler,
-		CharacterHandler:   characterHandler,
-		RPGSystemHandler:  rpgSystemHandler,
-		SkillHandler:       skillHandler,
+		TenantHandler:         tenantHandler,
+		WorldHandler:          worldHandler,
+		CharacterHandler:      characterHandler,
+		RPGSystemHandler:      rpgSystemHandler,
+		SkillHandler:          skillHandler,
 		CharacterSkillHandler: characterSkillHandler,
 	})
 
@@ -396,4 +432,3 @@ func int32Ptr(i int32) *int32 {
 func boolPtr(b bool) *bool {
 	return &b
 }
-

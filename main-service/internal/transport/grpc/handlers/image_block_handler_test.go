@@ -183,24 +183,36 @@ func TestImageBlockHandler_UpdateImageBlock(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Update ImageBlock",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Test Chapter",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("successful update", func(t *testing.T) {
-		createResp, _ := imageBlockClient.CreateImageBlock(ctx, &imageblockpb.CreateImageBlockRequest{
+		createResp, err := imageBlockClient.CreateImageBlock(ctx, &imageblockpb.CreateImageBlockRequest{
 			ChapterId: stringPtr(chapterResp.Chapter.Id),
 			Kind:      "final",
 			ImageUrl:  "https://example.com/original.jpg",
 			AltText:   stringPtr("Original alt text"),
 		})
+		if err != nil {
+			t.Fatalf("failed to create image block: %v", err)
+		}
 
 		newImageURL := "https://example.com/updated.jpg"
 		newAltText := "Updated alt text"
@@ -271,25 +283,37 @@ func TestImageBlockHandler_DeleteImageBlock(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for Delete ImageBlock",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Test Chapter",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("successful delete", func(t *testing.T) {
-		createResp, _ := imageBlockClient.CreateImageBlock(ctx, &imageblockpb.CreateImageBlockRequest{
+		createResp, err := imageBlockClient.CreateImageBlock(ctx, &imageblockpb.CreateImageBlockRequest{
 			ChapterId: stringPtr(chapterResp.Chapter.Id),
 			Kind:      "final",
 			ImageUrl:  "https://example.com/delete.jpg",
 		})
+		if err != nil {
+			t.Fatalf("failed to create image block: %v", err)
+		}
 
-		_, err := imageBlockClient.DeleteImageBlock(ctx, &imageblockpb.DeleteImageBlockRequest{
+		_, err = imageBlockClient.DeleteImageBlock(ctx, &imageblockpb.DeleteImageBlockRequest{
 			Id: createResp.ImageBlock.Id,
 		})
 		if err != nil {
@@ -333,16 +357,25 @@ func TestImageBlockHandler_ListImageBlocks(t *testing.T) {
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
-	tenantResp, _ := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
 		Name: "Test Tenant for List ImageBlocks",
 	})
+	if err != nil {
+		t.Fatalf("failed to create tenant: %v", err)
+	}
 	ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
-	storyResp, _ := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
-	chapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+	storyResp, err := storyClient.CreateStory(ctx, &storypb.CreateStoryRequest{Title: "Test Story"})
+	if err != nil {
+		t.Fatalf("failed to create story: %v", err)
+	}
+	chapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 		StoryId: storyResp.Story.Id,
 		Number:  1,
 		Title:   "Test Chapter",
 	})
+	if err != nil {
+		t.Fatalf("failed to create chapter: %v", err)
+	}
 
 	t.Run("list image blocks by chapter", func(t *testing.T) {
 		// Create multiple image blocks
@@ -372,11 +405,14 @@ func TestImageBlockHandler_ListImageBlocks(t *testing.T) {
 	})
 
 	t.Run("empty list for new chapter", func(t *testing.T) {
-		newChapterResp, _ := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
+		newChapterResp, err := chapterClient.CreateChapter(ctx, &chapterpb.CreateChapterRequest{
 			StoryId: storyResp.Story.Id,
 			Number:  2,
 			Title:   "Empty Chapter",
 		})
+		if err != nil {
+			t.Fatalf("failed to create chapter: %v", err)
+		}
 
 		listResp, err := imageBlockClient.ListImageBlocks(ctx, &imageblockpb.ListImageBlocksRequest{
 			ChapterId: stringPtr(newChapterResp.Chapter.Id),

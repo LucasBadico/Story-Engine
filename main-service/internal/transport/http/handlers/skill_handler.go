@@ -9,7 +9,6 @@ import (
 	"github.com/story-engine/main-service/internal/core/rpg"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // SkillHandler handles HTTP requests for RPG skills
@@ -43,7 +42,6 @@ func NewSkillHandler(
 
 // Create handles POST /api/v1/rpg-systems/{id}/skills
 func (h *SkillHandler) Create(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -107,7 +105,6 @@ func (h *SkillHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/rpg-skills/{id}
 func (h *SkillHandler) Get(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	skillID, err := uuid.Parse(id)
 	if err != nil {
@@ -134,7 +131,6 @@ func (h *SkillHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/rpg-systems/{id}/skills
 func (h *SkillHandler) List(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -162,7 +158,6 @@ func (h *SkillHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/rpg-skills/{id}
 func (h *SkillHandler) Update(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	skillID, err := uuid.Parse(id)
 	if err != nil {
@@ -225,7 +220,6 @@ func (h *SkillHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/rpg-skills/{id}
 func (h *SkillHandler) Delete(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	skillID, err := uuid.Parse(id)
 	if err != nil {
