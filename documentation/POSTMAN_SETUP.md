@@ -30,13 +30,48 @@ Este guia explica como importar e usar a coleção Postman para testar a API do 
 
 A coleção usa **test scripts** que automaticamente extraem IDs das respostas e salvam em variáveis:
 
+#### Story Module
 - `tenant_id` - ID do tenant criado
 - `story_id` - ID da história criada
 - `chapter_id` - ID do capítulo criado
 - `scene_id` - ID da cena criada
 - `beat_id` - ID do beat criado
-- `cloned_story_id` - ID da história clonada
-- `story_version` - Número da versão após clone
+- `prose_block_id` - ID do bloco de prosa criado
+- `prose_block_reference_id` - ID da referência de bloco de prosa criada
+- `image_block_id` - ID do bloco de imagem criado
+- `scene_reference_id` - ID da referência de cena criada
+
+#### World Building Module
+- `world_id` - ID do mundo criado
+- `trait_id` - ID do traço criado
+- `archetype_id` - ID do arquétipo criado
+- `location_id` - ID da localização criada
+- `character_id` - ID do personagem criado
+- `character_trait_id` - ID do traço do personagem
+- `artifact_id` - ID do artefato criado
+- `artifact_reference_id` - ID da referência de artefato criada
+- `event_id` - ID do evento criado
+
+#### RPG Module
+- `rpg_system_id` - ID do sistema RPG criado
+- `character_rpg_stats_id` - ID das estatísticas RPG do personagem criadas
+- `artifact_rpg_stats_id` - ID das estatísticas RPG do artefato criadas
+- `skill_id` - ID da habilidade criada
+- `character_skill_id` - ID da habilidade do personagem criada
+- `rpg_class_id` - ID da classe RPG criada
+- `rpg_class_skill_id` - ID da habilidade da classe RPG criada
+- `inventory_item_id` - ID do item de inventário criado
+- `character_inventory_id` - ID do inventário do personagem criado
+
+#### Workflow Variables
+- `workflow_tenant_id` - ID do tenant do workflow completo
+- `workflow_story_id` - ID da história do workflow completo
+- `workflow_chapter_id` - ID do capítulo do workflow completo
+- `workflow_scene_id` - ID da cena do workflow completo
+- `workflow_beat_id` - ID do beat do workflow completo
+- `workflow_cloned_story_id` - ID da história clonada do workflow completo
+
+**Nota:** Todas essas variáveis são preenchidas automaticamente pelos test scripts quando você executa os requests de criação correspondentes. Você pode verificar os valores salvos no **Postman Console** ou editando as variáveis da coleção.
 
 ### Fluxo Recomendado
 
@@ -86,13 +121,142 @@ Story Engine API
 │   ├── Get Scene
 │   ├── List Scenes
 │   ├── Update Scene
-│   └── Delete Scene
+│   ├── Delete Scene
+│   ├── Get Scene References
+│   ├── Add Scene Reference (salva scene_reference_id)
+│   └── Remove Scene Reference
 ├── Beats
 │   ├── Create Beat (salva beat_id)
 │   ├── Get Beat
 │   ├── List Beats
 │   ├── Update Beat
 │   └── Delete Beat
+├── Prose Blocks
+│   ├── Create Prose Block (salva prose_block_id)
+│   ├── Get Prose Block
+│   ├── Update Prose Block
+│   ├── Delete Prose Block
+│   ├── Create Prose Block Reference (salva prose_block_reference_id)
+│   └── Delete Prose Block Reference
+├── Image Blocks
+│   ├── Create Image Block (salva image_block_id)
+│   ├── Get Image Block
+│   ├── Update Image Block
+│   ├── List Image Blocks
+│   └── Delete Image Block
+├── World Building
+│   ├── Worlds
+│   │   ├── Create World (salva world_id)
+│   │   ├── List Worlds
+│   │   ├── Get World
+│   │   ├── Update World
+│   │   └── Delete World
+│   ├── Traits
+│   │   ├── Create Trait (salva trait_id)
+│   │   ├── List Traits
+│   │   ├── Get Trait
+│   │   ├── Update Trait
+│   │   └── Delete Trait
+│   ├── Archetypes
+│   │   ├── Create Archetype (salva archetype_id)
+│   │   ├── List Archetypes
+│   │   ├── Get Archetype
+│   │   ├── Update Archetype
+│   │   ├── Delete Archetype
+│   │   ├── Add Trait to Archetype
+│   │   └── Remove Trait from Archetype
+│   ├── Locations
+│   │   ├── Create Location (salva location_id)
+│   │   ├── List Locations
+│   │   ├── Get Location
+│   │   ├── Update Location
+│   │   ├── Delete Location
+│   │   ├── Get Children
+│   │   ├── Get Ancestors
+│   │   ├── Get Descendants
+│   │   └── Move Location
+│   ├── Characters
+│   │   ├── Create Character (salva character_id)
+│   │   ├── List Characters
+│   │   ├── Get Character
+│   │   ├── Update Character
+│   │   ├── Delete Character
+│   │   ├── Get Character Traits
+│   │   ├── Add Trait from Template
+│   │   ├── Update Character Trait
+│   │   ├── Remove Trait from Character
+│   │   └── Apply Archetype
+│   ├── Artifacts
+│   │   ├── Create Artifact (salva artifact_id)
+│   │   ├── List Artifacts
+│   │   ├── Get Artifact
+│   │   ├── Update Artifact
+│   │   ├── Delete Artifact
+│   │   ├── Get Artifact References
+│   │   ├── Add Artifact Reference (salva artifact_reference_id)
+│   │   └── Remove Artifact Reference
+│   └── Events
+│       ├── Create Event (salva event_id)
+│       ├── List Events
+│       ├── Get Event
+│       ├── Update Event
+│       ├── Delete Event
+│       ├── Add Character to Event
+│       ├── Remove Character from Event
+│       ├── Get Event Characters
+│       ├── Add Location to Event
+│       ├── Remove Location from Event
+│       ├── Get Event Locations
+│       ├── Add Artifact to Event
+│       ├── Remove Artifact from Event
+│       ├── Get Event Artifacts
+│       └── Get Event Stat Changes
+├── RPG Module
+│   ├── RPG Systems
+│   │   ├── List RPG Systems
+│   │   ├── Get RPG System
+│   │   ├── Create Custom System (salva rpg_system_id)
+│   │   ├── Update Custom System
+│   │   └── Delete Custom System
+│   ├── Character RPG Stats
+│   │   ├── Create Initial Stats (salva character_rpg_stats_id)
+│   │   ├── Get Current Stats
+│   │   ├── Get Stats History
+│   │   ├── Activate Stats Version
+│   │   └── Delete Character Stats
+│   ├── Artifact RPG Stats
+│   │   ├── Create Initial Stats (salva artifact_rpg_stats_id)
+│   │   ├── Get Current Stats
+│   │   ├── Get Stats History
+│   │   └── Activate Stats Version
+│   ├── Skills
+│   │   ├── List Skills
+│   │   ├── Create Skill (salva skill_id)
+│   │   ├── Get Skill
+│   │   ├── Update Skill
+│   │   └── Delete Skill
+│   ├── Character Skills
+│   │   ├── Learn Skill (salva character_skill_id)
+│   │   ├── List Character Skills
+│   │   ├── Update Character Skill
+│   │   └── Remove Character Skill
+│   ├── Classes
+│   │   ├── List Classes
+│   │   ├── Create Class (salva rpg_class_id)
+│   │   ├── Get RPG Class
+│   │   ├── Update RPG Class
+│   │   ├── Delete RPG Class
+│   │   ├── Add Skill to Class (salva rpg_class_skill_id)
+│   │   ├── Remove Skill from Class
+│   │   ├── List Class Skills
+│   │   └── Change Character Class
+│   └── Inventory
+│       ├── List Inventory Items
+│       ├── Create Inventory Item (salva inventory_item_id)
+│       ├── List Character Inventory
+│       ├── Add Item to Inventory (salva character_inventory_id)
+│       ├── Update Inventory Item
+│       └── Remove Item from Inventory
 └── Complete Workflow
     ├── 1. Create Tenant
     ├── 2. Create Story

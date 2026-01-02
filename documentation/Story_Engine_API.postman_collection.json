@@ -474,6 +474,61 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Get Scene References",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}", "references"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Scene Reference",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"if (pm.response.code === 201) {",
+								"    const jsonData = pm.response.json();",
+								"    pm.collectionVariables.set(\"scene_reference_id\", jsonData.reference.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}", "references"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Scene Reference",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references/{{scene_reference_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "scenes", "{{scene_id}}", "references", "{{scene_reference_id}}"]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -802,6 +857,101 @@
 							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}/prose-blocks",
 							"host": ["{{base_url}}"],
 							"path": ["api", "v1", "beats", "{{beat_id}}", "prose-blocks"]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Image Blocks",
+			"item": [
+				{
+					"name": "Create Image Block",
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"if (pm.response.code === 201) {",
+								"    const jsonData = pm.response.json();",
+								"    pm.collectionVariables.set(\"image_block_id\", jsonData.image_block.id);",
+								"    console.log(\"Image Block ID saved:\", jsonData.image_block.id);",
+								"}"
+							],
+							"type": "text/javascript"
+						}
+					}],
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"chapter_id\": \"{{chapter_id}}\",\n  \"kind\": \"final\",\n  \"image_url\": \"https://example.com/image.jpg\",\n  \"alt_text\": \"Example image\",\n  \"order_num\": 1\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image-blocks",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image-blocks"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Image Block",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image-blocks", "{{image_block_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Image Block",
+					"request": {
+						"method": "PUT",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"image_url\": \"https://example.com/updated-image.jpg\",\n  \"alt_text\": \"Updated alt text\",\n  \"caption\": \"Updated caption\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image-blocks", "{{image_block_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Image Blocks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/image-blocks?limit=50&offset=0",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "chapters", "{{chapter_id}}", "image-blocks"],
+							"query": [
+								{"key": "limit", "value": "50"},
+								{"key": "offset", "value": "0"}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Image Block",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image-blocks", "{{image_block_id}}"]
 						}
 					},
 					"response": []
@@ -1212,6 +1362,49 @@
 							"response": []
 						},
 						{
+							"name": "Update Location",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Mordor Atualizado\",\n  \"type\": \"continent\",\n  \"description\": \"Descrição atualizada\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/locations/{{location_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "locations", "{{location_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Location",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/locations/{{location_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "locations", "{{location_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Children",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/locations/{{location_id}}/children",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "locations", "{{location_id}}", "children"]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "Get Descendants",
 							"request": {
 								"method": "GET",
@@ -1319,6 +1512,79 @@
 							"response": []
 						},
 						{
+							"name": "Update Character",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Gandalf Atualizado\",\n  \"role\": \"protagonist\",\n  \"description\": \"Descrição atualizada\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Character",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Character Traits",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/traits",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "traits"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Character Trait",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"value\": \"muito alto\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/traits/{{trait_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "traits", "{{trait_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Trait from Character",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/traits/{{trait_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "traits", "{{trait_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "Apply Archetype",
 							"request": {
 								"method": "POST",
@@ -1394,6 +1660,91 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Update Artifact",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"O Um Anel Atualizado\",\n  \"type\": \"jewelry\",\n  \"properties\": \"invisibilidade e poder\",\n  \"origin\": \"Forjado em Mordor por Sauron\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "artifacts", "{{artifact_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Artifact",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "artifacts", "{{artifact_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Artifact References",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "references"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Artifact Reference",
+							"event": [{
+								"listen": "test",
+								"script": {
+									"exec": [
+										"if (pm.response.code === 201) {",
+										"    const jsonData = pm.response.json();",
+										"    pm.collectionVariables.set(\"artifact_reference_id\", jsonData.reference.id);",
+										"}"
+									],
+									"type": "text/javascript"
+								}
+							}],
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "references"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Artifact Reference",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references/{{artifact_reference_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "references", "{{artifact_reference_id}}"]
+								}
+							},
+							"response": []
 						}
 					]
 				},
@@ -1456,6 +1807,36 @@
 							"response": []
 						},
 						{
+							"name": "Update Event",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Batalha de Pelennor Atualizada\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 10\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
 							"name": "Add Character to Event",
 							"request": {
 								"method": "POST",
@@ -1468,6 +1849,118 @@
 									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
 									"host": ["{{base_url}}"],
 									"path": ["api", "v1", "events", "{{event_id}}", "characters"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Character from Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters/{{character_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "characters", "{{character_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Characters",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "characters"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Location to Event",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"location_id\": \"{{location_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "locations"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Location from Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations/{{location_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "locations", "{{location_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Locations",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "locations"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Artifact to Event",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"artifact_id\": \"{{artifact_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "artifacts"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Artifact from Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts/{{artifact_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "artifacts", "{{artifact_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Artifacts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "events", "{{event_id}}", "artifacts"]
 								}
 							},
 							"response": []
@@ -1643,6 +2136,36 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Activate Stats Version",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"version_id\": \"{{character_rpg_stats_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/rpg-stats/activate",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "rpg-stats", "activate"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Character Stats",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/rpg-stats",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "rpg-stats"]
+								}
+							},
+							"response": []
 						}
 					]
 				},
@@ -1703,6 +2226,23 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Activate Stats Version",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"version_id\": \"{{artifact_rpg_stats_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/rpg-stats/activate",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "rpg-stats", "activate"]
+								}
+							},
+							"response": []
 						}
 					]
 				},
@@ -1747,6 +2287,49 @@
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills",
 									"host": ["{{base_url}}"],
 									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Skill",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills/{{skill_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills", "{{skill_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Skill",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Espada Longa Atualizada\",\n  \"category\": \"combat\",\n  \"description\": \"Descrição atualizada\",\n  \"max_rank\": 15\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills/{{skill_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills", "{{skill_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Skill",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills/{{skill_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills", "{{skill_id}}"]
 								}
 							},
 							"response": []
@@ -1797,6 +2380,36 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Update Character Skill",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"rank\": 5\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/skills/{{skill_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "skills", "{{skill_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Character Skill",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/skills/{{skill_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "skills", "{{skill_id}}"]
+								}
+							},
+							"response": []
 						}
 					]
 				},
@@ -1841,6 +2454,104 @@
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes",
 									"host": ["{{base_url}}"],
 									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get RPG Class",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update RPG Class",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Guerreiro Atualizado\",\n  \"tier\": 1,\n  \"description\": \"Descrição atualizada\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete RPG Class",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Skill to Class",
+							"event": [{
+								"listen": "test",
+								"script": {
+									"exec": [
+										"if (pm.response.code === 201) {",
+										"    const jsonData = pm.response.json();",
+										"    pm.collectionVariables.set(\"rpg_class_skill_id\", jsonData.class_skill.id);",
+										"}"
+									],
+									"type": "text/javascript"
+								}
+							}],
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"skill_id\": \"{{skill_id}}\",\n  \"unlock_level\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}/skills",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}", "skills"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Skill from Class",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}/skills/{{skill_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}", "skills", "{{skill_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Class Skills",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}/skills",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}", "skills"]
 								}
 							},
 							"response": []
@@ -1947,6 +2658,36 @@
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory",
 									"host": ["{{base_url}}"],
 									"path": ["api", "v1", "characters", "{{character_id}}", "inventory"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Inventory Item",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"quantity\": 5\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Item from Inventory",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}"]
 								}
 							},
 							"response": []
@@ -2310,6 +3051,26 @@
 		},
 		{
 			"key": "character_inventory_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "image_block_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "artifact_reference_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "scene_reference_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "rpg_class_skill_id",
 			"value": "",
 			"type": "string"
 		}
