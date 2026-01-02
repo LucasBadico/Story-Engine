@@ -62,6 +62,8 @@ A coleção usa **test scripts** que automaticamente extraem IDs das respostas e
 - `rpg_class_skill_id` - ID da habilidade da classe RPG criada
 - `inventory_item_id` - ID do item de inventário criado
 - `character_inventory_id` - ID do inventário do personagem criado
+- `inventory_slot_id` - ID do slot de inventário criado
+- `target_character_id` - ID do personagem alvo para transferência
 
 #### Workflow Variables
 - `workflow_tenant_id` - ID do tenant do workflow completo
@@ -109,7 +111,8 @@ Story Engine API
 │   ├── Get Story
 │   ├── List Stories
 │   ├── Update Story
-│   └── Clone Story (salva cloned_story_id)
+│   ├── Clone Story (salva cloned_story_id)
+│   └── List Story Versions
 ├── Chapters
 │   ├── Create Chapter (salva chapter_id)
 │   ├── Get Chapter
@@ -136,14 +139,22 @@ Story Engine API
 │   ├── Get Prose Block
 │   ├── Update Prose Block
 │   ├── Delete Prose Block
+│   ├── List Prose Blocks by Chapter
+│   ├── List Prose Blocks by Scene
+│   ├── List Prose Blocks by Beat
+│   ├── List Prose Blocks by Entity
 │   ├── Create Prose Block Reference (salva prose_block_reference_id)
+│   ├── List Prose Block References
 │   └── Delete Prose Block Reference
 ├── Image Blocks
 │   ├── Create Image Block (salva image_block_id)
 │   ├── Get Image Block
 │   ├── Update Image Block
 │   ├── List Image Blocks
-│   └── Delete Image Block
+│   ├── Delete Image Block
+│   ├── Get Image Block References
+│   ├── Add Image Block Reference
+│   └── Remove Image Block Reference
 ├── World Building
 │   ├── Worlds
 │   │   ├── Create World (salva world_id)
@@ -185,7 +196,8 @@ Story Engine API
 │   │   ├── Add Trait from Template
 │   │   ├── Update Character Trait
 │   │   ├── Remove Trait from Character
-│   │   └── Apply Archetype
+│   │   ├── Apply Archetype
+│   │   └── Get Available Classes
 │   ├── Artifacts
 │   │   ├── Create Artifact (salva artifact_id)
 │   │   ├── List Artifacts
@@ -253,10 +265,18 @@ Story Engine API
 │   └── Inventory
 │       ├── List Inventory Items
 │       ├── Create Inventory Item (salva inventory_item_id)
+│       ├── Get Inventory Item
+│       ├── Update Inventory Item Definition
+│       ├── Delete Inventory Item Definition
+│       ├── Create Inventory Slot (salva inventory_slot_id)
+│       ├── List Inventory Slots
 │       ├── List Character Inventory
 │       ├── Add Item to Inventory (salva character_inventory_id)
 │       ├── Update Inventory Item
-│       └── Remove Item from Inventory
+│       ├── Remove Item from Inventory
+│       ├── Equip Item
+│       ├── Unequip Item
+│       └── Transfer Item
 └── Complete Workflow
     ├── 1. Create Tenant
     ├── 2. Create Story

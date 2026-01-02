@@ -231,6 +231,24 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "List Story Versions",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/versions",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "stories", "{{story_id}}", "versions"]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -860,6 +878,23 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "List Prose Blocks by Entity",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/prose-blocks/by-entity?entity_type=character&entity_id={{character_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "prose-blocks", "by-entity"],
+							"query": [
+								{"key": "entity_type", "value": "character"},
+								{"key": "entity_id", "value": "{{character_id}}"}
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -952,6 +987,49 @@
 							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}",
 							"host": ["{{base_url}}"],
 							"path": ["api", "v1", "image-blocks", "{{image_block_id}}"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Image Block References",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}/references",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image-blocks", "{{image_block_id}}", "references"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Image Block Reference",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}/references",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image-blocks", "{{image_block_id}}", "references"]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Remove Image Block Reference",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}/references/character/{{character_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "v1", "image-blocks", "{{image_block_id}}", "references", "character", "{{character_id}}"]
 						}
 					},
 					"response": []
@@ -1597,6 +1675,19 @@
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/apply-archetype",
 									"host": ["{{base_url}}"],
 									"path": ["api", "v1", "characters", "{{character_id}}", "apply-archetype"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Available Classes",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/available-classes",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "available-classes"]
 								}
 							},
 							"response": []
@@ -2691,6 +2782,138 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "Equip Item",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"slot_id\": \"{{inventory_slot_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}/equip",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}", "equip"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Unequip Item",
+							"request": {
+								"method": "POST",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}/unequip",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}", "unequip"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Transfer Item",
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"target_character_id\": \"{{target_character_id}}\",\n  \"item_id\": \"{{inventory_item_id}}\",\n  \"quantity\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/transfer",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "transfer"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Inventory Item",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items/{{inventory_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items", "{{inventory_item_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Inventory Item Definition",
+							"request": {
+								"method": "PUT",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Espada Longa +1\",\n  \"description\": \"Descrição atualizada\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items/{{inventory_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items", "{{inventory_item_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Inventory Item Definition",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items/{{inventory_item_id}}",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items", "{{inventory_item_id}}"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create Inventory Slot",
+							"event": [{
+								"listen": "test",
+								"script": {
+									"exec": [
+										"if (pm.response.code === 201) {",
+										"    const jsonData = pm.response.json();",
+										"    pm.collectionVariables.set(\"inventory_slot_id\", jsonData.slot.id);",
+										"}"
+									],
+									"type": "text/javascript"
+								}
+							}],
+							"request": {
+								"method": "POST",
+								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Mão Principal\",\n  \"slot_type\": \"weapon\",\n  \"capacity\": 1\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-slots",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-slots"]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Inventory Slots",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-slots",
+									"host": ["{{base_url}}"],
+									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-slots"]
+								}
+							},
+							"response": []
 						}
 					]
 				}
@@ -3071,6 +3294,16 @@
 		},
 		{
 			"key": "rpg_class_skill_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "inventory_slot_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "target_character_id",
 			"value": "",
 			"type": "string"
 		}
