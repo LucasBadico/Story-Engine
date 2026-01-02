@@ -10,12 +10,12 @@ import (
 // StoryRepository defines the interface for story persistence
 type StoryRepository interface {
 	Create(ctx context.Context, s *story.Story) error
-	GetByID(ctx context.Context, id uuid.UUID) (*story.Story, error)
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.Story, error)
 	ListByTenant(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*story.Story, error)
-	ListVersionsByRoot(ctx context.Context, rootStoryID uuid.UUID) ([]*story.Story, error)
+	ListVersionsByRoot(ctx context.Context, tenantID, rootStoryID uuid.UUID) ([]*story.Story, error)
 	Update(ctx context.Context, s *story.Story) error
-	Delete(ctx context.Context, id uuid.UUID) error
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
 	CountByTenant(ctx context.Context, tenantID uuid.UUID) (int, error)
-	GetVersionGraph(ctx context.Context, rootStoryID uuid.UUID) ([]*story.Story, error)
+	GetVersionGraph(ctx context.Context, tenantID, rootStoryID uuid.UUID) ([]*story.Story, error)
 }
 

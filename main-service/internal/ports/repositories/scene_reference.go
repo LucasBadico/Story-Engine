@@ -10,12 +10,12 @@ import (
 // SceneReferenceRepository defines the interface for scene reference persistence
 type SceneReferenceRepository interface {
 	Create(ctx context.Context, ref *story.SceneReference) error
-	GetByID(ctx context.Context, id uuid.UUID) (*story.SceneReference, error)
-	ListByScene(ctx context.Context, sceneID uuid.UUID) ([]*story.SceneReference, error)
-	ListByEntity(ctx context.Context, entityType story.SceneReferenceEntityType, entityID uuid.UUID) ([]*story.SceneReference, error)
-	Delete(ctx context.Context, id uuid.UUID) error
-	DeleteByScene(ctx context.Context, sceneID uuid.UUID) error
-	DeleteBySceneAndEntity(ctx context.Context, sceneID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) error
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*story.SceneReference, error)
+	ListByScene(ctx context.Context, tenantID, sceneID uuid.UUID) ([]*story.SceneReference, error)
+	ListByEntity(ctx context.Context, tenantID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) ([]*story.SceneReference, error)
+	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	DeleteByScene(ctx context.Context, tenantID, sceneID uuid.UUID) error
+	DeleteBySceneAndEntity(ctx context.Context, tenantID, sceneID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) error
 }
 
 
