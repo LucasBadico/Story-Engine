@@ -7,7 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/core/story"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	"google.golang.org/grpc/codes"
@@ -18,10 +18,13 @@ import (
 // SceneHandler implements the SceneService gRPC service
 type SceneHandler struct {
 	scenepb.UnimplementedSceneServiceServer
-	sceneRepo              repositories.SceneRepository
-	chapterRepo            repositories.ChapterRepository
-	storyRepo              repositories.StoryRepository
-	addReferenceUC         *scene.AddSceneReferenceUseCase
+	createSceneUseCase    *scene.CreateSceneUseCase
+	getSceneUseCase       *scene.GetSceneUseCase
+	updateSceneUseCase    *scene.UpdateSceneUseCase
+	deleteSceneUseCase    *scene.DeleteSceneUseCase
+	listScenesUseCase     *scene.ListScenesUseCase
+	moveSceneUseCase      *scene.MoveSceneUseCase
+	addReferenceUC        *scene.AddSceneReferenceUseCase
 	removeReferenceUC     *scene.RemoveSceneReferenceUseCase
 	getReferencesUC       *scene.GetSceneReferencesUseCase
 	logger                 logger.Logger
@@ -29,36 +32,47 @@ type SceneHandler struct {
 
 // NewSceneHandler creates a new SceneHandler
 func NewSceneHandler(
-	sceneRepo repositories.SceneRepository,
-	chapterRepo repositories.ChapterRepository,
-	storyRepo repositories.StoryRepository,
+	createSceneUseCase *scene.CreateSceneUseCase,
+	getSceneUseCase *scene.GetSceneUseCase,
+	updateSceneUseCase *scene.UpdateSceneUseCase,
+	deleteSceneUseCase *scene.DeleteSceneUseCase,
+	listScenesUseCase *scene.ListScenesUseCase,
+	moveSceneUseCase *scene.MoveSceneUseCase,
 	addReferenceUC *scene.AddSceneReferenceUseCase,
 	removeReferenceUC *scene.RemoveSceneReferenceUseCase,
 	getReferencesUC *scene.GetSceneReferencesUseCase,
 	logger logger.Logger,
 ) *SceneHandler {
 	return &SceneHandler{
-		sceneRepo:         sceneRepo,
-		chapterRepo:       chapterRepo,
-		storyRepo:         storyRepo,
-		addReferenceUC:    addReferenceUC,
-		removeReferenceUC: removeReferenceUC,
-		getReferencesUC:   getReferencesUC,
-		logger:            logger,
+		createSceneUseCase: createSceneUseCase,
+		getSceneUseCase:    getSceneUseCase,
+		updateSceneUseCase: updateSceneUseCase,
+		deleteSceneUseCase: deleteSceneUseCase,
+		listScenesUseCase:  listScenesUseCase,
+		moveSceneUseCase:   moveSceneUseCase,
+		addReferenceUC:     addReferenceUC,
+		removeReferenceUC:  removeReferenceUC,
+		getReferencesUC:     getReferencesUC,
+		logger:             logger,
 	}
 }
 
 // CreateScene creates a new scene
 func (h *SceneHandler) CreateScene(ctx context.Context, req *scenepb.CreateSceneRequest) (*scenepb.CreateSceneResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	storyID, err := uuid.Parse(req.StoryId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid story_id: %v", err)
-	}
-
-	// Validate story exists
-	_, err = h.storyRepo.GetByID(ctx, storyID)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "story not found: %v", err)
 	}
 
 	var chapterID *uuid.UUID
@@ -67,131 +81,144 @@ func (h *SceneHandler) CreateScene(ctx context.Context, req *scenepb.CreateScene
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid chapter_id: %v", err)
 		}
-		// Validate chapter exists
-		_, err = h.chapterRepo.GetByID(ctx, parsedChapterID)
-		if err != nil {
-			return nil, status.Errorf(codes.NotFound, "chapter not found: %v", err)
-		}
 		chapterID = &parsedChapterID
 	}
 
-	if req.OrderNum < 1 {
-		return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
-	}
-
-	scene, err := story.NewScene(storyID, chapterID, int(req.OrderNum))
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid scene: %v", err)
-	}
-
-	if req.Goal != "" {
-		scene.UpdateGoal(req.Goal)
-	}
-	if req.TimeRef != "" {
-		scene.TimeRef = req.TimeRef
-	}
-
+	var povCharacterID *uuid.UUID
 	if req.PovCharacterId != nil && *req.PovCharacterId != "" {
 		charID, err := uuid.Parse(*req.PovCharacterId)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid pov_character_id: %v", err)
 		}
-		scene.UpdatePOV(&charID)
+		povCharacterID = &charID
 	}
 
-	if err := h.sceneRepo.Create(ctx, scene); err != nil {
-		h.logger.Error("failed to create scene", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to create scene: %v", err)
+	output, err := h.createSceneUseCase.Execute(ctx, scene.CreateSceneInput{
+		TenantID:       tenantUUID,
+		StoryID:        storyID,
+		ChapterID:      chapterID,
+		OrderNum:       int(req.OrderNum),
+		POVCharacterID: povCharacterID,
+		TimeRef:        req.TimeRef,
+		Goal:           req.Goal,
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &scenepb.CreateSceneResponse{
-		Scene: sceneToProto(scene),
+		Scene: sceneToProto(output.Scene),
 	}, nil
 }
 
 // GetScene retrieves a scene by ID
 func (h *SceneHandler) GetScene(ctx context.Context, req *scenepb.GetSceneRequest) (*scenepb.GetSceneResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	scene, err := h.sceneRepo.GetByID(ctx, id)
+	output, err := h.getSceneUseCase.Execute(ctx, scene.GetSceneInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "scene not found: %v", err)
+		return nil, err
 	}
 
 	return &scenepb.GetSceneResponse{
-		Scene: sceneToProto(scene),
+		Scene: sceneToProto(output.Scene),
 	}, nil
 }
 
 // UpdateScene updates an existing scene
 func (h *SceneHandler) UpdateScene(ctx context.Context, req *scenepb.UpdateSceneRequest) (*scenepb.UpdateSceneResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	scene, err := h.sceneRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "scene not found: %v", err)
-	}
-
-	// Update fields if provided
+	var orderNum *int
 	if req.OrderNum != nil {
-		if *req.OrderNum < 1 {
-			return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
-		}
-		scene.OrderNum = int(*req.OrderNum)
+		n := int(*req.OrderNum)
+		orderNum = &n
 	}
 
-	if req.Goal != nil {
-		scene.UpdateGoal(*req.Goal)
-	}
-
-	if req.TimeRef != nil {
-		scene.TimeRef = *req.TimeRef
-	}
-
+	var povCharacterID *uuid.UUID
 	if req.PovCharacterId != nil {
 		if *req.PovCharacterId == "" {
-			scene.UpdatePOV(nil)
+			povCharacterID = nil
 		} else {
 			charID, err := uuid.Parse(*req.PovCharacterId)
 			if err != nil {
 				return nil, status.Errorf(codes.InvalidArgument, "invalid pov_character_id: %v", err)
 			}
-			scene.UpdatePOV(&charID)
+			povCharacterID = &charID
 		}
 	}
 
-	if err := h.sceneRepo.Update(ctx, scene); err != nil {
-		h.logger.Error("failed to update scene", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to update scene: %v", err)
+	output, err := h.updateSceneUseCase.Execute(ctx, scene.UpdateSceneInput{
+		TenantID:       tenantUUID,
+		ID:             id,
+		OrderNum:       orderNum,
+		POVCharacterID: povCharacterID,
+		TimeRef:        req.TimeRef,
+		Goal:           req.Goal,
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &scenepb.UpdateSceneResponse{
-		Scene: sceneToProto(scene),
+		Scene: sceneToProto(output.Scene),
 	}, nil
 }
 
 // DeleteScene deletes a scene
 func (h *SceneHandler) DeleteScene(ctx context.Context, req *scenepb.DeleteSceneRequest) (*scenepb.DeleteSceneResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	// Check if scene exists
-	_, err = h.sceneRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "scene not found: %v", err)
-	}
-
-	if err := h.sceneRepo.Delete(ctx, id); err != nil {
-		h.logger.Error("failed to delete scene", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to delete scene: %v", err)
+	if err := h.deleteSceneUseCase.Execute(ctx, scene.DeleteSceneInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	}); err != nil {
+		return nil, err
 	}
 
 	return &scenepb.DeleteSceneResponse{
@@ -201,14 +228,20 @@ func (h *SceneHandler) DeleteScene(ctx context.Context, req *scenepb.DeleteScene
 
 // MoveScene moves a scene to a different chapter
 func (h *SceneHandler) MoveScene(ctx context.Context, req *scenepb.MoveSceneRequest) (*scenepb.MoveSceneResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
-	}
-
-	scene, err := h.sceneRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "scene not found: %v", err)
 	}
 
 	var newChapterID *uuid.UUID
@@ -217,81 +250,118 @@ func (h *SceneHandler) MoveScene(ctx context.Context, req *scenepb.MoveSceneRequ
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid chapter_id: %v", err)
 		}
-		// Validate chapter exists
-		_, err = h.chapterRepo.GetByID(ctx, parsedChapterID)
-		if err != nil {
-			return nil, status.Errorf(codes.NotFound, "chapter not found: %v", err)
-		}
 		newChapterID = &parsedChapterID
 	}
 
-	scene.UpdateChapter(newChapterID)
-
-	if err := h.sceneRepo.Update(ctx, scene); err != nil {
-		h.logger.Error("failed to move scene", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to move scene: %v", err)
+	output, err := h.moveSceneUseCase.Execute(ctx, scene.MoveSceneInput{
+		TenantID:     tenantUUID,
+		SceneID:      id,
+		NewChapterID: newChapterID,
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &scenepb.MoveSceneResponse{
-		Scene: sceneToProto(scene),
+		Scene: sceneToProto(output.Scene),
 	}, nil
 }
 
 // ListScenesByChapter lists scenes for a specific chapter
 func (h *SceneHandler) ListScenesByChapter(ctx context.Context, req *scenepb.ListScenesByChapterRequest) (*scenepb.ListScenesByChapterResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	chapterID, err := uuid.Parse(req.ChapterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid chapter_id: %v", err)
 	}
 
-	scenes, err := h.sceneRepo.ListByChapter(ctx, chapterID)
+	output, err := h.listScenesUseCase.Execute(ctx, scene.ListScenesInput{
+		TenantID:  tenantUUID,
+		ChapterID: &chapterID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list scenes: %v", err)
+		return nil, err
 	}
 
-	protoScenes := make([]*scenepb.Scene, len(scenes))
-	for i, s := range scenes {
+	protoScenes := make([]*scenepb.Scene, len(output.Scenes))
+	for i, s := range output.Scenes {
 		protoScenes[i] = sceneToProto(s)
 	}
 
 	return &scenepb.ListScenesByChapterResponse{
 		Scenes:     protoScenes,
-		TotalCount: int32(len(scenes)),
+		TotalCount: int32(output.Total),
 	}, nil
 }
 
 // ListScenesByStory lists all scenes for a story
 func (h *SceneHandler) ListScenesByStory(ctx context.Context, req *scenepb.ListScenesByStoryRequest) (*scenepb.ListScenesByStoryResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	storyID, err := uuid.Parse(req.StoryId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid story_id: %v", err)
 	}
 
-	scenes, err := h.sceneRepo.ListByStory(ctx, storyID)
+	output, err := h.listScenesUseCase.Execute(ctx, scene.ListScenesInput{
+		TenantID: tenantUUID,
+		StoryID:  storyID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list scenes: %v", err)
+		return nil, err
 	}
 
-	protoScenes := make([]*scenepb.Scene, len(scenes))
-	for i, s := range scenes {
+	protoScenes := make([]*scenepb.Scene, len(output.Scenes))
+	for i, s := range output.Scenes {
 		protoScenes[i] = sceneToProto(s)
 	}
 
 	return &scenepb.ListScenesByStoryResponse{
 		Scenes:     protoScenes,
-		TotalCount: int32(len(scenes)),
+		TotalCount: int32(output.Total),
 	}, nil
 }
 
 // GetSceneReferences retrieves all references for a scene
 func (h *SceneHandler) GetSceneReferences(ctx context.Context, req *scenepb.GetSceneReferencesRequest) (*scenepb.GetSceneReferencesResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	sceneID, err := uuid.Parse(req.SceneId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid scene_id: %v", err)
 	}
 
 	output, err := h.getReferencesUC.Execute(ctx, scene.GetSceneReferencesInput{
-		SceneID: sceneID,
+		TenantID: tenantUUID,
+		SceneID:  sceneID,
 	})
 	if err != nil {
 		return nil, err
@@ -327,7 +397,19 @@ func (h *SceneHandler) AddSceneReference(ctx context.Context, req *scenepb.AddSc
 		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character', 'location', or 'artifact'")
 	}
 
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.addReferenceUC.Execute(ctx, scene.AddSceneReferenceInput{
+		TenantID:   tenantUUID,
 		SceneID:    sceneID,
 		EntityType: entityType,
 		EntityID:   entityID,
@@ -338,7 +420,8 @@ func (h *SceneHandler) AddSceneReference(ctx context.Context, req *scenepb.AddSc
 
 	// Fetch the created reference to return it
 	output, err := h.getReferencesUC.Execute(ctx, scene.GetSceneReferencesInput{
-		SceneID: sceneID,
+		TenantID: tenantUUID,
+		SceneID:  sceneID,
 	})
 	if err != nil {
 		return nil, err
@@ -381,7 +464,19 @@ func (h *SceneHandler) RemoveSceneReference(ctx context.Context, req *scenepb.Re
 		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character', 'location', or 'artifact'")
 	}
 
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.removeReferenceUC.Execute(ctx, scene.RemoveSceneReferenceInput{
+		TenantID:   tenantUUID,
 		SceneID:    sceneID,
 		EntityType: entityType,
 		EntityID:   entityID,

@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
 	"github.com/story-engine/main-service/internal/core/story"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	prosepb "github.com/story-engine/main-service/proto/prose"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,39 +17,46 @@ import (
 // ProseBlockReferenceHandler implements the ProseBlockReferenceService gRPC service
 type ProseBlockReferenceHandler struct {
 	prosepb.UnimplementedProseBlockReferenceServiceServer
-	refRepo        repositories.ProseBlockReferenceRepository
-	proseBlockRepo repositories.ProseBlockRepository
-	logger         logger.Logger
+	createReferenceUC              *proseblockapp.CreateProseBlockReferenceUseCase
+	listByProseBlockUC            *proseblockapp.ListProseBlockReferencesByProseBlockUseCase
+	listByEntityUC                *proseblockapp.ListProseBlocksByEntityUseCase
+	deleteReferenceUC             *proseblockapp.DeleteProseBlockReferenceUseCase
+	logger                         logger.Logger
 }
 
 // NewProseBlockReferenceHandler creates a new ProseBlockReferenceHandler
 func NewProseBlockReferenceHandler(
-	refRepo repositories.ProseBlockReferenceRepository,
-	proseBlockRepo repositories.ProseBlockRepository,
+	createReferenceUC *proseblockapp.CreateProseBlockReferenceUseCase,
+	listByProseBlockUC *proseblockapp.ListProseBlockReferencesByProseBlockUseCase,
+	listByEntityUC *proseblockapp.ListProseBlocksByEntityUseCase,
+	deleteReferenceUC *proseblockapp.DeleteProseBlockReferenceUseCase,
 	logger logger.Logger,
 ) *ProseBlockReferenceHandler {
 	return &ProseBlockReferenceHandler{
-		refRepo:        refRepo,
-		proseBlockRepo: proseBlockRepo,
-		logger:         logger,
+		createReferenceUC:  createReferenceUC,
+		listByProseBlockUC: listByProseBlockUC,
+		listByEntityUC:     listByEntityUC,
+		deleteReferenceUC:  deleteReferenceUC,
+		logger:              logger,
 	}
 }
 
 // CreateProseBlockReference creates a new reference
 func (h *ProseBlockReferenceHandler) CreateProseBlockReference(ctx context.Context, req *prosepb.CreateProseBlockReferenceRequest) (*prosepb.CreateProseBlockReferenceResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	proseBlockID, err := uuid.Parse(req.ProseBlockId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid prose_block_id: %v", err)
-	}
-
-	// Validate prose block exists
-	_, err = h.proseBlockRepo.GetByID(ctx, proseBlockID)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "prose block not found: %v", err)
-	}
-
-	if req.EntityType == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "entity_type is required")
 	}
 
 	entityID, err := uuid.Parse(req.EntityId)
@@ -56,48 +64,69 @@ func (h *ProseBlockReferenceHandler) CreateProseBlockReference(ctx context.Conte
 		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
 	}
 
-	ref, err := story.NewProseBlockReference(proseBlockID, story.EntityType(req.EntityType), entityID)
+	output, err := h.createReferenceUC.Execute(ctx, proseblockapp.CreateProseBlockReferenceInput{
+		TenantID:     tenantUUID,
+		ProseBlockID: proseBlockID,
+		EntityType:   story.EntityType(req.EntityType),
+		EntityID:     entityID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid reference: %v", err)
-	}
-
-	if err := h.refRepo.Create(ctx, ref); err != nil {
-		h.logger.Error("failed to create prose block reference", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to create reference: %v", err)
+		return nil, err
 	}
 
 	return &prosepb.CreateProseBlockReferenceResponse{
-		Reference: proseBlockReferenceToProto(ref),
+		Reference: proseBlockReferenceToProto(output.Reference),
 	}, nil
 }
 
 // ListProseBlockReferencesByProseBlock lists references for a prose block
 func (h *ProseBlockReferenceHandler) ListProseBlockReferencesByProseBlock(ctx context.Context, req *prosepb.ListProseBlockReferencesByProseBlockRequest) (*prosepb.ListProseBlockReferencesByProseBlockResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	proseBlockID, err := uuid.Parse(req.ProseBlockId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid prose_block_id: %v", err)
 	}
 
-	references, err := h.refRepo.ListByProseBlock(ctx, proseBlockID)
+	output, err := h.listByProseBlockUC.Execute(ctx, proseblockapp.ListProseBlockReferencesByProseBlockInput{
+		TenantID:     tenantUUID,
+		ProseBlockID: proseBlockID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list references: %v", err)
+		return nil, err
 	}
 
-	protoRefs := make([]*prosepb.ProseBlockReference, len(references))
-	for i, ref := range references {
+	protoRefs := make([]*prosepb.ProseBlockReference, len(output.References))
+	for i, ref := range output.References {
 		protoRefs[i] = proseBlockReferenceToProto(ref)
 	}
 
 	return &prosepb.ListProseBlockReferencesByProseBlockResponse{
 		References: protoRefs,
-		TotalCount: int32(len(references)),
+		TotalCount: int32(output.Total),
 	}, nil
 }
 
 // ListProseBlocksByEntity lists prose blocks associated with an entity
 func (h *ProseBlockReferenceHandler) ListProseBlocksByEntity(ctx context.Context, req *prosepb.ListProseBlocksByEntityRequest) (*prosepb.ListProseBlocksByEntityResponse, error) {
-	if req.EntityType == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "entity_type is required")
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
 	}
 
 	entityID, err := uuid.Parse(req.EntityId)
@@ -105,44 +134,49 @@ func (h *ProseBlockReferenceHandler) ListProseBlocksByEntity(ctx context.Context
 		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
 	}
 
-	references, err := h.refRepo.ListByEntity(ctx, story.EntityType(req.EntityType), entityID)
+	output, err := h.listByEntityUC.Execute(ctx, proseblockapp.ListProseBlocksByEntityInput{
+		TenantID:   tenantUUID,
+		EntityType: story.EntityType(req.EntityType),
+		EntityID:   entityID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list references: %v", err)
+		return nil, err
 	}
 
-	// Get prose blocks for each reference
-	protoProseBlocks := make([]*prosepb.ProseBlock, 0, len(references))
-	for _, ref := range references {
-		proseBlock, err := h.proseBlockRepo.GetByID(ctx, ref.ProseBlockID)
-		if err != nil {
-			h.logger.Error("failed to get prose block", "prose_block_id", ref.ProseBlockID, "error", err)
-			continue
-		}
-		protoProseBlocks = append(protoProseBlocks, proseBlockToProto(proseBlock))
+	protoProseBlocks := make([]*prosepb.ProseBlock, len(output.ProseBlocks))
+	for i, p := range output.ProseBlocks {
+		protoProseBlocks[i] = proseBlockToProto(p)
 	}
 
 	return &prosepb.ListProseBlocksByEntityResponse{
 		ProseBlocks: protoProseBlocks,
-		TotalCount:  int32(len(protoProseBlocks)),
+		TotalCount:  int32(output.Total),
 	}, nil
 }
 
 // DeleteProseBlockReference deletes a reference
 func (h *ProseBlockReferenceHandler) DeleteProseBlockReference(ctx context.Context, req *prosepb.DeleteProseBlockReferenceRequest) (*prosepb.DeleteProseBlockReferenceResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	// Check if reference exists
-	_, err = h.refRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "reference not found: %v", err)
-	}
-
-	if err := h.refRepo.Delete(ctx, id); err != nil {
-		h.logger.Error("failed to delete prose block reference", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to delete reference: %v", err)
+	if err := h.deleteReferenceUC.Execute(ctx, proseblockapp.DeleteProseBlockReferenceInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	}); err != nil {
+		return nil, err
 	}
 
 	return &prosepb.DeleteProseBlockReferenceResponse{

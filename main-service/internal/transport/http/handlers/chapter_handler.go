@@ -5,30 +5,39 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ChapterHandler handles HTTP requests for chapters
 type ChapterHandler struct {
-	chapterRepo repositories.ChapterRepository
-	storyRepo   repositories.StoryRepository
-	logger      logger.Logger
+	createChapterUseCase *chapterapp.CreateChapterUseCase
+	getChapterUseCase    *chapterapp.GetChapterUseCase
+	updateChapterUseCase *chapterapp.UpdateChapterUseCase
+	deleteChapterUseCase *chapterapp.DeleteChapterUseCase
+	listChaptersUseCase  *chapterapp.ListChaptersUseCase
+	logger               logger.Logger
 }
 
 // NewChapterHandler creates a new ChapterHandler
 func NewChapterHandler(
-	chapterRepo repositories.ChapterRepository,
-	storyRepo repositories.StoryRepository,
+	createChapterUseCase *chapterapp.CreateChapterUseCase,
+	getChapterUseCase *chapterapp.GetChapterUseCase,
+	updateChapterUseCase *chapterapp.UpdateChapterUseCase,
+	deleteChapterUseCase *chapterapp.DeleteChapterUseCase,
+	listChaptersUseCase *chapterapp.ListChaptersUseCase,
 	logger logger.Logger,
 ) *ChapterHandler {
 	return &ChapterHandler{
-		chapterRepo: chapterRepo,
-		storyRepo:   storyRepo,
-		logger:      logger,
+		createChapterUseCase: createChapterUseCase,
+		getChapterUseCase:    getChapterUseCase,
+		updateChapterUseCase: updateChapterUseCase,
+		deleteChapterUseCase: deleteChapterUseCase,
+		listChaptersUseCase:  listChaptersUseCase,
+		logger:               logger,
 	}
 }
 
@@ -60,51 +69,19 @@ func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
-	if err != nil {
-		WriteError(w, err, http.StatusNotFound)
-		return
+	input := chapterapp.CreateChapterInput{
+		TenantID: tenantID,
+		StoryID:  storyID,
+		Number:   req.Number,
+		Title:    req.Title,
 	}
-
-	if req.Number < 1 {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "number",
-			Message: "must be greater than 0",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if req.Title == "" {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "title",
-			Message: "title is required",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	chapter, err := story.NewChapter(tenantID, storyID, req.Number, req.Title)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "chapter",
-			Message: err.Error(),
-		}, http.StatusBadRequest)
-		return
-	}
-
-	// Set status if provided
 	if req.Status != "" {
-		if err := chapter.UpdateStatus(story.ChapterStatus(req.Status)); err != nil {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "status",
-				Message: "invalid status",
-			}, http.StatusBadRequest)
-			return
-		}
+		status := story.ChapterStatus(req.Status)
+		input.Status = &status
 	}
 
-	if err := h.chapterRepo.Create(r.Context(), chapter); err != nil {
-		h.logger.Error("failed to create chapter", "error", err)
+	output, err := h.createChapterUseCase.Execute(r.Context(), input)
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -112,7 +89,7 @@ func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"chapter": chapter,
+		"chapter": output.Chapter,
 	})
 }
 
@@ -131,22 +108,18 @@ func (h *ChapterHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chapter, err := h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
+	output, err := h.getChapterUseCase.Execute(r.Context(), chapterapp.GetChapterInput{
+		TenantID: tenantID,
+		ID:       chapterID,
+	})
 	if err != nil {
-		if err.Error() == "chapter not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "chapter",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
+		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"chapter": chapter,
+		"chapter": output.Chapter,
 	})
 }
 
@@ -165,20 +138,6 @@ func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing chapter
-	chapter, err := h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
-	if err != nil {
-		if err.Error() == "chapter not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "chapter",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
 	var req struct {
 		Number *int    `json:"number,omitempty"`
 		Title  *string `json:"title,omitempty"`
@@ -193,41 +152,26 @@ func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update fields if provided
-	if req.Number != nil {
-		if *req.Number < 1 {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "number",
-				Message: "must be greater than 0",
-			}, http.StatusBadRequest)
-			return
-		}
-		chapter.Number = *req.Number
+	input := chapterapp.UpdateChapterInput{
+		TenantID: tenantID,
+		ID:       chapterID,
+		Number:   req.Number,
+		Title:    req.Title,
 	}
-
-	if req.Title != nil {
-		chapter.UpdateTitle(*req.Title)
-	}
-
 	if req.Status != nil {
-		if err := chapter.UpdateStatus(story.ChapterStatus(*req.Status)); err != nil {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "status",
-				Message: "invalid status",
-			}, http.StatusBadRequest)
-			return
-		}
+		status := story.ChapterStatus(*req.Status)
+		input.Status = &status
 	}
 
-	if err := h.chapterRepo.Update(r.Context(), chapter); err != nil {
-		h.logger.Error("failed to update chapter", "error", err)
+	output, err := h.updateChapterUseCase.Execute(r.Context(), input)
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"chapter": chapter,
+		"chapter": output.Chapter,
 	})
 }
 
@@ -246,7 +190,10 @@ func (h *ChapterHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chapters, err := h.chapterRepo.ListByStory(r.Context(), tenantID, storyID)
+	output, err := h.listChaptersUseCase.Execute(r.Context(), chapterapp.ListChaptersInput{
+		TenantID: tenantID,
+		StoryID:  storyID,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -254,8 +201,8 @@ func (h *ChapterHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"chapters": chapters,
-		"total":    len(chapters),
+		"chapters": output.Chapters,
+		"total":    output.Total,
 	})
 }
 
@@ -274,22 +221,10 @@ func (h *ChapterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if chapter exists
-	_, err = h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
-	if err != nil {
-		if err.Error() == "chapter not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "chapter",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	if err := h.chapterRepo.Delete(r.Context(), tenantID, chapterID); err != nil {
-		h.logger.Error("failed to delete chapter", "error", err)
+	if err := h.deleteChapterUseCase.Execute(r.Context(), chapterapp.DeleteChapterInput{
+		TenantID: tenantID,
+		ID:       chapterID,
+	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}

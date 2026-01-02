@@ -9,7 +9,6 @@ import (
 	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	storypb "github.com/story-engine/main-service/proto/story"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,25 +18,31 @@ import (
 type StoryHandler struct {
 	storypb.UnimplementedStoryServiceServer
 	createStoryUseCase  *story.CreateStoryUseCase
+	getStoryUseCase     *story.GetStoryUseCase
+	updateStoryUseCase  *story.UpdateStoryUseCase
+	listStoriesUseCase  *story.ListStoriesUseCase
 	cloneStoryUseCase   *story.CloneStoryUseCase
 	versionGraphUseCase *story.GetStoryVersionGraphUseCase
-	storyRepo           repositories.StoryRepository
 	logger              logger.Logger
 }
 
 // NewStoryHandler creates a new StoryHandler
 func NewStoryHandler(
 	createStoryUseCase *story.CreateStoryUseCase,
+	getStoryUseCase *story.GetStoryUseCase,
+	updateStoryUseCase *story.UpdateStoryUseCase,
+	listStoriesUseCase *story.ListStoriesUseCase,
 	cloneStoryUseCase *story.CloneStoryUseCase,
 	versionGraphUseCase *story.GetStoryVersionGraphUseCase,
-	storyRepo repositories.StoryRepository,
 	logger logger.Logger,
 ) *StoryHandler {
 	return &StoryHandler{
 		createStoryUseCase:  createStoryUseCase,
+		getStoryUseCase:     getStoryUseCase,
+		updateStoryUseCase:  updateStoryUseCase,
+		listStoriesUseCase:  listStoriesUseCase,
 		cloneStoryUseCase:   cloneStoryUseCase,
 		versionGraphUseCase: versionGraphUseCase,
-		storyRepo:           storyRepo,
 		logger:              logger,
 	}
 }
@@ -91,53 +96,70 @@ func (h *StoryHandler) CreateStory(ctx context.Context, req *storypb.CreateStory
 
 // GetStory retrieves a story by ID
 func (h *StoryHandler) GetStory(ctx context.Context, req *storypb.GetStoryRequest) (*storypb.GetStoryResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid story id: %v", err)
 	}
 
-	s, err := h.storyRepo.GetByID(ctx, id)
+	output, err := h.getStoryUseCase.Execute(ctx, story.GetStoryInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &storypb.GetStoryResponse{
-		Story: mappers.StoryToProto(s),
+		Story: mappers.StoryToProto(output.Story),
 	}, nil
 }
 
 // UpdateStory updates an existing story
 func (h *StoryHandler) UpdateStory(ctx context.Context, req *storypb.UpdateStoryRequest) (*storypb.UpdateStoryResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid story id: %v", err)
 	}
 
-	s, err := h.storyRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "story not found: %v", err)
+	input := story.UpdateStoryInput{
+		TenantID: tenantUUID,
+		ID:       id,
+		Title:    req.Title,
 	}
-
-	// Update fields if provided
-	if req.Title != nil {
-		if err := s.UpdateTitle(*req.Title); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid title: %v", err)
-		}
-	}
-
 	if req.Status != nil {
-		if err := s.UpdateStatus(storycore.StoryStatus(*req.Status)); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid status: %v", err)
-		}
+		status := storycore.StoryStatus(*req.Status)
+		input.Status = &status
 	}
 
-	if err := h.storyRepo.Update(ctx, s); err != nil {
-		h.logger.Error("failed to update story", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to update story: %v", err)
+	output, err := h.updateStoryUseCase.Execute(ctx, input)
+	if err != nil {
+		return nil, err
 	}
 
 	return &storypb.UpdateStoryResponse{
-		Story: mappers.StoryToProto(s),
+		Story: mappers.StoryToProto(output.Story),
 	}, nil
 }
 
@@ -171,24 +193,24 @@ func (h *StoryHandler) ListStories(ctx context.Context, req *storypb.ListStories
 		}
 	}
 
-	stories, err := h.storyRepo.ListByTenant(ctx, tenantUUID, limit, offset)
+	output, err := h.listStoriesUseCase.Execute(ctx, story.ListStoriesInput{
+		TenantID: tenantUUID,
+		Limit:    limit,
+		Offset:   offset,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert to proto
-	protoStories := make([]*storypb.Story, len(stories))
-	for i, s := range stories {
+	protoStories := make([]*storypb.Story, len(output.Stories))
+	for i, s := range output.Stories {
 		protoStories[i] = mappers.StoryToProto(s)
 	}
 
-	// Get total count (for pagination)
-	// Note: This could be optimized with a separate count query
-	totalCount := int32(len(stories))
-
 	return &storypb.ListStoriesResponse{
 		Stories:    protoStories,
-		TotalCount: totalCount,
+		TotalCount: int32(output.Total),
 	}, nil
 }
 
@@ -208,7 +230,19 @@ func (h *StoryHandler) CloneStory(ctx context.Context, req *storypb.CloneStoryRe
 		}
 	}
 
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := story.CloneStoryInput{
+		TenantID:        tenantUUID,
 		SourceStoryID:   sourceStoryID,
 		CreatedByUserID: createdBy,
 	}
@@ -219,14 +253,17 @@ func (h *StoryHandler) CloneStory(ctx context.Context, req *storypb.CloneStoryRe
 	}
 
 	// Get the new story to return in response
-	newStory, err := h.storyRepo.GetByID(ctx, output.NewStoryID)
+	getOutput, err := h.getStoryUseCase.Execute(ctx, story.GetStoryInput{
+		TenantID: tenantUUID,
+		ID:       output.NewStoryID,
+	})
 	if err != nil {
 		return nil, err
 	}
 
 	return &storypb.CloneStoryResponse{
-		Story:            mappers.StoryToProto(newStory),
-		NewVersionNumber: int32(newStory.VersionNumber),
+		Story:            mappers.StoryToProto(getOutput.Story),
+		NewVersionNumber: int32(getOutput.Story.VersionNumber),
 	}, nil
 }
 
@@ -237,7 +274,19 @@ func (h *StoryHandler) ListStoryVersions(ctx context.Context, req *storypb.ListS
 		return nil, status.Errorf(codes.InvalidArgument, "invalid root_story_id: %v", err)
 	}
 
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := story.GetStoryVersionGraphInput{
+		TenantID:    tenantUUID,
 		RootStoryID: rootStoryID,
 	}
 

@@ -4,9 +4,10 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
 	"github.com/story-engine/main-service/internal/core/story"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	prosepb "github.com/story-engine/main-service/proto/prose"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -16,46 +17,57 @@ import (
 // ProseBlockHandler implements the ProseBlockService gRPC service
 type ProseBlockHandler struct {
 	prosepb.UnimplementedProseBlockServiceServer
-	proseBlockRepo repositories.ProseBlockRepository
-	chapterRepo    repositories.ChapterRepository
-	logger         logger.Logger
+	createProseBlockUseCase *proseblockapp.CreateProseBlockUseCase
+	getProseBlockUseCase    *proseblockapp.GetProseBlockUseCase
+	updateProseBlockUseCase *proseblockapp.UpdateProseBlockUseCase
+	deleteProseBlockUseCase *proseblockapp.DeleteProseBlockUseCase
+	listProseBlocksUseCase  *proseblockapp.ListProseBlocksUseCase
+	logger                   logger.Logger
 }
 
 // NewProseBlockHandler creates a new ProseBlockHandler
 func NewProseBlockHandler(
-	proseBlockRepo repositories.ProseBlockRepository,
-	chapterRepo repositories.ChapterRepository,
+	createProseBlockUseCase *proseblockapp.CreateProseBlockUseCase,
+	getProseBlockUseCase *proseblockapp.GetProseBlockUseCase,
+	updateProseBlockUseCase *proseblockapp.UpdateProseBlockUseCase,
+	deleteProseBlockUseCase *proseblockapp.DeleteProseBlockUseCase,
+	listProseBlocksUseCase *proseblockapp.ListProseBlocksUseCase,
 	logger logger.Logger,
 ) *ProseBlockHandler {
 	return &ProseBlockHandler{
-		proseBlockRepo: proseBlockRepo,
-		chapterRepo:    chapterRepo,
-		logger:         logger,
+		createProseBlockUseCase: createProseBlockUseCase,
+		getProseBlockUseCase:    getProseBlockUseCase,
+		updateProseBlockUseCase: updateProseBlockUseCase,
+		deleteProseBlockUseCase: deleteProseBlockUseCase,
+		listProseBlocksUseCase:  listProseBlocksUseCase,
+		logger:                  logger,
 	}
 }
 
 // CreateProseBlock creates a new prose block
 func (h *ProseBlockHandler) CreateProseBlock(ctx context.Context, req *prosepb.CreateProseBlockRequest) (*prosepb.CreateProseBlockResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	var chapterID *uuid.UUID
 	if req.ChapterId != nil && *req.ChapterId != "" {
 		parsedChapterID, err := uuid.Parse(*req.ChapterId)
 		if err != nil {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid chapter_id: %v", err)
 		}
-
-		// Validate chapter exists if provided
-		_, err = h.chapterRepo.GetByID(ctx, parsedChapterID)
-		if err != nil {
-			return nil, status.Errorf(codes.NotFound, "chapter not found: %v", err)
-		}
 		chapterID = &parsedChapterID
 	}
 
 	var orderNum *int
 	if req.OrderNum != nil {
-		if *req.OrderNum < 1 {
-			return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
-		}
 		order := int(*req.OrderNum)
 		orderNum = &order
 	}
@@ -65,101 +77,121 @@ func (h *ProseBlockHandler) CreateProseBlock(ctx context.Context, req *prosepb.C
 		kind = "final"
 	}
 
-	if req.Content == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "content is required")
-	}
-
-	proseBlock, err := story.NewProseBlock(chapterID, orderNum, story.ProseKind(kind), req.Content)
+	output, err := h.createProseBlockUseCase.Execute(ctx, proseblockapp.CreateProseBlockInput{
+		TenantID:  tenantUUID,
+		ChapterID: chapterID,
+		OrderNum:  orderNum,
+		Kind:      story.ProseKind(kind),
+		Content:   req.Content,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid prose block: %v", err)
-	}
-
-	if err := h.proseBlockRepo.Create(ctx, proseBlock); err != nil {
-		h.logger.Error("failed to create prose block", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to create prose block: %v", err)
+		return nil, err
 	}
 
 	return &prosepb.CreateProseBlockResponse{
-		ProseBlock: proseBlockToProto(proseBlock),
+		ProseBlock: proseBlockToProto(output.ProseBlock),
 	}, nil
 }
 
 // GetProseBlock retrieves a prose block by ID
 func (h *ProseBlockHandler) GetProseBlock(ctx context.Context, req *prosepb.GetProseBlockRequest) (*prosepb.GetProseBlockResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	proseBlock, err := h.proseBlockRepo.GetByID(ctx, id)
+	output, err := h.getProseBlockUseCase.Execute(ctx, proseblockapp.GetProseBlockInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "prose block not found: %v", err)
+		return nil, err
 	}
 
 	return &prosepb.GetProseBlockResponse{
-		ProseBlock: proseBlockToProto(proseBlock),
+		ProseBlock: proseBlockToProto(output.ProseBlock),
 	}, nil
 }
 
 // UpdateProseBlock updates an existing prose block
 func (h *ProseBlockHandler) UpdateProseBlock(ctx context.Context, req *prosepb.UpdateProseBlockRequest) (*prosepb.UpdateProseBlockResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	proseBlock, err := h.proseBlockRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "prose block not found: %v", err)
-	}
-
-	// Update fields if provided
+	var orderNum *int
 	if req.OrderNum != nil {
-		if *req.OrderNum < 1 {
-			return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
-		}
-		orderNum := int(*req.OrderNum)
-		proseBlock.OrderNum = &orderNum
+		order := int(*req.OrderNum)
+		orderNum = &order
 	}
 
+	input := proseblockapp.UpdateProseBlockInput{
+		TenantID: tenantUUID,
+		ID:       id,
+		OrderNum: orderNum,
+		Content:  req.Content,
+	}
 	if req.Kind != nil {
-		proseBlock.Kind = story.ProseKind(*req.Kind)
+		kind := story.ProseKind(*req.Kind)
+		input.Kind = &kind
 	}
 
-	if req.Content != nil {
-		proseBlock.UpdateContent(*req.Content)
-	}
-
-	if err := proseBlock.Validate(); err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid prose block: %v", err)
-	}
-
-	if err := h.proseBlockRepo.Update(ctx, proseBlock); err != nil {
-		h.logger.Error("failed to update prose block", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to update prose block: %v", err)
+	output, err := h.updateProseBlockUseCase.Execute(ctx, input)
+	if err != nil {
+		return nil, err
 	}
 
 	return &prosepb.UpdateProseBlockResponse{
-		ProseBlock: proseBlockToProto(proseBlock),
+		ProseBlock: proseBlockToProto(output.ProseBlock),
 	}, nil
 }
 
 // DeleteProseBlock deletes a prose block
 func (h *ProseBlockHandler) DeleteProseBlock(ctx context.Context, req *prosepb.DeleteProseBlockRequest) (*prosepb.DeleteProseBlockResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	// Check if prose block exists
-	_, err = h.proseBlockRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "prose block not found: %v", err)
-	}
-
-	if err := h.proseBlockRepo.Delete(ctx, id); err != nil {
-		h.logger.Error("failed to delete prose block", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to delete prose block: %v", err)
+	if err := h.deleteProseBlockUseCase.Execute(ctx, proseblockapp.DeleteProseBlockInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	}); err != nil {
+		return nil, err
 	}
 
 	return &prosepb.DeleteProseBlockResponse{
@@ -169,24 +201,38 @@ func (h *ProseBlockHandler) DeleteProseBlock(ctx context.Context, req *prosepb.D
 
 // ListProseBlocksByChapter lists prose blocks for a chapter
 func (h *ProseBlockHandler) ListProseBlocksByChapter(ctx context.Context, req *prosepb.ListProseBlocksByChapterRequest) (*prosepb.ListProseBlocksByChapterResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	chapterID, err := uuid.Parse(req.ChapterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid chapter_id: %v", err)
 	}
 
-	proseBlocks, err := h.proseBlockRepo.ListByChapter(ctx, chapterID)
+	output, err := h.listProseBlocksUseCase.Execute(ctx, proseblockapp.ListProseBlocksInput{
+		TenantID:  tenantUUID,
+		ChapterID: chapterID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list prose blocks: %v", err)
+		return nil, err
 	}
 
-	protoProseBlocks := make([]*prosepb.ProseBlock, len(proseBlocks))
-	for i, p := range proseBlocks {
+	protoProseBlocks := make([]*prosepb.ProseBlock, len(output.ProseBlocks))
+	for i, p := range output.ProseBlocks {
 		protoProseBlocks[i] = proseBlockToProto(p)
 	}
 
 	return &prosepb.ListProseBlocksByChapterResponse{
 		ProseBlocks: protoProseBlocks,
-		TotalCount:  int32(len(proseBlocks)),
+		TotalCount:  int32(output.Total),
 	}, nil
 }
 

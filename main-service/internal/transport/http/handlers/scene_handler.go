@@ -5,43 +5,51 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/main-service/internal/application/story/scene"
+	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // SceneHandler handles HTTP requests for scenes
 type SceneHandler struct {
-	sceneRepo         repositories.SceneRepository
-	chapterRepo       repositories.ChapterRepository
-	storyRepo         repositories.StoryRepository
-	addReferenceUC    *scene.AddSceneReferenceUseCase
-	removeReferenceUC *scene.RemoveSceneReferenceUseCase
-	getReferencesUC   *scene.GetSceneReferencesUseCase
-	logger            logger.Logger
+	createSceneUseCase    *sceneapp.CreateSceneUseCase
+	getSceneUseCase       *sceneapp.GetSceneUseCase
+	updateSceneUseCase    *sceneapp.UpdateSceneUseCase
+	deleteSceneUseCase    *sceneapp.DeleteSceneUseCase
+	listScenesUseCase     *sceneapp.ListScenesUseCase
+	moveSceneUseCase      *sceneapp.MoveSceneUseCase
+	addReferenceUC        *sceneapp.AddSceneReferenceUseCase
+	removeReferenceUC     *sceneapp.RemoveSceneReferenceUseCase
+	getReferencesUC       *sceneapp.GetSceneReferencesUseCase
+	logger                 logger.Logger
 }
 
 // NewSceneHandler creates a new SceneHandler
 func NewSceneHandler(
-	sceneRepo repositories.SceneRepository,
-	chapterRepo repositories.ChapterRepository,
-	storyRepo repositories.StoryRepository,
-	addReferenceUC *scene.AddSceneReferenceUseCase,
-	removeReferenceUC *scene.RemoveSceneReferenceUseCase,
-	getReferencesUC *scene.GetSceneReferencesUseCase,
+	createSceneUseCase *sceneapp.CreateSceneUseCase,
+	getSceneUseCase *sceneapp.GetSceneUseCase,
+	updateSceneUseCase *sceneapp.UpdateSceneUseCase,
+	deleteSceneUseCase *sceneapp.DeleteSceneUseCase,
+	listScenesUseCase *sceneapp.ListScenesUseCase,
+	moveSceneUseCase *sceneapp.MoveSceneUseCase,
+	addReferenceUC *sceneapp.AddSceneReferenceUseCase,
+	removeReferenceUC *sceneapp.RemoveSceneReferenceUseCase,
+	getReferencesUC *sceneapp.GetSceneReferencesUseCase,
 	logger logger.Logger,
 ) *SceneHandler {
 	return &SceneHandler{
-		sceneRepo:         sceneRepo,
-		chapterRepo:       chapterRepo,
-		storyRepo:         storyRepo,
-		addReferenceUC:    addReferenceUC,
-		removeReferenceUC: removeReferenceUC,
-		getReferencesUC:   getReferencesUC,
-		logger:            logger,
+		createSceneUseCase: createSceneUseCase,
+		getSceneUseCase:    getSceneUseCase,
+		updateSceneUseCase: updateSceneUseCase,
+		deleteSceneUseCase: deleteSceneUseCase,
+		listScenesUseCase:  listScenesUseCase,
+		moveSceneUseCase:   moveSceneUseCase,
+		addReferenceUC:     addReferenceUC,
+		removeReferenceUC:  removeReferenceUC,
+		getReferencesUC:    getReferencesUC,
+		logger:             logger,
 	}
 }
 
@@ -75,13 +83,6 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
-	if err != nil {
-		WriteError(w, err, http.StatusNotFound)
-		return
-	}
-
 	var chapterID *uuid.UUID
 	if req.ChapterID != nil && *req.ChapterID != "" {
 		parsedChapterID, err := uuid.Parse(*req.ChapterID)
@@ -92,47 +93,10 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 			}, http.StatusBadRequest)
 			return
 		}
-
-		// Validate chapter exists
-		_, err = h.chapterRepo.GetByID(r.Context(), tenantID, parsedChapterID)
-		if err != nil {
-			if err.Error() == "chapter not found" {
-				WriteError(w, &platformerrors.NotFoundError{
-					Resource: "chapter",
-					ID:       *req.ChapterID,
-				}, http.StatusNotFound)
-			} else {
-				WriteError(w, err, http.StatusInternalServerError)
-			}
-			return
-		}
 		chapterID = &parsedChapterID
 	}
 
-	if req.OrderNum < 1 {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "order_num",
-			Message: "must be greater than 0",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	scene, err := story.NewScene(tenantID, storyID, chapterID, req.OrderNum)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "scene",
-			Message: err.Error(),
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if req.Goal != "" {
-		scene.UpdateGoal(req.Goal)
-	}
-	if req.TimeRef != "" {
-		scene.TimeRef = req.TimeRef
-	}
-
+	var povCharacterID *uuid.UUID
 	if req.POVCharacterID != nil && *req.POVCharacterID != "" {
 		charID, err := uuid.Parse(*req.POVCharacterID)
 		if err != nil {
@@ -142,11 +106,19 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 			}, http.StatusBadRequest)
 			return
 		}
-		scene.UpdatePOV(&charID)
+		povCharacterID = &charID
 	}
 
-	if err := h.sceneRepo.Create(r.Context(), scene); err != nil {
-		h.logger.Error("failed to create scene", "error", err)
+	output, err := h.createSceneUseCase.Execute(r.Context(), sceneapp.CreateSceneInput{
+		TenantID:       tenantID,
+		StoryID:        storyID,
+		ChapterID:      chapterID,
+		OrderNum:       req.OrderNum,
+		POVCharacterID: povCharacterID,
+		TimeRef:        req.TimeRef,
+		Goal:           req.Goal,
+	})
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -154,7 +126,7 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"scene": scene,
+		"scene": output.Scene,
 	})
 }
 
@@ -173,22 +145,18 @@ func (h *SceneHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scene, err := h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
+	output, err := h.getSceneUseCase.Execute(r.Context(), sceneapp.GetSceneInput{
+		TenantID: tenantID,
+		ID:       sceneID,
+	})
 	if err != nil {
-		if err.Error() == "scene not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "scene",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
+		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"scene": scene,
+		"scene": output.Scene,
 	})
 }
 
@@ -207,20 +175,6 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing scene
-	scene, err := h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
-	if err != nil {
-		if err.Error() == "scene not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "scene",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
 	var req struct {
 		OrderNum       *int    `json:"order_num,omitempty"`
 		POVCharacterID *string `json:"pov_character_id,omitempty"`
@@ -236,29 +190,17 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update fields if provided
-	if req.OrderNum != nil {
-		if *req.OrderNum < 1 {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "order_num",
-				Message: "must be greater than 0",
-			}, http.StatusBadRequest)
-			return
-		}
-		scene.OrderNum = *req.OrderNum
-	}
-
-	if req.Goal != nil {
-		scene.UpdateGoal(*req.Goal)
-	}
-
-	if req.TimeRef != nil {
-		scene.TimeRef = *req.TimeRef
+	input := sceneapp.UpdateSceneInput{
+		TenantID: tenantID,
+		ID:       sceneID,
+		OrderNum: req.OrderNum,
+		TimeRef:  req.TimeRef,
+		Goal:     req.Goal,
 	}
 
 	if req.POVCharacterID != nil {
 		if *req.POVCharacterID == "" {
-			scene.UpdatePOV(nil)
+			input.POVCharacterID = nil
 		} else {
 			charID, err := uuid.Parse(*req.POVCharacterID)
 			if err != nil {
@@ -268,19 +210,19 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 				}, http.StatusBadRequest)
 				return
 			}
-			scene.UpdatePOV(&charID)
+			input.POVCharacterID = &charID
 		}
 	}
 
-	if err := h.sceneRepo.Update(r.Context(), scene); err != nil {
-		h.logger.Error("failed to update scene", "error", err)
+	output, err := h.updateSceneUseCase.Execute(r.Context(), input)
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"scene": scene,
+		"scene": output.Scene,
 	})
 }
 
@@ -299,7 +241,10 @@ func (h *SceneHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenes, err := h.sceneRepo.ListByChapter(r.Context(), tenantID, chapterID)
+	output, err := h.listScenesUseCase.Execute(r.Context(), sceneapp.ListScenesInput{
+		TenantID:  tenantID,
+		ChapterID: &chapterID,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -307,8 +252,8 @@ func (h *SceneHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"scenes": scenes,
-		"total":  len(scenes),
+		"scenes": output.Scenes,
+		"total":  output.Total,
 	})
 }
 
@@ -327,23 +272,10 @@ func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if scene exists
-	_, err = h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
-	if err != nil {
-		if err.Error() == "scene not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "scene",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	// Delete scene (references will be deleted via CASCADE)
-	if err := h.sceneRepo.Delete(r.Context(), tenantID, sceneID); err != nil {
-		h.logger.Error("failed to delete scene", "error", err)
+	if err := h.deleteSceneUseCase.Execute(r.Context(), sceneapp.DeleteSceneInput{
+		TenantID: tenantID,
+		ID:       sceneID,
+	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -353,6 +285,7 @@ func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // GetReferences handles GET /api/v1/scenes/{id}/references
 func (h *SceneHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 
 	sceneID, err := uuid.Parse(id)
@@ -364,8 +297,9 @@ func (h *SceneHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output, err := h.getReferencesUC.Execute(r.Context(), scene.GetSceneReferencesInput{
-		SceneID: sceneID,
+	output, err := h.getReferencesUC.Execute(r.Context(), sceneapp.GetSceneReferencesInput{
+		TenantID: tenantID,
+		SceneID:  sceneID,
 	})
 	if err != nil {
 		if err.Error() == "scene not found" {
@@ -388,6 +322,7 @@ func (h *SceneHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
 
 // AddReference handles POST /api/v1/scenes/{id}/references
 func (h *SceneHandler) AddReference(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 
 	sceneID, err := uuid.Parse(id)
@@ -430,7 +365,8 @@ func (h *SceneHandler) AddReference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.addReferenceUC.Execute(r.Context(), scene.AddSceneReferenceInput{
+	if err := h.addReferenceUC.Execute(r.Context(), sceneapp.AddSceneReferenceInput{
+		TenantID:   tenantID,
 		SceneID:    sceneID,
 		EntityType: entityType,
 		EntityID:   entityID,
@@ -444,6 +380,7 @@ func (h *SceneHandler) AddReference(w http.ResponseWriter, r *http.Request) {
 
 // RemoveReference handles DELETE /api/v1/scenes/{id}/references/{entity_type}/{entity_id}
 func (h *SceneHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	entityTypeStr := r.PathValue("entity_type")
 	entityIDStr := r.PathValue("entity_id")
@@ -475,7 +412,8 @@ func (h *SceneHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.removeReferenceUC.Execute(r.Context(), scene.RemoveSceneReferenceInput{
+	if err := h.removeReferenceUC.Execute(r.Context(), sceneapp.RemoveSceneReferenceInput{
+		TenantID:   tenantID,
 		SceneID:    sceneID,
 		EntityType: entityType,
 		EntityID:   entityID,
@@ -508,21 +446,10 @@ func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
-	if err != nil {
-		if err.Error() == "story not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "story",
-				ID:       storyIDStr,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	scenes, err := h.sceneRepo.ListByStory(r.Context(), tenantID, storyID)
+	output, err := h.listScenesUseCase.Execute(r.Context(), sceneapp.ListScenesInput{
+		TenantID: tenantID,
+		StoryID:  storyID,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -530,8 +457,8 @@ func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"scenes": scenes,
-		"total":  len(scenes),
+		"scenes": output.Scenes,
+		"total":  output.Total,
 	})
 }
 
@@ -547,20 +474,6 @@ func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
 			Field:   "id",
 			Message: "invalid UUID format",
 		}, http.StatusBadRequest)
-		return
-	}
-
-	// Get existing scene
-	scene, err := h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
-	if err != nil {
-		if err.Error() == "scene not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "scene",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
 		return
 	}
 
@@ -586,33 +499,22 @@ func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
 			}, http.StatusBadRequest)
 			return
 		}
-
-		// Validate chapter exists
-		_, err = h.chapterRepo.GetByID(r.Context(), tenantID, parsedChapterID)
-		if err != nil {
-			if err.Error() == "chapter not found" {
-				WriteError(w, &platformerrors.NotFoundError{
-					Resource: "chapter",
-					ID:       *req.ChapterID,
-				}, http.StatusNotFound)
-			} else {
-				WriteError(w, err, http.StatusInternalServerError)
-			}
-			return
-		}
 		newChapterID = &parsedChapterID
 	}
 
-	scene.UpdateChapter(newChapterID)
-
-	if err := h.sceneRepo.Update(r.Context(), scene); err != nil {
-		h.logger.Error("failed to move scene", "error", err)
+	output, err := h.moveSceneUseCase.Execute(r.Context(), sceneapp.MoveSceneInput{
+		TenantID:     tenantID,
+		SceneID:      sceneID,
+		NewChapterID: newChapterID,
+	})
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"scene": scene,
+		"scene": output.Scene,
 	})
 }
+

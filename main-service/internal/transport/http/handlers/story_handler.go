@@ -10,29 +10,34 @@ import (
 	storycore "github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // StoryHandler handles HTTP requests for stories
 type StoryHandler struct {
 	createStoryUseCase *storyapp.CreateStoryUseCase
+	getStoryUseCase    *storyapp.GetStoryUseCase
+	updateStoryUseCase *storyapp.UpdateStoryUseCase
+	listStoriesUseCase *storyapp.ListStoriesUseCase
 	cloneStoryUseCase  *storyapp.CloneStoryUseCase
-	storyRepo          repositories.StoryRepository
 	logger             logger.Logger
 }
 
 // NewStoryHandler creates a new StoryHandler
 func NewStoryHandler(
 	createStoryUseCase *storyapp.CreateStoryUseCase,
+	getStoryUseCase *storyapp.GetStoryUseCase,
+	updateStoryUseCase *storyapp.UpdateStoryUseCase,
+	listStoriesUseCase *storyapp.ListStoriesUseCase,
 	cloneStoryUseCase *storyapp.CloneStoryUseCase,
-	storyRepo repositories.StoryRepository,
 	logger logger.Logger,
 ) *StoryHandler {
 	return &StoryHandler{
 		createStoryUseCase: createStoryUseCase,
+		getStoryUseCase:    getStoryUseCase,
+		updateStoryUseCase: updateStoryUseCase,
+		listStoriesUseCase: listStoriesUseCase,
 		cloneStoryUseCase:  cloneStoryUseCase,
-		storyRepo:          storyRepo,
 		logger:             logger,
 	}
 }
@@ -93,7 +98,10 @@ func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	story, err := h.storyRepo.GetByID(r.Context(), tenantID, storyID)
+	output, err := h.getStoryUseCase.Execute(r.Context(), storyapp.GetStoryInput{
+		TenantID: tenantID,
+		ID:       storyID,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -101,7 +109,7 @@ func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"story": story,
+		"story": output.Story,
 	})
 }
 
@@ -126,7 +134,11 @@ func (h *StoryHandler) List(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	stories, err := h.storyRepo.ListByTenant(r.Context(), tenantID, limit, offset)
+	output, err := h.listStoriesUseCase.Execute(r.Context(), storyapp.ListStoriesInput{
+		TenantID: tenantID,
+		Limit:    limit,
+		Offset:   offset,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -134,8 +146,8 @@ func (h *StoryHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"stories": stories,
-		"total":   len(stories),
+		"stories": output.Stories,
+		"total":   output.Total,
 	})
 }
 
@@ -154,20 +166,6 @@ func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing story
-	s, err := h.storyRepo.GetByID(r.Context(), tenantID, storyID)
-	if err != nil {
-		if err.Error() == "story not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "story",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
 	var req struct {
 		Title  *string `json:"title,omitempty"`
 		Status *string `json:"status,omitempty"`
@@ -181,36 +179,25 @@ func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update fields if provided
-	if req.Title != nil {
-		if err := s.UpdateTitle(*req.Title); err != nil {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "title",
-				Message: err.Error(),
-			}, http.StatusBadRequest)
-			return
-		}
+	input := storyapp.UpdateStoryInput{
+		TenantID: tenantID,
+		ID:       storyID,
+		Title:    req.Title,
 	}
-
 	if req.Status != nil {
-		if err := s.UpdateStatus(storycore.StoryStatus(*req.Status)); err != nil {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "status",
-				Message: "invalid status",
-			}, http.StatusBadRequest)
-			return
-		}
+		status := storycore.StoryStatus(*req.Status)
+		input.Status = &status
 	}
 
-	if err := h.storyRepo.Update(r.Context(), s); err != nil {
-		h.logger.Error("failed to update story", "error", err)
+	output, err := h.updateStoryUseCase.Execute(r.Context(), input)
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"story": s,
+		"story": output.Story,
 	})
 }
 
@@ -229,6 +216,7 @@ func (h *StoryHandler) Clone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.cloneStoryUseCase.Execute(r.Context(), storyapp.CloneStoryInput{
+		TenantID:      tenantID,
 		SourceStoryID: sourceStoryID,
 	})
 	if err != nil {
@@ -237,7 +225,10 @@ func (h *StoryHandler) Clone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the new story to get full details
-	newStory, err := h.storyRepo.GetByID(r.Context(), tenantID, output.NewStoryID)
+	getOutput, err := h.getStoryUseCase.Execute(r.Context(), storyapp.GetStoryInput{
+		TenantID: tenantID,
+		ID:       output.NewStoryID,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -245,8 +236,8 @@ func (h *StoryHandler) Clone(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"story":          newStory,
-		"version_number": newStory.VersionNumber,
+		"story":          getOutput.Story,
+		"version_number": getOutput.Story.VersionNumber,
 	})
 }
 

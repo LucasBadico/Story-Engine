@@ -7,17 +7,6 @@ import (
 	"syscall"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
-	worldapp "github.com/story-engine/main-service/internal/application/world"
-	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
-	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
-	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	eventapp "github.com/story-engine/main-service/internal/application/world/event"
-	locationapp "github.com/story-engine/main-service/internal/application/world/location"
-	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
-	"github.com/story-engine/main-service/internal/application/story"
-	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
-	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
-	"github.com/story-engine/main-service/internal/application/tenant"
 	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
 	characterinventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
 	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
@@ -25,6 +14,20 @@ import (
 	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
 	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
 	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
+	"github.com/story-engine/main-service/internal/application/story"
+	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
+	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
+	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
+	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
+	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
+	"github.com/story-engine/main-service/internal/application/tenant"
+	worldapp "github.com/story-engine/main-service/internal/application/world"
+	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
+	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	eventapp "github.com/story-engine/main-service/internal/application/world/event"
+	locationapp "github.com/story-engine/main-service/internal/application/world/location"
+	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
 	"github.com/story-engine/main-service/internal/platform/logger"
@@ -145,6 +148,9 @@ func main() {
 	removeArtifactFromEventUseCase := eventapp.NewRemoveArtifactFromEventUseCase(eventArtifactRepo, log)
 	getEventArtifactsUseCase := eventapp.NewGetEventArtifactsUseCase(eventArtifactRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
 		chapterRepo,
@@ -156,9 +162,36 @@ func main() {
 		log,
 	)
 	versionGraphUseCase := story.NewGetStoryVersionGraphUseCase(storyRepo, log)
+	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, log)
+	getChapterUseCase := chapterapp.NewGetChapterUseCase(chapterRepo, log)
+	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, log)
+	deleteChapterUseCase := chapterapp.NewDeleteChapterUseCase(chapterRepo, log)
+	listChaptersUseCase := chapterapp.NewListChaptersUseCase(chapterRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
+	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
+	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
+	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
 	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
 	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
 	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, log)
+	getBeatUseCase := beatapp.NewGetBeatUseCase(beatRepo, log)
+	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, log)
+	deleteBeatUseCase := beatapp.NewDeleteBeatUseCase(beatRepo, log)
+	listBeatsUseCase := beatapp.NewListBeatsUseCase(beatRepo, log)
+	moveBeatUseCase := beatapp.NewMoveBeatUseCase(beatRepo, sceneRepo, log)
+	proseBlockReferenceRepo := postgres.NewProseBlockReferenceRepository(pgDB)
+	createProseBlockUseCase := proseblockapp.NewCreateProseBlockUseCase(proseBlockRepo, chapterRepo, log)
+	getProseBlockUseCase := proseblockapp.NewGetProseBlockUseCase(proseBlockRepo, log)
+	updateProseBlockUseCase := proseblockapp.NewUpdateProseBlockUseCase(proseBlockRepo, log)
+	deleteProseBlockUseCase := proseblockapp.NewDeleteProseBlockUseCase(proseBlockRepo, log)
+	listProseBlocksUseCase := proseblockapp.NewListProseBlocksUseCase(proseBlockRepo, log)
+	createProseBlockReferenceUseCase := proseblockapp.NewCreateProseBlockReferenceUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
+	listProseBlockReferencesByProseBlockUseCase := proseblockapp.NewListProseBlockReferencesByProseBlockUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
+	listProseBlocksByEntityUseCase := proseblockapp.NewListProseBlocksByEntityUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
+	deleteProseBlockReferenceUseCase := proseblockapp.NewDeleteProseBlockReferenceUseCase(proseBlockReferenceRepo, log)
 	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
 	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)
 	listRPGSystemsUseCase := rpgsystemapp.NewListRPGSystemsUseCase(rpgSystemRepo, log)
@@ -176,6 +209,7 @@ func main() {
 	deleteRPGClassUseCase := rpgclassapp.NewDeleteRPGClassUseCase(rpgClassRepo, log)
 	addSkillToClassUseCase := rpgclassapp.NewAddSkillToClassUseCase(rpgClassSkillRepo, rpgClassRepo, skillRepo, log)
 	listClassSkillsUseCase := rpgclassapp.NewListClassSkillsUseCase(rpgClassSkillRepo, log)
+	removeSkillFromClassUseCase := rpgclassapp.NewRemoveSkillFromClassUseCase(rpgClassSkillRepo, rpgClassRepo, log)
 	learnSkillUseCase := characterskillapp.NewLearnSkillUseCase(characterSkillRepo, characterRepo, skillRepo, log)
 	updateCharacterSkillUseCase := characterskillapp.NewUpdateCharacterSkillUseCase(characterSkillRepo, skillRepo, log)
 	deleteCharacterSkillUseCase := characterskillapp.NewDeleteCharacterSkillUseCase(characterSkillRepo, log)
@@ -211,15 +245,21 @@ func main() {
 	archetypeHandler := handlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := handlers.NewStoryHandler(
 		createStoryUseCase,
+		getStoryUseCase,
+		updateStoryUseCase,
+		listStoriesUseCase,
 		cloneStoryUseCase,
 		versionGraphUseCase,
-		storyRepo,
 		log,
 	)
-	sceneHandler := handlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
+	chapterHandler := handlers.NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
+	sceneHandler := handlers.NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
+	beatHandler := handlers.NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
+	proseBlockHandler := handlers.NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
+	proseBlockReferenceHandler := handlers.NewProseBlockReferenceHandler(createProseBlockReferenceUseCase, listProseBlockReferencesByProseBlockUseCase, listProseBlocksByEntityUseCase, deleteProseBlockReferenceUseCase, log)
 	rpgSystemHandler := handlers.NewRPGSystemHandler(createRPGSystemUseCase, getRPGSystemUseCase, listRPGSystemsUseCase, updateRPGSystemUseCase, deleteRPGSystemUseCase, log)
 	skillHandler := handlers.NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
-	rpgClassHandler := handlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, rpgClassSkillRepo, log)
+	rpgClassHandler := handlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, removeSkillFromClassUseCase, log)
 	characterSkillHandler := handlers.NewCharacterSkillHandler(learnSkillUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, listCharacterSkillsUseCase, log)
 	characterRPGStatsHandler := handlers.NewCharacterRPGStatsHandler(createCharacterStatsUseCase, getActiveCharacterStatsUseCase, listCharacterStatsHistoryUseCase, activateCharacterStatsVersionUseCase, deleteAllCharacterStatsUseCase, log)
 	artifactRPGStatsHandler := handlers.NewArtifactRPGStatsHandler(createArtifactStatsUseCase, getActiveArtifactStatsUseCase, listArtifactStatsHistoryUseCase, activateArtifactStatsVersionUseCase, log)
@@ -237,7 +277,11 @@ func main() {
 	grpcServer.RegisterTraitService(traitHandler)
 	grpcServer.RegisterArchetypeService(archetypeHandler)
 	grpcServer.RegisterStoryService(storyHandler)
+	grpcServer.RegisterChapterService(chapterHandler)
 	grpcServer.RegisterSceneService(sceneHandler)
+	grpcServer.RegisterBeatService(beatHandler)
+	grpcServer.RegisterProseBlockService(proseBlockHandler)
+	grpcServer.RegisterProseBlockReferenceService(proseBlockReferenceHandler)
 	grpcServer.RegisterRPGSystemService(rpgSystemHandler)
 	grpcServer.RegisterSkillService(skillHandler)
 	grpcServer.RegisterRPGClassService(rpgClassHandler)
@@ -274,4 +318,3 @@ func main() {
 		log.Info("gRPC server stopped")
 	}
 }
-

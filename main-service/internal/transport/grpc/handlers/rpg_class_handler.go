@@ -6,9 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	rpgclasspb "github.com/story-engine/main-service/proto/rpg_class"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -24,7 +24,7 @@ type RPGClassHandler struct {
 	deleteRPGClassUseCase     *rpgclassapp.DeleteRPGClassUseCase
 	addSkillToClassUseCase    *rpgclassapp.AddSkillToClassUseCase
 	listClassSkillsUseCase    *rpgclassapp.ListClassSkillsUseCase
-	classSkillRepo            repositories.RPGClassSkillRepository
+	removeSkillFromClassUseCase *rpgclassapp.RemoveSkillFromClassUseCase
 	logger                    logger.Logger
 }
 
@@ -37,7 +37,7 @@ func NewRPGClassHandler(
 	deleteRPGClassUseCase *rpgclassapp.DeleteRPGClassUseCase,
 	addSkillToClassUseCase *rpgclassapp.AddSkillToClassUseCase,
 	listClassSkillsUseCase *rpgclassapp.ListClassSkillsUseCase,
-	classSkillRepo repositories.RPGClassSkillRepository,
+	removeSkillFromClassUseCase *rpgclassapp.RemoveSkillFromClassUseCase,
 	logger logger.Logger,
 ) *RPGClassHandler {
 	return &RPGClassHandler{
@@ -48,7 +48,7 @@ func NewRPGClassHandler(
 		deleteRPGClassUseCase:      deleteRPGClassUseCase,
 		addSkillToClassUseCase:      addSkillToClassUseCase,
 		listClassSkillsUseCase:      listClassSkillsUseCase,
-		classSkillRepo:              classSkillRepo,
+		removeSkillFromClassUseCase: removeSkillFromClassUseCase,
 		logger:                     logger,
 	}
 }
@@ -267,6 +267,17 @@ func (h *RPGClassHandler) AddSkillToRPGClass(ctx context.Context, req *rpgclassp
 
 // RemoveSkillFromRPGClass removes a skill from an RPG class
 func (h *RPGClassHandler) RemoveSkillFromRPGClass(ctx context.Context, req *rpgclasspb.RemoveSkillFromRPGClassRequest) (*rpgclasspb.RemoveSkillFromRPGClassResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	classID, err := uuid.Parse(req.RpgClassId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_class_id: %v", err)
@@ -277,13 +288,12 @@ func (h *RPGClassHandler) RemoveSkillFromRPGClass(ctx context.Context, req *rpgc
 		return nil, status.Errorf(codes.InvalidArgument, "invalid skill_id: %v", err)
 	}
 
-	// Get class skill and delete it
-	classSkill, err := h.classSkillRepo.GetByClassAndSkill(ctx, classID, skillID)
+	_, err = h.removeSkillFromClassUseCase.Execute(ctx, rpgclassapp.RemoveSkillFromClassInput{
+		TenantID: tenantUUID,
+		ClassID:  classID,
+		SkillID:  skillID,
+	})
 	if err != nil {
-		return nil, err
-	}
-
-	if err := h.classSkillRepo.Delete(ctx, classSkill.ID); err != nil {
 		return nil, err
 	}
 

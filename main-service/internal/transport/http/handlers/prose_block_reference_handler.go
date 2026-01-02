@@ -5,30 +5,36 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ProseBlockReferenceHandler handles HTTP requests for prose block references
 type ProseBlockReferenceHandler struct {
-	refRepo        repositories.ProseBlockReferenceRepository
-	proseBlockRepo repositories.ProseBlockRepository
-	logger         logger.Logger
+	createReferenceUC  *proseblockapp.CreateProseBlockReferenceUseCase
+	listByProseBlockUC *proseblockapp.ListProseBlockReferencesByProseBlockUseCase
+	listByEntityUC     *proseblockapp.ListProseBlocksByEntityUseCase
+	deleteReferenceUC  *proseblockapp.DeleteProseBlockReferenceUseCase
+	logger             logger.Logger
 }
 
 // NewProseBlockReferenceHandler creates a new ProseBlockReferenceHandler
 func NewProseBlockReferenceHandler(
-	refRepo repositories.ProseBlockReferenceRepository,
-	proseBlockRepo repositories.ProseBlockRepository,
+	createReferenceUC *proseblockapp.CreateProseBlockReferenceUseCase,
+	listByProseBlockUC *proseblockapp.ListProseBlockReferencesByProseBlockUseCase,
+	listByEntityUC *proseblockapp.ListProseBlocksByEntityUseCase,
+	deleteReferenceUC *proseblockapp.DeleteProseBlockReferenceUseCase,
 	logger logger.Logger,
 ) *ProseBlockReferenceHandler {
 	return &ProseBlockReferenceHandler{
-		refRepo:        refRepo,
-		proseBlockRepo: proseBlockRepo,
-		logger:         logger,
+		createReferenceUC:  createReferenceUC,
+		listByProseBlockUC: listByProseBlockUC,
+		listByEntityUC:     listByEntityUC,
+		deleteReferenceUC:  deleteReferenceUC,
+		logger:             logger,
 	}
 }
 
@@ -46,20 +52,6 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Validate prose block exists
-	_, err = h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
-	if err != nil {
-		if err.Error() == "prose block not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "prose_block",
-				ID:       proseBlockIDStr,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
 	var req struct {
 		EntityType string `json:"entity_type"`
 		EntityID   string `json:"entity_id"`
@@ -73,22 +65,6 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if req.EntityType == "" {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "entity_type",
-			Message: "entity_type is required",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if req.EntityID == "" {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "entity_id",
-			Message: "entity_id is required",
-		}, http.StatusBadRequest)
-		return
-	}
-
 	entityID, err := uuid.Parse(req.EntityID)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
@@ -98,17 +74,13 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	ref, err := story.NewProseBlockReference(proseBlockID, story.EntityType(req.EntityType), entityID)
+	output, err := h.createReferenceUC.Execute(r.Context(), proseblockapp.CreateProseBlockReferenceInput{
+		TenantID:     tenantID,
+		ProseBlockID: proseBlockID,
+		EntityType:   story.EntityType(req.EntityType),
+		EntityID:     entityID,
+	})
 	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "reference",
-			Message: err.Error(),
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.refRepo.Create(r.Context(), ref); err != nil {
-		h.logger.Error("failed to create prose block reference", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -116,7 +88,7 @@ func (h *ProseBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Reque
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"reference": ref,
+		"reference": output.Reference,
 	})
 }
 
@@ -134,31 +106,19 @@ func (h *ProseBlockReferenceHandler) ListByProseBlock(w http.ResponseWriter, r *
 		return
 	}
 
-	// Validate prose block exists
-	_, err = h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
+	output, err := h.listByProseBlockUC.Execute(r.Context(), proseblockapp.ListProseBlockReferencesByProseBlockInput{
+		TenantID:     tenantID,
+		ProseBlockID: proseBlockID,
+	})
 	if err != nil {
-		if err.Error() == "prose block not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "prose_block",
-				ID:       proseBlockIDStr,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	references, err := h.refRepo.ListByProseBlock(r.Context(), tenantID, proseBlockID)
-	if err != nil {
-		h.logger.Error("failed to list prose block references", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"references": references,
-		"total":      len(references),
+		"references": output.References,
+		"total":      output.Total,
 	})
 }
 
@@ -177,36 +137,20 @@ func (h *ProseBlockReferenceHandler) ListByScene(w http.ResponseWriter, r *http.
 		return
 	}
 
-	if entityTypeStr == "" {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "entity_type",
-			Message: "entity_type is required",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	references, err := h.refRepo.ListByEntity(r.Context(), tenantID, story.EntityType(entityTypeStr), entityID)
+	output, err := h.listByEntityUC.Execute(r.Context(), proseblockapp.ListProseBlocksByEntityInput{
+		TenantID:   tenantID,
+		EntityType: story.EntityType(entityTypeStr),
+		EntityID:   entityID,
+	})
 	if err != nil {
-		h.logger.Error("failed to list prose block references by entity", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	// Get prose blocks for each reference
-	proseBlocks := make([]*story.ProseBlock, 0, len(references))
-	for _, ref := range references {
-		proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, ref.ProseBlockID)
-		if err != nil {
-			h.logger.Error("failed to get prose block", "prose_block_id", ref.ProseBlockID, "error", err)
-			continue
-		}
-		proseBlocks = append(proseBlocks, proseBlock)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"prose_blocks": proseBlocks,
-		"total":        len(proseBlocks),
+		"prose_blocks": output.ProseBlocks,
+		"total":        output.Total,
 	})
 }
 
@@ -225,28 +169,20 @@ func (h *ProseBlockReferenceHandler) ListByBeat(w http.ResponseWriter, r *http.R
 		return
 	}
 
-	references, err := h.refRepo.ListByEntity(r.Context(), tenantID, story.EntityType(entityTypeStr), entityID)
+	output, err := h.listByEntityUC.Execute(r.Context(), proseblockapp.ListProseBlocksByEntityInput{
+		TenantID:   tenantID,
+		EntityType: story.EntityType(entityTypeStr),
+		EntityID:   entityID,
+	})
 	if err != nil {
-		h.logger.Error("failed to list prose block references by entity", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
-	// Get prose blocks for each reference
-	proseBlocks := make([]*story.ProseBlock, 0, len(references))
-	for _, ref := range references {
-		proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, ref.ProseBlockID)
-		if err != nil {
-			h.logger.Error("failed to get prose block", "prose_block_id", ref.ProseBlockID, "error", err)
-			continue
-		}
-		proseBlocks = append(proseBlocks, proseBlock)
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"prose_blocks": proseBlocks,
-		"total":        len(proseBlocks),
+		"prose_blocks": output.ProseBlocks,
+		"total":        output.Total,
 	})
 }
 
@@ -264,22 +200,10 @@ func (h *ProseBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	// Check if reference exists
-	_, err = h.refRepo.GetByID(r.Context(), tenantID, refID)
-	if err != nil {
-		if err.Error() == "prose block reference not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "prose_block_reference",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	if err := h.refRepo.Delete(r.Context(), tenantID, refID); err != nil {
-		h.logger.Error("failed to delete prose block reference", "error", err)
+	if err := h.deleteReferenceUC.Execute(r.Context(), proseblockapp.DeleteProseBlockReferenceInput{
+		TenantID: tenantID,
+		ID:       refID,
+	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}

@@ -10,6 +10,24 @@ import (
 	"time"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
+	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
+	characterinventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
+	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
+	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
+	rpgeventapp "github.com/story-engine/main-service/internal/application/rpg/event"
+	inventoryitemapp "github.com/story-engine/main-service/internal/application/rpg/inventory_item"
+	inventoryslotapp "github.com/story-engine/main-service/internal/application/rpg/inventory_slot"
+	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
+	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
+	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
+	"github.com/story-engine/main-service/internal/application/story"
+	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
+	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
+	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
+	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
+	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
+	"github.com/story-engine/main-service/internal/application/tenant"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
@@ -17,21 +35,6 @@ import (
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
-	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
-	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
-	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
-	rpgeventapp "github.com/story-engine/main-service/internal/application/rpg/event"
-	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
-	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
-	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
-	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
-	inventoryslotapp "github.com/story-engine/main-service/internal/application/rpg/inventory_slot"
-	inventoryitemapp "github.com/story-engine/main-service/internal/application/rpg/inventory_item"
-	characterinventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
-	"github.com/story-engine/main-service/internal/application/story"
-	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
-	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
-	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
 	"github.com/story-engine/main-service/internal/platform/logger"
@@ -155,6 +158,9 @@ func main() {
 	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
 	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
 		chapterRepo,
@@ -165,9 +171,35 @@ func main() {
 		transactionRepo,
 		log,
 	)
+	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, log)
+	getChapterUseCase := chapterapp.NewGetChapterUseCase(chapterRepo, log)
+	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, log)
+	deleteChapterUseCase := chapterapp.NewDeleteChapterUseCase(chapterRepo, log)
+	listChaptersUseCase := chapterapp.NewListChaptersUseCase(chapterRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
+	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
+	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
+	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
 	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
 	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
 	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, log)
+	getBeatUseCase := beatapp.NewGetBeatUseCase(beatRepo, log)
+	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, log)
+	deleteBeatUseCase := beatapp.NewDeleteBeatUseCase(beatRepo, log)
+	listBeatsUseCase := beatapp.NewListBeatsUseCase(beatRepo, log)
+	moveBeatUseCase := beatapp.NewMoveBeatUseCase(beatRepo, sceneRepo, log)
+	createProseBlockUseCase := proseblockapp.NewCreateProseBlockUseCase(proseBlockRepo, chapterRepo, log)
+	getProseBlockUseCase := proseblockapp.NewGetProseBlockUseCase(proseBlockRepo, log)
+	updateProseBlockUseCase := proseblockapp.NewUpdateProseBlockUseCase(proseBlockRepo, log)
+	deleteProseBlockUseCase := proseblockapp.NewDeleteProseBlockUseCase(proseBlockRepo, log)
+	listProseBlocksUseCase := proseblockapp.NewListProseBlocksUseCase(proseBlockRepo, log)
+	createProseBlockReferenceUseCase := proseblockapp.NewCreateProseBlockReferenceUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
+	listProseBlockReferencesByProseBlockUseCase := proseblockapp.NewListProseBlockReferencesByProseBlockUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
+	listProseBlocksByEntityUseCase := proseblockapp.NewListProseBlocksByEntityUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
+	deleteProseBlockReferenceUseCase := proseblockapp.NewDeleteProseBlockReferenceUseCase(proseBlockReferenceRepo, log)
 	createImageBlockUseCase := imageblockapp.NewCreateImageBlockUseCase(imageBlockRepo, chapterRepo, log)
 	getImageBlockUseCase := imageblockapp.NewGetImageBlockUseCase(imageBlockRepo, log)
 	listImageBlocksUseCase := imageblockapp.NewListImageBlocksUseCase(imageBlockRepo, log)
@@ -240,12 +272,12 @@ func main() {
 	characterSkillHandler := httphandlers.NewCharacterSkillHandler(learnSkillUseCase, listCharacterSkillsUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, log)
 	traitHandler := httphandlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
 	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
-	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, cloneStoryUseCase, storyRepo, log)
-	chapterHandler := httphandlers.NewChapterHandler(chapterRepo, storyRepo, log)
-	sceneHandler := httphandlers.NewSceneHandler(sceneRepo, chapterRepo, storyRepo, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
-	beatHandler := httphandlers.NewBeatHandler(beatRepo, sceneRepo, storyRepo, log)
-	proseBlockHandler := httphandlers.NewProseBlockHandler(proseBlockRepo, chapterRepo, log)
-	proseBlockReferenceHandler := httphandlers.NewProseBlockReferenceHandler(proseBlockReferenceRepo, proseBlockRepo, log)
+	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
+	chapterHandler := httphandlers.NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
+	sceneHandler := httphandlers.NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
+	beatHandler := httphandlers.NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
+	proseBlockHandler := httphandlers.NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
+	proseBlockReferenceHandler := httphandlers.NewProseBlockReferenceHandler(createProseBlockReferenceUseCase, listProseBlockReferencesByProseBlockUseCase, listProseBlocksByEntityUseCase, deleteProseBlockReferenceUseCase, log)
 	imageBlockHandler := httphandlers.NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, addImageBlockReferenceUseCase, removeImageBlockReferenceUseCase, getImageBlockReferencesUseCase, log)
 
 	// Create router
@@ -482,4 +514,3 @@ func main() {
 		log.Info("HTTP server stopped")
 	}
 }
-

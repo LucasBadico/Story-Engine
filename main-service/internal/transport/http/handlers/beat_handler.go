@@ -3,36 +3,44 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/google/uuid"
+	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // BeatHandler handles HTTP requests for beats
 type BeatHandler struct {
-	beatRepo  repositories.BeatRepository
-	sceneRepo repositories.SceneRepository
-	storyRepo repositories.StoryRepository
-	logger    logger.Logger
+	createBeatUseCase *beatapp.CreateBeatUseCase
+	getBeatUseCase    *beatapp.GetBeatUseCase
+	updateBeatUseCase *beatapp.UpdateBeatUseCase
+	deleteBeatUseCase *beatapp.DeleteBeatUseCase
+	listBeatsUseCase  *beatapp.ListBeatsUseCase
+	moveBeatUseCase   *beatapp.MoveBeatUseCase
+	logger            logger.Logger
 }
 
 // NewBeatHandler creates a new BeatHandler
 func NewBeatHandler(
-	beatRepo repositories.BeatRepository,
-	sceneRepo repositories.SceneRepository,
-	storyRepo repositories.StoryRepository,
+	createBeatUseCase *beatapp.CreateBeatUseCase,
+	getBeatUseCase *beatapp.GetBeatUseCase,
+	updateBeatUseCase *beatapp.UpdateBeatUseCase,
+	deleteBeatUseCase *beatapp.DeleteBeatUseCase,
+	listBeatsUseCase *beatapp.ListBeatsUseCase,
+	moveBeatUseCase *beatapp.MoveBeatUseCase,
 	logger logger.Logger,
 ) *BeatHandler {
 	return &BeatHandler{
-		beatRepo:  beatRepo,
-		sceneRepo: sceneRepo,
-		storyRepo: storyRepo,
-		logger:    logger,
+		createBeatUseCase: createBeatUseCase,
+		getBeatUseCase:    getBeatUseCase,
+		updateBeatUseCase: updateBeatUseCase,
+		deleteBeatUseCase: deleteBeatUseCase,
+		listBeatsUseCase:  listBeatsUseCase,
+		moveBeatUseCase:   moveBeatUseCase,
+		logger:            logger,
 	}
 }
 
@@ -65,54 +73,15 @@ func (h *BeatHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate scene exists
-	_, err = h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
+	output, err := h.createBeatUseCase.Execute(r.Context(), beatapp.CreateBeatInput{
+		TenantID: tenantID,
+		SceneID:  sceneID,
+		OrderNum: req.OrderNum,
+		Type:     story.BeatType(req.Type),
+		Intent:   req.Intent,
+		Outcome:  req.Outcome,
+	})
 	if err != nil {
-		if err.Error() == "scene not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "scene",
-				ID:       req.SceneID,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	if req.OrderNum < 1 {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "order_num",
-			Message: "must be greater than 0",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if req.Type == "" {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "type",
-			Message: "type is required",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	beat, err := story.NewBeat(tenantID, sceneID, req.OrderNum, story.BeatType(req.Type))
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "beat",
-			Message: err.Error(),
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if req.Intent != "" {
-		beat.UpdateIntent(req.Intent)
-	}
-	if req.Outcome != "" {
-		beat.UpdateOutcome(req.Outcome)
-	}
-
-	if err := h.beatRepo.Create(r.Context(), beat); err != nil {
-		h.logger.Error("failed to create beat", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -120,7 +89,7 @@ func (h *BeatHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"beat": beat,
+		"beat": output.Beat,
 	})
 }
 
@@ -139,22 +108,18 @@ func (h *BeatHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	beat, err := h.beatRepo.GetByID(r.Context(), tenantID, beatID)
+	output, err := h.getBeatUseCase.Execute(r.Context(), beatapp.GetBeatInput{
+		TenantID: tenantID,
+		ID:       beatID,
+	})
 	if err != nil {
-		if err.Error() == "beat not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "beat",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
+		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"beat": beat,
+		"beat": output.Beat,
 	})
 }
 
@@ -173,20 +138,6 @@ func (h *BeatHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing beat
-	beat, err := h.beatRepo.GetByID(r.Context(), tenantID, beatID)
-	if err != nil {
-		if err.Error() == "beat not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "beat",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
 	var req struct {
 		OrderNum *int    `json:"order_num,omitempty"`
 		Type     *string `json:"type,omitempty"`
@@ -202,46 +153,27 @@ func (h *BeatHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update fields if provided
-	if req.OrderNum != nil {
-		if *req.OrderNum < 1 {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "order_num",
-				Message: "must be greater than 0",
-			}, http.StatusBadRequest)
-			return
-		}
-		beat.OrderNum = *req.OrderNum
+	input := beatapp.UpdateBeatInput{
+		TenantID: tenantID,
+		ID:       beatID,
+		OrderNum: req.OrderNum,
+		Intent:   req.Intent,
+		Outcome:  req.Outcome,
 	}
-
 	if req.Type != nil {
-		beat.Type = story.BeatType(*req.Type)
-		if !isValidBeatType(beat.Type) {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "type",
-				Message: "invalid beat type",
-			}, http.StatusBadRequest)
-			return
-		}
+		beatType := story.BeatType(*req.Type)
+		input.Type = &beatType
 	}
 
-	if req.Intent != nil {
-		beat.UpdateIntent(*req.Intent)
-	}
-
-	if req.Outcome != nil {
-		beat.UpdateOutcome(*req.Outcome)
-	}
-
-	if err := h.beatRepo.Update(r.Context(), beat); err != nil {
-		h.logger.Error("failed to update beat", "error", err)
+	output, err := h.updateBeatUseCase.Execute(r.Context(), input)
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"beat": beat,
+		"beat": output.Beat,
 	})
 }
 
@@ -260,7 +192,10 @@ func (h *BeatHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	beats, err := h.beatRepo.ListByScene(r.Context(), tenantID, sceneID)
+	output, err := h.listBeatsUseCase.Execute(r.Context(), beatapp.ListBeatsInput{
+		TenantID: tenantID,
+		SceneID:  sceneID,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -268,8 +203,8 @@ func (h *BeatHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"beats": beats,
-		"total": len(beats),
+		"beats": output.Beats,
+		"total": output.Total,
 	})
 }
 
@@ -288,22 +223,10 @@ func (h *BeatHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if beat exists
-	_, err = h.beatRepo.GetByID(r.Context(), tenantID, beatID)
-	if err != nil {
-		if err.Error() == "beat not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "beat",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	if err := h.beatRepo.Delete(r.Context(), tenantID, beatID); err != nil {
-		h.logger.Error("failed to delete beat", "error", err)
+	if err := h.deleteBeatUseCase.Execute(r.Context(), beatapp.DeleteBeatInput{
+		TenantID: tenantID,
+		ID:       beatID,
+	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -326,21 +249,10 @@ func (h *BeatHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
-	if err != nil {
-		if err.Error() == "story not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "story",
-				ID:       storyIDStr,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	beats, err := h.beatRepo.ListByStory(r.Context(), tenantID, storyID)
+	output, err := h.listBeatsUseCase.Execute(r.Context(), beatapp.ListBeatsInput{
+		TenantID: tenantID,
+		StoryID:  &storyID,
+	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -348,8 +260,8 @@ func (h *BeatHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"beats": beats,
-		"total": len(beats),
+		"beats": output.Beats,
+		"total": output.Total,
 	})
 }
 
@@ -368,20 +280,6 @@ func (h *BeatHandler) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing beat
-	beat, err := h.beatRepo.GetByID(r.Context(), tenantID, beatID)
-	if err != nil {
-		if err.Error() == "beat not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "beat",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
 	var req struct {
 		SceneID string `json:"scene_id"`
 	}
@@ -394,7 +292,7 @@ func (h *BeatHandler) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	sceneID, err := uuid.Parse(req.SceneID)
+	newSceneID, err := uuid.Parse(req.SceneID)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "scene_id",
@@ -403,44 +301,19 @@ func (h *BeatHandler) Move(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate scene exists
-	_, err = h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
+	output, err := h.moveBeatUseCase.Execute(r.Context(), beatapp.MoveBeatInput{
+		TenantID:   tenantID,
+		BeatID:     beatID,
+		NewSceneID: newSceneID,
+	})
 	if err != nil {
-		if err.Error() == "scene not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "scene",
-				ID:       req.SceneID,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	beat.SceneID = sceneID
-	beat.UpdatedAt = time.Now()
-
-	if err := h.beatRepo.Update(r.Context(), beat); err != nil {
-		h.logger.Error("failed to move beat", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"beat": beat,
+		"beat": output.Beat,
 	})
-}
-
-// isValidBeatType checks if a beat type is valid
-func isValidBeatType(bt story.BeatType) bool {
-	return bt == story.BeatTypeSetup ||
-		bt == story.BeatTypeTurn ||
-		bt == story.BeatTypeReveal ||
-		bt == story.BeatTypeConflict ||
-		bt == story.BeatTypeClimax ||
-		bt == story.BeatTypeResolution ||
-		bt == story.BeatTypeHook ||
-		bt == story.BeatTypeTransition
 }
 

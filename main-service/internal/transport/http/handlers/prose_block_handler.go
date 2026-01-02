@@ -5,30 +5,39 @@ import (
 	"net/http"
 
 	"github.com/google/uuid"
+	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ProseBlockHandler handles HTTP requests for prose blocks
 type ProseBlockHandler struct {
-	proseBlockRepo repositories.ProseBlockRepository
-	chapterRepo    repositories.ChapterRepository
-	logger         logger.Logger
+	createProseBlockUseCase *proseblockapp.CreateProseBlockUseCase
+	getProseBlockUseCase    *proseblockapp.GetProseBlockUseCase
+	updateProseBlockUseCase *proseblockapp.UpdateProseBlockUseCase
+	deleteProseBlockUseCase *proseblockapp.DeleteProseBlockUseCase
+	listProseBlocksUseCase  *proseblockapp.ListProseBlocksUseCase
+	logger                   logger.Logger
 }
 
 // NewProseBlockHandler creates a new ProseBlockHandler
 func NewProseBlockHandler(
-	proseBlockRepo repositories.ProseBlockRepository,
-	chapterRepo repositories.ChapterRepository,
+	createProseBlockUseCase *proseblockapp.CreateProseBlockUseCase,
+	getProseBlockUseCase *proseblockapp.GetProseBlockUseCase,
+	updateProseBlockUseCase *proseblockapp.UpdateProseBlockUseCase,
+	deleteProseBlockUseCase *proseblockapp.DeleteProseBlockUseCase,
+	listProseBlocksUseCase *proseblockapp.ListProseBlocksUseCase,
 	logger logger.Logger,
 ) *ProseBlockHandler {
 	return &ProseBlockHandler{
-		proseBlockRepo: proseBlockRepo,
-		chapterRepo:    chapterRepo,
-		logger:         logger,
+		createProseBlockUseCase: createProseBlockUseCase,
+		getProseBlockUseCase:    getProseBlockUseCase,
+		updateProseBlockUseCase: updateProseBlockUseCase,
+		deleteProseBlockUseCase: deleteProseBlockUseCase,
+		listProseBlocksUseCase:  listProseBlocksUseCase,
+		logger:                  logger,
 	}
 }
 
@@ -47,31 +56,19 @@ func (h *ProseBlockHandler) ListByChapter(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	// Validate chapter exists
-	_, err = h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
+	output, err := h.listProseBlocksUseCase.Execute(r.Context(), proseblockapp.ListProseBlocksInput{
+		TenantID:  tenantID,
+		ChapterID: chapterID,
+	})
 	if err != nil {
-		if err.Error() == "chapter not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "chapter",
-				ID:       chapterIDStr,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	proseBlocks, err := h.proseBlockRepo.ListByChapter(r.Context(), tenantID, chapterID)
-	if err != nil {
-		h.logger.Error("failed to list prose blocks", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"prose_blocks": proseBlocks,
-		"total":        len(proseBlocks),
+		"prose_blocks": output.ProseBlocks,
+		"total":        output.Total,
 	})
 }
 
@@ -91,20 +88,6 @@ func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 			}, http.StatusBadRequest)
 			return
 		}
-
-		// Validate chapter exists if provided
-		_, err = h.chapterRepo.GetByID(r.Context(), tenantID, parsedChapterID)
-		if err != nil {
-			if err.Error() == "chapter not found" {
-				WriteError(w, &platformerrors.NotFoundError{
-					Resource: "chapter",
-					ID:       chapterIDStr,
-				}, http.StatusNotFound)
-			} else {
-				WriteError(w, err, http.StatusInternalServerError)
-			}
-			return
-		}
 		chapterID = &parsedChapterID
 	}
 
@@ -122,37 +105,14 @@ func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.OrderNum != nil && *req.OrderNum < 1 {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "order_num",
-			Message: "must be greater than 0",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if req.Kind == "" {
-		req.Kind = "final"
-	}
-
-	if req.Content == "" {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "content",
-			Message: "content is required",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	proseBlock, err := story.NewProseBlock(tenantID, chapterID, req.OrderNum, story.ProseKind(req.Kind), req.Content)
+	output, err := h.createProseBlockUseCase.Execute(r.Context(), proseblockapp.CreateProseBlockInput{
+		TenantID:  tenantID,
+		ChapterID: chapterID,
+		OrderNum:  req.OrderNum,
+		Kind:      story.ProseKind(req.Kind),
+		Content:   req.Content,
+	})
 	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "prose_block",
-			Message: err.Error(),
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.proseBlockRepo.Create(r.Context(), proseBlock); err != nil {
-		h.logger.Error("failed to create prose block", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
@@ -160,7 +120,7 @@ func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"prose_block": proseBlock,
+		"prose_block": output.ProseBlock,
 	})
 }
 
@@ -179,22 +139,18 @@ func (h *ProseBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
+	output, err := h.getProseBlockUseCase.Execute(r.Context(), proseblockapp.GetProseBlockInput{
+		TenantID: tenantID,
+		ID:       proseBlockID,
+	})
 	if err != nil {
-		if err.Error() == "prose block not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "prose_block",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
+		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"prose_block": proseBlock,
+		"prose_block": output.ProseBlock,
 	})
 }
 
@@ -213,20 +169,6 @@ func (h *ProseBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Get existing prose block
-	proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
-	if err != nil {
-		if err.Error() == "prose block not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "prose_block",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
 	var req struct {
 		OrderNum *int    `json:"order_num,omitempty"`
 		Kind     *string `json:"kind,omitempty"`
@@ -241,43 +183,26 @@ func (h *ProseBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Update fields if provided
-	if req.OrderNum != nil {
-		if *req.OrderNum < 1 {
-			WriteError(w, &platformerrors.ValidationError{
-				Field:   "order_num",
-				Message: "must be greater than 0",
-			}, http.StatusBadRequest)
-			return
-		}
-		proseBlock.OrderNum = req.OrderNum
+	input := proseblockapp.UpdateProseBlockInput{
+		TenantID: tenantID,
+		ID:       proseBlockID,
+		OrderNum: req.OrderNum,
+		Content:  req.Content,
 	}
-
 	if req.Kind != nil {
-		proseBlock.Kind = story.ProseKind(*req.Kind)
+		kind := story.ProseKind(*req.Kind)
+		input.Kind = &kind
 	}
 
-	if req.Content != nil {
-		proseBlock.UpdateContent(*req.Content)
-	}
-
-	if err := proseBlock.Validate(); err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "prose_block",
-			Message: err.Error(),
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.proseBlockRepo.Update(r.Context(), proseBlock); err != nil {
-		h.logger.Error("failed to update prose block", "error", err)
+	output, err := h.updateProseBlockUseCase.Execute(r.Context(), input)
+	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"prose_block": proseBlock,
+		"prose_block": output.ProseBlock,
 	})
 }
 
@@ -296,22 +221,10 @@ func (h *ProseBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Check if prose block exists
-	_, err = h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
-	if err != nil {
-		if err.Error() == "prose block not found" {
-			WriteError(w, &platformerrors.NotFoundError{
-				Resource: "prose_block",
-				ID:       id,
-			}, http.StatusNotFound)
-		} else {
-			WriteError(w, err, http.StatusInternalServerError)
-		}
-		return
-	}
-
-	if err := h.proseBlockRepo.Delete(r.Context(), tenantID, proseBlockID); err != nil {
-		h.logger.Error("failed to delete prose block", "error", err)
+	if err := h.deleteProseBlockUseCase.Execute(r.Context(), proseblockapp.DeleteProseBlockInput{
+		TenantID: tenantID,
+		ID:       proseBlockID,
+	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}

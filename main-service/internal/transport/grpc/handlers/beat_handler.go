@@ -2,12 +2,12 @@ package handlers
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
+	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	"github.com/story-engine/main-service/internal/core/story"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,148 +17,171 @@ import (
 // BeatHandler implements the BeatService gRPC service
 type BeatHandler struct {
 	beatpb.UnimplementedBeatServiceServer
-	beatRepo  repositories.BeatRepository
-	sceneRepo repositories.SceneRepository
-	storyRepo repositories.StoryRepository
-	logger    logger.Logger
+	createBeatUseCase *beatapp.CreateBeatUseCase
+	getBeatUseCase    *beatapp.GetBeatUseCase
+	updateBeatUseCase *beatapp.UpdateBeatUseCase
+	deleteBeatUseCase *beatapp.DeleteBeatUseCase
+	listBeatsUseCase  *beatapp.ListBeatsUseCase
+	moveBeatUseCase   *beatapp.MoveBeatUseCase
+	logger            logger.Logger
 }
 
 // NewBeatHandler creates a new BeatHandler
 func NewBeatHandler(
-	beatRepo repositories.BeatRepository,
-	sceneRepo repositories.SceneRepository,
-	storyRepo repositories.StoryRepository,
+	createBeatUseCase *beatapp.CreateBeatUseCase,
+	getBeatUseCase *beatapp.GetBeatUseCase,
+	updateBeatUseCase *beatapp.UpdateBeatUseCase,
+	deleteBeatUseCase *beatapp.DeleteBeatUseCase,
+	listBeatsUseCase *beatapp.ListBeatsUseCase,
+	moveBeatUseCase *beatapp.MoveBeatUseCase,
 	logger logger.Logger,
 ) *BeatHandler {
 	return &BeatHandler{
-		beatRepo:  beatRepo,
-		sceneRepo: sceneRepo,
-		storyRepo: storyRepo,
-		logger:    logger,
+		createBeatUseCase: createBeatUseCase,
+		getBeatUseCase:    getBeatUseCase,
+		updateBeatUseCase: updateBeatUseCase,
+		deleteBeatUseCase: deleteBeatUseCase,
+		listBeatsUseCase:  listBeatsUseCase,
+		moveBeatUseCase:   moveBeatUseCase,
+		logger:            logger,
 	}
 }
 
 // CreateBeat creates a new beat
 func (h *BeatHandler) CreateBeat(ctx context.Context, req *beatpb.CreateBeatRequest) (*beatpb.CreateBeatResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	sceneID, err := uuid.Parse(req.SceneId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid scene_id: %v", err)
 	}
 
-	// Validate scene exists
-	_, err = h.sceneRepo.GetByID(ctx, sceneID)
+	output, err := h.createBeatUseCase.Execute(ctx, beatapp.CreateBeatInput{
+		TenantID: tenantUUID,
+		SceneID:  sceneID,
+		OrderNum: int(req.OrderNum),
+		Type:     story.BeatType(req.Type),
+		Intent:   req.Intent,
+		Outcome:  req.Outcome,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "scene not found: %v", err)
-	}
-
-	if req.OrderNum < 1 {
-		return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
-	}
-
-	if req.Type == "" {
-		return nil, status.Errorf(codes.InvalidArgument, "type is required")
-	}
-
-	beat, err := story.NewBeat(sceneID, int(req.OrderNum), story.BeatType(req.Type))
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid beat: %v", err)
-	}
-
-	if req.Intent != "" {
-		beat.UpdateIntent(req.Intent)
-	}
-	if req.Outcome != "" {
-		beat.UpdateOutcome(req.Outcome)
-	}
-
-	if err := h.beatRepo.Create(ctx, beat); err != nil {
-		h.logger.Error("failed to create beat", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to create beat: %v", err)
+		return nil, err
 	}
 
 	return &beatpb.CreateBeatResponse{
-		Beat: beatToProto(beat),
+		Beat: beatToProto(output.Beat),
 	}, nil
 }
 
 // GetBeat retrieves a beat by ID
 func (h *BeatHandler) GetBeat(ctx context.Context, req *beatpb.GetBeatRequest) (*beatpb.GetBeatResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	beat, err := h.beatRepo.GetByID(ctx, id)
+	output, err := h.getBeatUseCase.Execute(ctx, beatapp.GetBeatInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "beat not found: %v", err)
+		return nil, err
 	}
 
 	return &beatpb.GetBeatResponse{
-		Beat: beatToProto(beat),
+		Beat: beatToProto(output.Beat),
 	}, nil
 }
 
 // UpdateBeat updates an existing beat
 func (h *BeatHandler) UpdateBeat(ctx context.Context, req *beatpb.UpdateBeatRequest) (*beatpb.UpdateBeatResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	beat, err := h.beatRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "beat not found: %v", err)
-	}
-
-	// Update fields if provided
+	var orderNum *int
 	if req.OrderNum != nil {
-		if *req.OrderNum < 1 {
-			return nil, status.Errorf(codes.InvalidArgument, "order_num must be greater than 0")
-		}
-		beat.OrderNum = int(*req.OrderNum)
+		n := int(*req.OrderNum)
+		orderNum = &n
 	}
 
+	input := beatapp.UpdateBeatInput{
+		TenantID: tenantUUID,
+		ID:       id,
+		OrderNum: orderNum,
+		Intent:   req.Intent,
+		Outcome:  req.Outcome,
+	}
 	if req.Type != nil {
-		beat.Type = story.BeatType(*req.Type)
-		if err := beat.Validate(); err != nil {
-			return nil, status.Errorf(codes.InvalidArgument, "invalid beat type: %v", err)
-		}
+		beatType := story.BeatType(*req.Type)
+		input.Type = &beatType
 	}
 
-	if req.Intent != nil {
-		beat.UpdateIntent(*req.Intent)
-	}
-
-	if req.Outcome != nil {
-		beat.UpdateOutcome(*req.Outcome)
-	}
-
-	if err := h.beatRepo.Update(ctx, beat); err != nil {
-		h.logger.Error("failed to update beat", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to update beat: %v", err)
+	output, err := h.updateBeatUseCase.Execute(ctx, input)
+	if err != nil {
+		return nil, err
 	}
 
 	return &beatpb.UpdateBeatResponse{
-		Beat: beatToProto(beat),
+		Beat: beatToProto(output.Beat),
 	}, nil
 }
 
 // DeleteBeat deletes a beat
 func (h *BeatHandler) DeleteBeat(ctx context.Context, req *beatpb.DeleteBeatRequest) (*beatpb.DeleteBeatResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	// Check if beat exists
-	_, err = h.beatRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "beat not found: %v", err)
-	}
-
-	if err := h.beatRepo.Delete(ctx, id); err != nil {
-		h.logger.Error("failed to delete beat", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to delete beat: %v", err)
+	if err := h.deleteBeatUseCase.Execute(ctx, beatapp.DeleteBeatInput{
+		TenantID: tenantUUID,
+		ID:       id,
+	}); err != nil {
+		return nil, err
 	}
 
 	return &beatpb.DeleteBeatResponse{
@@ -168,83 +191,112 @@ func (h *BeatHandler) DeleteBeat(ctx context.Context, req *beatpb.DeleteBeatRequ
 
 // MoveBeat moves a beat to a different scene
 func (h *BeatHandler) MoveBeat(ctx context.Context, req *beatpb.MoveBeatRequest) (*beatpb.MoveBeatResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	beat, err := h.beatRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "beat not found: %v", err)
-	}
-
-	sceneID, err := uuid.Parse(req.SceneId)
+	newSceneID, err := uuid.Parse(req.SceneId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid scene_id: %v", err)
 	}
 
-	// Validate scene exists
-	_, err = h.sceneRepo.GetByID(ctx, sceneID)
+	output, err := h.moveBeatUseCase.Execute(ctx, beatapp.MoveBeatInput{
+		TenantID:   tenantUUID,
+		BeatID:     id,
+		NewSceneID: newSceneID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, "scene not found: %v", err)
-	}
-
-	beat.SceneID = sceneID
-	beat.UpdatedAt = time.Now()
-
-	if err := h.beatRepo.Update(ctx, beat); err != nil {
-		h.logger.Error("failed to move beat", "error", err)
-		return nil, status.Errorf(codes.Internal, "failed to move beat: %v", err)
+		return nil, err
 	}
 
 	return &beatpb.MoveBeatResponse{
-		Beat: beatToProto(beat),
+		Beat: beatToProto(output.Beat),
 	}, nil
 }
 
 // ListBeatsByScene lists beats for a specific scene
 func (h *BeatHandler) ListBeatsByScene(ctx context.Context, req *beatpb.ListBeatsBySceneRequest) (*beatpb.ListBeatsBySceneResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	sceneID, err := uuid.Parse(req.SceneId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid scene_id: %v", err)
 	}
 
-	beats, err := h.beatRepo.ListByScene(ctx, sceneID)
+	output, err := h.listBeatsUseCase.Execute(ctx, beatapp.ListBeatsInput{
+		TenantID: tenantUUID,
+		SceneID:  sceneID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list beats: %v", err)
+		return nil, err
 	}
 
-	protoBeats := make([]*beatpb.Beat, len(beats))
-	for i, b := range beats {
+	protoBeats := make([]*beatpb.Beat, len(output.Beats))
+	for i, b := range output.Beats {
 		protoBeats[i] = beatToProto(b)
 	}
 
 	return &beatpb.ListBeatsBySceneResponse{
 		Beats:      protoBeats,
-		TotalCount: int32(len(beats)),
+		TotalCount: int32(output.Total),
 	}, nil
 }
 
 // ListBeatsByStory lists all beats for a story
 func (h *BeatHandler) ListBeatsByStory(ctx context.Context, req *beatpb.ListBeatsByStoryRequest) (*beatpb.ListBeatsByStoryResponse, error) {
+	// Extract tenant_id from context (set by auth interceptor)
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	storyID, err := uuid.Parse(req.StoryId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid story_id: %v", err)
 	}
 
-	beats, err := h.beatRepo.ListByStory(ctx, storyID)
+	output, err := h.listBeatsUseCase.Execute(ctx, beatapp.ListBeatsInput{
+		TenantID: tenantUUID,
+		StoryID:  &storyID,
+	})
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "failed to list beats: %v", err)
+		return nil, err
 	}
 
-	protoBeats := make([]*beatpb.Beat, len(beats))
-	for i, b := range beats {
+	protoBeats := make([]*beatpb.Beat, len(output.Beats))
+	for i, b := range output.Beats {
 		protoBeats[i] = beatToProto(b)
 	}
 
 	return &beatpb.ListBeatsByStoryResponse{
 		Beats:      protoBeats,
-		TotalCount: int32(len(beats)),
+		TotalCount: int32(output.Total),
 	}, nil
 }
 
