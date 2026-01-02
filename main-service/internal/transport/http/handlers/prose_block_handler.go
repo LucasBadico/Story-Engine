@@ -9,6 +9,7 @@ import (
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ProseBlockHandler handles HTTP requests for prose blocks
@@ -33,6 +34,8 @@ func NewProseBlockHandler(
 
 // ListByChapter handles GET /api/v1/chapters/{id}/prose-blocks
 func (h *ProseBlockHandler) ListByChapter(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	chapterIDStr := r.PathValue("id")
 
 	chapterID, err := uuid.Parse(chapterIDStr)
@@ -45,7 +48,7 @@ func (h *ProseBlockHandler) ListByChapter(w http.ResponseWriter, r *http.Request
 	}
 
 	// Validate chapter exists
-	_, err = h.chapterRepo.GetByID(r.Context(), chapterID)
+	_, err = h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
 	if err != nil {
 		if err.Error() == "chapter not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -58,7 +61,7 @@ func (h *ProseBlockHandler) ListByChapter(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	proseBlocks, err := h.proseBlockRepo.ListByChapter(r.Context(), chapterID)
+	proseBlocks, err := h.proseBlockRepo.ListByChapter(r.Context(), tenantID, chapterID)
 	if err != nil {
 		h.logger.Error("failed to list prose blocks", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
@@ -74,6 +77,8 @@ func (h *ProseBlockHandler) ListByChapter(w http.ResponseWriter, r *http.Request
 
 // Create handles POST /api/v1/chapters/{id}/prose-blocks
 func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	chapterIDStr := r.PathValue("id")
 
 	var chapterID *uuid.UUID
@@ -88,7 +93,7 @@ func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Validate chapter exists if provided
-		_, err = h.chapterRepo.GetByID(r.Context(), parsedChapterID)
+		_, err = h.chapterRepo.GetByID(r.Context(), tenantID, parsedChapterID)
 		if err != nil {
 			if err.Error() == "chapter not found" {
 				WriteError(w, &platformerrors.NotFoundError{
@@ -137,7 +142,7 @@ func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proseBlock, err := story.NewProseBlock(chapterID, req.OrderNum, story.ProseKind(req.Kind), req.Content)
+	proseBlock, err := story.NewProseBlock(tenantID, chapterID, req.OrderNum, story.ProseKind(req.Kind), req.Content)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "prose_block",
@@ -161,6 +166,8 @@ func (h *ProseBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/prose-blocks/{id}
 func (h *ProseBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	id := r.PathValue("id")
 
 	proseBlockID, err := uuid.Parse(id)
@@ -172,7 +179,7 @@ func (h *ProseBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), proseBlockID)
+	proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
 	if err != nil {
 		if err.Error() == "prose block not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -193,6 +200,8 @@ func (h *ProseBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/prose-blocks/{id}
 func (h *ProseBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	id := r.PathValue("id")
 
 	proseBlockID, err := uuid.Parse(id)
@@ -205,7 +214,7 @@ func (h *ProseBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing prose block
-	proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), proseBlockID)
+	proseBlock, err := h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
 	if err != nil {
 		if err.Error() == "prose block not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -274,6 +283,8 @@ func (h *ProseBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/prose-blocks/{id}
 func (h *ProseBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	id := r.PathValue("id")
 
 	proseBlockID, err := uuid.Parse(id)
@@ -286,7 +297,7 @@ func (h *ProseBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if prose block exists
-	_, err = h.proseBlockRepo.GetByID(r.Context(), proseBlockID)
+	_, err = h.proseBlockRepo.GetByID(r.Context(), tenantID, proseBlockID)
 	if err != nil {
 		if err.Error() == "prose block not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -299,7 +310,7 @@ func (h *ProseBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.proseBlockRepo.Delete(r.Context(), proseBlockID); err != nil {
+	if err := h.proseBlockRepo.Delete(r.Context(), tenantID, proseBlockID); err != nil {
 		h.logger.Error("failed to delete prose block", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return

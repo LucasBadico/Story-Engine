@@ -15,8 +15,16 @@ const TenantIDKey contextKey = "tenant_id"
 
 // TenantMiddleware extracts and validates the X-Tenant-ID header
 // and injects it into the request context
+// Routes that don't need tenant isolation are skipped (e.g., /api/v1/tenants, /health)
 func TenantMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip tenant validation for routes that don't need it
+		path := r.URL.Path
+		if path == "/health" || (len(path) >= 18 && path[:18] == "/api/v1/tenants") {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		tenantIDStr := r.Header.Get("X-Tenant-ID")
 		if tenantIDStr == "" {
 			writeError(w, &platformerrors.ValidationError{

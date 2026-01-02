@@ -40,13 +40,6 @@ func NewStoryHandler(
 // Create handles POST /api/v1/stories
 func (h *StoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	var req struct {
 		Title   string     `json:"title"`
@@ -89,13 +82,6 @@ func (h *StoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Get handles GET /api/v1/stories/{id}
 func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 	storyID, err := uuid.Parse(id)
@@ -122,13 +108,6 @@ func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 // List handles GET /api/v1/stories?limit=20&offset=0
 func (h *StoryHandler) List(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
@@ -163,13 +142,6 @@ func (h *StoryHandler) List(w http.ResponseWriter, r *http.Request) {
 // Update handles PUT /api/v1/stories/{id}
 func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 
@@ -245,13 +217,6 @@ func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Clone handles POST /api/v1/stories/{id}/clone
 func (h *StoryHandler) Clone(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 	sourceStoryID, err := uuid.Parse(id)

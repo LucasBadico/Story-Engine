@@ -10,6 +10,7 @@ import (
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // BeatHandler handles HTTP requests for beats
@@ -37,6 +38,8 @@ func NewBeatHandler(
 
 // Create handles POST /api/v1/beats
 func (h *BeatHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	var req struct {
 		SceneID  string `json:"scene_id"`
 		OrderNum int    `json:"order_num"`
@@ -63,7 +66,7 @@ func (h *BeatHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate scene exists
-	_, err = h.sceneRepo.GetByID(r.Context(), sceneID)
+	_, err = h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
 	if err != nil {
 		if err.Error() == "scene not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -92,7 +95,7 @@ func (h *BeatHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	beat, err := story.NewBeat(sceneID, req.OrderNum, story.BeatType(req.Type))
+	beat, err := story.NewBeat(tenantID, sceneID, req.OrderNum, story.BeatType(req.Type))
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "beat",
@@ -123,6 +126,8 @@ func (h *BeatHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/beats/{id}
 func (h *BeatHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	id := r.PathValue("id")
 
 	beatID, err := uuid.Parse(id)
@@ -134,7 +139,7 @@ func (h *BeatHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	beat, err := h.beatRepo.GetByID(r.Context(), beatID)
+	beat, err := h.beatRepo.GetByID(r.Context(), tenantID, beatID)
 	if err != nil {
 		if err.Error() == "beat not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -155,6 +160,8 @@ func (h *BeatHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/beats/{id}
 func (h *BeatHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	id := r.PathValue("id")
 
 	beatID, err := uuid.Parse(id)
@@ -167,7 +174,7 @@ func (h *BeatHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing beat
-	beat, err := h.beatRepo.GetByID(r.Context(), beatID)
+	beat, err := h.beatRepo.GetByID(r.Context(), tenantID, beatID)
 	if err != nil {
 		if err.Error() == "beat not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -240,6 +247,8 @@ func (h *BeatHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/scenes/{id}/beats
 func (h *BeatHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	sceneIDStr := r.PathValue("id")
 
 	sceneID, err := uuid.Parse(sceneIDStr)
@@ -251,7 +260,7 @@ func (h *BeatHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	beats, err := h.beatRepo.ListByScene(r.Context(), sceneID)
+	beats, err := h.beatRepo.ListByScene(r.Context(), tenantID, sceneID)
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -266,6 +275,8 @@ func (h *BeatHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/beats/{id}
 func (h *BeatHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	id := r.PathValue("id")
 
 	beatID, err := uuid.Parse(id)
@@ -278,7 +289,7 @@ func (h *BeatHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if beat exists
-	_, err = h.beatRepo.GetByID(r.Context(), beatID)
+	_, err = h.beatRepo.GetByID(r.Context(), tenantID, beatID)
 	if err != nil {
 		if err.Error() == "beat not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -291,7 +302,7 @@ func (h *BeatHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.beatRepo.Delete(r.Context(), beatID); err != nil {
+	if err := h.beatRepo.Delete(r.Context(), tenantID, beatID); err != nil {
 		h.logger.Error("failed to delete beat", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -302,6 +313,8 @@ func (h *BeatHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // ListByStory handles GET /api/v1/stories/{id}/beats
 func (h *BeatHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	storyIDStr := r.PathValue("id")
 
 	storyID, err := uuid.Parse(storyIDStr)
@@ -314,7 +327,7 @@ func (h *BeatHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), storyID)
+	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
 	if err != nil {
 		if err.Error() == "story not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -327,7 +340,7 @@ func (h *BeatHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	beats, err := h.beatRepo.ListByStory(r.Context(), storyID)
+	beats, err := h.beatRepo.ListByStory(r.Context(), tenantID, storyID)
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -342,6 +355,8 @@ func (h *BeatHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 
 // Move handles PUT /api/v1/beats/{id}/move
 func (h *BeatHandler) Move(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
 	id := r.PathValue("id")
 
 	beatID, err := uuid.Parse(id)
@@ -354,7 +369,7 @@ func (h *BeatHandler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing beat
-	beat, err := h.beatRepo.GetByID(r.Context(), beatID)
+	beat, err := h.beatRepo.GetByID(r.Context(), tenantID, beatID)
 	if err != nil {
 		if err.Error() == "beat not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -389,7 +404,7 @@ func (h *BeatHandler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate scene exists
-	_, err = h.sceneRepo.GetByID(r.Context(), sceneID)
+	_, err = h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
 	if err != nil {
 		if err.Error() == "scene not found" {
 			WriteError(w, &platformerrors.NotFoundError{

@@ -48,13 +48,6 @@ func NewSceneHandler(
 // Create handles POST /api/v1/scenes
 func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	var req struct {
 		StoryID        string  `json:"story_id"`
@@ -168,13 +161,6 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Get handles GET /api/v1/scenes/{id}
 func (h *SceneHandler) Get(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 
@@ -209,13 +195,6 @@ func (h *SceneHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Update handles PUT /api/v1/scenes/{id}
 func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 
@@ -308,13 +287,6 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 // List handles GET /api/v1/chapters/{id}/scenes
 func (h *SceneHandler) List(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	chapterIDStr := r.PathValue("id")
 
@@ -343,13 +315,6 @@ func (h *SceneHandler) List(w http.ResponseWriter, r *http.Request) {
 // Delete handles DELETE /api/v1/scenes/{id}
 func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 
@@ -531,13 +496,6 @@ func isValidSceneReferenceEntityType(entityType story.SceneReferenceEntityType) 
 // ListByStory handles GET /api/v1/stories/{id}/scenes
 func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	storyIDStr := r.PathValue("id")
 
@@ -580,13 +538,6 @@ func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 // Move handles PUT /api/v1/scenes/{id}/move
 func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 

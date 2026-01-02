@@ -44,13 +44,6 @@ func NewTraitHandler(
 // Create handles POST /api/v1/traits
 func (h *TraitHandler) Create(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	var req struct {
 		Name        string `json:"name"`
@@ -87,13 +80,6 @@ func (h *TraitHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Get handles GET /api/v1/traits/{id}
 func (h *TraitHandler) Get(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 	traitID, err := uuid.Parse(id)
@@ -123,13 +109,6 @@ func (h *TraitHandler) Get(w http.ResponseWriter, r *http.Request) {
 // List handles GET /api/v1/traits?limit=20&offset=0
 func (h *TraitHandler) List(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	limitStr := r.URL.Query().Get("limit")
 	offsetStr := r.URL.Query().Get("offset")
@@ -168,13 +147,6 @@ func (h *TraitHandler) List(w http.ResponseWriter, r *http.Request) {
 // Update handles PUT /api/v1/traits/{id}
 func (h *TraitHandler) Update(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 	traitID, err := uuid.Parse(id)
@@ -221,13 +193,6 @@ func (h *TraitHandler) Update(w http.ResponseWriter, r *http.Request) {
 // Delete handles DELETE /api/v1/traits/{id}
 func (h *TraitHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 	traitID, err := uuid.Parse(id)

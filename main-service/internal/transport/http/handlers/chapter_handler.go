@@ -35,13 +35,6 @@ func NewChapterHandler(
 // Create handles POST /api/v1/chapters
 func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	var req struct {
 		StoryID string `json:"story_id"`
@@ -126,13 +119,6 @@ func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 // Get handles GET /api/v1/chapters/{id}
 func (h *ChapterHandler) Get(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 
@@ -167,13 +153,6 @@ func (h *ChapterHandler) Get(w http.ResponseWriter, r *http.Request) {
 // Update handles PUT /api/v1/chapters/{id}
 func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 
@@ -255,13 +234,6 @@ func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 // List handles GET /api/v1/stories/{id}/chapters
 func (h *ChapterHandler) List(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	storyIDStr := r.PathValue("id")
 
@@ -290,13 +262,6 @@ func (h *ChapterHandler) List(w http.ResponseWriter, r *http.Request) {
 // Delete handles DELETE /api/v1/chapters/{id}
 func (h *ChapterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	if tenantID == uuid.Nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "X-Tenant-ID",
-			Message: "header is required",
-		}, http.StatusUnauthorized)
-		return
-	}
 
 	id := r.PathValue("id")
 

@@ -431,8 +431,11 @@ func main() {
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 
 	// Wrap with middleware
+	// TenantMiddleware validates X-Tenant-ID header and injects tenantID into context
+	// Routes like /api/v1/tenants and /health are skipped by the middleware
 	handler := middleware.Chain(
 		mux,
+		middleware.TenantMiddleware,
 		middleware.Logging(log),
 		middleware.Recovery(log),
 		middleware.CORS(),
