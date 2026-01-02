@@ -33,6 +33,7 @@ func NewUpdateTraitUseCase(
 
 // UpdateTraitInput represents the input for updating a trait
 type UpdateTraitInput struct {
+	TenantID    uuid.UUID
 	ID          uuid.UUID
 	Name        *string
 	Category    *string
@@ -46,7 +47,7 @@ type UpdateTraitOutput struct {
 
 // Execute updates a trait
 func (uc *UpdateTraitUseCase) Execute(ctx context.Context, input UpdateTraitInput) (*UpdateTraitOutput, error) {
-	t, err := uc.traitRepo.GetByID(ctx, input.ID)
+	t, err := uc.traitRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

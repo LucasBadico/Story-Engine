@@ -31,17 +31,18 @@ func NewDeleteTraitUseCase(
 
 // DeleteTraitInput represents the input for deleting a trait
 type DeleteTraitInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes a trait
 func (uc *DeleteTraitUseCase) Execute(ctx context.Context, input DeleteTraitInput) error {
-	t, err := uc.traitRepo.GetByID(ctx, input.ID)
+	t, err := uc.traitRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
 	}
 
-	if err := uc.traitRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.traitRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete trait", "error", err, "trait_id", input.ID)
 		return err
 	}

@@ -34,6 +34,7 @@ func NewAddTraitToArchetypeUseCase(
 
 // AddTraitToArchetypeInput represents the input for adding a trait to an archetype
 type AddTraitToArchetypeInput struct {
+	TenantID     uuid.UUID
 	ArchetypeID  uuid.UUID
 	TraitID      uuid.UUID
 	DefaultValue string
@@ -41,12 +42,12 @@ type AddTraitToArchetypeInput struct {
 
 // Execute adds a trait to an archetype
 func (uc *AddTraitToArchetypeUseCase) Execute(ctx context.Context, input AddTraitToArchetypeInput) error {
-	_, err := uc.archetypeRepo.GetByID(ctx, input.ArchetypeID)
+	_, err := uc.archetypeRepo.GetByID(ctx, input.TenantID, input.ArchetypeID)
 	if err != nil {
 		return err
 	}
 
-	_, err = uc.traitRepo.GetByID(ctx, input.TraitID)
+	_, err = uc.traitRepo.GetByID(ctx, input.TenantID, input.TraitID)
 	if err != nil {
 		return err
 	}

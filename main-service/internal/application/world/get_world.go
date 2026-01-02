@@ -28,7 +28,8 @@ func NewGetWorldUseCase(
 
 // GetWorldInput represents the input for getting a world
 type GetWorldInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetWorldOutput represents the output of getting a world
@@ -38,7 +39,7 @@ type GetWorldOutput struct {
 
 // Execute retrieves a world by ID
 func (uc *GetWorldUseCase) Execute(ctx context.Context, input GetWorldInput) (*GetWorldOutput, error) {
-	w, err := uc.worldRepo.GetByID(ctx, input.ID)
+	w, err := uc.worldRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get world", "error", err, "world_id", input.ID)
 		return nil, err

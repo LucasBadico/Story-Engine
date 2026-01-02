@@ -92,7 +92,8 @@ func (h *TraitHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getTraitUseCase.Execute(r.Context(), traitapp.GetTraitInput{
-		ID: traitID,
+		TenantID: tenantID,
+		ID:       traitID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -172,7 +173,8 @@ func (h *TraitHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateTraitUseCase.Execute(r.Context(), traitapp.UpdateTraitInput{
-		ID: traitID,
+		TenantID: tenantID,
+		ID:       traitID,
 		Name:        req.Name,
 		Category:    req.Category,
 		Description: req.Description,
@@ -203,7 +205,8 @@ func (h *TraitHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteTraitUseCase.Execute(r.Context(), traitapp.DeleteTraitInput{
-		ID: traitID,
+		TenantID: tenantID,
+		ID:       traitID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

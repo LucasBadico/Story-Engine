@@ -33,6 +33,7 @@ func NewUpdateWorldUseCase(
 
 // UpdateWorldInput represents the input for updating a world
 type UpdateWorldInput struct {
+	TenantID    uuid.UUID
 	ID          uuid.UUID
 	Name        *string
 	Description *string
@@ -47,7 +48,7 @@ type UpdateWorldOutput struct {
 
 // Execute updates a world
 func (uc *UpdateWorldUseCase) Execute(ctx context.Context, input UpdateWorldInput) (*UpdateWorldOutput, error) {
-	w, err := uc.worldRepo.GetByID(ctx, input.ID)
+	w, err := uc.worldRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

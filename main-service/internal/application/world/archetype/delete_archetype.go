@@ -34,22 +34,23 @@ func NewDeleteArchetypeUseCase(
 
 // DeleteArchetypeInput represents the input for deleting an archetype
 type DeleteArchetypeInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes an archetype
 func (uc *DeleteArchetypeUseCase) Execute(ctx context.Context, input DeleteArchetypeInput) error {
-	a, err := uc.archetypeRepo.GetByID(ctx, input.ID)
+	a, err := uc.archetypeRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
 	}
 
 	// Delete all archetype-trait relationships first (CASCADE should handle this, but being explicit)
-	if err := uc.archetypeTraitRepo.DeleteByArchetype(ctx, input.ID); err != nil {
+	if err := uc.archetypeTraitRepo.DeleteByArchetype(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Warn("failed to delete archetype traits", "error", err)
 	}
 
-	if err := uc.archetypeRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.archetypeRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete archetype", "error", err, "archetype_id", input.ID)
 		return err
 	}

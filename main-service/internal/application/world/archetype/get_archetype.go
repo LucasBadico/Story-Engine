@@ -28,7 +28,8 @@ func NewGetArchetypeUseCase(
 
 // GetArchetypeInput represents the input for getting an archetype
 type GetArchetypeInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetArchetypeOutput represents the output of getting an archetype
@@ -38,7 +39,7 @@ type GetArchetypeOutput struct {
 
 // Execute retrieves an archetype by ID
 func (uc *GetArchetypeUseCase) Execute(ctx context.Context, input GetArchetypeInput) (*GetArchetypeOutput, error) {
-	a, err := uc.archetypeRepo.GetByID(ctx, input.ID)
+	a, err := uc.archetypeRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get archetype", "error", err, "archetype_id", input.ID)
 		return nil, err

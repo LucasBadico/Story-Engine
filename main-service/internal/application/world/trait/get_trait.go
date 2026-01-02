@@ -28,7 +28,8 @@ func NewGetTraitUseCase(
 
 // GetTraitInput represents the input for getting a trait
 type GetTraitInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // GetTraitOutput represents the output of getting a trait
@@ -38,7 +39,7 @@ type GetTraitOutput struct {
 
 // Execute retrieves a trait by ID
 func (uc *GetTraitUseCase) Execute(ctx context.Context, input GetTraitInput) (*GetTraitOutput, error) {
-	t, err := uc.traitRepo.GetByID(ctx, input.ID)
+	t, err := uc.traitRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		uc.logger.Error("failed to get trait", "error", err, "trait_id", input.ID)
 		return nil, err

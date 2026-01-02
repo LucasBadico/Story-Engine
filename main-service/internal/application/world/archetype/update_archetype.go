@@ -33,6 +33,7 @@ func NewUpdateArchetypeUseCase(
 
 // UpdateArchetypeInput represents the input for updating an archetype
 type UpdateArchetypeInput struct {
+	TenantID    uuid.UUID
 	ID          uuid.UUID
 	Name        *string
 	Description *string
@@ -45,7 +46,7 @@ type UpdateArchetypeOutput struct {
 
 // Execute updates an archetype
 func (uc *UpdateArchetypeUseCase) Execute(ctx context.Context, input UpdateArchetypeInput) (*UpdateArchetypeOutput, error) {
-	a, err := uc.archetypeRepo.GetByID(ctx, input.ID)
+	a, err := uc.archetypeRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return nil, err
 	}

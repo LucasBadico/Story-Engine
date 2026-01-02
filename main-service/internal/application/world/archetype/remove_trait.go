@@ -27,13 +27,14 @@ func NewRemoveTraitFromArchetypeUseCase(
 
 // RemoveTraitFromArchetypeInput represents the input for removing a trait from an archetype
 type RemoveTraitFromArchetypeInput struct {
+	TenantID    uuid.UUID
 	ArchetypeID uuid.UUID
 	TraitID     uuid.UUID
 }
 
 // Execute removes a trait from an archetype
 func (uc *RemoveTraitFromArchetypeUseCase) Execute(ctx context.Context, input RemoveTraitFromArchetypeInput) error {
-	if err := uc.archetypeTraitRepo.Delete(ctx, input.ArchetypeID, input.TraitID); err != nil {
+	if err := uc.archetypeTraitRepo.Delete(ctx, input.TenantID, input.ArchetypeID, input.TraitID); err != nil {
 		uc.logger.Error("failed to remove trait from archetype", "error", err, "archetype_id", input.ArchetypeID, "trait_id", input.TraitID)
 		return err
 	}

@@ -31,17 +31,18 @@ func NewDeleteWorldUseCase(
 
 // DeleteWorldInput represents the input for deleting a world
 type DeleteWorldInput struct {
-	ID uuid.UUID
+	TenantID uuid.UUID
+	ID       uuid.UUID
 }
 
 // Execute deletes a world
 func (uc *DeleteWorldUseCase) Execute(ctx context.Context, input DeleteWorldInput) error {
-	w, err := uc.worldRepo.GetByID(ctx, input.ID)
+	w, err := uc.worldRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
 	}
 
-	if err := uc.worldRepo.Delete(ctx, input.ID); err != nil {
+	if err := uc.worldRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete world", "error", err, "world_id", input.ID)
 		return err
 	}
