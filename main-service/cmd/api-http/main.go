@@ -25,6 +25,9 @@ import (
 	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
 	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
+	inventoryslotapp "github.com/story-engine/main-service/internal/application/rpg/inventory_slot"
+	inventoryitemapp "github.com/story-engine/main-service/internal/application/rpg/inventory_item"
+	characterinventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
 	"github.com/story-engine/main-service/internal/application/story"
 	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
@@ -77,6 +80,9 @@ func main() {
 	characterSkillRepo := postgres.NewCharacterSkillRepository(pgDB)
 	rpgClassRepo := postgres.NewRPGClassRepository(pgDB)
 	rpgClassSkillRepo := postgres.NewRPGClassSkillRepository(pgDB)
+	inventorySlotRepo := postgres.NewInventorySlotRepository(pgDB)
+	inventoryItemRepo := postgres.NewInventoryItemRepository(pgDB)
+	characterInventoryRepo := postgres.NewCharacterInventoryRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -203,6 +209,20 @@ func main() {
 	listClassSkillsUseCase := rpgclassapp.NewListClassSkillsUseCase(rpgClassSkillRepo, log)
 	changeCharacterClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
 	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
+	createInventorySlotUseCase := inventoryslotapp.NewCreateInventorySlotUseCase(inventorySlotRepo, rpgSystemRepo, log)
+	listInventorySlotsUseCase := inventoryslotapp.NewListInventorySlotsUseCase(inventorySlotRepo, log)
+	createInventoryItemUseCase := inventoryitemapp.NewCreateInventoryItemUseCase(inventoryItemRepo, rpgSystemRepo, artifactRepo, log)
+	getInventoryItemUseCase := inventoryitemapp.NewGetInventoryItemUseCase(inventoryItemRepo, log)
+	listInventoryItemsUseCase := inventoryitemapp.NewListInventoryItemsUseCase(inventoryItemRepo, log)
+	updateInventoryItemUseCase := inventoryitemapp.NewUpdateInventoryItemUseCase(inventoryItemRepo, log)
+	deleteInventoryItemUseCase := inventoryitemapp.NewDeleteInventoryItemUseCase(inventoryItemRepo, log)
+	addItemToInventoryUseCase := characterinventoryapp.NewAddItemToInventoryUseCase(characterInventoryRepo, characterRepo, inventoryItemRepo, log)
+	listCharacterInventoryUseCase := characterinventoryapp.NewListCharacterInventoryUseCase(characterInventoryRepo, log)
+	updateCharacterInventoryUseCase := characterinventoryapp.NewUpdateCharacterInventoryUseCase(characterInventoryRepo, log)
+	equipItemUseCase := characterinventoryapp.NewEquipItemUseCase(characterInventoryRepo, log)
+	unequipItemUseCase := characterinventoryapp.NewUnequipItemUseCase(characterInventoryRepo, log)
+	deleteCharacterInventoryUseCase := characterinventoryapp.NewDeleteCharacterInventoryUseCase(characterInventoryRepo, log)
+	transferItemUseCase := characterinventoryapp.NewTransferItemUseCase(characterInventoryRepo, characterRepo, log)
 
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -210,6 +230,7 @@ func main() {
 	locationHandler := httphandlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
 	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, changeCharacterClassUseCase, getAvailableClassesUseCase, log)
 	rpgClassHandler := httphandlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, log)
+	inventoryHandler := httphandlers.NewInventoryHandler(createInventorySlotUseCase, listInventorySlotsUseCase, createInventoryItemUseCase, getInventoryItemUseCase, listInventoryItemsUseCase, updateInventoryItemUseCase, deleteInventoryItemUseCase, addItemToInventoryUseCase, listCharacterInventoryUseCase, updateCharacterInventoryUseCase, equipItemUseCase, unequipItemUseCase, deleteCharacterInventoryUseCase, transferItemUseCase, log)
 	artifactHandler := httphandlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
 	eventHandler := httphandlers.NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterToEventUseCase, removeCharacterFromEventUseCase, getEventCharactersUseCase, addLocationToEventUseCase, removeLocationFromEventUseCase, getEventLocationsUseCase, addArtifactToEventUseCase, removeArtifactFromEventUseCase, getEventArtifactsUseCase, getEventStatChangesUseCase, log)
 	rpgSystemHandler := httphandlers.NewRPGSystemHandler(createRPGSystemUseCase, getRPGSystemUseCase, listRPGSystemsUseCase, updateRPGSystemUseCase, deleteRPGSystemUseCase, log)
@@ -391,6 +412,21 @@ func main() {
 
 	mux.HandleFunc("PUT /api/v1/characters/{id}/class", characterHandler.ChangeClass)
 	mux.HandleFunc("GET /api/v1/characters/{id}/available-classes", characterHandler.GetAvailableClasses)
+
+	mux.HandleFunc("GET /api/v1/rpg-systems/{id}/inventory-slots", inventoryHandler.ListSlots)
+	mux.HandleFunc("POST /api/v1/rpg-systems/{id}/inventory-slots", inventoryHandler.CreateSlot)
+	mux.HandleFunc("GET /api/v1/rpg-systems/{id}/inventory-items", inventoryHandler.ListItems)
+	mux.HandleFunc("POST /api/v1/rpg-systems/{id}/inventory-items", inventoryHandler.CreateItem)
+	mux.HandleFunc("GET /api/v1/inventory-items/{id}", inventoryHandler.GetItem)
+	mux.HandleFunc("PUT /api/v1/inventory-items/{id}", inventoryHandler.UpdateItem)
+	mux.HandleFunc("DELETE /api/v1/inventory-items/{id}", inventoryHandler.DeleteItem)
+	mux.HandleFunc("GET /api/v1/characters/{id}/inventory", inventoryHandler.ListInventory)
+	mux.HandleFunc("POST /api/v1/characters/{id}/inventory", inventoryHandler.AddItem)
+	mux.HandleFunc("PUT /api/v1/character-inventory/{id}", inventoryHandler.UpdateInventory)
+	mux.HandleFunc("PUT /api/v1/character-inventory/{id}/equip", inventoryHandler.EquipItem)
+	mux.HandleFunc("PUT /api/v1/character-inventory/{id}/unequip", inventoryHandler.UnequipItem)
+	mux.HandleFunc("DELETE /api/v1/character-inventory/{id}", inventoryHandler.DeleteInventory)
+	mux.HandleFunc("POST /api/v1/character-inventory/{id}/transfer", inventoryHandler.TransferItem)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 
