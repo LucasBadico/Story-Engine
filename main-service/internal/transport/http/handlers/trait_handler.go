@@ -9,6 +9,7 @@ import (
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // TraitHandler handles HTTP requests for traits
@@ -42,9 +43,12 @@ func NewTraitHandler(
 
 // Create handles POST /api/v1/traits
 func (h *TraitHandler) Create(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -82,6 +86,15 @@ func (h *TraitHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/traits/{id}
 func (h *TraitHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	traitID, err := uuid.Parse(id)
 	if err != nil {
@@ -93,7 +106,8 @@ func (h *TraitHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getTraitUseCase.Execute(r.Context(), traitapp.GetTraitInput{
-		ID: traitID,
+		TenantID: tenantID,
+		ID:       traitID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -108,9 +122,12 @@ func (h *TraitHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/traits?limit=20&offset=0
 func (h *TraitHandler) List(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -150,6 +167,15 @@ func (h *TraitHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/traits/{id}
 func (h *TraitHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	traitID, err := uuid.Parse(id)
 	if err != nil {
@@ -175,6 +201,7 @@ func (h *TraitHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateTraitUseCase.Execute(r.Context(), traitapp.UpdateTraitInput{
+		TenantID:    tenantID,
 		ID:          traitID,
 		Name:        req.Name,
 		Category:    req.Category,
@@ -193,6 +220,15 @@ func (h *TraitHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/traits/{id}
 func (h *TraitHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	traitID, err := uuid.Parse(id)
 	if err != nil {
@@ -204,7 +240,8 @@ func (h *TraitHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteTraitUseCase.Execute(r.Context(), traitapp.DeleteTraitInput{
-		ID: traitID,
+		TenantID: tenantID,
+		ID:       traitID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

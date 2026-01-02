@@ -10,6 +10,7 @@ import (
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // SceneHandler handles HTTP requests for scenes
@@ -46,6 +47,15 @@ func NewSceneHandler(
 
 // Create handles POST /api/v1/scenes
 func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	var req struct {
 		StoryID        string  `json:"story_id"`
 		ChapterID      *string `json:"chapter_id,omitempty"`
@@ -73,7 +83,7 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), storyID)
+	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
 	if err != nil {
 		WriteError(w, err, http.StatusNotFound)
 		return
@@ -91,7 +101,7 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Validate chapter exists
-		_, err = h.chapterRepo.GetByID(r.Context(), parsedChapterID)
+		_, err = h.chapterRepo.GetByID(r.Context(), tenantID, parsedChapterID)
 		if err != nil {
 			if err.Error() == "chapter not found" {
 				WriteError(w, &platformerrors.NotFoundError{
@@ -114,7 +124,7 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scene, err := story.NewScene(storyID, chapterID, req.OrderNum)
+	scene, err := story.NewScene(tenantID, storyID, chapterID, req.OrderNum)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "scene",
@@ -157,6 +167,15 @@ func (h *SceneHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/scenes/{id}
 func (h *SceneHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	sceneID, err := uuid.Parse(id)
@@ -168,7 +187,7 @@ func (h *SceneHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scene, err := h.sceneRepo.GetByID(r.Context(), sceneID)
+	scene, err := h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
 	if err != nil {
 		if err.Error() == "scene not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -189,6 +208,15 @@ func (h *SceneHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/scenes/{id}
 func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	sceneID, err := uuid.Parse(id)
@@ -201,7 +229,7 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing scene
-	scene, err := h.sceneRepo.GetByID(r.Context(), sceneID)
+	scene, err := h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
 	if err != nil {
 		if err.Error() == "scene not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -279,6 +307,15 @@ func (h *SceneHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/chapters/{id}/scenes
 func (h *SceneHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	chapterIDStr := r.PathValue("id")
 
 	chapterID, err := uuid.Parse(chapterIDStr)
@@ -290,7 +327,7 @@ func (h *SceneHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenes, err := h.sceneRepo.ListByChapter(r.Context(), chapterID)
+	scenes, err := h.sceneRepo.ListByChapter(r.Context(), tenantID, chapterID)
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -305,6 +342,15 @@ func (h *SceneHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/scenes/{id}
 func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	sceneID, err := uuid.Parse(id)
@@ -317,7 +363,7 @@ func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if scene exists
-	_, err = h.sceneRepo.GetByID(r.Context(), sceneID)
+	_, err = h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
 	if err != nil {
 		if err.Error() == "scene not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -331,7 +377,7 @@ func (h *SceneHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delete scene (references will be deleted via CASCADE)
-	if err := h.sceneRepo.Delete(r.Context(), sceneID); err != nil {
+	if err := h.sceneRepo.Delete(r.Context(), tenantID, sceneID); err != nil {
 		h.logger.Error("failed to delete scene", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -484,6 +530,15 @@ func isValidSceneReferenceEntityType(entityType story.SceneReferenceEntityType) 
 
 // ListByStory handles GET /api/v1/stories/{id}/scenes
 func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	storyIDStr := r.PathValue("id")
 
 	storyID, err := uuid.Parse(storyIDStr)
@@ -496,7 +551,7 @@ func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), storyID)
+	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
 	if err != nil {
 		if err.Error() == "story not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -509,7 +564,7 @@ func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	scenes, err := h.sceneRepo.ListByStory(r.Context(), storyID)
+	scenes, err := h.sceneRepo.ListByStory(r.Context(), tenantID, storyID)
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -524,6 +579,15 @@ func (h *SceneHandler) ListByStory(w http.ResponseWriter, r *http.Request) {
 
 // Move handles PUT /api/v1/scenes/{id}/move
 func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	sceneID, err := uuid.Parse(id)
@@ -536,7 +600,7 @@ func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing scene
-	scene, err := h.sceneRepo.GetByID(r.Context(), sceneID)
+	scene, err := h.sceneRepo.GetByID(r.Context(), tenantID, sceneID)
 	if err != nil {
 		if err.Error() == "scene not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -573,7 +637,7 @@ func (h *SceneHandler) Move(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Validate chapter exists
-		_, err = h.chapterRepo.GetByID(r.Context(), parsedChapterID)
+		_, err = h.chapterRepo.GetByID(r.Context(), tenantID, parsedChapterID)
 		if err != nil {
 			if err.Error() == "chapter not found" {
 				WriteError(w, &platformerrors.NotFoundError{

@@ -11,6 +11,7 @@ import (
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // StoryHandler handles HTTP requests for stories
@@ -38,10 +39,12 @@ func NewStoryHandler(
 
 // Create handles POST /api/v1/stories
 func (h *StoryHandler) Create(w http.ResponseWriter, r *http.Request) {
-	// Extract tenant_id from header
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -85,6 +88,15 @@ func (h *StoryHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/stories/{id}
 func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	storyID, err := uuid.Parse(id)
 	if err != nil {
@@ -95,7 +107,7 @@ func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	story, err := h.storyRepo.GetByID(r.Context(), storyID)
+	story, err := h.storyRepo.GetByID(r.Context(), tenantID, storyID)
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -109,10 +121,12 @@ func (h *StoryHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/stories?limit=20&offset=0
 func (h *StoryHandler) List(w http.ResponseWriter, r *http.Request) {
-	// Extract tenant_id from header
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -148,6 +162,15 @@ func (h *StoryHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/stories/{id}
 func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	storyID, err := uuid.Parse(id)
@@ -160,7 +183,7 @@ func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing story
-	s, err := h.storyRepo.GetByID(r.Context(), storyID)
+	s, err := h.storyRepo.GetByID(r.Context(), tenantID, storyID)
 	if err != nil {
 		if err.Error() == "story not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -221,10 +244,12 @@ func (h *StoryHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Clone handles POST /api/v1/stories/{id}/clone
 func (h *StoryHandler) Clone(w http.ResponseWriter, r *http.Request) {
-	// Extract tenant_id from header (validated for consistency, even though not used in CloneStoryInput)
-	_, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -247,7 +272,7 @@ func (h *StoryHandler) Clone(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Fetch the new story to get full details
-	newStory, err := h.storyRepo.GetByID(r.Context(), output.NewStoryID)
+	newStory, err := h.storyRepo.GetByID(r.Context(), tenantID, output.NewStoryID)
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return

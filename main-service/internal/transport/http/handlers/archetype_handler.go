@@ -9,6 +9,7 @@ import (
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ArchetypeHandler handles HTTP requests for archetypes
@@ -48,9 +49,12 @@ func NewArchetypeHandler(
 
 // Create handles POST /api/v1/archetypes
 func (h *ArchetypeHandler) Create(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -86,6 +90,15 @@ func (h *ArchetypeHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/archetypes/{id}
 func (h *ArchetypeHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	archetypeID, err := uuid.Parse(id)
 	if err != nil {
@@ -97,7 +110,8 @@ func (h *ArchetypeHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getArchetypeUseCase.Execute(r.Context(), archetypeapp.GetArchetypeInput{
-		ID: archetypeID,
+		TenantID: tenantID,
+		ID:       archetypeID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -112,9 +126,12 @@ func (h *ArchetypeHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/archetypes?limit=20&offset=0
 func (h *ArchetypeHandler) List(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -154,6 +171,15 @@ func (h *ArchetypeHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/archetypes/{id}
 func (h *ArchetypeHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	archetypeID, err := uuid.Parse(id)
 	if err != nil {
@@ -178,6 +204,7 @@ func (h *ArchetypeHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateArchetypeUseCase.Execute(r.Context(), archetypeapp.UpdateArchetypeInput{
+		TenantID:    tenantID,
 		ID:          archetypeID,
 		Name:        req.Name,
 		Description: req.Description,
@@ -195,6 +222,15 @@ func (h *ArchetypeHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/archetypes/{id}
 func (h *ArchetypeHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	archetypeID, err := uuid.Parse(id)
 	if err != nil {
@@ -206,7 +242,8 @@ func (h *ArchetypeHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteArchetypeUseCase.Execute(r.Context(), archetypeapp.DeleteArchetypeInput{
-		ID: archetypeID,
+		TenantID: tenantID,
+		ID:       archetypeID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -218,6 +255,15 @@ func (h *ArchetypeHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // AddTrait handles POST /api/v1/archetypes/{id}/traits
 func (h *ArchetypeHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	archetypeID, err := uuid.Parse(id)
 	if err != nil {
@@ -251,6 +297,7 @@ func (h *ArchetypeHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.addTraitUseCase.Execute(r.Context(), archetypeapp.AddTraitToArchetypeInput{
+		TenantID:     tenantID,
 		ArchetypeID:  archetypeID,
 		TraitID:      traitID,
 		DefaultValue: req.DefaultValue,
@@ -265,6 +312,15 @@ func (h *ArchetypeHandler) AddTrait(w http.ResponseWriter, r *http.Request) {
 
 // RemoveTrait handles DELETE /api/v1/archetypes/{id}/traits/{trait_id}
 func (h *ArchetypeHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	archetypeID, err := uuid.Parse(id)
 	if err != nil {
@@ -286,6 +342,7 @@ func (h *ArchetypeHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.removeTraitUseCase.Execute(r.Context(), archetypeapp.RemoveTraitFromArchetypeInput{
+		TenantID:    tenantID,
 		ArchetypeID: archetypeID,
 		TraitID:     traitID,
 	})

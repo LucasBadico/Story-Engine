@@ -9,6 +9,7 @@ import (
 	worldapp "github.com/story-engine/main-service/internal/application/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // WorldHandler handles HTTP requests for worlds
@@ -42,9 +43,12 @@ func NewWorldHandler(
 
 // Create handles POST /api/v1/worlds
 func (h *WorldHandler) Create(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -89,6 +93,15 @@ func (h *WorldHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/worlds/{id}
 func (h *WorldHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	worldID, err := uuid.Parse(id)
 	if err != nil {
@@ -100,7 +113,8 @@ func (h *WorldHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getWorldUseCase.Execute(r.Context(), worldapp.GetWorldInput{
-		ID: worldID,
+		TenantID: tenantID,
+		ID:       worldID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -115,9 +129,12 @@ func (h *WorldHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/worlds?limit=20&offset=0
 func (h *WorldHandler) List(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
-	if err != nil {
-		WriteError(w, err, http.StatusBadRequest)
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
 		return
 	}
 
@@ -157,6 +174,15 @@ func (h *WorldHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/worlds/{id}
 func (h *WorldHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	worldID, err := uuid.Parse(id)
 	if err != nil {
@@ -183,6 +209,7 @@ func (h *WorldHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateWorldUseCase.Execute(r.Context(), worldapp.UpdateWorldInput{
+		TenantID:    tenantID,
 		ID:          worldID,
 		Name:        req.Name,
 		Description: req.Description,
@@ -202,6 +229,15 @@ func (h *WorldHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/worlds/{id}
 func (h *WorldHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 	worldID, err := uuid.Parse(id)
 	if err != nil {
@@ -213,7 +249,8 @@ func (h *WorldHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = h.deleteWorldUseCase.Execute(r.Context(), worldapp.DeleteWorldInput{
-		ID: worldID,
+		TenantID: tenantID,
+		ID:       worldID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

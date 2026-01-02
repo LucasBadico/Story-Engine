@@ -9,6 +9,7 @@ import (
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ChapterHandler handles HTTP requests for chapters
@@ -33,6 +34,15 @@ func NewChapterHandler(
 
 // Create handles POST /api/v1/chapters
 func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	var req struct {
 		StoryID string `json:"story_id"`
 		Number  int    `json:"number"`
@@ -58,7 +68,7 @@ func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Validate story exists
-	_, err = h.storyRepo.GetByID(r.Context(), storyID)
+	_, err = h.storyRepo.GetByID(r.Context(), tenantID, storyID)
 	if err != nil {
 		WriteError(w, err, http.StatusNotFound)
 		return
@@ -80,7 +90,7 @@ func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chapter, err := story.NewChapter(storyID, req.Number, req.Title)
+	chapter, err := story.NewChapter(tenantID, storyID, req.Number, req.Title)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "chapter",
@@ -115,6 +125,15 @@ func (h *ChapterHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/chapters/{id}
 func (h *ChapterHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	chapterID, err := uuid.Parse(id)
@@ -126,7 +145,7 @@ func (h *ChapterHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chapter, err := h.chapterRepo.GetByID(r.Context(), chapterID)
+	chapter, err := h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
 	if err != nil {
 		if err.Error() == "chapter not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -147,6 +166,15 @@ func (h *ChapterHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/chapters/{id}
 func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	chapterID, err := uuid.Parse(id)
@@ -159,7 +187,7 @@ func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get existing chapter
-	chapter, err := h.chapterRepo.GetByID(r.Context(), chapterID)
+	chapter, err := h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
 	if err != nil {
 		if err.Error() == "chapter not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -226,6 +254,15 @@ func (h *ChapterHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/stories/{id}/chapters
 func (h *ChapterHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	storyIDStr := r.PathValue("id")
 
 	storyID, err := uuid.Parse(storyIDStr)
@@ -237,7 +274,7 @@ func (h *ChapterHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	chapters, err := h.chapterRepo.ListByStory(r.Context(), storyID)
+	chapters, err := h.chapterRepo.ListByStory(r.Context(), tenantID, storyID)
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -252,6 +289,15 @@ func (h *ChapterHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/chapters/{id}
 func (h *ChapterHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	if tenantID == uuid.Nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "X-Tenant-ID",
+			Message: "header is required",
+		}, http.StatusUnauthorized)
+		return
+	}
+
 	id := r.PathValue("id")
 
 	chapterID, err := uuid.Parse(id)
@@ -264,7 +310,7 @@ func (h *ChapterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Check if chapter exists
-	_, err = h.chapterRepo.GetByID(r.Context(), chapterID)
+	_, err = h.chapterRepo.GetByID(r.Context(), tenantID, chapterID)
 	if err != nil {
 		if err.Error() == "chapter not found" {
 			WriteError(w, &platformerrors.NotFoundError{
@@ -277,7 +323,7 @@ func (h *ChapterHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.chapterRepo.Delete(r.Context(), chapterID); err != nil {
+	if err := h.chapterRepo.Delete(r.Context(), tenantID, chapterID); err != nil {
 		h.logger.Error("failed to delete chapter", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
