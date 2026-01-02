@@ -14,6 +14,7 @@ var (
 // Location represents a location entity with hierarchical structure
 type Location struct {
 	ID             uuid.UUID  `json:"id"`
+	TenantID       uuid.UUID  `json:"tenant_id"`
 	WorldID        uuid.UUID  `json:"world_id"`
 	ParentID       *uuid.UUID `json:"parent_id,omitempty"`
 	Name           string     `json:"name"`
@@ -25,7 +26,7 @@ type Location struct {
 }
 
 // NewLocation creates a new location
-func NewLocation(worldID uuid.UUID, name string, parentID *uuid.UUID) (*Location, error) {
+func NewLocation(tenantID, worldID uuid.UUID, name string, parentID *uuid.UUID) (*Location, error) {
 	if name == "" {
 		return nil, ErrLocationNameRequired
 	}
@@ -38,6 +39,7 @@ func NewLocation(worldID uuid.UUID, name string, parentID *uuid.UUID) (*Location
 
 	return &Location{
 		ID:             uuid.New(),
+		TenantID:       tenantID,
 		WorldID:        worldID,
 		ParentID:       parentID,
 		Name:           name,

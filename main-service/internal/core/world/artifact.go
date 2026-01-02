@@ -14,6 +14,7 @@ var (
 // Artifact represents an artifact entity
 type Artifact struct {
 	ID          uuid.UUID  `json:"id"`
+	TenantID    uuid.UUID  `json:"tenant_id"`
 	WorldID     uuid.UUID  `json:"world_id"`
 	Name        string     `json:"name"`
 	Description string     `json:"description"`
@@ -23,7 +24,7 @@ type Artifact struct {
 }
 
 // NewArtifact creates a new artifact
-func NewArtifact(worldID uuid.UUID, name string) (*Artifact, error) {
+func NewArtifact(tenantID, worldID uuid.UUID, name string) (*Artifact, error) {
 	if name == "" {
 		return nil, ErrArtifactNameRequired
 	}
@@ -31,6 +32,7 @@ func NewArtifact(worldID uuid.UUID, name string) (*Artifact, error) {
 	now := time.Now()
 	return &Artifact{
 		ID:        uuid.New(),
+		TenantID:  tenantID,
 		WorldID:   worldID,
 		Name:      name,
 		CreatedAt: now,

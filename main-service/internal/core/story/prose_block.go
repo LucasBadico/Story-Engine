@@ -22,6 +22,7 @@ const (
 // ProseBlock represents a prose block entity
 type ProseBlock struct {
 	ID        uuid.UUID  `json:"id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
 	ChapterID *uuid.UUID `json:"chapter_id,omitempty"` // nullable - can be related via references
 	OrderNum  *int       `json:"order_num,omitempty"`   // nullable - only needed if chapter_id is set
 	Kind      ProseKind  `json:"kind"`
@@ -32,7 +33,7 @@ type ProseBlock struct {
 }
 
 // NewProseBlock creates a new prose block
-func NewProseBlock(chapterID *uuid.UUID, orderNum *int, kind ProseKind, content string) (*ProseBlock, error) {
+func NewProseBlock(tenantID uuid.UUID, chapterID *uuid.UUID, orderNum *int, kind ProseKind, content string) (*ProseBlock, error) {
 	if !isValidProseKind(kind) {
 		return nil, ErrInvalidProseKind
 	}
@@ -45,6 +46,7 @@ func NewProseBlock(chapterID *uuid.UUID, orderNum *int, kind ProseKind, content 
 
 	return &ProseBlock{
 		ID:        uuid.New(),
+		TenantID:  tenantID,
 		ChapterID: chapterID,
 		OrderNum:  orderNum,
 		Kind:      kind,

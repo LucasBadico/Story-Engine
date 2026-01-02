@@ -17,6 +17,7 @@ var (
 // CharacterInventory represents an item in a character's inventory
 type CharacterInventory struct {
 	ID          uuid.UUID       `json:"id"`
+	TenantID    uuid.UUID       `json:"tenant_id"`
 	CharacterID uuid.UUID       `json:"character_id"`
 	ItemID      uuid.UUID       `json:"item_id"`
 	Quantity    int             `json:"quantity"`
@@ -28,7 +29,7 @@ type CharacterInventory struct {
 }
 
 // NewCharacterInventory creates a new character inventory entry
-func NewCharacterInventory(characterID, itemID uuid.UUID) (*CharacterInventory, error) {
+func NewCharacterInventory(tenantID, characterID, itemID uuid.UUID) (*CharacterInventory, error) {
 	if characterID == uuid.Nil {
 		return nil, ErrCharacterInventoryRequired
 	}
@@ -38,6 +39,7 @@ func NewCharacterInventory(characterID, itemID uuid.UUID) (*CharacterInventory, 
 
 	return &CharacterInventory{
 		ID:          uuid.New(),
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		ItemID:      itemID,
 		Quantity:    1,

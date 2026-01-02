@@ -37,6 +37,7 @@ const (
 // Skill represents an RPG skill definition
 type Skill struct {
 	ID             uuid.UUID       `json:"id"`
+	TenantID       uuid.UUID       `json:"tenant_id"`
 	RPGSystemID    uuid.UUID       `json:"rpg_system_id"`
 	Name           string          `json:"name"`
 	Category       *SkillCategory  `json:"category,omitempty"`
@@ -50,7 +51,7 @@ type Skill struct {
 }
 
 // NewSkill creates a new skill
-func NewSkill(rpgSystemID uuid.UUID, name string) (*Skill, error) {
+func NewSkill(tenantID, rpgSystemID uuid.UUID, name string) (*Skill, error) {
 	if name == "" {
 		return nil, ErrSkillNameRequired
 	}
@@ -62,6 +63,7 @@ func NewSkill(rpgSystemID uuid.UUID, name string) (*Skill, error) {
 	now := time.Now()
 	return &Skill{
 		ID:          uuid.New(),
+		TenantID:    tenantID,
 		RPGSystemID: rpgSystemID,
 		Name:        name,
 		MaxRank:     maxRank,

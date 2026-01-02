@@ -28,6 +28,7 @@ const (
 // ImageBlock represents an image block entity
 type ImageBlock struct {
 	ID        uuid.UUID  `json:"id"`
+	TenantID  uuid.UUID  `json:"tenant_id"`
 	ChapterID *uuid.UUID `json:"chapter_id,omitempty"` // nullable - can be related via references
 	OrderNum  *int       `json:"order_num,omitempty"`  // nullable - only needed if chapter_id is set
 	Kind      ImageKind  `json:"kind"`
@@ -41,7 +42,7 @@ type ImageBlock struct {
 }
 
 // NewImageBlock creates a new image block
-func NewImageBlock(chapterID *uuid.UUID, orderNum *int, kind ImageKind, imageURL string) (*ImageBlock, error) {
+func NewImageBlock(tenantID uuid.UUID, chapterID *uuid.UUID, orderNum *int, kind ImageKind, imageURL string) (*ImageBlock, error) {
 	if !isValidImageKind(kind) {
 		return nil, ErrInvalidImageKind
 	}
@@ -55,6 +56,7 @@ func NewImageBlock(chapterID *uuid.UUID, orderNum *int, kind ImageKind, imageURL
 	now := time.Now()
 	return &ImageBlock{
 		ID:        uuid.New(),
+		TenantID:  tenantID,
 		ChapterID: chapterID,
 		OrderNum:  orderNum,
 		Kind:      kind,

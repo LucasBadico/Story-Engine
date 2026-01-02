@@ -18,6 +18,7 @@ var (
 // RPGClass represents an RPG class/job definition
 type RPGClass struct {
 	ID            uuid.UUID       `json:"id"`
+	TenantID      uuid.UUID       `json:"tenant_id"`
 	RPGSystemID   uuid.UUID       `json:"rpg_system_id"`
 	ParentClassID *uuid.UUID      `json:"parent_class_id,omitempty"`
 	Name          string          `json:"name"`
@@ -30,7 +31,7 @@ type RPGClass struct {
 }
 
 // NewRPGClass creates a new RPG class
-func NewRPGClass(rpgSystemID uuid.UUID, name string) (*RPGClass, error) {
+func NewRPGClass(tenantID, rpgSystemID uuid.UUID, name string) (*RPGClass, error) {
 	if name == "" {
 		return nil, ErrClassNameRequired
 	}
@@ -41,6 +42,7 @@ func NewRPGClass(rpgSystemID uuid.UUID, name string) (*RPGClass, error) {
 	now := time.Now()
 	return &RPGClass{
 		ID:          uuid.New(),
+		TenantID:    tenantID,
 		RPGSystemID: rpgSystemID,
 		Name:        name,
 		Tier:        1,

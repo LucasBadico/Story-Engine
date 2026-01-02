@@ -23,6 +23,7 @@ const (
 // Beat represents a beat entity
 type Beat struct {
 	ID        uuid.UUID `json:"id"`
+	TenantID  uuid.UUID `json:"tenant_id"`
 	SceneID   uuid.UUID `json:"scene_id"`
 	OrderNum  int       `json:"order_num"`
 	Type      BeatType  `json:"type"`
@@ -33,7 +34,7 @@ type Beat struct {
 }
 
 // NewBeat creates a new beat
-func NewBeat(sceneID uuid.UUID, orderNum int, beatType BeatType) (*Beat, error) {
+func NewBeat(tenantID, sceneID uuid.UUID, orderNum int, beatType BeatType) (*Beat, error) {
 	if orderNum < 1 {
 		return nil, ErrInvalidOrderNumber
 	}
@@ -44,6 +45,7 @@ func NewBeat(sceneID uuid.UUID, orderNum int, beatType BeatType) (*Beat, error) 
 	now := time.Now()
 	return &Beat{
 		ID:        uuid.New(),
+		TenantID:  tenantID,
 		SceneID:   sceneID,
 		OrderNum:  orderNum,
 		Type:      beatType,

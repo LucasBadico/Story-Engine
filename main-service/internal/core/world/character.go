@@ -15,6 +15,7 @@ var (
 // Character represents a character entity
 type Character struct {
 	ID            uuid.UUID  `json:"id"`
+	TenantID      uuid.UUID  `json:"tenant_id"`
 	WorldID       uuid.UUID  `json:"world_id"`
 	ArchetypeID   *uuid.UUID `json:"archetype_id,omitempty"`
 	CurrentClassID *uuid.UUID `json:"current_class_id,omitempty"`
@@ -26,7 +27,7 @@ type Character struct {
 }
 
 // NewCharacter creates a new character
-func NewCharacter(worldID uuid.UUID, name string) (*Character, error) {
+func NewCharacter(tenantID, worldID uuid.UUID, name string) (*Character, error) {
 	if name == "" {
 		return nil, ErrCharacterNameRequired
 	}
@@ -34,6 +35,7 @@ func NewCharacter(worldID uuid.UUID, name string) (*Character, error) {
 	now := time.Now()
 	return &Character{
 		ID:         uuid.New(),
+		TenantID:   tenantID,
 		WorldID:    worldID,
 		Name:       name,
 		ClassLevel: 1,

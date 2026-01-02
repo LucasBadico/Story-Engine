@@ -18,6 +18,7 @@ const (
 // Chapter represents a chapter entity
 type Chapter struct {
 	ID        uuid.UUID     `json:"id"`
+	TenantID  uuid.UUID     `json:"tenant_id"`
 	StoryID   uuid.UUID     `json:"story_id"`
 	Number    int           `json:"number"`
 	Title     string        `json:"title"`
@@ -27,7 +28,7 @@ type Chapter struct {
 }
 
 // NewChapter creates a new chapter
-func NewChapter(storyID uuid.UUID, number int, title string) (*Chapter, error) {
+func NewChapter(tenantID, storyID uuid.UUID, number int, title string) (*Chapter, error) {
 	if number < 1 {
 		return nil, ErrInvalidChapterNumber
 	}
@@ -35,6 +36,7 @@ func NewChapter(storyID uuid.UUID, number int, title string) (*Chapter, error) {
 	now := time.Now()
 	return &Chapter{
 		ID:        uuid.New(),
+		TenantID:  tenantID,
 		StoryID:   storyID,
 		Number:    number,
 		Title:     title,

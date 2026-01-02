@@ -41,6 +41,7 @@ const (
 // InventoryItem represents an inventory item definition (mechanical)
 type InventoryItem struct {
 	ID            uuid.UUID       `json:"id"`
+	TenantID      uuid.UUID       `json:"tenant_id"`
 	RPGSystemID   uuid.UUID       `json:"rpg_system_id"`
 	ArtifactID    *uuid.UUID      `json:"artifact_id,omitempty"` // optional: link to narrative
 	Name          string          `json:"name"`
@@ -59,7 +60,7 @@ type InventoryItem struct {
 }
 
 // NewInventoryItem creates a new inventory item
-func NewInventoryItem(rpgSystemID uuid.UUID, name string) (*InventoryItem, error) {
+func NewInventoryItem(tenantID, rpgSystemID uuid.UUID, name string) (*InventoryItem, error) {
 	if name == "" {
 		return nil, ErrItemNameRequired
 	}
@@ -70,6 +71,7 @@ func NewInventoryItem(rpgSystemID uuid.UUID, name string) (*InventoryItem, error
 	now := time.Now()
 	return &InventoryItem{
 		ID:            uuid.New(),
+		TenantID:      tenantID,
 		RPGSystemID:   rpgSystemID,
 		Name:          name,
 		SlotsRequired: 1,

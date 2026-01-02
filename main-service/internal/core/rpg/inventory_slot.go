@@ -24,6 +24,7 @@ const (
 // InventorySlot represents an inventory slot definition
 type InventorySlot struct {
 	ID          uuid.UUID  `json:"id"`
+	TenantID    uuid.UUID  `json:"tenant_id"`
 	RPGSystemID uuid.UUID  `json:"rpg_system_id"`
 	Name        string     `json:"name"`
 	SlotType    *SlotType  `json:"slot_type,omitempty"`
@@ -31,7 +32,7 @@ type InventorySlot struct {
 }
 
 // NewInventorySlot creates a new inventory slot
-func NewInventorySlot(rpgSystemID uuid.UUID, name string) (*InventorySlot, error) {
+func NewInventorySlot(tenantID, rpgSystemID uuid.UUID, name string) (*InventorySlot, error) {
 	if name == "" {
 		return nil, ErrSlotNameRequired
 	}
@@ -41,6 +42,7 @@ func NewInventorySlot(rpgSystemID uuid.UUID, name string) (*InventorySlot, error
 
 	return &InventorySlot{
 		ID:          uuid.New(),
+		TenantID:    tenantID,
 		RPGSystemID: rpgSystemID,
 		Name:        name,
 		CreatedAt:   time.Now(),

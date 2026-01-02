@@ -9,6 +9,7 @@ import (
 // Scene represents a scene entity
 type Scene struct {
 	ID             uuid.UUID  `json:"id"`
+	TenantID       uuid.UUID  `json:"tenant_id"`
 	StoryID        uuid.UUID  `json:"story_id"`
 	ChapterID      *uuid.UUID `json:"chapter_id,omitempty"` // nullable
 	OrderNum       int        `json:"order_num"`
@@ -20,7 +21,7 @@ type Scene struct {
 }
 
 // NewScene creates a new scene
-func NewScene(storyID uuid.UUID, chapterID *uuid.UUID, orderNum int) (*Scene, error) {
+func NewScene(tenantID, storyID uuid.UUID, chapterID *uuid.UUID, orderNum int) (*Scene, error) {
 	if orderNum < 1 {
 		return nil, ErrInvalidOrderNumber
 	}
@@ -28,6 +29,7 @@ func NewScene(storyID uuid.UUID, chapterID *uuid.UUID, orderNum int) (*Scene, er
 	now := time.Now()
 	return &Scene{
 		ID:        uuid.New(),
+		TenantID:  tenantID,
 		StoryID:   storyID,
 		ChapterID: chapterID,
 		OrderNum:  orderNum,

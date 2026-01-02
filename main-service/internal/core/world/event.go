@@ -15,6 +15,7 @@ var (
 // Event represents an event in a world
 type Event struct {
 	ID          uuid.UUID  `json:"id"`
+	TenantID    uuid.UUID  `json:"tenant_id"`
 	WorldID     uuid.UUID  `json:"world_id"`
 	Name        string     `json:"name"`
 	Type        *string    `json:"type,omitempty"`
@@ -26,13 +27,14 @@ type Event struct {
 }
 
 // NewEvent creates a new event
-func NewEvent(worldID uuid.UUID, name string) (*Event, error) {
+func NewEvent(tenantID, worldID uuid.UUID, name string) (*Event, error) {
 	if name == "" {
 		return nil, ErrEventNameRequired
 	}
 
 	return &Event{
 		ID:         uuid.New(),
+		TenantID:   tenantID,
 		WorldID:    worldID,
 		Name:       name,
 		Importance: 5,
