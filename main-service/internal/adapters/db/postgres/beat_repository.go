@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/core/story"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -45,7 +46,10 @@ func (r *BeatRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*
 		&b.ID, &b.TenantID, &b.SceneID, &b.OrderNum, &b.Type, &b.Intent, &b.Outcome, &b.CreatedAt, &b.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("beat not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "beat",
+				ID:       id.String(),
+			}
 		}
 		return nil, err
 	}

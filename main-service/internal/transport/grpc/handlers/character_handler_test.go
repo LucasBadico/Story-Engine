@@ -127,7 +127,7 @@ func TestCharacterHandler_GetCharacter(t *testing.T) {
 		getReq := &characterpb.GetCharacterRequest{
 			Id: createResp.Character.Id,
 		}
-		getResp, err := characterClient.GetCharacter(context.Background(), getReq)
+		getResp, err := characterClient.GetCharacter(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -138,10 +138,18 @@ func TestCharacterHandler_GetCharacter(t *testing.T) {
 	})
 
 	t.Run("non-existing character", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &characterpb.GetCharacterRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := characterClient.GetCharacter(context.Background(), req)
+		_, err = characterClient.GetCharacter(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing character")
 		}
@@ -319,7 +327,7 @@ func TestCharacterHandler_DeleteCharacter(t *testing.T) {
 		getReq := &characterpb.GetCharacterRequest{
 			Id: createResp.Character.Id,
 		}
-		_, err = characterClient.GetCharacter(context.Background(), getReq)
+		_, err = characterClient.GetCharacter(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted character")
 		}

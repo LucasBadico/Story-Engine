@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/core/story"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -48,7 +49,10 @@ func (r *ProseBlockRepository) GetByID(ctx context.Context, tenantID, id uuid.UU
 		&p.ID, &p.TenantID, &chapterID, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("prose block not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "prose_block",
+				ID:       id.String(),
+			}
 		}
 		return nil, err
 	}
@@ -96,7 +100,10 @@ func (r *ProseBlockRepository) GetByChapterAndKind(ctx context.Context, tenantID
 		&p.ID, &p.TenantID, &chapterIDNull, &orderNum, &p.Kind, &p.Content, &p.WordCount, &p.CreatedAt, &p.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("prose block not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "prose_block",
+				ID:       chapterID.String() + "/" + string(kind),
+			}
 		}
 		return nil, err
 	}

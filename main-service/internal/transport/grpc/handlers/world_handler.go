@@ -83,13 +83,24 @@ func (h *WorldHandler) CreateWorld(ctx context.Context, req *worldpb.CreateWorld
 
 // GetWorld retrieves a world by ID
 func (h *WorldHandler) GetWorld(ctx context.Context, req *worldpb.GetWorldRequest) (*worldpb.GetWorldResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world id: %v", err)
 	}
 
 	output, err := h.getWorldUseCase.Execute(ctx, worldapp.GetWorldInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -174,7 +185,18 @@ func (h *WorldHandler) UpdateWorld(ctx context.Context, req *worldpb.UpdateWorld
 		isImplicit = req.IsImplicit
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := worldapp.UpdateWorldInput{
+		TenantID:    tenantUUID,
 		ID:          id,
 		Name:        name,
 		Description: description,
@@ -194,13 +216,24 @@ func (h *WorldHandler) UpdateWorld(ctx context.Context, req *worldpb.UpdateWorld
 
 // DeleteWorld deletes a world
 func (h *WorldHandler) DeleteWorld(ctx context.Context, req *worldpb.DeleteWorldRequest) (*worldpb.DeleteWorldResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world id: %v", err)
 	}
 
 	err = h.deleteWorldUseCase.Execute(ctx, worldapp.DeleteWorldInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err

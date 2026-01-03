@@ -5,8 +5,9 @@ import (
 
 	"github.com/google/uuid"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	eventpb "github.com/story-engine/main-service/proto/event"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -71,6 +72,16 @@ func NewEventHandler(
 
 // CreateEvent creates a new event
 func (h *EventHandler) CreateEvent(ctx context.Context, req *eventpb.CreateEventRequest) (*eventpb.CreateEventResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
@@ -96,6 +107,7 @@ func (h *EventHandler) CreateEvent(ctx context.Context, req *eventpb.CreateEvent
 	}
 
 	output, err := h.createEventUseCase.Execute(ctx, eventapp.CreateEventInput{
+		TenantID:    tenantUUID,
 		WorldID:     worldID,
 		Name:        req.Name,
 		Type:        eventType,
@@ -114,13 +126,24 @@ func (h *EventHandler) CreateEvent(ctx context.Context, req *eventpb.CreateEvent
 
 // GetEvent retrieves an event by ID
 func (h *EventHandler) GetEvent(ctx context.Context, req *eventpb.GetEventRequest) (*eventpb.GetEventResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
 	output, err := h.getEventUseCase.Execute(ctx, eventapp.GetEventInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -133,13 +156,24 @@ func (h *EventHandler) GetEvent(ctx context.Context, req *eventpb.GetEventReques
 
 // ListEvents lists events for a world
 func (h *EventHandler) ListEvents(ctx context.Context, req *eventpb.ListEventsRequest) (*eventpb.ListEventsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
 	}
 
 	output, err := h.listEventsUseCase.Execute(ctx, eventapp.ListEventsInput{
-		WorldID: worldID,
+		TenantID: tenantUUID,
+		WorldID:  worldID,
 	})
 	if err != nil {
 		return nil, err
@@ -189,7 +223,18 @@ func (h *EventHandler) UpdateEvent(ctx context.Context, req *eventpb.UpdateEvent
 		importance = &imp
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	output, err := h.updateEventUseCase.Execute(ctx, eventapp.UpdateEventInput{
+		TenantID:    tenantUUID,
 		ID:          id,
 		Name:        name,
 		Type:        eventType,
@@ -208,13 +253,24 @@ func (h *EventHandler) UpdateEvent(ctx context.Context, req *eventpb.UpdateEvent
 
 // DeleteEvent deletes an event
 func (h *EventHandler) DeleteEvent(ctx context.Context, req *eventpb.DeleteEventRequest) (*eventpb.DeleteEventResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
 	err = h.deleteEventUseCase.Execute(ctx, eventapp.DeleteEventInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -240,7 +296,18 @@ func (h *EventHandler) AddCharacterToEvent(ctx context.Context, req *eventpb.Add
 		role = req.Role
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.addCharacterUseCase.Execute(ctx, eventapp.AddCharacterToEventInput{
+		TenantID:    tenantUUID,
 		EventID:     eventID,
 		CharacterID: characterID,
 		Role:        role,
@@ -251,7 +318,8 @@ func (h *EventHandler) AddCharacterToEvent(ctx context.Context, req *eventpb.Add
 
 	// Fetch the created relationship to return it
 	output, err := h.getCharactersUseCase.Execute(ctx, eventapp.GetEventCharactersInput{
-		EventID: eventID,
+		TenantID: tenantUUID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		return nil, err
@@ -281,7 +349,18 @@ func (h *EventHandler) RemoveCharacterFromEvent(ctx context.Context, req *eventp
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.removeCharacterUseCase.Execute(ctx, eventapp.RemoveCharacterFromEventInput{
+		TenantID:    tenantUUID,
 		EventID:     eventID,
 		CharacterID: characterID,
 	})
@@ -294,13 +373,24 @@ func (h *EventHandler) RemoveCharacterFromEvent(ctx context.Context, req *eventp
 
 // GetEventCharacters lists characters for an event
 func (h *EventHandler) GetEventCharacters(ctx context.Context, req *eventpb.GetEventCharactersRequest) (*eventpb.GetEventCharactersResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	eventID, err := uuid.Parse(req.EventId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid event_id: %v", err)
 	}
 
 	output, err := h.getCharactersUseCase.Execute(ctx, eventapp.GetEventCharactersInput{
-		EventID: eventID,
+		TenantID: tenantUUID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		return nil, err
@@ -334,7 +424,18 @@ func (h *EventHandler) AddLocationToEvent(ctx context.Context, req *eventpb.AddL
 		significance = req.Significance
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.addLocationUseCase.Execute(ctx, eventapp.AddLocationToEventInput{
+		TenantID:     tenantUUID,
 		EventID:      eventID,
 		LocationID:   locationID,
 		Significance: significance,
@@ -345,7 +446,8 @@ func (h *EventHandler) AddLocationToEvent(ctx context.Context, req *eventpb.AddL
 
 	// Fetch the created relationship to return it
 	output, err := h.getLocationsUseCase.Execute(ctx, eventapp.GetEventLocationsInput{
-		EventID: eventID,
+		TenantID: tenantUUID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		return nil, err
@@ -375,7 +477,18 @@ func (h *EventHandler) RemoveLocationFromEvent(ctx context.Context, req *eventpb
 		return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.removeLocationUseCase.Execute(ctx, eventapp.RemoveLocationFromEventInput{
+		TenantID:   tenantUUID,
 		EventID:    eventID,
 		LocationID: locationID,
 	})
@@ -388,13 +501,24 @@ func (h *EventHandler) RemoveLocationFromEvent(ctx context.Context, req *eventpb
 
 // GetEventLocations lists locations for an event
 func (h *EventHandler) GetEventLocations(ctx context.Context, req *eventpb.GetEventLocationsRequest) (*eventpb.GetEventLocationsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	eventID, err := uuid.Parse(req.EventId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid event_id: %v", err)
 	}
 
 	output, err := h.getLocationsUseCase.Execute(ctx, eventapp.GetEventLocationsInput{
-		EventID: eventID,
+		TenantID: tenantUUID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		return nil, err
@@ -428,7 +552,18 @@ func (h *EventHandler) AddArtifactToEvent(ctx context.Context, req *eventpb.AddA
 		role = req.Role
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.addArtifactUseCase.Execute(ctx, eventapp.AddArtifactToEventInput{
+		TenantID:   tenantUUID,
 		EventID:    eventID,
 		ArtifactID: artifactID,
 		Role:       role,
@@ -439,7 +574,8 @@ func (h *EventHandler) AddArtifactToEvent(ctx context.Context, req *eventpb.AddA
 
 	// Fetch the created relationship to return it
 	output, err := h.getArtifactsUseCase.Execute(ctx, eventapp.GetEventArtifactsInput{
-		EventID: eventID,
+		TenantID: tenantUUID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		return nil, err
@@ -469,7 +605,18 @@ func (h *EventHandler) RemoveArtifactFromEvent(ctx context.Context, req *eventpb
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	err = h.removeArtifactUseCase.Execute(ctx, eventapp.RemoveArtifactFromEventInput{
+		TenantID:   tenantUUID,
 		EventID:    eventID,
 		ArtifactID: artifactID,
 	})
@@ -482,13 +629,24 @@ func (h *EventHandler) RemoveArtifactFromEvent(ctx context.Context, req *eventpb
 
 // GetEventArtifacts lists artifacts for an event
 func (h *EventHandler) GetEventArtifacts(ctx context.Context, req *eventpb.GetEventArtifactsRequest) (*eventpb.GetEventArtifactsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	eventID, err := uuid.Parse(req.EventId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid event_id: %v", err)
 	}
 
 	output, err := h.getArtifactsUseCase.Execute(ctx, eventapp.GetEventArtifactsInput{
-		EventID: eventID,
+		TenantID: tenantUUID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		return nil, err

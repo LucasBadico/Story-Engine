@@ -28,6 +28,12 @@ func (r *SceneReferenceRepository) Create(ctx context.Context, ref *story.SceneR
 	// Get tenant_id from scene
 	var tenantID uuid.UUID
 	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM scenes WHERE id = $1", ref.SceneID).Scan(&tenantID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return &platformerrors.NotFoundError{
+				Resource: "scene",
+				ID:       ref.SceneID.String(),
+			}
+		}
 		return err
 	}
 
@@ -117,8 +123,17 @@ func (r *SceneReferenceRepository) DeleteByScene(ctx context.Context, tenantID, 
 // DeleteBySceneAndEntity deletes a specific scene reference
 func (r *SceneReferenceRepository) DeleteBySceneAndEntity(ctx context.Context, tenantID, sceneID uuid.UUID, entityType story.SceneReferenceEntityType, entityID uuid.UUID) error {
 	query := `DELETE FROM scene_references WHERE tenant_id = $1 AND scene_id = $2 AND entity_type = $3 AND entity_id = $4`
-	_, err := r.db.Exec(ctx, query, tenantID, sceneID, string(entityType), entityID)
-	return err
+	result, err := r.db.Exec(ctx, query, tenantID, sceneID, string(entityType), entityID)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return &platformerrors.NotFoundError{
+			Resource: "scene_reference",
+			ID:       sceneID.String() + "/" + string(entityType) + "/" + entityID.String(),
+		}
+	}
+	return nil
 }
 
 func (r *SceneReferenceRepository) scanSceneReferences(rows pgx.Rows) ([]*story.SceneReference, error) {

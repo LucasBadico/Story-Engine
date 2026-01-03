@@ -104,7 +104,7 @@ func TestTraitHandler_GetTrait(t *testing.T) {
 		getReq := &traitpb.GetTraitRequest{
 			Id: createResp.Trait.Id,
 		}
-		getResp, err := traitClient.GetTrait(context.Background(), getReq)
+		getResp, err := traitClient.GetTrait(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -115,10 +115,18 @@ func TestTraitHandler_GetTrait(t *testing.T) {
 	})
 
 	t.Run("non-existing trait", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &traitpb.GetTraitRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := traitClient.GetTrait(context.Background(), req)
+		_, err = traitClient.GetTrait(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing trait")
 		}
@@ -269,7 +277,7 @@ func TestTraitHandler_DeleteTrait(t *testing.T) {
 		getReq := &traitpb.GetTraitRequest{
 			Id: createResp.Trait.Id,
 		}
-		_, err = traitClient.GetTrait(context.Background(), getReq)
+		_, err = traitClient.GetTrait(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted trait")
 		}

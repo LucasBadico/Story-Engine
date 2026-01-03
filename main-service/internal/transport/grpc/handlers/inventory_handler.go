@@ -6,8 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	inventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	inventorypb "github.com/story-engine/main-service/proto/inventory"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -42,6 +43,16 @@ func NewInventoryHandler(
 
 // AddItemToInventory adds an item to a character's inventory
 func (h *InventoryHandler) AddItemToInventory(ctx context.Context, req *inventorypb.AddItemToInventoryRequest) (*inventorypb.AddItemToInventoryResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
@@ -68,6 +79,7 @@ func (h *InventoryHandler) AddItemToInventory(ctx context.Context, req *inventor
 	}
 
 	input := inventoryapp.AddItemToInventoryInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 		ItemID:      itemID,
 		Quantity:    quantity,
@@ -86,6 +98,16 @@ func (h *InventoryHandler) AddItemToInventory(ctx context.Context, req *inventor
 
 // UpdateInventoryItem updates an inventory item
 func (h *InventoryHandler) UpdateInventoryItem(ctx context.Context, req *inventorypb.UpdateInventoryItemRequest) (*inventorypb.UpdateInventoryItemResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid inventory id: %v", err)
@@ -118,6 +140,7 @@ func (h *InventoryHandler) UpdateInventoryItem(ctx context.Context, req *invento
 	}
 
 	input := inventoryapp.UpdateCharacterInventoryInput{
+		TenantID:    tenantUUID,
 		ID:          id,
 		Quantity:    quantity,
 		SlotID:      slotID,
@@ -137,13 +160,24 @@ func (h *InventoryHandler) UpdateInventoryItem(ctx context.Context, req *invento
 
 // RemoveItemFromInventory removes an item from inventory
 func (h *InventoryHandler) RemoveItemFromInventory(ctx context.Context, req *inventorypb.RemoveItemFromInventoryRequest) (*inventorypb.RemoveItemFromInventoryResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid inventory id: %v", err)
 	}
 
 	err = h.deleteItemUseCase.Execute(ctx, inventoryapp.DeleteCharacterInventoryInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -154,13 +188,24 @@ func (h *InventoryHandler) RemoveItemFromInventory(ctx context.Context, req *inv
 
 // ListInventory lists items in a character's inventory
 func (h *InventoryHandler) ListInventory(ctx context.Context, req *inventorypb.ListInventoryRequest) (*inventorypb.ListInventoryResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 	}
 
 	output, err := h.listInventoryUseCase.Execute(ctx, inventoryapp.ListCharacterInventoryInput{
-		CharacterID: characterID,
+		TenantID:     tenantUUID,
+		CharacterID:  characterID,
 		EquippedOnly: false,
 	})
 	if err != nil {

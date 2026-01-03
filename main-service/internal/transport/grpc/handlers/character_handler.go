@@ -5,8 +5,9 @@ import (
 
 	"github.com/google/uuid"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	characterpb "github.com/story-engine/main-service/proto/character"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,6 +57,16 @@ func NewCharacterHandler(
 
 // CreateCharacter creates a new character
 func (h *CharacterHandler) CreateCharacter(ctx context.Context, req *characterpb.CreateCharacterRequest) (*characterpb.CreateCharacterResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
@@ -75,6 +86,7 @@ func (h *CharacterHandler) CreateCharacter(ctx context.Context, req *characterpb
 	}
 
 	input := characterapp.CreateCharacterInput{
+		TenantID:    tenantUUID,
 		WorldID:     worldID,
 		ArchetypeID: archetypeID,
 		Name:        req.Name,
@@ -93,13 +105,24 @@ func (h *CharacterHandler) CreateCharacter(ctx context.Context, req *characterpb
 
 // GetCharacter retrieves a character by ID
 func (h *CharacterHandler) GetCharacter(ctx context.Context, req *characterpb.GetCharacterRequest) (*characterpb.GetCharacterResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character id: %v", err)
 	}
 
 	output, err := h.getCharacterUseCase.Execute(ctx, characterapp.GetCharacterInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -112,6 +135,16 @@ func (h *CharacterHandler) GetCharacter(ctx context.Context, req *characterpb.Ge
 
 // ListCharacters lists characters for a world
 func (h *CharacterHandler) ListCharacters(ctx context.Context, req *characterpb.ListCharactersRequest) (*characterpb.ListCharactersResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
@@ -129,9 +162,10 @@ func (h *CharacterHandler) ListCharacters(ctx context.Context, req *characterpb.
 	}
 
 	output, err := h.listCharactersUseCase.Execute(ctx, characterapp.ListCharactersInput{
-		WorldID: worldID,
-		Limit:   limit,
-		Offset:  offset,
+		TenantID: tenantUUID,
+		WorldID:  worldID,
+		Limit:    limit,
+		Offset:   offset,
 	})
 	if err != nil {
 		return nil, err
@@ -178,7 +212,18 @@ func (h *CharacterHandler) UpdateCharacter(ctx context.Context, req *characterpb
 		}
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := characterapp.UpdateCharacterInput{
+		TenantID:    tenantUUID,
 		ID:          id,
 		Name:        name,
 		Description: description,
@@ -197,13 +242,24 @@ func (h *CharacterHandler) UpdateCharacter(ctx context.Context, req *characterpb
 
 // DeleteCharacter deletes a character
 func (h *CharacterHandler) DeleteCharacter(ctx context.Context, req *characterpb.DeleteCharacterRequest) (*characterpb.DeleteCharacterResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character id: %v", err)
 	}
 
 	err = h.deleteCharacterUseCase.Execute(ctx, characterapp.DeleteCharacterInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -214,12 +270,23 @@ func (h *CharacterHandler) DeleteCharacter(ctx context.Context, req *characterpb
 
 // GetCharacterTraits retrieves all traits for a character
 func (h *CharacterHandler) GetCharacterTraits(ctx context.Context, req *characterpb.GetCharacterTraitsRequest) (*characterpb.GetCharacterTraitsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 	}
 
 	output, err := h.getCharacterTraitsUseCase.Execute(ctx, characterapp.GetCharacterTraitsInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 	})
 	if err != nil {
@@ -238,6 +305,16 @@ func (h *CharacterHandler) GetCharacterTraits(ctx context.Context, req *characte
 
 // AddTraitToCharacter adds a trait to a character
 func (h *CharacterHandler) AddTraitToCharacter(ctx context.Context, req *characterpb.AddTraitToCharacterRequest) (*characterpb.AddTraitToCharacterResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
@@ -249,6 +326,7 @@ func (h *CharacterHandler) AddTraitToCharacter(ctx context.Context, req *charact
 	}
 
 	err = h.addTraitToCharacterUseCase.Execute(ctx, characterapp.AddTraitToCharacterInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 		TraitID:     traitID,
 		Value:       req.Value,
@@ -283,7 +361,18 @@ func (h *CharacterHandler) UpdateCharacterTrait(ctx context.Context, req *charac
 		notes = req.Notes
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	output, err := h.updateCharacterTraitUseCase.Execute(ctx, characterapp.UpdateCharacterTraitInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 		TraitID:     traitID,
 		Value:       value,
@@ -300,6 +389,16 @@ func (h *CharacterHandler) UpdateCharacterTrait(ctx context.Context, req *charac
 
 // RemoveTraitFromCharacter removes a trait from a character
 func (h *CharacterHandler) RemoveTraitFromCharacter(ctx context.Context, req *characterpb.RemoveTraitFromCharacterRequest) (*characterpb.RemoveTraitFromCharacterResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
@@ -311,6 +410,7 @@ func (h *CharacterHandler) RemoveTraitFromCharacter(ctx context.Context, req *ch
 	}
 
 	err = h.removeTraitFromCharacterUseCase.Execute(ctx, characterapp.RemoveTraitFromCharacterInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 		TraitID:     traitID,
 	})

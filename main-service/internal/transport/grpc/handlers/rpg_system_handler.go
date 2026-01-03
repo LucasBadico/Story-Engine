@@ -105,13 +105,24 @@ func (h *RPGSystemHandler) CreateRPGSystem(ctx context.Context, req *rpgsystempb
 
 // GetRPGSystem retrieves an RPG system by ID
 func (h *RPGSystemHandler) GetRPGSystem(ctx context.Context, req *rpgsystempb.GetRPGSystemRequest) (*rpgsystempb.GetRPGSystemResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	var tenantUUID *uuid.UUID
+	if ok {
+		parsedTenantID, err := uuid.Parse(tenantID)
+		if err != nil {
+			return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+		}
+		tenantUUID = &parsedTenantID
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_system id: %v", err)
 	}
 
 	output, err := h.getRPGSystemUseCase.Execute(ctx, rpgsystemapp.GetRPGSystemInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -160,6 +171,16 @@ func (h *RPGSystemHandler) ListRPGSystems(ctx context.Context, req *rpgsystempb.
 
 // UpdateRPGSystem updates an existing RPG system
 func (h *RPGSystemHandler) UpdateRPGSystem(ctx context.Context, req *rpgsystempb.UpdateRPGSystemRequest) (*rpgsystempb.UpdateRPGSystemResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_system id: %v", err)
@@ -194,6 +215,7 @@ func (h *RPGSystemHandler) UpdateRPGSystem(ctx context.Context, req *rpgsystempb
 	}
 
 	input := rpgsystemapp.UpdateRPGSystemInput{
+		TenantID:          tenantUUID,
 		ID:                id,
 		Name:              name,
 		Description:       description,
@@ -214,13 +236,24 @@ func (h *RPGSystemHandler) UpdateRPGSystem(ctx context.Context, req *rpgsystempb
 
 // DeleteRPGSystem deletes an RPG system
 func (h *RPGSystemHandler) DeleteRPGSystem(ctx context.Context, req *rpgsystempb.DeleteRPGSystemRequest) (*rpgsystempb.DeleteRPGSystemResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_system id: %v", err)
 	}
 
 	err = h.deleteRPGSystemUseCase.Execute(ctx, rpgsystemapp.DeleteRPGSystemInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err

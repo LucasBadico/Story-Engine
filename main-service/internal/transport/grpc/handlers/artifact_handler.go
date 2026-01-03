@@ -6,8 +6,9 @@ import (
 	"github.com/google/uuid"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	"github.com/story-engine/main-service/internal/core/world"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	artifactpb "github.com/story-engine/main-service/proto/artifact"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -54,6 +55,16 @@ func NewArtifactHandler(
 
 // CreateArtifact creates a new artifact
 func (h *ArtifactHandler) CreateArtifact(ctx context.Context, req *artifactpb.CreateArtifactRequest) (*artifactpb.CreateArtifactResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
@@ -82,6 +93,7 @@ func (h *ArtifactHandler) CreateArtifact(ctx context.Context, req *artifactpb.Cr
 	}
 
 	input := artifactapp.CreateArtifactInput{
+		TenantID:     tenantUUID,
 		WorldID:      worldID,
 		CharacterIDs: characterIDs,
 		LocationIDs:  locationIDs,
@@ -102,13 +114,24 @@ func (h *ArtifactHandler) CreateArtifact(ctx context.Context, req *artifactpb.Cr
 
 // GetArtifact retrieves an artifact by ID
 func (h *ArtifactHandler) GetArtifact(ctx context.Context, req *artifactpb.GetArtifactRequest) (*artifactpb.GetArtifactResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact id: %v", err)
 	}
 
 	output, err := h.getArtifactUseCase.Execute(ctx, artifactapp.GetArtifactInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -121,6 +144,16 @@ func (h *ArtifactHandler) GetArtifact(ctx context.Context, req *artifactpb.GetAr
 
 // ListArtifacts lists artifacts for a world
 func (h *ArtifactHandler) ListArtifacts(ctx context.Context, req *artifactpb.ListArtifactsRequest) (*artifactpb.ListArtifactsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
@@ -138,9 +171,10 @@ func (h *ArtifactHandler) ListArtifacts(ctx context.Context, req *artifactpb.Lis
 	}
 
 	output, err := h.listArtifactsUseCase.Execute(ctx, artifactapp.ListArtifactsInput{
-		WorldID: worldID,
-		Limit:   limit,
-		Offset:  offset,
+		TenantID: tenantUUID,
+		WorldID:  worldID,
+		Limit:    limit,
+		Offset:   offset,
 	})
 	if err != nil {
 		return nil, err
@@ -205,13 +239,24 @@ func (h *ArtifactHandler) UpdateArtifact(ctx context.Context, req *artifactpb.Up
 		locationIDs = &ids
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := artifactapp.UpdateArtifactInput{
-		ID:          id,
-		Name:        name,
-		Description: description,
-		Rarity:      rarity,
+		TenantID:     tenantUUID,
+		ID:           id,
+		Name:         name,
+		Description:  description,
+		Rarity:       rarity,
 		CharacterIDs: characterIDs,
-		LocationIDs: locationIDs,
+		LocationIDs:  locationIDs,
 	}
 
 	output, err := h.updateArtifactUseCase.Execute(ctx, input)
@@ -226,13 +271,24 @@ func (h *ArtifactHandler) UpdateArtifact(ctx context.Context, req *artifactpb.Up
 
 // DeleteArtifact deletes an artifact
 func (h *ArtifactHandler) DeleteArtifact(ctx context.Context, req *artifactpb.DeleteArtifactRequest) (*artifactpb.DeleteArtifactResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact id: %v", err)
 	}
 
 	err = h.deleteArtifactUseCase.Execute(ctx, artifactapp.DeleteArtifactInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -243,12 +299,23 @@ func (h *ArtifactHandler) DeleteArtifact(ctx context.Context, req *artifactpb.De
 
 // GetArtifactReferences retrieves all references for an artifact
 func (h *ArtifactHandler) GetArtifactReferences(ctx context.Context, req *artifactpb.GetArtifactReferencesRequest) (*artifactpb.GetArtifactReferencesResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	artifactID, err := uuid.Parse(req.ArtifactId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
 	}
 
 	output, err := h.getReferencesUseCase.Execute(ctx, artifactapp.GetArtifactReferencesInput{
+		TenantID:   tenantUUID,
 		ArtifactID: artifactID,
 	})
 	if err != nil {
@@ -267,6 +334,16 @@ func (h *ArtifactHandler) GetArtifactReferences(ctx context.Context, req *artifa
 
 // AddArtifactReference adds a reference to an artifact
 func (h *ArtifactHandler) AddArtifactReference(ctx context.Context, req *artifactpb.AddArtifactReferenceRequest) (*artifactpb.AddArtifactReferenceResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	artifactID, err := uuid.Parse(req.ArtifactId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
@@ -283,6 +360,7 @@ func (h *ArtifactHandler) AddArtifactReference(ctx context.Context, req *artifac
 	}
 
 	err = h.addReferenceUseCase.Execute(ctx, artifactapp.AddArtifactReferenceInput{
+		TenantID:   tenantUUID,
 		ArtifactID: artifactID,
 		EntityType: entityType,
 		EntityID:   entityID,
@@ -296,6 +374,16 @@ func (h *ArtifactHandler) AddArtifactReference(ctx context.Context, req *artifac
 
 // RemoveArtifactReference removes a reference from an artifact
 func (h *ArtifactHandler) RemoveArtifactReference(ctx context.Context, req *artifactpb.RemoveArtifactReferenceRequest) (*artifactpb.RemoveArtifactReferenceResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	artifactID, err := uuid.Parse(req.ArtifactId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
@@ -312,6 +400,7 @@ func (h *ArtifactHandler) RemoveArtifactReference(ctx context.Context, req *arti
 	}
 
 	err = h.removeReferenceUseCase.Execute(ctx, artifactapp.RemoveArtifactReferenceInput{
+		TenantID:   tenantUUID,
 		ArtifactID: artifactID,
 		EntityType: entityType,
 		EntityID:   entityID,

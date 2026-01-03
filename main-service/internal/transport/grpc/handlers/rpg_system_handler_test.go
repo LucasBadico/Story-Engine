@@ -133,7 +133,7 @@ func TestRPGSystemHandler_GetRPGSystem(t *testing.T) {
 		getReq := &rpgsystempb.GetRPGSystemRequest{
 			Id: createResp.RpgSystem.Id,
 		}
-		getResp, err := rpgSystemClient.GetRPGSystem(context.Background(), getReq)
+		getResp, err := rpgSystemClient.GetRPGSystem(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -144,10 +144,18 @@ func TestRPGSystemHandler_GetRPGSystem(t *testing.T) {
 	})
 
 	t.Run("non-existing RPG system", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &rpgsystempb.GetRPGSystemRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := rpgSystemClient.GetRPGSystem(context.Background(), req)
+		_, err = rpgSystemClient.GetRPGSystem(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing RPG system")
 		}
@@ -305,7 +313,7 @@ func TestRPGSystemHandler_DeleteRPGSystem(t *testing.T) {
 		getReq := &rpgsystempb.GetRPGSystemRequest{
 			Id: createResp.RpgSystem.Id,
 		}
-		_, err = rpgSystemClient.GetRPGSystem(context.Background(), getReq)
+		_, err = rpgSystemClient.GetRPGSystem(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted RPG system")
 		}

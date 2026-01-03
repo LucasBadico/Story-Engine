@@ -162,7 +162,7 @@ func TestImageBlockHandler_GetImageBlock(t *testing.T) {
 		getReq := &imageblockpb.GetImageBlockRequest{
 			Id: createResp.ImageBlock.Id,
 		}
-		getResp, err := imageBlockClient.GetImageBlock(context.Background(), getReq)
+		getResp, err := imageBlockClient.GetImageBlock(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

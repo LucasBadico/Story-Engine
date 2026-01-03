@@ -82,13 +82,24 @@ func (h *TraitHandler) CreateTrait(ctx context.Context, req *traitpb.CreateTrait
 
 // GetTrait retrieves a trait by ID
 func (h *TraitHandler) GetTrait(ctx context.Context, req *traitpb.GetTraitRequest) (*traitpb.GetTraitResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid trait id: %v", err)
 	}
 
 	output, err := h.getTraitUseCase.Execute(ctx, traitapp.GetTraitInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -168,7 +179,18 @@ func (h *TraitHandler) UpdateTrait(ctx context.Context, req *traitpb.UpdateTrait
 		description = req.Description
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := traitapp.UpdateTraitInput{
+		TenantID:    tenantUUID,
 		ID:          id,
 		Name:        name,
 		Category:    category,
@@ -187,13 +209,24 @@ func (h *TraitHandler) UpdateTrait(ctx context.Context, req *traitpb.UpdateTrait
 
 // DeleteTrait deletes a trait
 func (h *TraitHandler) DeleteTrait(ctx context.Context, req *traitpb.DeleteTraitRequest) (*traitpb.DeleteTraitResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid trait id: %v", err)
 	}
 
 	err = h.deleteTraitUseCase.Execute(ctx, traitapp.DeleteTraitInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err

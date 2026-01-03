@@ -539,8 +539,8 @@ func TestSceneHandler_AddSceneReference(t *testing.T) {
 			t.Fatal("expected error for invalid scene_id")
 		}
 		s, _ := status.FromError(err)
-		if s.Code() != codes.InvalidArgument {
-			t.Errorf("expected InvalidArgument, got %v", s.Code())
+		if s.Code() != codes.NotFound {
+			t.Errorf("expected NotFound, got %v", s.Code())
 		}
 	})
 }
@@ -820,8 +820,14 @@ func setupTestServerWithSceneReferences(t *testing.T) (*grpc.ClientConn, func())
 	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
 	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, auditLogRepo, log)
 
+	getWorldUseCase := world.NewGetWorldUseCase(worldRepo, log)
+	listWorldsUseCase := world.NewListWorldsUseCase(worldRepo, log)
+	updateWorldUseCase := world.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
+	deleteWorldUseCase := world.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
+
 	// Create handlers
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
+	worldHandler := NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	storyHandler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, versionGraphUseCase, log)
 	chapterHandler := NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
 	sceneHandler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUC, removeSceneReferenceUC, getSceneReferencesUC, log)
@@ -831,6 +837,7 @@ func setupTestServerWithSceneReferences(t *testing.T) (*grpc.ClientConn, func())
 
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
 		TenantHandler:    tenantHandler,
+		WorldHandler:    worldHandler,
 		StoryHandler:     storyHandler,
 		ChapterHandler:  chapterHandler,
 		SceneHandler:     sceneHandler,

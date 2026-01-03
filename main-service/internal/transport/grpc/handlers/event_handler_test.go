@@ -128,7 +128,7 @@ func TestEventHandler_GetEvent(t *testing.T) {
 		getReq := &eventpb.GetEventRequest{
 			Id: createResp.Event.Id,
 		}
-		getResp, err := eventClient.GetEvent(context.Background(), getReq)
+		getResp, err := eventClient.GetEvent(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -139,10 +139,18 @@ func TestEventHandler_GetEvent(t *testing.T) {
 	})
 
 	t.Run("non-existing event", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &eventpb.GetEventRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := eventClient.GetEvent(context.Background(), req)
+		_, err = eventClient.GetEvent(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing event")
 		}
@@ -320,7 +328,7 @@ func TestEventHandler_DeleteEvent(t *testing.T) {
 		getReq := &eventpb.GetEventRequest{
 			Id: createResp.Event.Id,
 		}
-		_, err = eventClient.GetEvent(context.Background(), getReq)
+		_, err = eventClient.GetEvent(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted event")
 		}

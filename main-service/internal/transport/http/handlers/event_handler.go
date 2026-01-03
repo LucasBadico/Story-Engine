@@ -604,7 +604,8 @@ func (h *EventHandler) GetStatChanges(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getStatChangesUseCase.Execute(r.Context(), rpgeventapp.GetEventStatChangesInput{
-		EventID: eventID,
+		TenantID: tenantID,
+		EventID:  eventID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

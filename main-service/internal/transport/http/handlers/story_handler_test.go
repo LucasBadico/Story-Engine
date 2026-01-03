@@ -15,7 +15,13 @@ import (
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
+
+// withTenantMiddleware wraps a handler function with the TenantMiddleware
+func withTenantMiddleware(handlerFunc http.HandlerFunc) http.Handler {
+	return middleware.TenantMiddleware(handlerFunc)
+}
 
 func TestStoryHandler_Create(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
@@ -23,6 +29,10 @@ func TestStoryHandler_Create(t *testing.T) {
 
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
+	chapterRepo := postgres.NewChapterRepository(db)
+	sceneRepo := postgres.NewSceneRepository(db)
+	beatRepo := postgres.NewBeatRepository(db)
+	proseBlockRepo := postgres.NewProseBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
@@ -57,7 +67,12 @@ func TestStoryHandler_Create(t *testing.T) {
 
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
-	handler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
+	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
+	transactionRepo := postgres.NewTransactionRepository(db)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo, auditLogRepo, transactionRepo, log)
+	handler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
 
 	t.Run("successful creation", func(t *testing.T) {
 		body := `{"title": "Test Story"}`
@@ -66,10 +81,10 @@ func TestStoryHandler_Create(t *testing.T) {
 		req.Header.Set("X-Tenant-ID", tenantID)
 		w := httptest.NewRecorder()
 
-		handler.Create(w, req)
+		withTenantMiddleware(handler.Create).ServeHTTP(w, req)
 
 		if w.Code != http.StatusCreated {
-			t.Errorf("expected status 201, got %d", w.Code)
+			t.Errorf("expected status 201, got %d, body: %s", w.Code, w.Body.String())
 		}
 
 		var resp map[string]interface{}
@@ -93,8 +108,9 @@ func TestStoryHandler_Create(t *testing.T) {
 		// X-Tenant-ID header not set
 		w := httptest.NewRecorder()
 
-		handler.Create(w, req)
+		withTenantMiddleware(handler.Create).ServeHTTP(w, req)
 
+		// Middleware returns 400 (ValidationError) when X-Tenant-ID is missing
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("expected status 400, got %d", w.Code)
 		}
@@ -107,7 +123,7 @@ func TestStoryHandler_Create(t *testing.T) {
 		req.Header.Set("X-Tenant-ID", tenantID)
 		w := httptest.NewRecorder()
 
-		handler.Create(w, req)
+		withTenantMiddleware(handler.Create).ServeHTTP(w, req)
 
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("expected status 400, got %d", w.Code)
@@ -121,6 +137,10 @@ func TestStoryHandler_Get(t *testing.T) {
 
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
+	chapterRepo := postgres.NewChapterRepository(db)
+	sceneRepo := postgres.NewSceneRepository(db)
+	beatRepo := postgres.NewBeatRepository(db)
+	proseBlockRepo := postgres.NewProseBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
@@ -155,13 +175,18 @@ func TestStoryHandler_Get(t *testing.T) {
 
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
+	transactionRepo := postgres.NewTransactionRepository(db)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo, auditLogRepo, transactionRepo, log)
 	storyBody := `{"title": "Get Test Story"}`
 	storyReq := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(storyBody))
 	storyReq.Header.Set("Content-Type", "application/json")
 	storyReq.Header.Set("X-Tenant-ID", tenantID)
 	storyW := httptest.NewRecorder()
-	storyHandler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
-	storyHandler.Create(storyW, storyReq)
+	storyHandler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
+	withTenantMiddleware(storyHandler.Create).ServeHTTP(storyW, storyReq)
 
 	if storyW.Code != http.StatusCreated {
 		t.Fatalf("failed to create story: status %d, body: %s", storyW.Code, storyW.Body.String())
@@ -184,13 +209,14 @@ func TestStoryHandler_Get(t *testing.T) {
 
 	t.Run("existing story", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/stories/"+storyID, nil)
+		req.Header.Set("X-Tenant-ID", tenantID)
 		req.SetPathValue("id", storyID)
 		w := httptest.NewRecorder()
 
-		storyHandler.Get(w, req)
+		withTenantMiddleware(storyHandler.Get).ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
-			t.Errorf("expected status 200, got %d", w.Code)
+			t.Errorf("expected status 200, got %d, body: %s", w.Code, w.Body.String())
 		}
 
 		var resp map[string]interface{}
@@ -209,10 +235,11 @@ func TestStoryHandler_Get(t *testing.T) {
 
 	t.Run("non-existing story", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/stories/00000000-0000-0000-0000-000000000000", nil)
+		req.Header.Set("X-Tenant-ID", tenantID)
 		req.SetPathValue("id", "00000000-0000-0000-0000-000000000000")
 		w := httptest.NewRecorder()
 
-		storyHandler.Get(w, req)
+		withTenantMiddleware(storyHandler.Get).ServeHTTP(w, req)
 
 		if w.Code != http.StatusNotFound {
 			t.Errorf("expected status 404, got %d", w.Code)
@@ -226,6 +253,10 @@ func TestStoryHandler_List(t *testing.T) {
 
 	tenantRepo := postgres.NewTenantRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
+	chapterRepo := postgres.NewChapterRepository(db)
+	sceneRepo := postgres.NewSceneRepository(db)
+	beatRepo := postgres.NewBeatRepository(db)
+	proseBlockRepo := postgres.NewProseBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
@@ -260,7 +291,12 @@ func TestStoryHandler_List(t *testing.T) {
 
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
-	handler := NewStoryHandler(createStoryUseCase, nil, storyRepo, log)
+	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
+	transactionRepo := postgres.NewTransactionRepository(db)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo, auditLogRepo, transactionRepo, log)
+	handler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
 
 	// Create multiple stories
 	for i := 1; i <= 3; i++ {
@@ -269,7 +305,7 @@ func TestStoryHandler_List(t *testing.T) {
 		storyReq.Header.Set("Content-Type", "application/json")
 		storyReq.Header.Set("X-Tenant-ID", tenantID)
 		storyW := httptest.NewRecorder()
-		handler.Create(storyW, storyReq)
+		withTenantMiddleware(handler.Create).ServeHTTP(storyW, storyReq)
 
 		if storyW.Code != http.StatusCreated {
 			t.Fatalf("failed to create story %d: status %d, body: %s", i, storyW.Code, storyW.Body.String())
@@ -281,10 +317,10 @@ func TestStoryHandler_List(t *testing.T) {
 		req.Header.Set("X-Tenant-ID", tenantID)
 		w := httptest.NewRecorder()
 
-		handler.List(w, req)
+		withTenantMiddleware(handler.List).ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
-			t.Errorf("expected status 200, got %d", w.Code)
+			t.Errorf("expected status 200, got %d, body: %s", w.Code, w.Body.String())
 		}
 
 		var resp map[string]interface{}
@@ -306,8 +342,9 @@ func TestStoryHandler_List(t *testing.T) {
 		// X-Tenant-ID header not set
 		w := httptest.NewRecorder()
 
-		handler.List(w, req)
+		withTenantMiddleware(handler.List).ServeHTTP(w, req)
 
+		// Middleware returns 400 (ValidationError) when X-Tenant-ID is missing
 		if w.Code != http.StatusBadRequest {
 			t.Errorf("expected status 400, got %d", w.Code)
 		}

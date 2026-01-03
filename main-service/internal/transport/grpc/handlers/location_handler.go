@@ -5,8 +5,9 @@ import (
 
 	"github.com/google/uuid"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	locationpb "github.com/story-engine/main-service/proto/location"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -56,6 +57,16 @@ func NewLocationHandler(
 
 // CreateLocation creates a new location
 func (h *LocationHandler) CreateLocation(ctx context.Context, req *locationpb.CreateLocationRequest) (*locationpb.CreateLocationResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
@@ -75,6 +86,7 @@ func (h *LocationHandler) CreateLocation(ctx context.Context, req *locationpb.Cr
 	}
 
 	input := locationapp.CreateLocationInput{
+		TenantID:    tenantUUID,
 		WorldID:     worldID,
 		ParentID:    parentID,
 		Name:        req.Name,
@@ -94,13 +106,24 @@ func (h *LocationHandler) CreateLocation(ctx context.Context, req *locationpb.Cr
 
 // GetLocation retrieves a location by ID
 func (h *LocationHandler) GetLocation(ctx context.Context, req *locationpb.GetLocationRequest) (*locationpb.GetLocationResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid location id: %v", err)
 	}
 
 	output, err := h.getLocationUseCase.Execute(ctx, locationapp.GetLocationInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -113,6 +136,16 @@ func (h *LocationHandler) GetLocation(ctx context.Context, req *locationpb.GetLo
 
 // ListLocations lists locations for a world
 func (h *LocationHandler) ListLocations(ctx context.Context, req *locationpb.ListLocationsRequest) (*locationpb.ListLocationsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	worldID, err := uuid.Parse(req.WorldId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid world_id: %v", err)
@@ -130,10 +163,11 @@ func (h *LocationHandler) ListLocations(ctx context.Context, req *locationpb.Lis
 	}
 
 	output, err := h.listLocationsUseCase.Execute(ctx, locationapp.ListLocationsInput{
-		WorldID: worldID,
-		Format:  req.Format,
-		Limit:   limit,
-		Offset:  offset,
+		TenantID: tenantUUID,
+		WorldID:  worldID,
+		Format:   req.Format,
+		Limit:    limit,
+		Offset:   offset,
 	})
 	if err != nil {
 		return nil, err
@@ -172,7 +206,18 @@ func (h *LocationHandler) UpdateLocation(ctx context.Context, req *locationpb.Up
 		description = req.Description
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := locationapp.UpdateLocationInput{
+		TenantID:    tenantUUID,
 		ID:          id,
 		Name:        name,
 		Type:        locationType,
@@ -191,13 +236,24 @@ func (h *LocationHandler) UpdateLocation(ctx context.Context, req *locationpb.Up
 
 // DeleteLocation deletes a location
 func (h *LocationHandler) DeleteLocation(ctx context.Context, req *locationpb.DeleteLocationRequest) (*locationpb.DeleteLocationResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid location id: %v", err)
 	}
 
 	err = h.deleteLocationUseCase.Execute(ctx, locationapp.DeleteLocationInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -208,12 +264,23 @@ func (h *LocationHandler) DeleteLocation(ctx context.Context, req *locationpb.De
 
 // GetChildren retrieves direct children of a location
 func (h *LocationHandler) GetChildren(ctx context.Context, req *locationpb.GetChildrenRequest) (*locationpb.GetChildrenResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	locationID, err := uuid.Parse(req.LocationId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
 	}
 
 	output, err := h.getChildrenUseCase.Execute(ctx, locationapp.GetChildrenInput{
+		TenantID:   tenantUUID,
 		LocationID: locationID,
 	})
 	if err != nil {
@@ -232,12 +299,23 @@ func (h *LocationHandler) GetChildren(ctx context.Context, req *locationpb.GetCh
 
 // GetAncestors retrieves all ancestors of a location
 func (h *LocationHandler) GetAncestors(ctx context.Context, req *locationpb.GetAncestorsRequest) (*locationpb.GetAncestorsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	locationID, err := uuid.Parse(req.LocationId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
 	}
 
 	output, err := h.getAncestorsUseCase.Execute(ctx, locationapp.GetAncestorsInput{
+		TenantID:   tenantUUID,
 		LocationID: locationID,
 	})
 	if err != nil {
@@ -256,12 +334,23 @@ func (h *LocationHandler) GetAncestors(ctx context.Context, req *locationpb.GetA
 
 // GetDescendants retrieves all descendants of a location
 func (h *LocationHandler) GetDescendants(ctx context.Context, req *locationpb.GetDescendantsRequest) (*locationpb.GetDescendantsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	locationID, err := uuid.Parse(req.LocationId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
 	}
 
 	output, err := h.getDescendantsUseCase.Execute(ctx, locationapp.GetDescendantsInput{
+		TenantID:   tenantUUID,
 		LocationID: locationID,
 	})
 	if err != nil {
@@ -280,6 +369,16 @@ func (h *LocationHandler) GetDescendants(ctx context.Context, req *locationpb.Ge
 
 // MoveLocation moves a location to a different parent
 func (h *LocationHandler) MoveLocation(ctx context.Context, req *locationpb.MoveLocationRequest) (*locationpb.MoveLocationResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	locationID, err := uuid.Parse(req.LocationId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid location_id: %v", err)
@@ -295,7 +394,8 @@ func (h *LocationHandler) MoveLocation(ctx context.Context, req *locationpb.Move
 	}
 
 	output, err := h.moveLocationUseCase.Execute(ctx, locationapp.MoveLocationInput{
-		LocationID: locationID,
+		TenantID:    tenantUUID,
+		LocationID:  locationID,
 		NewParentID: parentID,
 	})
 	if err != nil {

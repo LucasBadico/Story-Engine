@@ -70,12 +70,12 @@ func TestWorldHandler_CreateWorld(t *testing.T) {
 			t.Fatalf("failed to create tenant: %v", err)
 		}
 
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &worldpb.CreateWorldRequest{
-			TenantId:    tenantResp.Tenant.Id,
 			Name:        "Test World 2",
 			Description: "Another test world",
 		}
-		resp, err := worldClient.CreateWorld(context.Background(), req)
+		resp, err := worldClient.CreateWorld(ctx, req)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -108,11 +108,11 @@ func TestWorldHandler_CreateWorld(t *testing.T) {
 	})
 
 	t.Run("invalid tenant_id", func(t *testing.T) {
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", "not-a-uuid")
 		req := &worldpb.CreateWorldRequest{
-			TenantId: "not-a-uuid",
-			Name:     "Test World",
+			Name: "Test World",
 		}
-		_, err := worldClient.CreateWorld(context.Background(), req)
+		_, err := worldClient.CreateWorld(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for invalid tenant_id")
 		}
@@ -152,7 +152,7 @@ func TestWorldHandler_GetWorld(t *testing.T) {
 		getReq := &worldpb.GetWorldRequest{
 			Id: createResp.World.Id,
 		}
-		getResp, err := worldClient.GetWorld(context.Background(), getReq)
+		getResp, err := worldClient.GetWorld(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -166,10 +166,18 @@ func TestWorldHandler_GetWorld(t *testing.T) {
 	})
 
 	t.Run("non-existing world", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &worldpb.GetWorldRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := worldClient.GetWorld(context.Background(), req)
+		_, err = worldClient.GetWorld(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing world")
 		}
@@ -181,10 +189,18 @@ func TestWorldHandler_GetWorld(t *testing.T) {
 	})
 
 	t.Run("invalid world ID", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Invalid ID Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &worldpb.GetWorldRequest{
 			Id: "not-a-uuid",
 		}
-		_, err := worldClient.GetWorld(context.Background(), req)
+		_, err = worldClient.GetWorld(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for invalid ID")
 		}
@@ -370,7 +386,7 @@ func TestWorldHandler_DeleteWorld(t *testing.T) {
 		getReq := &worldpb.GetWorldRequest{
 			Id: createResp.World.Id,
 		}
-		_, err = worldClient.GetWorld(context.Background(), getReq)
+		_, err = worldClient.GetWorld(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted world")
 		}

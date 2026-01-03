@@ -87,13 +87,24 @@ func (h *ArchetypeHandler) CreateArchetype(ctx context.Context, req *archetypepb
 
 // GetArchetype retrieves an archetype by ID
 func (h *ArchetypeHandler) GetArchetype(ctx context.Context, req *archetypepb.GetArchetypeRequest) (*archetypepb.GetArchetypeResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid archetype id: %v", err)
 	}
 
 	output, err := h.getArchetypeUseCase.Execute(ctx, archetypeapp.GetArchetypeInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -168,7 +179,18 @@ func (h *ArchetypeHandler) UpdateArchetype(ctx context.Context, req *archetypepb
 		description = req.Description
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := archetypeapp.UpdateArchetypeInput{
+		TenantID:    tenantUUID,
 		ID:          id,
 		Name:        name,
 		Description: description,
@@ -186,13 +208,24 @@ func (h *ArchetypeHandler) UpdateArchetype(ctx context.Context, req *archetypepb
 
 // DeleteArchetype deletes an archetype
 func (h *ArchetypeHandler) DeleteArchetype(ctx context.Context, req *archetypepb.DeleteArchetypeRequest) (*archetypepb.DeleteArchetypeResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid archetype id: %v", err)
 	}
 
 	err = h.deleteArchetypeUseCase.Execute(ctx, archetypeapp.DeleteArchetypeInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -203,6 +236,16 @@ func (h *ArchetypeHandler) DeleteArchetype(ctx context.Context, req *archetypepb
 
 // AddTraitToArchetype adds a trait to an archetype
 func (h *ArchetypeHandler) AddTraitToArchetype(ctx context.Context, req *archetypepb.AddTraitToArchetypeRequest) (*archetypepb.AddTraitToArchetypeResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	archetypeID, err := uuid.Parse(req.ArchetypeId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid archetype id: %v", err)
@@ -214,6 +257,7 @@ func (h *ArchetypeHandler) AddTraitToArchetype(ctx context.Context, req *archety
 	}
 
 	err = h.addTraitUseCase.Execute(ctx, archetypeapp.AddTraitToArchetypeInput{
+		TenantID:     tenantUUID,
 		ArchetypeID:  archetypeID,
 		TraitID:      traitID,
 		DefaultValue: req.DefaultValue,
@@ -227,6 +271,16 @@ func (h *ArchetypeHandler) AddTraitToArchetype(ctx context.Context, req *archety
 
 // RemoveTraitFromArchetype removes a trait from an archetype
 func (h *ArchetypeHandler) RemoveTraitFromArchetype(ctx context.Context, req *archetypepb.RemoveTraitFromArchetypeRequest) (*archetypepb.RemoveTraitFromArchetypeResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	archetypeID, err := uuid.Parse(req.ArchetypeId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid archetype id: %v", err)
@@ -238,6 +292,7 @@ func (h *ArchetypeHandler) RemoveTraitFromArchetype(ctx context.Context, req *ar
 	}
 
 	err = h.removeTraitUseCase.Execute(ctx, archetypeapp.RemoveTraitFromArchetypeInput{
+		TenantID:    tenantUUID,
 		ArchetypeID: archetypeID,
 		TraitID:     traitID,
 	})

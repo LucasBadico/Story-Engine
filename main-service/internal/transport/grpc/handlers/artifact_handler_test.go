@@ -128,7 +128,7 @@ func TestArtifactHandler_GetArtifact(t *testing.T) {
 		getReq := &artifactpb.GetArtifactRequest{
 			Id: createResp.Artifact.Id,
 		}
-		getResp, err := artifactClient.GetArtifact(context.Background(), getReq)
+		getResp, err := artifactClient.GetArtifact(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -139,10 +139,18 @@ func TestArtifactHandler_GetArtifact(t *testing.T) {
 	})
 
 	t.Run("non-existing artifact", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &artifactpb.GetArtifactRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := artifactClient.GetArtifact(context.Background(), req)
+		_, err = artifactClient.GetArtifact(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing artifact")
 		}
@@ -320,7 +328,7 @@ func TestArtifactHandler_DeleteArtifact(t *testing.T) {
 		getReq := &artifactpb.GetArtifactRequest{
 			Id: createResp.Artifact.Id,
 		}
-		_, err = artifactClient.GetArtifact(context.Background(), getReq)
+		_, err = artifactClient.GetArtifact(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted artifact")
 		}

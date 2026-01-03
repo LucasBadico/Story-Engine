@@ -55,6 +55,16 @@ func NewRPGClassHandler(
 
 // CreateRPGClass creates a new RPG class
 func (h *RPGClassHandler) CreateRPGClass(ctx context.Context, req *rpgclasspb.CreateRPGClassRequest) (*rpgclasspb.CreateRPGClassResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	rpgSystemID, err := uuid.Parse(req.RpgSystemId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_system_id: %v", err)
@@ -97,13 +107,14 @@ func (h *RPGClassHandler) CreateRPGClass(ctx context.Context, req *rpgclasspb.Cr
 	}
 
 	input := rpgclassapp.CreateRPGClassInput{
-		RPGSystemID:  rpgSystemID,
+		TenantID:      tenantUUID,
+		RPGSystemID:   rpgSystemID,
 		ParentClassID: parentClassID,
-		Name:         req.Name,
-		Tier:         tier,
-		Description:  description,
-		Requirements: requirements,
-		StatBonuses:  statBonuses,
+		Name:          req.Name,
+		Tier:          tier,
+		Description:   description,
+		Requirements:  requirements,
+		StatBonuses:   statBonuses,
 	}
 
 	output, err := h.createRPGClassUseCase.Execute(ctx, input)
@@ -118,13 +129,24 @@ func (h *RPGClassHandler) CreateRPGClass(ctx context.Context, req *rpgclasspb.Cr
 
 // GetRPGClass retrieves an RPG class by ID
 func (h *RPGClassHandler) GetRPGClass(ctx context.Context, req *rpgclasspb.GetRPGClassRequest) (*rpgclasspb.GetRPGClassResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_class id: %v", err)
 	}
 
 	output, err := h.getRPGClassUseCase.Execute(ctx, rpgclassapp.GetRPGClassInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -137,12 +159,23 @@ func (h *RPGClassHandler) GetRPGClass(ctx context.Context, req *rpgclasspb.GetRP
 
 // ListRPGClasses lists RPG classes for an RPG system
 func (h *RPGClassHandler) ListRPGClasses(ctx context.Context, req *rpgclasspb.ListRPGClassesRequest) (*rpgclasspb.ListRPGClassesResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	rpgSystemID, err := uuid.Parse(req.RpgSystemId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_system_id: %v", err)
 	}
 
 	output, err := h.listRPGClassesUseCase.Execute(ctx, rpgclassapp.ListRPGClassesInput{
+		TenantID:    tenantUUID,
 		RPGSystemID: rpgSystemID,
 	})
 	if err != nil {
@@ -204,7 +237,18 @@ func (h *RPGClassHandler) UpdateRPGClass(ctx context.Context, req *rpgclasspb.Up
 		statBonuses = &bonuses
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := rpgclassapp.UpdateRPGClassInput{
+		TenantID:      tenantUUID,
 		ID:            id,
 		Name:          name,
 		ParentClassID: parentClassID,
@@ -226,13 +270,24 @@ func (h *RPGClassHandler) UpdateRPGClass(ctx context.Context, req *rpgclasspb.Up
 
 // DeleteRPGClass deletes an RPG class
 func (h *RPGClassHandler) DeleteRPGClass(ctx context.Context, req *rpgclasspb.DeleteRPGClassRequest) (*rpgclasspb.DeleteRPGClassResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_class id: %v", err)
 	}
 
 	err = h.deleteRPGClassUseCase.Execute(ctx, rpgclassapp.DeleteRPGClassInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -243,6 +298,16 @@ func (h *RPGClassHandler) DeleteRPGClass(ctx context.Context, req *rpgclasspb.De
 
 // AddSkillToRPGClass adds a skill to an RPG class
 func (h *RPGClassHandler) AddSkillToRPGClass(ctx context.Context, req *rpgclasspb.AddSkillToRPGClassRequest) (*rpgclasspb.AddSkillToRPGClassResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	classID, err := uuid.Parse(req.RpgClassId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_class_id: %v", err)
@@ -254,6 +319,7 @@ func (h *RPGClassHandler) AddSkillToRPGClass(ctx context.Context, req *rpgclassp
 	}
 
 	_, err = h.addSkillToClassUseCase.Execute(ctx, rpgclassapp.AddSkillToClassInput{
+		TenantID:    tenantUUID,
 		ClassID:     classID,
 		SkillID:     skillID,
 		UnlockLevel: 1, // Default unlock level
@@ -302,13 +368,24 @@ func (h *RPGClassHandler) RemoveSkillFromRPGClass(ctx context.Context, req *rpgc
 
 // ListRPGClassSkills lists skills for an RPG class
 func (h *RPGClassHandler) ListRPGClassSkills(ctx context.Context, req *rpgclasspb.ListRPGClassSkillsRequest) (*rpgclasspb.ListRPGClassSkillsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	classID, err := uuid.Parse(req.RpgClassId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_class_id: %v", err)
 	}
 
 	output, err := h.listClassSkillsUseCase.Execute(ctx, rpgclassapp.ListClassSkillsInput{
-		ClassID: classID,
+		TenantID: tenantUUID,
+		ClassID:  classID,
 	})
 	if err != nil {
 		return nil, err

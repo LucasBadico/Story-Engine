@@ -6,8 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	artifactrpgstatspb "github.com/story-engine/main-service/proto/artifact_rpg_stats"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -42,6 +43,16 @@ func NewArtifactRPGStatsHandler(
 
 // CreateArtifactRPGStats creates a new version of artifact RPG stats
 func (h *ArtifactRPGStatsHandler) CreateArtifactRPGStats(ctx context.Context, req *artifactrpgstatspb.CreateArtifactRPGStatsRequest) (*artifactrpgstatspb.CreateArtifactRPGStatsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	artifactID, err := uuid.Parse(req.ArtifactId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
@@ -63,11 +74,12 @@ func (h *ArtifactRPGStatsHandler) CreateArtifactRPGStats(ctx context.Context, re
 	stats := json.RawMessage(req.Stats)
 
 	input := artifactstatsapp.CreateArtifactStatsInput{
-		ArtifactID:        artifactID,
-		EventID:           eventID,
-		Stats:             stats,
-		Reason:            req.Reason,
-		Timeline:          req.Timeline,
+		TenantID:           tenantUUID,
+		ArtifactID:         artifactID,
+		EventID:            eventID,
+		Stats:              stats,
+		Reason:             req.Reason,
+		Timeline:           req.Timeline,
 		DeactivatePrevious: true, // Default: deactivate previous versions
 	}
 
@@ -83,12 +95,23 @@ func (h *ArtifactRPGStatsHandler) CreateArtifactRPGStats(ctx context.Context, re
 
 // GetArtifactRPGStats retrieves active artifact RPG stats
 func (h *ArtifactRPGStatsHandler) GetArtifactRPGStats(ctx context.Context, req *artifactrpgstatspb.GetArtifactRPGStatsRequest) (*artifactrpgstatspb.GetArtifactRPGStatsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	artifactID, err := uuid.Parse(req.ArtifactId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
 	}
 
 	output, err := h.getActiveStatsUseCase.Execute(ctx, artifactstatsapp.GetActiveArtifactStatsInput{
+		TenantID:   tenantUUID,
 		ArtifactID: artifactID,
 	})
 	if err != nil {
@@ -102,12 +125,23 @@ func (h *ArtifactRPGStatsHandler) GetArtifactRPGStats(ctx context.Context, req *
 
 // ListArtifactRPGStatsHistory lists all versions of artifact RPG stats
 func (h *ArtifactRPGStatsHandler) ListArtifactRPGStatsHistory(ctx context.Context, req *artifactrpgstatspb.ListArtifactRPGStatsHistoryRequest) (*artifactrpgstatspb.ListArtifactRPGStatsHistoryResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	artifactID, err := uuid.Parse(req.ArtifactId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid artifact_id: %v", err)
 	}
 
 	output, err := h.listStatsHistoryUseCase.Execute(ctx, artifactstatsapp.ListArtifactStatsHistoryInput{
+		TenantID:   tenantUUID,
 		ArtifactID: artifactID,
 	})
 	if err != nil {
@@ -127,13 +161,24 @@ func (h *ArtifactRPGStatsHandler) ListArtifactRPGStatsHistory(ctx context.Contex
 
 // ActivateArtifactRPGStatsVersion activates a specific version (rollback)
 func (h *ArtifactRPGStatsHandler) ActivateArtifactRPGStatsVersion(ctx context.Context, req *artifactrpgstatspb.ActivateArtifactRPGStatsVersionRequest) (*artifactrpgstatspb.ActivateArtifactRPGStatsVersionResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid stats id: %v", err)
 	}
 
 	output, err := h.activateVersionUseCase.Execute(ctx, artifactstatsapp.ActivateArtifactStatsVersionInput{
-		StatsID: id,
+		TenantID: tenantUUID,
+		StatsID:  id,
 	})
 	if err != nil {
 		return nil, err

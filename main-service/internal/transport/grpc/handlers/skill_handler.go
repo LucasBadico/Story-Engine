@@ -7,8 +7,9 @@ import (
 	"github.com/google/uuid"
 	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
 	"github.com/story-engine/main-service/internal/core/rpg"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	skillpb "github.com/story-engine/main-service/proto/skill"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -46,6 +47,16 @@ func NewSkillHandler(
 
 // CreateSkill creates a new skill
 func (h *SkillHandler) CreateSkill(ctx context.Context, req *skillpb.CreateSkillRequest) (*skillpb.CreateSkillResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	rpgSystemID, err := uuid.Parse(req.RpgSystemId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_system_id: %v", err)
@@ -91,6 +102,7 @@ func (h *SkillHandler) CreateSkill(ctx context.Context, req *skillpb.CreateSkill
 	}
 
 	input := skillapp.CreateSkillInput{
+		TenantID:      tenantUUID,
 		RPGSystemID:   rpgSystemID,
 		Name:          req.Name,
 		Category:      category,
@@ -113,13 +125,24 @@ func (h *SkillHandler) CreateSkill(ctx context.Context, req *skillpb.CreateSkill
 
 // GetSkill retrieves a skill by ID
 func (h *SkillHandler) GetSkill(ctx context.Context, req *skillpb.GetSkillRequest) (*skillpb.GetSkillResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid skill id: %v", err)
 	}
 
 	output, err := h.getSkillUseCase.Execute(ctx, skillapp.GetSkillInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -132,12 +155,23 @@ func (h *SkillHandler) GetSkill(ctx context.Context, req *skillpb.GetSkillReques
 
 // ListSkills lists skills for an RPG system
 func (h *SkillHandler) ListSkills(ctx context.Context, req *skillpb.ListSkillsRequest) (*skillpb.ListSkillsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	rpgSystemID, err := uuid.Parse(req.RpgSystemId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid rpg_system_id: %v", err)
 	}
 
 	output, err := h.listSkillsUseCase.Execute(ctx, skillapp.ListSkillsInput{
+		TenantID:    tenantUUID,
 		RPGSystemID: rpgSystemID,
 	})
 	if err != nil {
@@ -202,7 +236,18 @@ func (h *SkillHandler) UpdateSkill(ctx context.Context, req *skillpb.UpdateSkill
 		effectsSchema = &effects
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := skillapp.UpdateSkillInput{
+		TenantID:      tenantUUID,
 		ID:            id,
 		Name:          name,
 		Category:      category,
@@ -225,13 +270,24 @@ func (h *SkillHandler) UpdateSkill(ctx context.Context, req *skillpb.UpdateSkill
 
 // DeleteSkill deletes a skill
 func (h *SkillHandler) DeleteSkill(ctx context.Context, req *skillpb.DeleteSkillRequest) (*skillpb.DeleteSkillResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid skill id: %v", err)
 	}
 
 	err = h.deleteSkillUseCase.Execute(ctx, skillapp.DeleteSkillInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err

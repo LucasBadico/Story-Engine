@@ -137,7 +137,7 @@ func TestRPGClassHandler_GetRPGClass(t *testing.T) {
 		getReq := &rpgclasspb.GetRPGClassRequest{
 			Id: createResp.RpgClass.Id,
 		}
-		getResp, err := rpgClassClient.GetRPGClass(context.Background(), getReq)
+		getResp, err := rpgClassClient.GetRPGClass(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -148,10 +148,18 @@ func TestRPGClassHandler_GetRPGClass(t *testing.T) {
 	})
 
 	t.Run("non-existing RPG class", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &rpgclasspb.GetRPGClassRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := rpgClassClient.GetRPGClass(context.Background(), req)
+		_, err = rpgClassClient.GetRPGClass(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing RPG class")
 		}
@@ -335,7 +343,7 @@ func TestRPGClassHandler_DeleteRPGClass(t *testing.T) {
 		getReq := &rpgclasspb.GetRPGClassRequest{
 			Id: createResp.RpgClass.Id,
 		}
-		_, err = rpgClassClient.GetRPGClass(context.Background(), getReq)
+		_, err = rpgClassClient.GetRPGClass(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted RPG class")
 		}

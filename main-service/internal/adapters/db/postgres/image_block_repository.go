@@ -121,8 +121,17 @@ func (r *ImageBlockRepository) Update(ctx context.Context, ib *story.ImageBlock)
 // Delete deletes an image block
 func (r *ImageBlockRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
 	query := `DELETE FROM image_blocks WHERE tenant_id = $1 AND id = $2`
-	_, err := r.db.Exec(ctx, query, tenantID, id)
-	return err
+	result, err := r.db.Exec(ctx, query, tenantID, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return &platformerrors.NotFoundError{
+			Resource: "image_block",
+			ID:       id.String(),
+		}
+	}
+	return nil
 }
 
 // DeleteByChapter deletes all image blocks for a chapter

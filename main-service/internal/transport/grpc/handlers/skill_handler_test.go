@@ -135,7 +135,7 @@ func TestSkillHandler_GetSkill(t *testing.T) {
 		getReq := &skillpb.GetSkillRequest{
 			Id: createResp.Skill.Id,
 		}
-		getResp, err := skillClient.GetSkill(context.Background(), getReq)
+		getResp, err := skillClient.GetSkill(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -146,10 +146,18 @@ func TestSkillHandler_GetSkill(t *testing.T) {
 	})
 
 	t.Run("non-existing skill", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &skillpb.GetSkillRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := skillClient.GetSkill(context.Background(), req)
+		_, err = skillClient.GetSkill(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing skill")
 		}
@@ -333,7 +341,7 @@ func TestSkillHandler_DeleteSkill(t *testing.T) {
 		getReq := &skillpb.GetSkillRequest{
 			Id: createResp.Skill.Id,
 		}
-		_, err = skillClient.GetSkill(context.Background(), getReq)
+		_, err = skillClient.GetSkill(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted skill")
 		}

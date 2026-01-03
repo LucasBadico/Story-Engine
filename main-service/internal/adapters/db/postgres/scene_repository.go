@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/core/story"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -51,7 +52,10 @@ func (r *SceneRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (
 		&s.TimeRef, &s.Goal, &s.CreatedAt, &s.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("scene not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "scene",
+				ID:       id.String(),
+			}
 		}
 		return nil, err
 	}

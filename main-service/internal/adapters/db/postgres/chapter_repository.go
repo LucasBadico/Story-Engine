@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/core/story"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -45,7 +46,10 @@ func (r *ChapterRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID)
 		&c.ID, &c.TenantID, &c.StoryID, &c.Number, &c.Title, &c.Status, &c.CreatedAt, &c.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("chapter not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "chapter",
+				ID:       id.String(),
+			}
 		}
 		return nil, err
 	}

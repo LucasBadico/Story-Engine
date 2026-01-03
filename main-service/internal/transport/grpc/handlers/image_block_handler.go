@@ -6,8 +6,9 @@ import (
 	"github.com/google/uuid"
 	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
 	"github.com/story-engine/main-service/internal/core/story"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	imageblockpb "github.com/story-engine/main-service/proto/image_block"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,6 +46,16 @@ func NewImageBlockHandler(
 
 // CreateImageBlock creates a new image block
 func (h *ImageBlockHandler) CreateImageBlock(ctx context.Context, req *imageblockpb.CreateImageBlockRequest) (*imageblockpb.CreateImageBlockResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	if req.ImageUrl == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "image_url is required")
 	}
@@ -89,6 +100,7 @@ func (h *ImageBlockHandler) CreateImageBlock(ctx context.Context, req *imagebloc
 	}
 
 	input := imageblockapp.CreateImageBlockInput{
+		TenantID:  tenantUUID,
 		ChapterID: chapterID,
 		OrderNum:  orderNum,
 		Kind:      kind,
@@ -111,13 +123,24 @@ func (h *ImageBlockHandler) CreateImageBlock(ctx context.Context, req *imagebloc
 
 // GetImageBlock retrieves an image block by ID
 func (h *ImageBlockHandler) GetImageBlock(ctx context.Context, req *imageblockpb.GetImageBlockRequest) (*imageblockpb.GetImageBlockResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid image_block id: %v", err)
 	}
 
 	output, err := h.getImageBlockUseCase.Execute(ctx, imageblockapp.GetImageBlockInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -130,6 +153,16 @@ func (h *ImageBlockHandler) GetImageBlock(ctx context.Context, req *imageblockpb
 
 // ListImageBlocks lists image blocks
 func (h *ImageBlockHandler) ListImageBlocks(ctx context.Context, req *imageblockpb.ListImageBlocksRequest) (*imageblockpb.ListImageBlocksResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	var chapterID *uuid.UUID
 	if req.ChapterId != nil && *req.ChapterId != "" {
 		cid, err := uuid.Parse(*req.ChapterId)
@@ -144,6 +177,7 @@ func (h *ImageBlockHandler) ListImageBlocks(ctx context.Context, req *imageblock
 		chapterIDParam = *chapterID
 	}
 	output, err := h.listImageBlocksUseCase.Execute(ctx, imageblockapp.ListImageBlocksInput{
+		TenantID:  tenantUUID,
 		ChapterID: chapterIDParam,
 	})
 	if err != nil {
@@ -195,7 +229,18 @@ func (h *ImageBlockHandler) UpdateImageBlock(ctx context.Context, req *imagebloc
 		height = &h
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := imageblockapp.UpdateImageBlockInput{
+		TenantID: tenantUUID,
 		ID:       id,
 		ImageURL: imageURL,
 		AltText:  altText,
@@ -216,13 +261,24 @@ func (h *ImageBlockHandler) UpdateImageBlock(ctx context.Context, req *imagebloc
 
 // DeleteImageBlock deletes an image block
 func (h *ImageBlockHandler) DeleteImageBlock(ctx context.Context, req *imageblockpb.DeleteImageBlockRequest) (*imageblockpb.DeleteImageBlockResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid image_block id: %v", err)
 	}
 
 	err = h.deleteImageBlockUseCase.Execute(ctx, imageblockapp.DeleteImageBlockInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err

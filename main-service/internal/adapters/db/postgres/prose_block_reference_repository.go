@@ -7,6 +7,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/core/story"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -27,6 +28,12 @@ func (r *ProseBlockReferenceRepository) Create(ctx context.Context, ref *story.P
 	// Get tenant_id from prose_block
 	var tenantID uuid.UUID
 	if err := r.db.QueryRow(ctx, "SELECT tenant_id FROM prose_blocks WHERE id = $1", ref.ProseBlockID).Scan(&tenantID); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return &platformerrors.NotFoundError{
+				Resource: "prose_block",
+				ID:       ref.ProseBlockID.String(),
+			}
+		}
 		return err
 	}
 
@@ -51,7 +58,10 @@ func (r *ProseBlockReferenceRepository) GetByID(ctx context.Context, tenantID, i
 		&ref.ID, &ref.ProseBlockID, &ref.EntityType, &ref.EntityID, &ref.CreatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, errors.New("prose block reference not found")
+			return nil, &platformerrors.NotFoundError{
+				Resource: "prose_block_reference",
+				ID:       id.String(),
+			}
 		}
 		return nil, err
 	}

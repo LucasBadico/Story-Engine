@@ -102,7 +102,7 @@ func TestArchetypeHandler_GetArchetype(t *testing.T) {
 		getReq := &archetypepb.GetArchetypeRequest{
 			Id: createResp.Archetype.Id,
 		}
-		getResp, err := archetypeClient.GetArchetype(context.Background(), getReq)
+		getResp, err := archetypeClient.GetArchetype(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -113,10 +113,18 @@ func TestArchetypeHandler_GetArchetype(t *testing.T) {
 	})
 
 	t.Run("non-existing archetype", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &archetypepb.GetArchetypeRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := archetypeClient.GetArchetype(context.Background(), req)
+		_, err = archetypeClient.GetArchetype(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing archetype")
 		}
@@ -267,7 +275,7 @@ func TestArchetypeHandler_DeleteArchetype(t *testing.T) {
 		getReq := &archetypepb.GetArchetypeRequest{
 			Id: createResp.Archetype.Id,
 		}
-		_, err = archetypeClient.GetArchetype(context.Background(), getReq)
+		_, err = archetypeClient.GetArchetype(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted archetype")
 		}

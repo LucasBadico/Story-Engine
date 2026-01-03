@@ -145,8 +145,17 @@ func (r *CharacterSkillRepository) Update(ctx context.Context, characterSkill *r
 // Delete deletes a character skill
 func (r *CharacterSkillRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
 	query := `DELETE FROM character_skills WHERE tenant_id = $1 AND id = $2`
-	_, err := r.db.Exec(ctx, query, tenantID, id)
-	return err
+	result, err := r.db.Exec(ctx, query, tenantID, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return &platformerrors.NotFoundError{
+			Resource: "character_skill",
+			ID:       id.String(),
+		}
+	}
+	return nil
 }
 
 // DeleteByCharacter deletes all skills for a character

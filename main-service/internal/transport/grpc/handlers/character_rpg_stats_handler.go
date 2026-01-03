@@ -6,8 +6,9 @@ import (
 
 	"github.com/google/uuid"
 	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	characterrpgstatspb "github.com/story-engine/main-service/proto/character_rpg_stats"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -45,6 +46,16 @@ func NewCharacterRPGStatsHandler(
 
 // CreateCharacterRPGStats creates a new version of character RPG stats
 func (h *CharacterRPGStatsHandler) CreateCharacterRPGStats(ctx context.Context, req *characterrpgstatspb.CreateCharacterRPGStatsRequest) (*characterrpgstatspb.CreateCharacterRPGStatsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
@@ -78,6 +89,7 @@ func (h *CharacterRPGStatsHandler) CreateCharacterRPGStats(ctx context.Context, 
 	}
 
 	input := characterstatsapp.CreateCharacterStatsInput{
+		TenantID:           tenantUUID,
 		CharacterID:        characterID,
 		EventID:            eventID,
 		BaseStats:          baseStats,
@@ -100,12 +112,23 @@ func (h *CharacterRPGStatsHandler) CreateCharacterRPGStats(ctx context.Context, 
 
 // GetCharacterRPGStats retrieves active character RPG stats
 func (h *CharacterRPGStatsHandler) GetCharacterRPGStats(ctx context.Context, req *characterrpgstatspb.GetCharacterRPGStatsRequest) (*characterrpgstatspb.GetCharacterRPGStatsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 	}
 
 	output, err := h.getActiveStatsUseCase.Execute(ctx, characterstatsapp.GetActiveCharacterStatsInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 	})
 	if err != nil {
@@ -119,12 +142,23 @@ func (h *CharacterRPGStatsHandler) GetCharacterRPGStats(ctx context.Context, req
 
 // ListCharacterRPGStatsHistory lists all versions of character RPG stats
 func (h *CharacterRPGStatsHandler) ListCharacterRPGStatsHistory(ctx context.Context, req *characterrpgstatspb.ListCharacterRPGStatsHistoryRequest) (*characterrpgstatspb.ListCharacterRPGStatsHistoryResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 	}
 
 	output, err := h.listStatsHistoryUseCase.Execute(ctx, characterstatsapp.ListCharacterStatsHistoryInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 	})
 	if err != nil {
@@ -144,13 +178,24 @@ func (h *CharacterRPGStatsHandler) ListCharacterRPGStatsHistory(ctx context.Cont
 
 // ActivateCharacterRPGStatsVersion activates a specific version (rollback)
 func (h *CharacterRPGStatsHandler) ActivateCharacterRPGStatsVersion(ctx context.Context, req *characterrpgstatspb.ActivateCharacterRPGStatsVersionRequest) (*characterrpgstatspb.ActivateCharacterRPGStatsVersionResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid stats id: %v", err)
 	}
 
 	output, err := h.activateVersionUseCase.Execute(ctx, characterstatsapp.ActivateCharacterStatsVersionInput{
-		StatsID: id,
+		TenantID: tenantUUID,
+		StatsID:  id,
 	})
 	if err != nil {
 		return nil, err
@@ -163,12 +208,23 @@ func (h *CharacterRPGStatsHandler) ActivateCharacterRPGStatsVersion(ctx context.
 
 // DeleteCharacterRPGStats deletes all stats for a character
 func (h *CharacterRPGStatsHandler) DeleteCharacterRPGStats(ctx context.Context, req *characterrpgstatspb.DeleteCharacterRPGStatsRequest) (*characterrpgstatspb.DeleteCharacterRPGStatsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 	}
 
 	err = h.deleteAllStatsUseCase.Execute(ctx, characterstatsapp.DeleteAllCharacterStatsInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 	})
 	if err != nil {

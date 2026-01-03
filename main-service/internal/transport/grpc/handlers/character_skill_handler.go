@@ -5,8 +5,9 @@ import (
 
 	"github.com/google/uuid"
 	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
-	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
+	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
 	characterskillpb "github.com/story-engine/main-service/proto/character_skill"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -41,6 +42,16 @@ func NewCharacterSkillHandler(
 
 // AddCharacterSkill adds a skill to a character
 func (h *CharacterSkillHandler) AddCharacterSkill(ctx context.Context, req *characterskillpb.AddCharacterSkillRequest) (*characterskillpb.AddCharacterSkillResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
@@ -52,6 +63,7 @@ func (h *CharacterSkillHandler) AddCharacterSkill(ctx context.Context, req *char
 	}
 
 	output, err := h.learnSkillUseCase.Execute(ctx, characterskillapp.LearnSkillInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 		SkillID:     skillID,
 	})
@@ -88,11 +100,22 @@ func (h *CharacterSkillHandler) UpdateCharacterSkill(ctx context.Context, req *c
 		isActive = req.IsActive
 	}
 
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	input := characterskillapp.UpdateCharacterSkillInput{
-		ID:        id,
-		Rank:      rank,
-		AddXP:     addXP,
-		IsActive:  isActive,
+		TenantID: tenantUUID,
+		ID:       id,
+		Rank:     rank,
+		AddXP:    addXP,
+		IsActive: isActive,
 	}
 
 	output, err := h.updateSkillUseCase.Execute(ctx, input)
@@ -107,13 +130,24 @@ func (h *CharacterSkillHandler) UpdateCharacterSkill(ctx context.Context, req *c
 
 // RemoveCharacterSkill removes a skill from a character
 func (h *CharacterSkillHandler) RemoveCharacterSkill(ctx context.Context, req *characterskillpb.RemoveCharacterSkillRequest) (*characterskillpb.RemoveCharacterSkillResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	id, err := uuid.Parse(req.Id)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_skill id: %v", err)
 	}
 
 	err = h.deleteSkillUseCase.Execute(ctx, characterskillapp.DeleteCharacterSkillInput{
-		ID: id,
+		TenantID: tenantUUID,
+		ID:       id,
 	})
 	if err != nil {
 		return nil, err
@@ -124,12 +158,23 @@ func (h *CharacterSkillHandler) RemoveCharacterSkill(ctx context.Context, req *c
 
 // ListCharacterSkills lists skills for a character
 func (h *CharacterSkillHandler) ListCharacterSkills(ctx context.Context, req *characterskillpb.ListCharacterSkillsRequest) (*characterskillpb.ListCharacterSkillsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
 	characterID, err := uuid.Parse(req.CharacterId)
 	if err != nil {
 		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
 	}
 
 	output, err := h.listSkillsUseCase.Execute(ctx, characterskillapp.ListCharacterSkillsInput{
+		TenantID:    tenantUUID,
 		CharacterID: characterID,
 		ActiveOnly:  false,
 	})

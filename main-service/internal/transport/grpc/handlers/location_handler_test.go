@@ -128,7 +128,7 @@ func TestLocationHandler_GetLocation(t *testing.T) {
 		getReq := &locationpb.GetLocationRequest{
 			Id: createResp.Location.Id,
 		}
-		getResp, err := locationClient.GetLocation(context.Background(), getReq)
+		getResp, err := locationClient.GetLocation(ctx, getReq)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -139,10 +139,18 @@ func TestLocationHandler_GetLocation(t *testing.T) {
 	})
 
 	t.Run("non-existing location", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Non-existing Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
 		req := &locationpb.GetLocationRequest{
 			Id: uuid.New().String(),
 		}
-		_, err := locationClient.GetLocation(context.Background(), req)
+		_, err = locationClient.GetLocation(ctx, req)
 		if err == nil {
 			t.Fatal("expected error for non-existing location")
 		}
@@ -320,7 +328,7 @@ func TestLocationHandler_DeleteLocation(t *testing.T) {
 		getReq := &locationpb.GetLocationRequest{
 			Id: createResp.Location.Id,
 		}
-		_, err = locationClient.GetLocation(context.Background(), getReq)
+		_, err = locationClient.GetLocation(ctx, getReq)
 		if err == nil {
 			t.Fatal("expected error when getting deleted location")
 		}
