@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"strings"
 
 	"github.com/google/uuid"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
@@ -16,11 +17,18 @@ const TenantIDKey contextKey = "tenant_id"
 // TenantMiddleware extracts and validates the X-Tenant-ID header
 // and injects it into the request context
 // Routes that don't need tenant isolation are skipped (e.g., /api/v1/tenants, /health)
+// OPTIONS requests (CORS preflight) are also skipped
 func TenantMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Skip tenant validation for OPTIONS requests (CORS preflight)
+		if r.Method == "OPTIONS" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Skip tenant validation for routes that don't need it
 		path := r.URL.Path
-		if path == "/health" || (len(path) >= 18 && path[:18] == "/api/v1/tenants") {
+		if path == "/health" || strings.HasPrefix(path, "/api/v1/tenants") {
 			next.ServeHTTP(w, r)
 			return
 		}

@@ -32,19 +32,24 @@ var import_obsidian12 = require("obsidian");
 
 // src/api/client.ts
 var StoryEngineClient = class {
-  constructor(apiUrl, apiKey) {
+  constructor(apiUrl, apiKey, tenantId = "") {
     this.apiUrl = apiUrl;
     this.apiKey = apiKey;
+    this.tenantId = tenantId;
   }
-  async request(method, endpoint, body, tenantId) {
+  setTenantId(tenantId) {
+    this.tenantId = tenantId.trim();
+  }
+  async request(method, endpoint, body, tenantIdOverride) {
     const url = `${this.apiUrl}${endpoint}`;
     const headers = new Headers();
     headers.set("Content-Type", "application/json");
     if (this.apiKey) {
       headers.set("Authorization", `Bearer ${this.apiKey}`);
     }
-    if (tenantId) {
-      const trimmedTenantId = tenantId.trim();
+    const effectiveTenantId = tenantIdOverride != null ? tenantIdOverride : this.tenantId;
+    if (effectiveTenantId) {
+      const trimmedTenantId = effectiveTenantId.trim();
       if (trimmedTenantId) {
         headers.set("X-Tenant-ID", trimmedTenantId);
       }
@@ -73,16 +78,13 @@ var StoryEngineClient = class {
     }
     return response.json();
   }
-  async listStories(tenantId) {
-    const trimmedTenantId = tenantId.trim();
-    if (!trimmedTenantId) {
+  async listStories() {
+    if (!this.tenantId || !this.tenantId.trim()) {
       throw new Error("Tenant ID is required");
     }
     const response = await this.request(
       "GET",
-      "/api/v1/stories",
-      void 0,
-      trimmedTenantId
+      "/api/v1/stories"
     );
     return response.stories || [];
   }
@@ -93,9 +95,8 @@ var StoryEngineClient = class {
     );
     return response.story;
   }
-  async createStory(tenantId, title) {
-    const trimmedTenantId = tenantId.trim();
-    if (!trimmedTenantId) {
+  async createStory(title) {
+    if (!this.tenantId || !this.tenantId.trim()) {
       throw new Error("Tenant ID is required");
     }
     const response = await this.request(
@@ -103,21 +104,18 @@ var StoryEngineClient = class {
       "/api/v1/stories",
       {
         title: title.trim()
-      },
-      trimmedTenantId
+      }
     );
     return response.story;
   }
-  async cloneStory(id, tenantId) {
-    const trimmedTenantId = tenantId.trim();
-    if (!trimmedTenantId) {
+  async cloneStory(id) {
+    if (!this.tenantId || !this.tenantId.trim()) {
       throw new Error("Tenant ID is required");
     }
     const response = await this.request(
       "POST",
       `/api/v1/stories/${id}/clone`,
-      {},
-      trimmedTenantId
+      {}
     );
     return response.story;
   }
@@ -413,6 +411,9 @@ var StoryEngineSettingTab = class extends import_obsidian.PluginSettingTab {
     new import_obsidian.Setting(containerEl).setName("Tenant ID").setDesc("Your workspace tenant ID (UUID format)").addText(
       (text) => text.setPlaceholder("00000000-0000-0000-0000-000000000000").setValue(this.plugin.settings.tenantId || "").onChange(async (value) => {
         this.plugin.settings.tenantId = value.trim();
+        if (this.plugin.apiClient) {
+          this.plugin.apiClient.setTenantId(value.trim());
+        }
         await this.plugin.saveSettings();
       })
     );
@@ -548,9 +549,7 @@ var StorySyncModal = class extends import_obsidian2.Modal {
         this.loading = false;
         return;
       }
-      this.stories = await this.plugin.apiClient.listStories(
-        this.plugin.settings.tenantId
-      );
+      this.stories = await this.plugin.apiClient.listStories();
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Unknown error";
     } finally {
@@ -743,7 +742,8 @@ var FileManager = class {
     }
   }
   // Write story metadata (story.md)
-  async writeStoryMetadata(story, folderPath) {
+  async writeStoryMetadata(story, folderPath, chapters, orphanScenes, orphanBeats, chapterProseData) {
+    var _a, _b;
     await this.ensureFolderExists(folderPath);
     const baseFields = {
       id: story.id,
@@ -760,12 +760,250 @@ var FileManager = class {
       storyName: story.title,
       date: story.created_at
     });
-    const content = `${frontmatter}
+    let content = `${frontmatter}
 # ${story.title}
 
 Version: ${story.version_number}
 Status: ${story.status}
+
 `;
+    const temporaryChapterTitles = ["Story Prose", "Scene-Level Prose", "Beat-Level Prose"];
+    const filteredChapters = (chapters == null ? void 0 : chapters.filter(
+      (c) => !temporaryChapterTitles.includes(c.chapter.title) && c.chapter.number < 9e3
+    )) || [];
+    if (filteredChapters.length > 0) {
+      content += `## Chapters, Scenes & Beats
+
+`;
+      content += `> [!info] How to use this list
+`;
+      content += `> - **Create new item**: Add a line with \`-\` followed by the text
+`;
+      content += `>   - **Chapter**: No indentation (level 0)
+`;
+      content += `>   - **Scene**: Use 1 tab indentation (inside a chapter)
+`;
+      content += `>   - **Beat**: Use 2 tabs indentation (inside a scene)
+`;
+      content += `> - **Reorder**: Move items up/down to change order
+`;
+      content += `> - **Links**: Use \`[[link-name|text]]\` to create links to existing files
+`;
+      content += `> - **Format**:
+`;
+      content += `>   - **Chapter**:
+`;
+      content += `>     - Complete: \`Chapter N: title\`
+`;
+      content += `>     - Simplified: \`title\`
+`;
+      content += `>   - **Scene**:
+`;
+      content += `>     - Complete: \`Scene N: goal - timeRef\`
+`;
+      content += `>     - Simplified:
+`;
+      content += `>       - \`goal - timeRef\`
+`;
+      content += `>       - \`goal\`
+`;
+      content += `>   - **Beat**:
+`;
+      content += `>     - Complete: \`Beat N: intent -> outcome\`
+`;
+      content += `>     - Simplified:
+`;
+      content += `>       - \`intent -> outcome\`
+`;
+      content += `>       - \`intent\`
+`;
+      content += `> - **Markers**: \`-\` indicates no associated prose, \`+\` indicates associated prose
+
+`;
+      for (const chapterWithContent of filteredChapters) {
+        const chapter = chapterWithContent.chapter;
+        const chapterFileName = `Chapter-${chapter.number}.md`;
+        const chapterLinkName = chapterFileName.replace(/\.md$/, "");
+        content += `- [[${chapterLinkName}|Chapter ${chapter.number}: ${chapter.title}]]
+`;
+        for (const { scene, beats } of chapterWithContent.scenes) {
+          const sceneFileName = this.generateSceneFileName(scene);
+          const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+          content += `	- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+`;
+          for (const beat of beats) {
+            const beatFileName = this.generateBeatFileName(beat);
+            const beatLinkName = beatFileName.replace(/\.md$/, "");
+            const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+            content += `		- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+`;
+          }
+        }
+      }
+      content += `
+`;
+    }
+    if (orphanScenes && orphanScenes.length > 0) {
+      content += `## Orphan Scenes
+
+`;
+      content += `> [!info] Scenes without a chapter
+`;
+      content += `> These scenes are not associated with any chapter. You can:
+`;
+      content += `> - **Reorder**: Move items up/down to change order
+`;
+      content += `> - **Links**: Use \`[[link-name|text]]\` to create links to existing files
+`;
+      content += `> - **Format**:
+`;
+      content += `>   - Complete: \`Scene N: goal - timeRef\`
+`;
+      content += `>   - Simplified:
+`;
+      content += `>     - \`goal - timeRef\`
+`;
+      content += `>     - \`goal\`
+`;
+      content += `> - **Markers**: \`-\` indicates no associated prose, \`+\` indicates associated prose
+
+`;
+      for (const { scene, beats } of orphanScenes) {
+        const sceneFileName = this.generateSceneFileName(scene);
+        const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+        const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+        content += `- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+`;
+        for (const beat of beats) {
+          const beatFileName = this.generateBeatFileName(beat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+          content += `	- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+`;
+        }
+      }
+      content += `
+`;
+    }
+    if (orphanBeats && orphanBeats.length > 0) {
+      content += `## Orphan Beats
+
+`;
+      content += `> [!info] Beats without a scene
+`;
+      content += `> These beats are not associated with any scene. You can:
+`;
+      content += `> - **Reorder**: Move items up/down to change order
+`;
+      content += `> - **Links**: Use \`[[link-name|text]]\` to create links to existing files
+`;
+      content += `> - **Format**:
+`;
+      content += `>   - Complete: \`Beat N: intent -> outcome\`
+`;
+      content += `>   - Simplified:
+`;
+      content += `>     - \`intent -> outcome\`
+`;
+      content += `>     - \`intent\`
+`;
+      content += `> - **Markers**: \`-\` indicates no associated prose, \`+\` indicates associated prose
+
+`;
+      for (const beat of orphanBeats) {
+        const beatFileName = this.generateBeatFileName(beat);
+        const beatLinkName = beatFileName.replace(/\.md$/, "");
+        const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+        content += `- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+`;
+      }
+      content += `
+`;
+    }
+    content += `# Story: ${story.title}
+
+`;
+    if (filteredChapters.length > 0) {
+      for (const chapterWithContent of filteredChapters) {
+        const chapter = chapterWithContent.chapter;
+        const chapterFileName = `Chapter-${chapter.number}.md`;
+        const chapterLinkName = chapterFileName.replace(/\.md$/, "");
+        content += `## Chapter ${chapter.number}: [[${chapterLinkName}|${chapter.title}]]
+
+`;
+        const proseData = chapterProseData == null ? void 0 : chapterProseData.get(chapter.id);
+        let organization = null;
+        if (proseData) {
+          organization = this.organizeProseBlocks(
+            proseData.proseBlocks,
+            proseData.proseBlockRefs,
+            chapterWithContent.scenes
+          );
+          for (const proseBlock of organization.chapterOnly) {
+            const fileName = this.generateProseBlockFileName(proseBlock);
+            const linkName = fileName.replace(/\.md$/, "");
+            content += `[[${linkName}|${proseBlock.content}]]
+
+`;
+          }
+        }
+        for (const { scene, beats } of chapterWithContent.scenes) {
+          const sceneFileName = this.generateSceneFileName(scene);
+          const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+          content += `### Scene: [[${sceneLinkName}|${sceneDisplayText}]]
+
+`;
+          if (organization) {
+            const sceneProseBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.proseBlocks) || [];
+            for (const proseBlock of sceneProseBlocks) {
+              const fileName = this.generateProseBlockFileName(proseBlock);
+              const linkName = fileName.replace(/\.md$/, "");
+              content += `[[${linkName}|${proseBlock.content}]]
+
+`;
+            }
+          }
+          for (const beat of beats) {
+            const beatFileName = this.generateBeatFileName(beat);
+            const beatLinkName = beatFileName.replace(/\.md$/, "");
+            const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+            content += `#### Beat: [[${beatLinkName}|${beatDisplayText}]]
+
+`;
+            if (organization) {
+              const beatProseBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.proseBlocks) || [];
+              for (const proseBlock of beatProseBlocks) {
+                const fileName = this.generateProseBlockFileName(proseBlock);
+                const linkName = fileName.replace(/\.md$/, "");
+                content += `[[${linkName}|${proseBlock.content}]]
+
+`;
+              }
+            }
+          }
+        }
+      }
+    }
+    if (orphanScenes && orphanScenes.length > 0) {
+      for (const { scene, beats } of orphanScenes) {
+        const sceneFileName = this.generateSceneFileName(scene);
+        const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+        const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+        content += `### Scene: [[${sceneLinkName}|${sceneDisplayText}]]
+
+`;
+        for (const beat of beats) {
+          const beatFileName = this.generateBeatFileName(beat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+          content += `#### Beat: [[${beatLinkName}|${beatDisplayText}]]
+
+`;
+        }
+      }
+    }
     const filePath = `${folderPath}/story.md`;
     const file = this.vault.getAbstractFileByPath(filePath);
     if (file instanceof import_obsidian5.TFile) {
@@ -775,8 +1013,8 @@ Status: ${story.status}
     }
   }
   // Write chapter file
-  async writeChapterFile(chapterWithContent, filePath, storyName, proseBlocks, proseBlockRefs) {
-    var _a, _b;
+  async writeChapterFile(chapterWithContent, filePath, storyName, proseBlocks, proseBlockRefs, orphanScenes) {
+    var _a, _b, _c, _d;
     const { chapter, scenes } = chapterWithContent;
     const baseFields = {
       id: chapter.id,
@@ -801,7 +1039,94 @@ Status: ${story.status}
       proseBlockRefs || [],
       scenes
     );
-    content += `## Prose
+    content += `## Scenes & Beats
+
+`;
+    content += `> [!info] How to use this list
+`;
+    content += `> - **Create new item**: Add a line with \`-\` followed by the text
+`;
+    content += `>   - **Scene**: No indentation (level 0)
+`;
+    content += `>   - **Beat**: Use 1 tab indentation (inside a scene)
+`;
+    content += `> - **Reorder**: Move items up/down to change order
+`;
+    content += `> - **Links**: Use \`[[link-name|text]]\` to create links to existing files
+`;
+    content += `> - **Format**:
+`;
+    content += `>   - **Scene**:
+`;
+    content += `>     - Complete: \`Scene N: goal - timeRef\`
+`;
+    content += `>     - Simplified:
+`;
+    content += `>       - \`goal - timeRef\`
+`;
+    content += `>       - \`goal\`
+`;
+    content += `>   - **Beat**:
+`;
+    content += `>     - Complete: \`Beat N: intent -> outcome\`
+`;
+    content += `>     - Simplified:
+`;
+    content += `>       - \`intent -> outcome\`
+`;
+    content += `>       - \`intent\`
+`;
+    content += `> - **Markers**: \`-\` indicates no associated prose, \`+\` indicates associated prose
+`;
+    content += `> - **Orphan scenes** (without chapter) are shown below for easy association
+
+`;
+    for (const { scene, beats } of scenes) {
+      const sceneFileName = this.generateSceneFileName(scene);
+      const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+      const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+      const sceneProseBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.proseBlocks) || [];
+      const hasSceneProse = sceneProseBlocks.length > 0;
+      const sceneMarker = hasSceneProse ? "+" : "-";
+      content += `${sceneMarker} [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+`;
+      for (const beat of beats) {
+        const beatFileName = this.generateBeatFileName(beat);
+        const beatLinkName = beatFileName.replace(/\.md$/, "");
+        const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+        const beatProseBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.proseBlocks) || [];
+        const hasBeatProse = beatProseBlocks.length > 0;
+        const beatMarker = hasBeatProse ? "+" : "-";
+        content += `	${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+`;
+      }
+    }
+    if (orphanScenes && orphanScenes.length > 0) {
+      content += `
+`;
+      content += `> [!info] Orphan Scenes (not yet associated with this chapter)
+`;
+      content += `> You can associate these scenes with this chapter by moving them here.
+
+`;
+      for (const { scene, beats } of orphanScenes) {
+        const sceneFileName = this.generateSceneFileName(scene);
+        const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+        const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+        content += `- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+`;
+        for (const beat of beats) {
+          const beatFileName = this.generateBeatFileName(beat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+          content += `	- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+`;
+        }
+      }
+    }
+    content += `
+`;
+    content += `## Chapter ${chapter.number}: ${chapter.title}
 
 `;
     for (const proseBlock of organization.chapterOnly) {
@@ -818,7 +1143,7 @@ Status: ${story.status}
       content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]
 
 `;
-      const sceneProseBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.proseBlocks) || [];
+      const sceneProseBlocks = ((_c = organization.byScene.get(scene.id)) == null ? void 0 : _c.proseBlocks) || [];
       for (const proseBlock of sceneProseBlocks) {
         const fileName = this.generateProseBlockFileName(proseBlock);
         const linkName = fileName.replace(/\.md$/, "");
@@ -833,7 +1158,7 @@ Status: ${story.status}
         content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]
 
 `;
-        const beatProseBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.proseBlocks) || [];
+        const beatProseBlocks = ((_d = organization.byBeat.get(beat.id)) == null ? void 0 : _d.proseBlocks) || [];
         for (const proseBlock of beatProseBlocks) {
           const fileName = this.generateProseBlockFileName(proseBlock);
           const linkName = fileName.replace(/\.md$/, "");
@@ -929,7 +1254,7 @@ Status: ${story.status}
     }
   }
   // Write scene file
-  async writeSceneFile(sceneWithBeats, filePath, storyName, proseBlocks) {
+  async writeSceneFile(sceneWithBeats, filePath, storyName, proseBlocks, orphanBeats) {
     var _a;
     const { scene, beats } = sceneWithBeats;
     const baseFields = {
@@ -968,10 +1293,77 @@ Status: ${story.status}
 
 `;
     }
-    if (proseBlocks && proseBlocks.length > 0) {
-      content += `## Prose Relacionado
+    if (beats.length > 0) {
+      content += `## Beats
 
 `;
+      content += `> [!info] How to use this list
+`;
+      content += `> - **Create new item**: Add a line with \`-\` followed by the text
+`;
+      content += `>   - **Beat**: No indentation (level 0)
+`;
+      content += `> - **Reorder**: Move items up/down to change order
+`;
+      content += `> - **Links**: Use \`[[link-name|text]]\` to create links to existing files
+`;
+      content += `> - **Format**:
+`;
+      content += `>   - **Beat**:
+`;
+      content += `>     - Complete: \`Beat N: intent -> outcome\`
+`;
+      content += `>     - Simplified:
+`;
+      content += `>       - \`intent -> outcome\`
+`;
+      content += `>       - \`intent\`
+`;
+      content += `> - **Markers**: \`-\` indicates no associated prose, \`+\` indicates associated prose
+`;
+      content += `> - **Orphan beats** (without scene) are shown below for easy association
+
+`;
+      const beatsWithProse = /* @__PURE__ */ new Set();
+      if (proseBlocks) {
+        for (const proseBlock of proseBlocks) {
+        }
+      }
+      for (const beat of beats.sort((a, b) => a.order_num - b.order_num)) {
+        const beatFileName = this.generateBeatFileName(beat);
+        const beatLinkName = beatFileName.replace(/\.md$/, "");
+        const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+        const hasBeatProse = beatsWithProse.has(beat.id);
+        const beatMarker = hasBeatProse ? "+" : "-";
+        content += `${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+`;
+      }
+      if (orphanBeats && orphanBeats.length > 0) {
+        content += `
+`;
+        content += `> [!info] Orphan Beats (not yet associated with this scene)
+`;
+        content += `> You can associate these beats with this scene by moving them here.
+
+`;
+        for (const beat of orphanBeats) {
+          const beatFileName = this.generateBeatFileName(beat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+          content += `- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+`;
+        }
+      }
+      content += `
+`;
+    }
+    const sceneFileName = this.generateSceneFileName(scene);
+    const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+    const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+    content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]
+
+`;
+    if (proseBlocks && proseBlocks.length > 0) {
       const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
       for (const proseBlock of sortedProseBlocks) {
         const fileName = this.generateProseBlockFileName(proseBlock);
@@ -981,25 +1373,13 @@ Status: ${story.status}
 `;
       }
     }
-    if (beats.length > 0) {
-      content += `## Beats
+    for (const beat of beats.sort((a, b) => a.order_num - b.order_num)) {
+      const beatFileName = this.generateBeatFileName(beat);
+      const beatLinkName = beatFileName.replace(/\.md$/, "");
+      const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+      content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]
 
 `;
-      for (const beat of beats) {
-        content += `### Beat ${beat.order_num} - ${beat.type}
-
-`;
-        if (beat.intent) {
-          content += `**Intent:** ${beat.intent}
-
-`;
-        }
-        if (beat.outcome) {
-          content += `**Outcome:** ${beat.outcome}
-
-`;
-        }
-      }
     }
     const file = this.vault.getAbstractFileByPath(filePath);
     if (file instanceof import_obsidian5.TFile) {
@@ -1009,7 +1389,7 @@ Status: ${story.status}
     }
   }
   // Write beat file
-  async writeBeatFile(beat, filePath, storyName) {
+  async writeBeatFile(beat, filePath, storyName, proseBlocks) {
     const baseFields = {
       id: beat.id,
       scene_id: beat.scene_id,
@@ -1038,6 +1418,22 @@ Status: ${story.status}
       content += `**Outcome:** ${beat.outcome}
 
 `;
+    }
+    const beatFileName = this.generateBeatFileName(beat);
+    const beatLinkName = beatFileName.replace(/\.md$/, "");
+    const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+    content += `## Beat: [[${beatLinkName}|${beatDisplayText}]]
+
+`;
+    if (proseBlocks && proseBlocks.length > 0) {
+      const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+      for (const proseBlock of sortedProseBlocks) {
+        const fileName = this.generateProseBlockFileName(proseBlock);
+        const linkName = fileName.replace(/\.md$/, "");
+        content += `[[${linkName}|${proseBlock.content}]]
+
+`;
+      }
     }
     const file = this.vault.getAbstractFileByPath(filePath);
     if (file instanceof import_obsidian5.TFile) {
@@ -1075,6 +1471,36 @@ Status: ${story.status}
       }
     }
     return sceneFiles.sort();
+  }
+  // List all scene files in a story folder
+  async listStorySceneFiles(storyFolderPath) {
+    const scenesPath = `${storyFolderPath}/scenes`;
+    const folder = this.vault.getAbstractFileByPath(scenesPath);
+    if (!(folder instanceof import_obsidian5.TFolder)) {
+      return [];
+    }
+    const sceneFiles = [];
+    for (const child of folder.children) {
+      if (child instanceof import_obsidian5.TFile && child.extension === "md") {
+        sceneFiles.push(child.path);
+      }
+    }
+    return sceneFiles.sort();
+  }
+  // List all beat files in a story folder
+  async listStoryBeatFiles(storyFolderPath) {
+    const beatsPath = `${storyFolderPath}/beats`;
+    const folder = this.vault.getAbstractFileByPath(beatsPath);
+    if (!(folder instanceof import_obsidian5.TFolder)) {
+      return [];
+    }
+    const beatFiles = [];
+    for (const child of folder.children) {
+      if (child instanceof import_obsidian5.TFile && child.extension === "md") {
+        beatFiles.push(child.path);
+      }
+    }
+    return beatFiles.sort();
   }
   // List all beat files in a scene folder
   async listBeatFiles(sceneFolderPath) {
@@ -1237,11 +1663,28 @@ function parseHierarchicalProse(chapterContent) {
   const frontmatterMatch = chapterContent.match(/^---\n([\s\S]*?)\n---/);
   const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
   const bodyContent = chapterContent.substring(contentStart).trim();
-  const proseSectionMatch = bodyContent.match(/##\s+Prose\s*\n\n([\s\S]*)$/);
-  if (!proseSectionMatch) {
+  const chapterSectionMatch = bodyContent.match(/##\s+Chapter\s+\d+:\s+[^\n]+\s*\n+([\s\S]*?)(?=\n##\s+Chapter\s+\d+:|$)/);
+  if (!chapterSectionMatch) {
+    const chapterSectionMatchSameLine = bodyContent.match(/##\s+Chapter\s+\d+:\s+[^\n]+\s+([^\n]+)/);
+    if (chapterSectionMatchSameLine) {
+      const proseContent2 = chapterSectionMatchSameLine[1].trim();
+      if (proseContent2.length > 0 && !proseContent2.startsWith("#")) {
+        const paragraph = {
+          content: proseContent2,
+          linkName: null,
+          originalOrder: 0
+        };
+        sections.push({
+          type: "prose",
+          prose: paragraph,
+          originalOrder: 0
+        });
+      }
+      return { sections };
+    }
     return { sections: [] };
   }
-  const proseContent = proseSectionMatch[1].trim();
+  const proseContent = chapterSectionMatch[1].trim();
   const lines = proseContent.split(/\n/);
   let currentScene = null;
   let currentBeat = null;
@@ -1278,7 +1721,7 @@ function parseHierarchicalProse(chapterContent) {
       });
       continue;
     }
-    if (line.startsWith("#")) {
+    if (line.startsWith("#") && !line.match(/^##\s+Scene:/) && !line.match(/^###\s+Beat:/)) {
       continue;
     }
     const proseMatch = line.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
@@ -1403,10 +1846,20 @@ function parseBeatText(text) {
   };
 }
 function compareProseBlocks(paragraph, localProseBlock, remoteProseBlock) {
+  const paragraphContent = paragraph.content.trim();
   if (!paragraph.linkName) {
+    if (remoteProseBlock && remoteProseBlock.content.trim() === paragraphContent) {
+      if (localProseBlock && localProseBlock.id === remoteProseBlock.id) {
+        return "unchanged";
+      }
+      return "unchanged";
+    }
     return "new";
   }
   if (!localProseBlock) {
+    if (remoteProseBlock && remoteProseBlock.content.trim() === paragraphContent) {
+      return "remote_modified";
+    }
     return "new";
   }
   if (!remoteProseBlock) {
@@ -1414,7 +1867,6 @@ function compareProseBlocks(paragraph, localProseBlock, remoteProseBlock) {
   }
   const localContent = localProseBlock.content.trim();
   const remoteContent = remoteProseBlock.content.trim();
-  const paragraphContent = paragraph.content.trim();
   if (localContent === paragraphContent && remoteContent === paragraphContent) {
     return "unchanged";
   }
@@ -1431,6 +1883,585 @@ function compareProseBlocks(paragraph, localProseBlock, remoteProseBlock) {
     return "remote_modified";
   }
   return "conflict";
+}
+function parseSceneBeatList(chapterContent) {
+  const items = [];
+  const frontmatterMatch = chapterContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = chapterContent.substring(contentStart).trim();
+  const listSectionMatch = bodyContent.match(/##\s+Scenes\s+&\s+Beats\s*\n+([\s\S]*?)(?=\n##|$)/);
+  if (!listSectionMatch) {
+    return { items: [] };
+  }
+  const listContent = listSectionMatch[1].trim();
+  const lines = listContent.split(/\n/);
+  let order = 0;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    const itemMatch = trimmedLine.match(/^([+-])\s+(.+)$/);
+    if (!itemMatch) {
+      continue;
+    }
+    const hasProse = itemMatch[1] === "+";
+    const itemText = itemMatch[2].trim();
+    const tabMatch = line.match(/^(\t*)/);
+    const indentLevel = tabMatch ? tabMatch[1].length : 0;
+    const isBeat = indentLevel > 0;
+    const linkMatch = itemText.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+    let linkName = null;
+    let displayText;
+    if (linkMatch) {
+      linkName = linkMatch[1].trim();
+      displayText = linkMatch[2].trim();
+    } else {
+      displayText = itemText;
+    }
+    items.push({
+      type: isBeat ? "beat" : "scene",
+      linkName,
+      displayText,
+      hasProse,
+      indentLevel: isBeat ? 1 : 0,
+      originalOrder: order++
+    });
+  }
+  return { items };
+}
+function parseChapterList(storyContent) {
+  const items = [];
+  const frontmatterMatch = storyContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = storyContent.substring(contentStart).trim();
+  const listSectionMatch = bodyContent.match(/##\s+Chapters(?:,\s*Scenes\s*&\s*Beats)?\s*\n+([\s\S]*?)(?=\n##|$)/);
+  if (!listSectionMatch) {
+    return { items: [] };
+  }
+  const listContent = listSectionMatch[1].trim();
+  const lines = listContent.split(/\n/);
+  let order = 0;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    const itemMatch = trimmedLine.match(/^([+-])\s+(.+)$/);
+    if (!itemMatch) {
+      continue;
+    }
+    const hasProse = itemMatch[1] === "+";
+    const itemText = itemMatch[2].trim();
+    const tabMatch = line.match(/^(\t*)/);
+    const indentLevel = tabMatch ? tabMatch[1].length : 0;
+    let type;
+    if (indentLevel === 0) {
+      type = "chapter";
+    } else if (indentLevel === 1) {
+      type = "scene";
+    } else if (indentLevel === 2) {
+      type = "beat";
+    } else {
+      continue;
+    }
+    const linkMatch = itemText.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+    let linkName = null;
+    let displayText;
+    if (linkMatch) {
+      linkName = linkMatch[1].trim();
+      displayText = linkMatch[2].trim();
+    } else {
+      displayText = itemText;
+    }
+    items.push({
+      type,
+      linkName,
+      displayText,
+      hasProse,
+      indentLevel: indentLevel / 2,
+      // Normalize to 0, 1, 2
+      originalOrder: order++
+    });
+  }
+  return { items };
+}
+function parseBeatList(sceneContent) {
+  const items = [];
+  const frontmatterMatch = sceneContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = sceneContent.substring(contentStart).trim();
+  const listSectionMatch = bodyContent.match(/##\s+Beats\s*\n+([\s\S]*?)(?=\n##|$)/);
+  if (!listSectionMatch) {
+    return { items: [] };
+  }
+  const listContent = listSectionMatch[1].trim();
+  const lines = listContent.split(/\n/);
+  let order = 0;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    if (trimmedLine.startsWith(">")) {
+      continue;
+    }
+    const itemMatch = trimmedLine.match(/^([+-])\s+(.+)$/);
+    if (!itemMatch) {
+      continue;
+    }
+    const hasProse = itemMatch[1] === "+";
+    const itemText = itemMatch[2].trim();
+    const linkMatch = itemText.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+    let linkName = null;
+    let displayText;
+    if (linkMatch) {
+      linkName = linkMatch[1].trim();
+      displayText = linkMatch[2].trim();
+    } else {
+      displayText = itemText;
+    }
+    items.push({
+      linkName,
+      displayText,
+      hasProse,
+      originalOrder: order++
+    });
+  }
+  return { items };
+}
+function parseOrphanScenesList(storyContent) {
+  const items = [];
+  const frontmatterMatch = storyContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = storyContent.substring(contentStart).trim();
+  const listSectionMatch = bodyContent.match(/##\s+Orphan\s+Scenes\s*\n+([\s\S]*?)(?=\n##|$)/);
+  if (!listSectionMatch) {
+    return { items: [] };
+  }
+  const listContent = listSectionMatch[1].trim();
+  const lines = listContent.split(/\n/);
+  let order = 0;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    if (trimmedLine.startsWith(">")) {
+      continue;
+    }
+    const itemMatch = trimmedLine.match(/^([+-])\s+(.+)$/);
+    if (!itemMatch) {
+      continue;
+    }
+    const hasProse = itemMatch[1] === "+";
+    const itemText = itemMatch[2].trim();
+    const tabMatch = line.match(/^(\t*)/);
+    const indentLevel = tabMatch ? tabMatch[1].length : 0;
+    const isBeat = indentLevel > 0;
+    const linkMatch = itemText.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+    let linkName = null;
+    let displayText;
+    if (linkMatch) {
+      linkName = linkMatch[1].trim();
+      displayText = linkMatch[2].trim();
+    } else {
+      displayText = itemText;
+    }
+    items.push({
+      type: isBeat ? "beat" : "scene",
+      linkName,
+      displayText,
+      hasProse,
+      indentLevel: isBeat ? 1 : 0,
+      originalOrder: order++
+    });
+  }
+  return { items };
+}
+function parseOrphanBeatsList(storyContent) {
+  const items = [];
+  const frontmatterMatch = storyContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = storyContent.substring(contentStart).trim();
+  const listSectionMatch = bodyContent.match(/##\s+Orphan\s+Beats\s*\n+([\s\S]*?)(?=\n##|$)/);
+  if (!listSectionMatch) {
+    return { items: [] };
+  }
+  const listContent = listSectionMatch[1].trim();
+  const lines = listContent.split(/\n/);
+  let order = 0;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    if (trimmedLine.startsWith(">")) {
+      continue;
+    }
+    const itemMatch = trimmedLine.match(/^([+-])\s+(.+)$/);
+    if (!itemMatch) {
+      continue;
+    }
+    const hasProse = itemMatch[1] === "+";
+    const itemText = itemMatch[2].trim();
+    const linkMatch = itemText.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+    let linkName = null;
+    let displayText;
+    if (linkMatch) {
+      linkName = linkMatch[1].trim();
+      displayText = linkMatch[2].trim();
+    } else {
+      displayText = itemText;
+    }
+    items.push({
+      linkName,
+      displayText,
+      hasProse,
+      originalOrder: order++
+    });
+  }
+  return { items };
+}
+function parseStoryProse(storyContent) {
+  const sections = [];
+  const frontmatterMatch = storyContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = storyContent.substring(contentStart).trim();
+  const storyHeaderMatch = bodyContent.match(/^(#\s+Story:\s*.+)$/m);
+  const chapterHeaderMatch = bodyContent.match(/^(##\s+Chapter\s*\d*:\s*.+)$/m);
+  let proseStartIndex = -1;
+  if (storyHeaderMatch) {
+    proseStartIndex = bodyContent.indexOf(storyHeaderMatch[0]);
+  } else if (chapterHeaderMatch) {
+    proseStartIndex = bodyContent.indexOf(chapterHeaderMatch[0]);
+  }
+  if (proseStartIndex === -1) {
+    return { sections: [] };
+  }
+  const proseContent = bodyContent.substring(proseStartIndex);
+  const lines = proseContent.split(/\n/);
+  let order = 0;
+  let currentChapter = null;
+  let currentScene = null;
+  let currentBeat = null;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    if (trimmedLine.startsWith(">")) {
+      continue;
+    }
+    const storyMatch = trimmedLine.match(/^#\s+Story:\s*(.+)$/i);
+    if (storyMatch) {
+      continue;
+    }
+    const chapterMatch = trimmedLine.match(/^##\s+Chapter\s*\d*:\s*(.+)$/i);
+    if (chapterMatch) {
+      const chapterText = chapterMatch[1].trim();
+      const linkMatch = chapterText.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+      if (linkMatch) {
+        currentChapter = {
+          linkName: linkMatch[1].trim(),
+          title: linkMatch[2].trim()
+        };
+      } else {
+        currentChapter = {
+          linkName: null,
+          title: chapterText
+        };
+      }
+      currentScene = null;
+      currentBeat = null;
+      continue;
+    }
+    const sceneMatch = trimmedLine.match(/^###\s+Scene:\s*(.+)$/i);
+    if (sceneMatch) {
+      const sceneText = sceneMatch[1].trim();
+      currentScene = parseSceneHeaderText(sceneText);
+      currentScene.originalOrder = order++;
+      sections.push({
+        type: "scene",
+        scene: currentScene,
+        originalOrder: currentScene.originalOrder
+      });
+      currentBeat = null;
+      continue;
+    }
+    const beatMatch = trimmedLine.match(/^####\s+Beat:\s*(.+)$/i);
+    if (beatMatch) {
+      const beatText = beatMatch[1].trim();
+      currentBeat = parseBeatHeaderText(beatText);
+      currentBeat.originalOrder = order++;
+      sections.push({
+        type: "beat",
+        beat: currentBeat,
+        originalOrder: currentBeat.originalOrder
+      });
+      continue;
+    }
+    if (trimmedLine.startsWith("#")) {
+      continue;
+    }
+    if (trimmedLine.match(/^[+-]\s+/)) {
+      continue;
+    }
+    const proseMatch = trimmedLine.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
+    if (proseMatch) {
+      const linkName = proseMatch[1].trim();
+      const content = proseMatch[2].trim();
+      const paragraph = {
+        content,
+        linkName,
+        originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
+      });
+      continue;
+    }
+    if (trimmedLine.length > 0) {
+      const paragraph = {
+        content: trimmedLine,
+        linkName: null,
+        originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
+      });
+    }
+  }
+  return { sections };
+}
+function parseSceneHeaderText(text) {
+  const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+  if (linkMatch) {
+    const linkName = linkMatch[1].trim();
+    const displayText = linkMatch[2].trim();
+    const parts2 = displayText.split(/\s*-\s*/);
+    return {
+      linkName,
+      goal: parts2[0].trim(),
+      timeRef: parts2.length > 1 ? parts2.slice(1).join(" - ").trim() : "",
+      originalOrder: 0
+    };
+  }
+  const simpleLinkMatch = text.match(/^\[\[([^\]]+)\]\]$/);
+  if (simpleLinkMatch) {
+    return {
+      linkName: simpleLinkMatch[1].trim(),
+      goal: "",
+      timeRef: "",
+      originalOrder: 0
+    };
+  }
+  const parts = text.split(/\s*-\s*/);
+  return {
+    linkName: null,
+    goal: parts[0].trim(),
+    timeRef: parts.length > 1 ? parts.slice(1).join(" - ").trim() : "",
+    originalOrder: 0
+  };
+}
+function parseBeatHeaderText(text) {
+  const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
+  if (linkMatch) {
+    const linkName = linkMatch[1].trim();
+    const displayText = linkMatch[2].trim();
+    const parts2 = displayText.split(/\s*->\s*/);
+    return {
+      linkName,
+      intent: parts2[0].trim(),
+      outcome: parts2.length > 1 ? parts2.slice(1).join(" -> ").trim() : "",
+      originalOrder: 0
+    };
+  }
+  const simpleLinkMatch = text.match(/^\[\[([^\]]+)\]\]$/);
+  if (simpleLinkMatch) {
+    return {
+      linkName: simpleLinkMatch[1].trim(),
+      intent: "",
+      outcome: "",
+      originalOrder: 0
+    };
+  }
+  const parts = text.split(/\s*->\s*/);
+  return {
+    linkName: null,
+    intent: parts[0].trim(),
+    outcome: parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "",
+    originalOrder: 0
+  };
+}
+function parseSceneProse(sceneContent) {
+  const sections = [];
+  const frontmatterMatch = sceneContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = sceneContent.substring(contentStart).trim();
+  const sceneHeaderMatch = bodyContent.match(/^(###\s+Scene:\s*.+)$/m);
+  const beatHeaderMatch = bodyContent.match(/^(#{3,4}\s+Beat:\s*.+)$/m);
+  let proseStartIndex = -1;
+  if (sceneHeaderMatch) {
+    proseStartIndex = bodyContent.indexOf(sceneHeaderMatch[0]);
+  } else if (beatHeaderMatch) {
+    proseStartIndex = bodyContent.indexOf(beatHeaderMatch[0]);
+  } else {
+    const beatsListEnd = bodyContent.match(/##\s+Beats\s*\n+[\s\S]*?(?=\n###|\n####|\n[^#\-\+>\s]|$)/);
+    if (beatsListEnd) {
+      proseStartIndex = bodyContent.indexOf(beatsListEnd[0]) + beatsListEnd[0].length;
+    } else {
+      const firstNonListContent = bodyContent.match(/(?:^|\n)([^#\-\+>\s\n].+)/);
+      if (firstNonListContent) {
+        proseStartIndex = bodyContent.indexOf(firstNonListContent[1]);
+      }
+    }
+  }
+  if (proseStartIndex === -1) {
+    return { sections: [] };
+  }
+  const proseContent = bodyContent.substring(proseStartIndex);
+  const lines = proseContent.split(/\n/);
+  let order = 0;
+  let currentBeat = null;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    if (trimmedLine.startsWith(">")) {
+      continue;
+    }
+    const sceneMatch = trimmedLine.match(/^###\s+Scene:\s*(.+)$/i);
+    if (sceneMatch) {
+      const sceneText = sceneMatch[1].trim();
+      const parsedScene = parseSceneHeaderText(sceneText);
+      parsedScene.originalOrder = order++;
+      sections.push({
+        type: "scene",
+        scene: parsedScene,
+        originalOrder: parsedScene.originalOrder
+      });
+      currentBeat = null;
+      continue;
+    }
+    const beatMatch = trimmedLine.match(/^#{3,4}\s+Beat:\s*(.+)$/i);
+    if (beatMatch) {
+      const beatText = beatMatch[1].trim();
+      currentBeat = parseBeatHeaderText(beatText);
+      currentBeat.originalOrder = order++;
+      sections.push({
+        type: "beat",
+        beat: currentBeat,
+        originalOrder: currentBeat.originalOrder
+      });
+      continue;
+    }
+    if (trimmedLine.startsWith("#")) {
+      continue;
+    }
+    if (trimmedLine.match(/^[+-]\s+/)) {
+      continue;
+    }
+    const proseMatch = trimmedLine.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
+    if (proseMatch) {
+      const linkName = proseMatch[1].trim();
+      const content = proseMatch[2].trim();
+      const paragraph = {
+        content,
+        linkName,
+        originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
+      });
+      continue;
+    }
+    if (trimmedLine.length > 0) {
+      const paragraph = {
+        content: trimmedLine,
+        linkName: null,
+        originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
+      });
+    }
+  }
+  return { sections };
+}
+function parseBeatProse(beatContent) {
+  const sections = [];
+  const frontmatterMatch = beatContent.match(/^---\n([\s\S]*?)\n---/);
+  const contentStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+  const bodyContent = beatContent.substring(contentStart).trim();
+  const beatHeaderMatch = bodyContent.match(/^(##\s+Beat:\s*.+)$/m);
+  let proseStartIndex = -1;
+  if (beatHeaderMatch) {
+    proseStartIndex = bodyContent.indexOf(beatHeaderMatch[0]);
+  }
+  if (proseStartIndex === -1) {
+    return { sections: [] };
+  }
+  const proseContent = bodyContent.substring(proseStartIndex);
+  const lines = proseContent.split(/\n/);
+  let order = 0;
+  for (const line of lines) {
+    const trimmedLine = line.trim();
+    if (!trimmedLine) {
+      continue;
+    }
+    if (trimmedLine.startsWith(">")) {
+      continue;
+    }
+    const beatMatch = trimmedLine.match(/^##\s+Beat:\s*(.+)$/i);
+    if (beatMatch) {
+      continue;
+    }
+    if (trimmedLine.startsWith("#")) {
+      continue;
+    }
+    if (trimmedLine.match(/^[+-]\s+/)) {
+      continue;
+    }
+    const proseMatch = trimmedLine.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
+    if (proseMatch) {
+      const linkName = proseMatch[1].trim();
+      const content = proseMatch[2].trim();
+      const paragraph = {
+        content,
+        linkName,
+        originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
+      });
+      continue;
+    }
+    if (trimmedLine.length > 0) {
+      const paragraph = {
+        content: trimmedLine,
+        linkName: null,
+        originalOrder: order++
+      };
+      sections.push({
+        type: "prose",
+        prose: paragraph,
+        originalOrder: paragraph.originalOrder
+      });
+    }
+  }
+  return { sections };
 }
 
 // src/views/modals/ConflictModal.ts
@@ -1544,14 +2575,25 @@ var SyncService = class {
       const folderPath = this.fileManager.getStoryFolderPath(
         storyData.story.title
       );
-      await this.fileManager.writeStoryMetadata(
-        storyData.story,
-        folderPath
-      );
-      const proseBlocksFolderPath = `${folderPath}/prose-blocks`;
-      await this.fileManager.ensureFolderExists(proseBlocksFolderPath);
-      const chaptersFolderPath = `${folderPath}/chapters`;
-      await this.fileManager.ensureFolderExists(chaptersFolderPath);
+      const allScenes = await this.apiClient.getScenesByStory(storyId);
+      const orphanScenes = [];
+      for (const scene of allScenes) {
+        if (!scene.chapter_id) {
+          const beats = await this.apiClient.getBeats(scene.id);
+          orphanScenes.push({ scene, beats });
+        }
+      }
+      orphanScenes.sort((a, b) => a.scene.order_num - b.scene.order_num);
+      const allBeats = await this.apiClient.getBeatsByStory(storyId);
+      const orphanBeats = [];
+      const sceneIdSet = new Set(allScenes.map((s) => s.id));
+      for (const beat of allBeats) {
+        if (!beat.scene_id || !sceneIdSet.has(beat.scene_id)) {
+          orphanBeats.push(beat);
+        }
+      }
+      orphanBeats.sort((a, b) => a.order_num - b.order_num);
+      const chapterProseData = /* @__PURE__ */ new Map();
       for (const chapterWithContent of storyData.chapters) {
         const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
         const proseBlockRefs = [];
@@ -1559,6 +2601,24 @@ var SyncService = class {
           const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
           proseBlockRefs.push(...refs);
         }
+        chapterProseData.set(chapterWithContent.chapter.id, { proseBlocks, proseBlockRefs });
+      }
+      await this.fileManager.writeStoryMetadata(
+        storyData.story,
+        folderPath,
+        storyData.chapters,
+        orphanScenes,
+        orphanBeats,
+        chapterProseData
+      );
+      const proseBlocksFolderPath = `${folderPath}/prose-blocks`;
+      await this.fileManager.ensureFolderExists(proseBlocksFolderPath);
+      const chaptersFolderPath = `${folderPath}/chapters`;
+      await this.fileManager.ensureFolderExists(chaptersFolderPath);
+      for (const chapterWithContent of storyData.chapters) {
+        const proseData = chapterProseData.get(chapterWithContent.chapter.id);
+        const proseBlocks = (proseData == null ? void 0 : proseData.proseBlocks) || [];
+        const proseBlockRefs = (proseData == null ? void 0 : proseData.proseBlockRefs) || [];
         for (const proseBlock of proseBlocks) {
           const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
           const proseBlockFilePath = `${proseBlocksFolderPath}/${proseBlockFileName}`;
@@ -1575,29 +2635,64 @@ var SyncService = class {
           chapterFilePath,
           storyData.story.title,
           proseBlocks,
-          proseBlockRefs
+          proseBlockRefs,
+          orphanScenes
+          // Include orphan scenes for easy association
         );
-        const scenesFolderPath = `${folderPath}/scenes`;
-        await this.fileManager.ensureFolderExists(scenesFolderPath);
+        const scenesFolderPath2 = `${folderPath}/scenes`;
+        await this.fileManager.ensureFolderExists(scenesFolderPath2);
         for (const { scene, beats } of chapterWithContent.scenes) {
           const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
           const sceneFileName = this.fileManager.generateSceneFileName(scene);
-          const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
+          const sceneFilePath = `${scenesFolderPath2}/${sceneFileName}`;
           await this.fileManager.writeSceneFile(
             { scene, beats },
             sceneFilePath,
             storyData.story.title,
-            sceneProseBlocks
+            sceneProseBlocks,
+            orphanBeats
+            // Include orphan beats for easy association
           );
-          const beatsFolderPath = `${folderPath}/beats`;
-          await this.fileManager.ensureFolderExists(beatsFolderPath);
+          const beatsFolderPath2 = `${folderPath}/beats`;
+          await this.fileManager.ensureFolderExists(beatsFolderPath2);
           for (const beat of beats) {
             const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
             const beatFileName = this.fileManager.generateBeatFileName(beat);
-            const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
-            await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title);
+            const beatFilePath = `${beatsFolderPath2}/${beatFileName}`;
+            await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
           }
         }
+      }
+      const scenesFolderPath = `${folderPath}/scenes`;
+      await this.fileManager.ensureFolderExists(scenesFolderPath);
+      for (const { scene, beats } of orphanScenes) {
+        const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+        const sceneFileName = this.fileManager.generateSceneFileName(scene);
+        const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
+        await this.fileManager.writeSceneFile(
+          { scene, beats },
+          sceneFilePath,
+          storyData.story.title,
+          sceneProseBlocks,
+          orphanBeats
+          // Include orphan beats for easy association
+        );
+        const beatsFolderPath2 = `${folderPath}/beats`;
+        await this.fileManager.ensureFolderExists(beatsFolderPath2);
+        for (const beat of beats) {
+          const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+          const beatFileName = this.fileManager.generateBeatFileName(beat);
+          const beatFilePath = `${beatsFolderPath2}/${beatFileName}`;
+          await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
+        }
+      }
+      const beatsFolderPath = `${folderPath}/beats`;
+      await this.fileManager.ensureFolderExists(beatsFolderPath);
+      for (const beat of orphanBeats) {
+        const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+        const beatFileName = this.fileManager.generateBeatFileName(beat);
+        const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
+        await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
       }
       const existingMetadata = await this.fileManager.readStoryMetadata(folderPath).catch(() => null);
       if (existingMetadata && existingMetadata.frontmatter.version !== void 0 && existingMetadata.frontmatter.version !== storyData.story.version_number) {
@@ -1617,7 +2712,7 @@ var SyncService = class {
   // Sync all previous versions of a story
   async syncVersionHistory(rootStoryId, storyFolderPath) {
     try {
-      const allStories = await this.apiClient.listStories(this.settings.tenantId);
+      const allStories = await this.apiClient.listStories();
       const versions = allStories.filter((s) => s.root_story_id === rootStoryId);
       versions.sort((a, b) => a.version_number - b.version_number);
       const versionsPath = `${storyFolderPath}/versions`;
@@ -1687,9 +2782,10 @@ var SyncService = class {
             const versionBeatsPath = `${versionFolderPath}/beats`;
             await this.fileManager.ensureFolderExists(versionBeatsPath);
             for (const beat of beats) {
+              const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
               const beatFileName = this.fileManager.generateBeatFileName(beat);
               const beatFilePath = `${versionBeatsPath}/${beatFileName}`;
-              await this.fileManager.writeBeatFile(beat, beatFilePath, versionData.story.title);
+              await this.fileManager.writeBeatFile(beat, beatFilePath, versionData.story.title, beatProseBlocks);
             }
           }
         }
@@ -1704,7 +2800,7 @@ var SyncService = class {
     if (!this.settings.tenantId) {
       throw new Error("Tenant ID is required");
     }
-    const stories = await this.apiClient.listStories(this.settings.tenantId);
+    const stories = await this.apiClient.listStories();
     for (const story of stories) {
       try {
         await this.pullStory(story.id);
@@ -1722,6 +2818,27 @@ var SyncService = class {
         throw new Error("Story metadata missing ID");
       }
       const storyId = storyFrontmatter.id;
+      const storyFilePath = `${folderPath}/story.md`;
+      const storyFile = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
+      if (storyFile instanceof import_obsidian7.TFile) {
+        const storyContent = await this.fileManager.getVault().read(storyFile);
+        const chapterList = parseChapterList(storyContent);
+        if (chapterList.items.length > 0) {
+          await this.processChapterList(chapterList, storyId);
+        }
+        const orphanScenesList = parseOrphanScenesList(storyContent);
+        if (orphanScenesList.items.length > 0) {
+          await this.processOrphanScenesList(orphanScenesList, storyId);
+        }
+        const orphanBeatsList = parseOrphanBeatsList(storyContent);
+        if (orphanBeatsList.items.length > 0) {
+          await this.processOrphanBeatsList(orphanBeatsList, storyId);
+        }
+        const storyProse = parseStoryProse(storyContent);
+        if (storyProse.sections.length > 0) {
+          await this.pushStoryProseBlocks(storyFilePath, folderPath, storyId);
+        }
+      }
       await this.apiClient.updateStory(
         storyId,
         storyFrontmatter.title,
@@ -1734,7 +2851,24 @@ var SyncService = class {
       for (const chapterFilePath of chapterFiles) {
         await this.pushChapterProseBlocks(chapterFilePath, folderPath);
       }
+      const sceneFiles = await this.fileManager.listStorySceneFiles(folderPath);
+      for (const sceneFilePath of sceneFiles) {
+        await this.pushSceneBeats(sceneFilePath, storyId);
+        await this.pushSceneProseBlocks(sceneFilePath, folderPath);
+      }
+      const beatFiles = await this.fileManager.listStoryBeatFiles(folderPath);
+      for (const beatFilePath of beatFiles) {
+        await this.pushBeatProseBlocks(beatFilePath, folderPath);
+      }
       new import_obsidian7.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
+      try {
+        new import_obsidian7.Notice(`Syncing story "${storyFrontmatter.title}" from service...`);
+        await this.pullStory(storyId);
+        new import_obsidian7.Notice(`Story "${storyFrontmatter.title}" synced successfully`);
+      } catch (pullErr) {
+        const pullErrorMessage = pullErr instanceof Error ? pullErr.message : "Failed to sync story after push";
+        new import_obsidian7.Notice(`Warning: ${pullErrorMessage}`, 5e3);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to push story";
       new import_obsidian7.Notice(`Error pushing story: ${errorMessage}`, 5e3);
@@ -1755,7 +2889,8 @@ var SyncService = class {
     const chapterId = frontmatter.id;
     const storyId = frontmatter.story_id;
     const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
-    const hierarchical = parseHierarchicalProse(chapterContent);
+    const sceneBeatList = parseSceneBeatList(chapterContent);
+    await this.processSceneBeatList(sceneBeatList, chapterId, storyId);
     const remoteProseBlocks = await this.apiClient.getProseBlocks(chapterId);
     const remoteProseBlocksMap = /* @__PURE__ */ new Map();
     for (const pb of remoteProseBlocks) {
@@ -1781,6 +2916,7 @@ var SyncService = class {
         beatIdMap.set(beat.id, beat);
       }
     }
+    const hierarchical = parseHierarchicalProse(chapterContent);
     const updatedSections = [];
     let currentScene = null;
     let currentBeat = null;
@@ -1869,8 +3005,31 @@ var SyncService = class {
         if (paragraph.linkName) {
           const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
           localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+          if (!localProseBlock) {
+            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          }
           if (localProseBlock) {
             remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          } else {
+            const normalizedContent = paragraph.content.trim();
+            for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+              if (remotePB.content.trim() === normalizedContent) {
+                remoteProseBlock = remotePB;
+                break;
+              }
+            }
+          }
+        } else {
+          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const normalizedContent = paragraph.content.trim();
+          for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+            if (remotePB.content.trim() === normalizedContent) {
+              remoteProseBlock = remotePB;
+              if (!localProseBlock) {
+                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              }
+              break;
+            }
           }
         }
         const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
@@ -1896,15 +3055,25 @@ var SyncService = class {
             break;
           }
           case "unchanged": {
-            if (localProseBlock && localProseBlock.order_num !== proseOrderNum) {
-              finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
-                order_num: proseOrderNum++
-              });
+            if (!localProseBlock && remoteProseBlock) {
+              finalProseBlock = remoteProseBlock;
               const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
               const filePath = `${proseBlocksFolderPath}/${fileName}`;
               await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            } else if (localProseBlock) {
+              if (localProseBlock.order_num !== proseOrderNum) {
+                finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+                  order_num: proseOrderNum++
+                });
+                const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+                const filePath = `${proseBlocksFolderPath}/${fileName}`;
+                await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+              } else {
+                finalProseBlock = localProseBlock;
+                proseOrderNum++;
+              }
             } else {
-              finalProseBlock = localProseBlock;
+              finalProseBlock = remoteProseBlock;
               proseOrderNum++;
             }
             if (finalProseBlock) {
@@ -1918,8 +3087,13 @@ var SyncService = class {
                 await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
               }
             }
-            const linkName = paragraph.linkName;
-            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            if (paragraph.linkName) {
+              updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
+            } else {
+              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const linkName = fileName.replace(/\.md$/, "");
+              updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            }
             break;
           }
           case "local_modified": {
@@ -2002,7 +3176,1337 @@ var SyncService = class {
         }
       }
     }
-    await this.updateChapterProseSectionHierarchical(chapterContent, updatedSections, file);
+    await this.updateChapterFile(chapterContent, updatedSections, file, frontmatter, existingScenes, beatMap, remoteProseBlocks, chapterId);
+  }
+  // Update chapter file with both scene/beat list and chapter content
+  async updateChapterFile(originalContent, updatedSections, file, frontmatter, scenes, beatMap, proseBlocks, chapterId) {
+    const allProseBlockRefs = [];
+    for (const proseBlock of proseBlocks) {
+      const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
+      allProseBlockRefs.push(...refs);
+    }
+    const proseRefsByScene = /* @__PURE__ */ new Map();
+    const proseRefsByBeat = /* @__PURE__ */ new Map();
+    for (const ref of allProseBlockRefs) {
+      if (ref.entity_type === "scene") {
+        if (!proseRefsByScene.has(ref.entity_id)) {
+          proseRefsByScene.set(ref.entity_id, []);
+        }
+        proseRefsByScene.get(ref.entity_id).push(ref);
+      } else if (ref.entity_type === "beat") {
+        if (!proseRefsByBeat.has(ref.entity_id)) {
+          proseRefsByBeat.set(ref.entity_id, []);
+        }
+        proseRefsByBeat.get(ref.entity_id).push(ref);
+      }
+    }
+    const sceneBeatListItems = [];
+    for (const scene of scenes.sort((a, b) => a.order_num - b.order_num)) {
+      const sceneFileName = this.fileManager.generateSceneFileName(scene);
+      const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+      const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
+      const sceneProseRefs = proseRefsByScene.get(scene.id) || [];
+      const sceneProseBlockIds = new Set(sceneProseRefs.map((r) => r.prose_block_id));
+      const hasSceneProse = Array.from(sceneProseBlockIds).some((proseBlockId) => {
+        const blockRefs = allProseBlockRefs.filter((r) => r.prose_block_id === proseBlockId);
+        return !blockRefs.some((r) => r.entity_type === "beat");
+      });
+      const sceneMarker = hasSceneProse ? "+" : "-";
+      sceneBeatListItems.push(`${sceneMarker} [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]`);
+      const sceneBeats = [];
+      for (const [linkName, beat] of beatMap.entries()) {
+        if (beat.scene_id === scene.id) {
+          sceneBeats.push(beat);
+        }
+      }
+      for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
+        const beatFileName = this.fileManager.generateBeatFileName(beat);
+        const beatLinkName = beatFileName.replace(/\.md$/, "");
+        const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+        const beatProseRefs = proseRefsByBeat.get(beat.id) || [];
+        const hasBeatProse = beatProseRefs.length > 0;
+        const beatMarker = hasBeatProse ? "+" : "-";
+        sceneBeatListItems.push(`	${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]`);
+      }
+    }
+    const frontmatterMatch = originalContent.match(/^---\n([\s\S]*?)\n---/);
+    const frontmatterText = frontmatterMatch ? frontmatterMatch[0] : "";
+    const bodyStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
+    const bodyContent = originalContent.substring(bodyStart).trim();
+    const chapterNumber = frontmatter.number || "1";
+    const chapterTitle = frontmatter.title || "Untitled";
+    const listSectionMatch = bodyContent.match(/([\s\S]*?##\s+Scenes\s+&\s+Beats\s*\n+)([\s\S]*?)(?=\n##|$)/);
+    const updatedListSection = `## Scenes & Beats
+
+${sceneBeatListItems.join("\n")}
+
+`;
+    let updatedBody;
+    if (listSectionMatch) {
+      const beforeList = listSectionMatch[1];
+      const afterList = bodyContent.substring(listSectionMatch.index + listSectionMatch[0].length);
+      updatedBody = `${beforeList}${updatedListSection}${afterList}`;
+    } else {
+      const titleMatch = bodyContent.match(/(#\s+[^\n]+\n+)([\s\S]*)/);
+      if (titleMatch) {
+        updatedBody = `${titleMatch[1]}${updatedListSection}${titleMatch[2]}`;
+      } else {
+        updatedBody = `${updatedListSection}${bodyContent}`;
+      }
+    }
+    const chapterHeaderPattern = `##\\s+Chapter\\s+${chapterNumber}:\\s+[^\\n]+`;
+    const chapterSectionMatch = updatedBody.match(new RegExp(`([\\s\\S]*?${chapterHeaderPattern}\\s*\\n+)([\\s\\S]*?)(?=\\n##\\s+Chapter\\s+\\d+:|$)`, "i"));
+    if (!chapterSectionMatch) {
+      const newChapterSection = `
+
+## Chapter ${chapterNumber}: ${chapterTitle}
+
+${updatedSections.join("\n\n")}
+
+`;
+      updatedBody = `${updatedBody}${newChapterSection}`;
+    } else {
+      const beforeChapter = chapterSectionMatch[1];
+      const afterChapter = updatedBody.substring(chapterSectionMatch.index + chapterSectionMatch[0].length);
+      const newChapterContent = updatedSections.join("\n\n");
+      updatedBody = `${beforeChapter}${newChapterContent}
+
+${afterChapter}`;
+    }
+    const updatedContent = `${frontmatterText}
+${updatedBody}`;
+    await this.fileManager.getVault().modify(file, updatedContent);
+  }
+  // Process the "## Chapters, Scenes & Beats" list and update order
+  async processChapterList(list, storyId) {
+    const existingChapters = await this.apiClient.getChapters(storyId);
+    const chapterMap = /* @__PURE__ */ new Map();
+    const chapterIdMap = /* @__PURE__ */ new Map();
+    for (const chapter of existingChapters) {
+      const fileName = `Chapter-${chapter.number}.md`;
+      const linkName = fileName.replace(/\.md$/, "");
+      chapterMap.set(linkName, chapter);
+      chapterIdMap.set(chapter.id, chapter);
+    }
+    let currentChapter = null;
+    let currentScene = null;
+    let chapterOrderNum = 1;
+    const sceneOrderNums = /* @__PURE__ */ new Map();
+    const beatOrderNums = /* @__PURE__ */ new Map();
+    for (const item of list.items) {
+      if (item.type === "chapter") {
+        let title;
+        let chapterNumber = null;
+        const chapterMatch = item.displayText.match(/Chapter\s+(\d+):\s*(.+)/);
+        if (chapterMatch) {
+          chapterNumber = parseInt(chapterMatch[1], 10);
+          title = chapterMatch[2].trim();
+        } else {
+          title = item.displayText.trim();
+        }
+        currentScene = null;
+        sceneOrderNums.set("current", 1);
+        if (item.linkName) {
+          currentChapter = chapterMap.get(item.linkName) || null;
+          if (!currentChapter) {
+            currentChapter = chapterIdMap.get(item.linkName) || null;
+          }
+          if (currentChapter) {
+            const needsOrderUpdate = currentChapter.number !== chapterOrderNum;
+            const needsTitleUpdate = title !== currentChapter.title;
+            if (needsOrderUpdate || needsTitleUpdate) {
+              currentChapter = await this.apiClient.updateChapter(currentChapter.id, {
+                number: chapterOrderNum,
+                title: needsTitleUpdate ? title : void 0
+              });
+              const fileName = `Chapter-${currentChapter.number}.md`;
+              const linkName = fileName.replace(/\.md$/, "");
+              chapterMap.set(linkName, currentChapter);
+              chapterIdMap.set(currentChapter.id, currentChapter);
+            }
+          }
+        } else {
+          if (title) {
+            currentChapter = await this.apiClient.createChapter(storyId, {
+              number: chapterOrderNum,
+              title,
+              status: "draft"
+            });
+            const fileName = `Chapter-${currentChapter.number}.md`;
+            const linkName = fileName.replace(/\.md$/, "");
+            chapterMap.set(linkName, currentChapter);
+            chapterIdMap.set(currentChapter.id, currentChapter);
+          }
+        }
+        if (currentChapter) {
+          sceneOrderNums.set(currentChapter.id, 1);
+        }
+        chapterOrderNum++;
+      } else if (item.type === "scene" && currentChapter) {
+        let goal;
+        let timeRef = "";
+        const sceneMatch = item.displayText.match(/Scene\s+\d+:\s*(.+)/);
+        if (sceneMatch) {
+          const sceneText = sceneMatch[1].trim();
+          const parts = sceneText.split(/\s*-\s*/);
+          goal = parts[0].trim();
+          timeRef = parts.length > 1 ? parts.slice(1).join(" - ").trim() : "";
+        } else {
+          const parts = item.displayText.split(/\s*-\s*/);
+          goal = parts[0].trim();
+          timeRef = parts.length > 1 ? parts.slice(1).join(" - ").trim() : "";
+        }
+        const currentSceneOrderNum = sceneOrderNums.get(currentChapter.id) || 1;
+        currentScene = null;
+        if (item.linkName) {
+          const existingScenes = await this.apiClient.getScenes(currentChapter.id);
+          const sceneMap = /* @__PURE__ */ new Map();
+          const sceneIdMap = /* @__PURE__ */ new Map();
+          for (const scene of existingScenes) {
+            const fileName = this.fileManager.generateSceneFileName(scene);
+            const linkName = fileName.replace(/\.md$/, "");
+            sceneMap.set(linkName, scene);
+            sceneIdMap.set(scene.id, scene);
+          }
+          currentScene = sceneMap.get(item.linkName) || null;
+          if (!currentScene) {
+            currentScene = sceneIdMap.get(item.linkName) || null;
+          }
+          if (currentScene) {
+            const needsOrderUpdate = currentScene.order_num !== currentSceneOrderNum;
+            const needsContentUpdate = goal !== currentScene.goal || timeRef !== currentScene.time_ref;
+            const needsChapterUpdate = currentScene.chapter_id !== currentChapter.id;
+            if (needsOrderUpdate || needsContentUpdate || needsChapterUpdate) {
+              currentScene = await this.apiClient.updateScene(currentScene.id, {
+                goal,
+                time_ref: timeRef,
+                order_num: currentSceneOrderNum,
+                chapter_id: currentChapter.id
+              });
+            }
+            const existingBeats = await this.apiClient.getBeats(currentScene.id);
+            if (existingBeats.length === 0) {
+              beatOrderNums.set(currentScene.id, 1);
+            } else {
+              const maxOrderNum = Math.max(...existingBeats.map((b) => b.order_num));
+              beatOrderNums.set(currentScene.id, maxOrderNum + 1);
+            }
+          }
+        } else {
+          currentScene = await this.apiClient.createScene({
+            story_id: storyId,
+            chapter_id: currentChapter.id,
+            order_num: currentSceneOrderNum,
+            goal,
+            time_ref: timeRef
+          });
+          beatOrderNums.set(currentScene.id, 1);
+        }
+        sceneOrderNums.set(currentChapter.id, currentSceneOrderNum + 1);
+      } else if (item.type === "beat" && currentScene) {
+        let intent;
+        let outcome = "";
+        const beatMatch = item.displayText.match(/Beat\s+\d+:\s*(.+)/);
+        if (beatMatch) {
+          const beatText = beatMatch[1].trim();
+          const parts = beatText.split(/\s*->\s*/);
+          intent = parts[0].trim();
+          outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+        } else {
+          const parts = item.displayText.split(/\s*->\s*/);
+          intent = parts[0].trim();
+          outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+        }
+        const currentBeatOrderNum = beatOrderNums.get(currentScene.id) || 1;
+        if (item.linkName) {
+          const existingBeats = await this.apiClient.getBeats(currentScene.id);
+          const beatMap = /* @__PURE__ */ new Map();
+          const beatIdMap = /* @__PURE__ */ new Map();
+          for (const beat of existingBeats) {
+            const fileName = this.fileManager.generateBeatFileName(beat);
+            const linkName = fileName.replace(/\.md$/, "");
+            beatMap.set(linkName, beat);
+            beatIdMap.set(beat.id, beat);
+          }
+          let currentBeat = beatMap.get(item.linkName) || null;
+          if (!currentBeat) {
+            currentBeat = beatIdMap.get(item.linkName) || null;
+          }
+          if (currentBeat) {
+            const needsOrderUpdate = currentBeat.order_num !== currentBeatOrderNum;
+            const needsContentUpdate = intent !== currentBeat.intent || outcome !== currentBeat.outcome;
+            const needsSceneUpdate = currentBeat.scene_id !== currentScene.id;
+            if (needsOrderUpdate || needsContentUpdate || needsSceneUpdate) {
+              currentBeat = await this.apiClient.updateBeat(currentBeat.id, {
+                intent,
+                outcome,
+                order_num: currentBeatOrderNum,
+                scene_id: currentScene.id
+              });
+            }
+          }
+        } else {
+          await this.apiClient.createBeat({
+            scene_id: currentScene.id,
+            order_num: currentBeatOrderNum,
+            type: "setup",
+            // Default type
+            intent,
+            outcome
+          });
+        }
+        beatOrderNums.set(currentScene.id, currentBeatOrderNum + 1);
+      }
+    }
+  }
+  // Process the "## Beats" list from a scene file and update beat order
+  async pushSceneBeats(sceneFilePath, storyId) {
+    const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
+    if (!(file instanceof import_obsidian7.TFile)) {
+      return;
+    }
+    const sceneContent = await this.fileManager.getVault().read(file);
+    const frontmatter = this.fileManager.parseFrontmatter(sceneContent);
+    if (!frontmatter.id) {
+      return;
+    }
+    const sceneId = frontmatter.id;
+    const beatList = parseBeatList(sceneContent);
+    if (beatList.items.length === 0) {
+      return;
+    }
+    const existingBeats = await this.apiClient.getBeats(sceneId);
+    const beatMap = /* @__PURE__ */ new Map();
+    const beatIdMap = /* @__PURE__ */ new Map();
+    for (const beat of existingBeats) {
+      const fileName = this.fileManager.generateBeatFileName(beat);
+      const linkName = fileName.replace(/\.md$/, "");
+      beatMap.set(linkName, beat);
+      beatIdMap.set(beat.id, beat);
+    }
+    let beatOrderNum = 1;
+    for (const item of beatList.items) {
+      let intent;
+      let outcome = "";
+      const beatMatch = item.displayText.match(/Beat\s+\d+:\s*(.+)/);
+      if (beatMatch) {
+        const beatText = beatMatch[1].trim();
+        const parts = beatText.split(/\s*->\s*/);
+        intent = parts[0].trim();
+        outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+      } else {
+        const parts = item.displayText.split(/\s*->\s*/);
+        intent = parts[0].trim();
+        outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+      }
+      if (item.linkName) {
+        let currentBeat = beatMap.get(item.linkName) || null;
+        if (!currentBeat) {
+          currentBeat = beatIdMap.get(item.linkName) || null;
+        }
+        if (currentBeat) {
+          const needsOrderUpdate = currentBeat.order_num !== beatOrderNum;
+          const needsContentUpdate = intent !== currentBeat.intent || outcome !== currentBeat.outcome;
+          if (needsOrderUpdate || needsContentUpdate) {
+            currentBeat = await this.apiClient.updateBeat(currentBeat.id, {
+              intent,
+              outcome,
+              order_num: beatOrderNum
+            });
+          }
+        }
+      } else {
+        await this.apiClient.createBeat({
+          scene_id: sceneId,
+          order_num: beatOrderNum,
+          type: "setup",
+          // Default type
+          intent,
+          outcome
+        });
+      }
+      beatOrderNum++;
+    }
+  }
+  // Push prose blocks from a story file with hierarchical structure
+  // Format: # Story: title, ## Chapter: title, ### Scene: title, #### Beat: title
+  async pushStoryProseBlocks(storyFilePath, storyFolderPath, storyId) {
+    const file = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
+    if (!(file instanceof import_obsidian7.TFile)) {
+      throw new Error(`Story file not found: ${storyFilePath}`);
+    }
+    const storyContent = await this.fileManager.getVault().read(file);
+    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const storyProse = parseStoryProse(storyContent);
+    if (storyProse.sections.length === 0) {
+      return;
+    }
+    const existingChapters = await this.apiClient.getChapters(storyId);
+    const chapterByTitle = /* @__PURE__ */ new Map();
+    for (const ch of existingChapters) {
+      chapterByTitle.set(ch.title.toLowerCase(), ch);
+    }
+    let currentChapter = null;
+    let currentScene = null;
+    let currentBeat = null;
+    let proseOrderNum = 1;
+    const sceneMap = /* @__PURE__ */ new Map();
+    const beatMap = /* @__PURE__ */ new Map();
+    for (const section of storyProse.sections) {
+      if (section.type === "scene" && section.scene) {
+        const { scene: parsedScene } = section;
+        if (!currentChapter) {
+          currentChapter = chapterByTitle.get("story prose") || null;
+          if (!currentChapter) {
+            currentChapter = await this.apiClient.createChapter(storyId, {
+              number: 9999,
+              title: "Story Prose",
+              status: "draft"
+            });
+            chapterByTitle.set("story prose", currentChapter);
+          }
+        }
+        if (parsedScene.linkName) {
+          currentScene = sceneMap.get(parsedScene.linkName) || null;
+        }
+        if (!currentScene && parsedScene.goal) {
+          const allScenes = await this.apiClient.getScenes(currentChapter.id);
+          currentScene = allScenes.find((s) => s.goal === parsedScene.goal) || null;
+        }
+        if (!currentScene) {
+          const existingScenes = await this.apiClient.getScenes(currentChapter.id);
+          const sceneOrderNum = existingScenes.length > 0 ? Math.max(...existingScenes.map((s) => s.order_num)) + 1 : 1;
+          currentScene = await this.apiClient.createScene({
+            story_id: storyId,
+            chapter_id: currentChapter.id,
+            order_num: sceneOrderNum,
+            goal: parsedScene.goal,
+            time_ref: parsedScene.timeRef
+          });
+        }
+        if (currentScene) {
+          const sceneFileName = this.fileManager.generateSceneFileName(currentScene);
+          const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          sceneMap.set(sceneLinkName, currentScene);
+        }
+        currentBeat = null;
+        proseOrderNum = 1;
+      } else if (section.type === "beat" && section.beat) {
+        const { beat: parsedBeat } = section;
+        if (!currentScene) {
+          continue;
+        }
+        if (parsedBeat.linkName) {
+          currentBeat = beatMap.get(parsedBeat.linkName) || null;
+        }
+        if (!currentBeat && parsedBeat.intent) {
+          const allBeats = await this.apiClient.getBeats(currentScene.id);
+          currentBeat = allBeats.find((b) => b.intent === parsedBeat.intent) || null;
+        }
+        if (!currentBeat) {
+          const existingBeats = await this.apiClient.getBeats(currentScene.id);
+          const beatOrderNum = existingBeats.length > 0 ? Math.max(...existingBeats.map((b) => b.order_num)) + 1 : 1;
+          currentBeat = await this.apiClient.createBeat({
+            scene_id: currentScene.id,
+            order_num: beatOrderNum,
+            type: "setup",
+            intent: parsedBeat.intent,
+            outcome: parsedBeat.outcome
+          });
+        }
+        if (currentBeat) {
+          const beatFileName = this.fileManager.generateBeatFileName(currentBeat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          beatMap.set(beatLinkName, currentBeat);
+        }
+      } else if (section.type === "prose" && section.prose) {
+        const { prose: paragraph } = section;
+        if (!currentChapter) {
+          currentChapter = chapterByTitle.get("story prose") || null;
+          if (!currentChapter) {
+            currentChapter = await this.apiClient.createChapter(storyId, {
+              number: 9999,
+              title: "Story Prose",
+              status: "draft"
+            });
+            chapterByTitle.set("story prose", currentChapter);
+          }
+        }
+        const remoteProseBlocks = await this.apiClient.getProseBlocks(currentChapter.id);
+        const remoteProseBlocksMap = /* @__PURE__ */ new Map();
+        for (const pb of remoteProseBlocks) {
+          remoteProseBlocksMap.set(pb.id, pb);
+        }
+        let localProseBlock = null;
+        let remoteProseBlock = null;
+        if (paragraph.linkName) {
+          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
+          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+          if (!localProseBlock) {
+            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          }
+          if (localProseBlock) {
+            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          } else {
+            const normalizedContent = paragraph.content.trim();
+            for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+              if (remotePB.content.trim() === normalizedContent) {
+                remoteProseBlock = remotePB;
+                break;
+              }
+            }
+          }
+        } else {
+          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const normalizedContent = paragraph.content.trim();
+          for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+            if (remotePB.content.trim() === normalizedContent) {
+              remoteProseBlock = remotePB;
+              if (!localProseBlock) {
+                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              }
+              break;
+            }
+          }
+        }
+        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+        let finalProseBlock;
+        switch (status) {
+          case "new": {
+            finalProseBlock = await this.apiClient.createProseBlock(currentChapter.id, {
+              order_num: proseOrderNum++,
+              kind: "final",
+              content: paragraph.content
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            if (currentScene) {
+              await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+            }
+            if (currentBeat) {
+              await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+            }
+            break;
+          }
+          case "unchanged": {
+            if (!localProseBlock && remoteProseBlock) {
+              finalProseBlock = remoteProseBlock;
+              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const filePath = `${proseBlocksFolderPath}/${fileName}`;
+              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            } else if (localProseBlock) {
+              finalProseBlock = localProseBlock;
+              proseOrderNum++;
+            } else {
+              finalProseBlock = remoteProseBlock;
+              proseOrderNum++;
+            }
+            break;
+          }
+          case "local_modified": {
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: paragraph.content,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            break;
+          }
+          case "remote_modified": {
+            finalProseBlock = remoteProseBlock;
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            proseOrderNum++;
+            break;
+          }
+          case "conflict": {
+            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
+            let resolvedContent = resolution.resolution === "local" ? paragraph.content : resolution.resolution === "remote" ? remoteProseBlock.content : resolution.mergedContent || paragraph.content;
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: resolvedContent,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            break;
+          }
+        }
+      }
+    }
+  }
+  // Push prose blocks from a scene file (scene-level prose, not inside chapters)
+  async pushSceneProseBlocks(sceneFilePath, storyFolderPath) {
+    const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
+    if (!(file instanceof import_obsidian7.TFile)) {
+      return;
+    }
+    const sceneContent = await this.fileManager.getVault().read(file);
+    const frontmatter = this.fileManager.parseFrontmatter(sceneContent);
+    if (!frontmatter.id || !frontmatter.story_id) {
+      return;
+    }
+    const sceneId = frontmatter.id;
+    const storyId = frontmatter.story_id;
+    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const sceneProse = parseSceneProse(sceneContent);
+    if (sceneProse.sections.length === 0) {
+      return;
+    }
+    const chapters = await this.apiClient.getChapters(storyId);
+    let tempChapter = chapters.find((c) => c.title === "Scene-Level Prose");
+    if (!tempChapter) {
+      tempChapter = await this.apiClient.createChapter(storyId, {
+        number: 9998,
+        // High number to keep it at the end
+        title: "Scene-Level Prose",
+        status: "draft"
+      });
+    }
+    const remoteProseBlocks = await this.apiClient.getProseBlocks(tempChapter.id);
+    const remoteProseBlocksMap = /* @__PURE__ */ new Map();
+    for (const pb of remoteProseBlocks) {
+      remoteProseBlocksMap.set(pb.id, pb);
+    }
+    const existingBeats = await this.apiClient.getBeats(sceneId);
+    const beatMap = /* @__PURE__ */ new Map();
+    const beatIdMap = /* @__PURE__ */ new Map();
+    for (const beat of existingBeats) {
+      const fileName = this.fileManager.generateBeatFileName(beat);
+      const linkName = fileName.replace(/\.md$/, "");
+      beatMap.set(linkName, beat);
+      beatIdMap.set(beat.id, beat);
+    }
+    let proseOrderNum = 1;
+    let currentBeat = null;
+    const updatedSections = [];
+    for (const section of sceneProse.sections) {
+      if (section.type === "beat" && section.beat) {
+        const { beat: parsedBeat } = section;
+        if (parsedBeat.linkName) {
+          currentBeat = beatMap.get(parsedBeat.linkName) || null;
+          if (!currentBeat) {
+            currentBeat = beatIdMap.get(parsedBeat.linkName) || null;
+          }
+        }
+        if (currentBeat) {
+          const beatFileName = this.fileManager.generateBeatFileName(currentBeat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatDisplayText = currentBeat.outcome ? `${currentBeat.intent} -> ${currentBeat.outcome}` : currentBeat.intent;
+          updatedSections.push(`### Beat: [[${beatLinkName}|${beatDisplayText}]]`);
+        }
+      } else if (section.type === "prose" && section.prose) {
+        const { prose: paragraph } = section;
+        let localProseBlock = null;
+        let remoteProseBlock = null;
+        if (paragraph.linkName) {
+          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
+          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+          if (!localProseBlock) {
+            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          }
+          if (localProseBlock) {
+            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          } else {
+            const normalizedContent = paragraph.content.trim();
+            for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+              if (remotePB.content.trim() === normalizedContent) {
+                remoteProseBlock = remotePB;
+                break;
+              }
+            }
+          }
+        } else {
+          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const normalizedContent = paragraph.content.trim();
+          for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+            if (remotePB.content.trim() === normalizedContent) {
+              remoteProseBlock = remotePB;
+              if (!localProseBlock) {
+                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              }
+              break;
+            }
+          }
+        }
+        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+        let finalProseBlock;
+        switch (status) {
+          case "new": {
+            finalProseBlock = await this.apiClient.createProseBlock(tempChapter.id, {
+              order_num: proseOrderNum++,
+              kind: "final",
+              content: paragraph.content
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", sceneId);
+            if (currentBeat) {
+              await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+            }
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            break;
+          }
+          case "unchanged": {
+            if (!localProseBlock && remoteProseBlock) {
+              finalProseBlock = remoteProseBlock;
+              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const filePath = `${proseBlocksFolderPath}/${fileName}`;
+              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            } else if (localProseBlock) {
+              if (localProseBlock.order_num !== proseOrderNum) {
+                finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+                  order_num: proseOrderNum++
+                });
+                const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+                const filePath = `${proseBlocksFolderPath}/${fileName}`;
+                await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+              } else {
+                finalProseBlock = localProseBlock;
+                proseOrderNum++;
+              }
+            } else {
+              finalProseBlock = remoteProseBlock;
+              proseOrderNum++;
+            }
+            if (paragraph.linkName) {
+              updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
+            } else {
+              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const linkName = fileName.replace(/\.md$/, "");
+              updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            }
+            break;
+          }
+          case "local_modified": {
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: paragraph.content,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            break;
+          }
+          case "remote_modified": {
+            finalProseBlock = remoteProseBlock;
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${finalProseBlock.content}]]`);
+            new import_obsidian7.Notice(`Scene prose block updated from remote: ${linkName}`, 3e3);
+            proseOrderNum++;
+            break;
+          }
+          case "conflict": {
+            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
+            let resolvedContent;
+            if (resolution.resolution === "local") {
+              resolvedContent = paragraph.content;
+            } else if (resolution.resolution === "remote") {
+              resolvedContent = remoteProseBlock.content;
+            } else {
+              resolvedContent = resolution.mergedContent || paragraph.content;
+            }
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: resolvedContent,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
+            break;
+          }
+        }
+      }
+    }
+    if (updatedSections.length > 0) {
+      const frontmatterMatch = sceneContent.match(/^---\n([\s\S]*?)\n---/);
+      const frontmatterEnd = frontmatterMatch ? frontmatterMatch[0].length : 0;
+      const afterFrontmatter = sceneContent.substring(frontmatterEnd).trim();
+      const beatsSectionMatch = afterFrontmatter.match(/\n##\s+Beats\s*\n/);
+      const insertionPoint = beatsSectionMatch ? frontmatterEnd + afterFrontmatter.indexOf(beatsSectionMatch[0]) : sceneContent.length;
+      const beforeProse = sceneContent.substring(0, insertionPoint).trimEnd();
+      const afterProse = sceneContent.substring(insertionPoint);
+      const updatedContent = `${beforeProse}
+
+${updatedSections.join("\n\n")}
+${afterProse}`;
+      await this.fileManager.getVault().modify(file, updatedContent);
+    }
+  }
+  // Push prose blocks from a beat file
+  async pushBeatProseBlocks(beatFilePath, storyFolderPath) {
+    const file = this.fileManager.getVault().getAbstractFileByPath(beatFilePath);
+    if (!(file instanceof import_obsidian7.TFile)) {
+      return;
+    }
+    const beatContent = await this.fileManager.getVault().read(file);
+    const frontmatter = this.fileManager.parseFrontmatter(beatContent);
+    if (!frontmatter.id || !frontmatter.scene_id) {
+      return;
+    }
+    const beatId = frontmatter.id;
+    const sceneId = frontmatter.scene_id;
+    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const beatProse = parseBeatProse(beatContent);
+    if (beatProse.sections.length === 0) {
+      return;
+    }
+    const scene = await this.apiClient.getScene(sceneId);
+    if (!scene) {
+      return;
+    }
+    const storyId = scene.story_id;
+    const chapters = await this.apiClient.getChapters(storyId);
+    let tempChapter = chapters.find((c) => c.title === "Beat-Level Prose");
+    if (!tempChapter) {
+      tempChapter = await this.apiClient.createChapter(storyId, {
+        number: 9997,
+        // High number to keep it at the end
+        title: "Beat-Level Prose",
+        status: "draft"
+      });
+    }
+    const remoteProseBlocks = await this.apiClient.getProseBlocks(tempChapter.id);
+    const remoteProseBlocksMap = /* @__PURE__ */ new Map();
+    for (const pb of remoteProseBlocks) {
+      remoteProseBlocksMap.set(pb.id, pb);
+    }
+    let proseOrderNum = 1;
+    const updatedSections = [];
+    const beat = await this.apiClient.getBeat(beatId);
+    if (beat) {
+      const beatFileName = this.fileManager.generateBeatFileName(beat);
+      const beatLinkName = beatFileName.replace(/\.md$/, "");
+      const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
+      updatedSections.push(`## Beat: [[${beatLinkName}|${beatDisplayText}]]`);
+    }
+    for (const section of beatProse.sections) {
+      if (section.type === "prose" && section.prose) {
+        const { prose: paragraph } = section;
+        let localProseBlock = null;
+        let remoteProseBlock = null;
+        if (paragraph.linkName) {
+          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
+          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+          if (!localProseBlock) {
+            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          }
+          if (localProseBlock) {
+            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          } else {
+            const normalizedContent = paragraph.content.trim();
+            for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+              if (remotePB.content.trim() === normalizedContent) {
+                remoteProseBlock = remotePB;
+                break;
+              }
+            }
+          }
+        } else {
+          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const normalizedContent = paragraph.content.trim();
+          for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+            if (remotePB.content.trim() === normalizedContent) {
+              remoteProseBlock = remotePB;
+              if (!localProseBlock) {
+                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              }
+              break;
+            }
+          }
+        }
+        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+        let finalProseBlock;
+        switch (status) {
+          case "new": {
+            finalProseBlock = await this.apiClient.createProseBlock(tempChapter.id, {
+              order_num: proseOrderNum++,
+              kind: "final",
+              content: paragraph.content
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", sceneId);
+            await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", beatId);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            break;
+          }
+          case "unchanged": {
+            if (!localProseBlock && remoteProseBlock) {
+              finalProseBlock = remoteProseBlock;
+              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const filePath = `${proseBlocksFolderPath}/${fileName}`;
+              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+              const linkName = fileName.replace(/\.md$/, "");
+              updatedSections.push(`[[${linkName}|${remoteProseBlock.content}]]`);
+            } else if (localProseBlock) {
+              finalProseBlock = localProseBlock;
+              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const linkName = fileName.replace(/\.md$/, "");
+              updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+              proseOrderNum++;
+            } else {
+              proseOrderNum++;
+              continue;
+            }
+            break;
+          }
+          case "local_modified": {
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: paragraph.content,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            break;
+          }
+          case "remote_modified": {
+            finalProseBlock = remoteProseBlock;
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            proseOrderNum++;
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${remoteProseBlock.content}]]`);
+            break;
+          }
+          case "conflict": {
+            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
+            let resolvedContent;
+            if (resolution.resolution === "local") {
+              resolvedContent = paragraph.content;
+            } else if (resolution.resolution === "remote") {
+              resolvedContent = remoteProseBlock.content;
+            } else {
+              resolvedContent = resolution.mergedContent || paragraph.content;
+            }
+            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+              content: resolvedContent,
+              order_num: proseOrderNum++
+            });
+            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+            const filePath = `${proseBlocksFolderPath}/${fileName}`;
+            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const linkName = fileName.replace(/\.md$/, "");
+            updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
+            break;
+          }
+        }
+      }
+    }
+    if (updatedSections.length > 1) {
+      const frontmatterMatch = beatContent.match(/^---\n([\s\S]*?)\n---/);
+      const frontmatterEnd = frontmatterMatch ? frontmatterMatch[0].length : 0;
+      const afterFrontmatter = beatContent.substring(frontmatterEnd).trim();
+      const beatSectionMatch = afterFrontmatter.match(/##\s+Beat:\s*.+[\s\S]*/);
+      if (beatSectionMatch) {
+        const beforeBeatSection = beatContent.substring(0, frontmatterEnd + afterFrontmatter.indexOf(beatSectionMatch[0]));
+        const updatedContent = `${beforeBeatSection.trimEnd()}
+
+${updatedSections.join("\n\n")}
+`;
+        await this.fileManager.getVault().modify(file, updatedContent);
+      } else {
+        const updatedContent = `${beatContent.trimEnd()}
+
+${updatedSections.join("\n\n")}
+`;
+        await this.fileManager.getVault().modify(file, updatedContent);
+      }
+    }
+  }
+  // Process the "## Orphan Scenes" list and update orphan scenes order
+  async processOrphanScenesList(list, storyId) {
+    const allScenes = await this.apiClient.getScenesByStory(storyId);
+    const sceneMap = /* @__PURE__ */ new Map();
+    const sceneIdMap = /* @__PURE__ */ new Map();
+    const orphanScenes = allScenes.filter((s) => !s.chapter_id);
+    for (const scene of orphanScenes) {
+      const fileName = this.fileManager.generateSceneFileName(scene);
+      const linkName = fileName.replace(/\.md$/, "");
+      sceneMap.set(linkName, scene);
+      sceneIdMap.set(scene.id, scene);
+    }
+    const beatMap = /* @__PURE__ */ new Map();
+    const beatIdMap = /* @__PURE__ */ new Map();
+    for (const scene of orphanScenes) {
+      const beats = await this.apiClient.getBeats(scene.id);
+      for (const beat of beats) {
+        const fileName = this.fileManager.generateBeatFileName(beat);
+        const linkName = fileName.replace(/\.md$/, "");
+        beatMap.set(linkName, beat);
+        beatIdMap.set(beat.id, beat);
+      }
+    }
+    let currentScene = null;
+    let sceneOrderNum = 1;
+    const beatOrderNums = /* @__PURE__ */ new Map();
+    for (const item of list.items) {
+      if (item.type === "scene") {
+        let goal;
+        let timeRef = "";
+        const sceneMatch = item.displayText.match(/Scene\s+\d+:\s*(.+)/);
+        if (sceneMatch) {
+          const sceneText = sceneMatch[1].trim();
+          const parts = sceneText.split(/\s*-\s*/);
+          goal = parts[0].trim();
+          timeRef = parts.length > 1 ? parts.slice(1).join(" - ").trim() : "";
+        } else {
+          const parts = item.displayText.split(/\s*-\s*/);
+          goal = parts[0].trim();
+          timeRef = parts.length > 1 ? parts.slice(1).join(" - ").trim() : "";
+        }
+        if (item.linkName) {
+          currentScene = sceneMap.get(item.linkName) || null;
+          if (!currentScene) {
+            currentScene = sceneIdMap.get(item.linkName) || null;
+          }
+          if (currentScene) {
+            const needsOrderUpdate = currentScene.order_num !== sceneOrderNum;
+            const needsContentUpdate = goal !== currentScene.goal || timeRef !== currentScene.time_ref;
+            if (needsOrderUpdate || needsContentUpdate) {
+              currentScene = await this.apiClient.updateScene(currentScene.id, {
+                goal,
+                time_ref: timeRef,
+                order_num: sceneOrderNum
+              });
+            }
+            const existingBeats = await this.apiClient.getBeats(currentScene.id);
+            if (existingBeats.length === 0) {
+              beatOrderNums.set(currentScene.id, 1);
+            } else {
+              const maxOrderNum = Math.max(...existingBeats.map((b) => b.order_num));
+              beatOrderNums.set(currentScene.id, maxOrderNum + 1);
+            }
+          }
+        } else {
+          currentScene = await this.apiClient.createScene({
+            story_id: storyId,
+            chapter_id: null,
+            // Orphan scene
+            order_num: sceneOrderNum,
+            goal,
+            time_ref: timeRef
+          });
+          const sceneFileName = this.fileManager.generateSceneFileName(currentScene);
+          const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          sceneMap.set(sceneLinkName, currentScene);
+          sceneIdMap.set(currentScene.id, currentScene);
+          beatOrderNums.set(currentScene.id, 1);
+        }
+        sceneOrderNum++;
+      } else if (item.type === "beat" && currentScene) {
+        let intent;
+        let outcome = "";
+        const beatMatch = item.displayText.match(/Beat\s+\d+:\s*(.+)/);
+        if (beatMatch) {
+          const beatText = beatMatch[1].trim();
+          const parts = beatText.split(/\s*->\s*/);
+          intent = parts[0].trim();
+          outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+        } else {
+          const parts = item.displayText.split(/\s*->\s*/);
+          intent = parts[0].trim();
+          outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+        }
+        const currentBeatOrderNum = beatOrderNums.get(currentScene.id) || 1;
+        if (item.linkName) {
+          let currentBeat = beatMap.get(item.linkName) || null;
+          if (!currentBeat) {
+            currentBeat = beatIdMap.get(item.linkName) || null;
+          }
+          if (currentBeat) {
+            const needsOrderUpdate = currentBeat.order_num !== currentBeatOrderNum;
+            const needsContentUpdate = intent !== currentBeat.intent || outcome !== currentBeat.outcome;
+            const needsSceneUpdate = currentBeat.scene_id !== currentScene.id;
+            if (needsOrderUpdate || needsContentUpdate || needsSceneUpdate) {
+              currentBeat = await this.apiClient.updateBeat(currentBeat.id, {
+                intent,
+                outcome,
+                order_num: currentBeatOrderNum,
+                scene_id: currentScene.id
+              });
+            }
+          }
+        } else {
+          await this.apiClient.createBeat({
+            scene_id: currentScene.id,
+            order_num: currentBeatOrderNum,
+            type: "setup",
+            // Default type
+            intent,
+            outcome
+          });
+        }
+        beatOrderNums.set(currentScene.id, currentBeatOrderNum + 1);
+      }
+    }
+  }
+  // Process the "## Orphan Beats" list and update orphan beats order
+  async processOrphanBeatsList(list, storyId) {
+    const allBeats = await this.apiClient.getBeatsByStory(storyId);
+    const allScenes = await this.apiClient.getScenesByStory(storyId);
+    const sceneIdSet = new Set(allScenes.map((s) => s.id));
+    const orphanBeats = allBeats.filter((b) => !b.scene_id || !sceneIdSet.has(b.scene_id));
+    const beatMap = /* @__PURE__ */ new Map();
+    const beatIdMap = /* @__PURE__ */ new Map();
+    for (const beat of orphanBeats) {
+      const fileName = this.fileManager.generateBeatFileName(beat);
+      const linkName = fileName.replace(/\.md$/, "");
+      beatMap.set(linkName, beat);
+      beatIdMap.set(beat.id, beat);
+    }
+    let beatOrderNum = 1;
+    for (const item of list.items) {
+      let intent;
+      let outcome = "";
+      const beatMatch = item.displayText.match(/Beat\s+\d+:\s*(.+)/);
+      if (beatMatch) {
+        const beatText = beatMatch[1].trim();
+        const parts = beatText.split(/\s*->\s*/);
+        intent = parts[0].trim();
+        outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+      } else {
+        const parts = item.displayText.split(/\s*->\s*/);
+        intent = parts[0].trim();
+        outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+      }
+      if (item.linkName) {
+        let currentBeat = beatMap.get(item.linkName) || null;
+        if (!currentBeat) {
+          currentBeat = beatIdMap.get(item.linkName) || null;
+        }
+        if (currentBeat) {
+          const needsOrderUpdate = currentBeat.order_num !== beatOrderNum;
+          const needsContentUpdate = intent !== currentBeat.intent || outcome !== currentBeat.outcome;
+          if (needsOrderUpdate || needsContentUpdate) {
+            currentBeat = await this.apiClient.updateBeat(currentBeat.id, {
+              intent,
+              outcome,
+              order_num: beatOrderNum
+              // Keep scene_id as null or invalid (orphan) - don't update it
+            });
+          }
+        }
+      } else {
+        const allScenes2 = await this.apiClient.getScenesByStory(storyId);
+        let orphanBeatScene = allScenes2.find((s) => !s.chapter_id && s.goal.startsWith("Orphan Beats Container"));
+        if (!orphanBeatScene) {
+          orphanBeatScene = await this.apiClient.createScene({
+            story_id: storyId,
+            chapter_id: null,
+            order_num: 9999,
+            // High number to keep it at the end
+            goal: "Orphan Beats Container",
+            time_ref: ""
+          });
+        }
+        await this.apiClient.createBeat({
+          scene_id: orphanBeatScene.id,
+          order_num: beatOrderNum,
+          type: "setup",
+          // Default type
+          intent,
+          outcome
+        });
+      }
+      beatOrderNum++;
+    }
+  }
+  // Process the "## Scenes & Beats" list and create/update/delete scenes and beats
+  async processSceneBeatList(list, chapterId, storyId) {
+    const existingScenes = await this.apiClient.getScenes(chapterId);
+    const sceneMap = /* @__PURE__ */ new Map();
+    const sceneIdMap = /* @__PURE__ */ new Map();
+    for (const scene of existingScenes) {
+      const fileName = this.fileManager.generateSceneFileName(scene);
+      const linkName = fileName.replace(/\.md$/, "");
+      sceneMap.set(linkName, scene);
+      sceneIdMap.set(scene.id, scene);
+    }
+    const beatMap = /* @__PURE__ */ new Map();
+    const beatIdMap = /* @__PURE__ */ new Map();
+    for (const scene of existingScenes) {
+      const beats = await this.apiClient.getBeats(scene.id);
+      for (const beat of beats) {
+        const fileName = this.fileManager.generateBeatFileName(beat);
+        const linkName = fileName.replace(/\.md$/, "");
+        beatMap.set(linkName, beat);
+        beatIdMap.set(beat.id, beat);
+      }
+    }
+    let currentScene = null;
+    let sceneOrderNum = 1;
+    const beatOrderNums = /* @__PURE__ */ new Map();
+    for (const item of list.items) {
+      if (item.type === "scene") {
+        currentScene = null;
+        let goal;
+        let timeRef = "";
+        const sceneMatch = item.displayText.match(/Scene\s+\d+:\s*(.+)/);
+        if (sceneMatch) {
+          const sceneText = sceneMatch[1].trim();
+          const parts = sceneText.split(/\s*-\s*/);
+          goal = parts[0].trim();
+          timeRef = parts.length > 1 ? parts.slice(1).join(" - ").trim() : "";
+        } else {
+          const parts = item.displayText.split(/\s*-\s*/);
+          goal = parts[0].trim();
+          timeRef = parts.length > 1 ? parts.slice(1).join(" - ").trim() : "";
+        }
+        currentScene = null;
+        if (item.linkName) {
+          currentScene = sceneMap.get(item.linkName) || null;
+          if (!currentScene) {
+            currentScene = sceneIdMap.get(item.linkName) || null;
+          }
+          if (currentScene) {
+            const needsOrderUpdate = currentScene.order_num !== sceneOrderNum;
+            const needsContentUpdate = goal !== currentScene.goal || timeRef !== currentScene.time_ref;
+            if (needsOrderUpdate || needsContentUpdate) {
+              currentScene = await this.apiClient.updateScene(currentScene.id, {
+                goal,
+                time_ref: timeRef,
+                order_num: sceneOrderNum
+              });
+            }
+            const existingBeats = await this.apiClient.getBeats(currentScene.id);
+            if (existingBeats.length === 0) {
+              beatOrderNums.set(currentScene.id, 1);
+            } else {
+              const maxOrderNum = Math.max(...existingBeats.map((b) => b.order_num));
+              beatOrderNums.set(currentScene.id, maxOrderNum + 1);
+            }
+          }
+        } else {
+          currentScene = await this.apiClient.createScene({
+            story_id: storyId,
+            chapter_id: chapterId,
+            order_num: sceneOrderNum,
+            goal,
+            time_ref: timeRef
+          });
+          const sceneFileName = this.fileManager.generateSceneFileName(currentScene);
+          const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          sceneMap.set(sceneLinkName, currentScene);
+          sceneIdMap.set(currentScene.id, currentScene);
+          beatOrderNums.set(currentScene.id, 1);
+        }
+        sceneOrderNum++;
+      } else if (item.type === "beat" && currentScene) {
+        let intent;
+        let outcome = "";
+        const beatMatch = item.displayText.match(/Beat\s+\d+:\s*(.+)/);
+        if (beatMatch) {
+          const beatText = beatMatch[1].trim();
+          const parts = beatText.split(/\s*->\s*/);
+          intent = parts[0].trim();
+          outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+        } else {
+          const parts = item.displayText.split(/\s*->\s*/);
+          intent = parts[0].trim();
+          outcome = parts.length > 1 ? parts.slice(1).join(" -> ").trim() : "";
+        }
+        const currentBeatOrderNum = beatOrderNums.get(currentScene.id) || 1;
+        if (item.linkName) {
+          let currentBeat = beatMap.get(item.linkName) || null;
+          if (!currentBeat) {
+            currentBeat = beatIdMap.get(item.linkName) || null;
+          }
+          if (currentBeat) {
+            const needsOrderUpdate = currentBeat.order_num !== currentBeatOrderNum;
+            const needsContentUpdate = intent !== currentBeat.intent || outcome !== currentBeat.outcome;
+            const needsSceneUpdate = currentBeat.scene_id !== currentScene.id;
+            if (needsOrderUpdate || needsContentUpdate || needsSceneUpdate) {
+              currentBeat = await this.apiClient.updateBeat(currentBeat.id, {
+                intent,
+                outcome,
+                order_num: currentBeatOrderNum,
+                scene_id: currentScene.id
+              });
+              if (needsSceneUpdate) {
+                const beatFileName = this.fileManager.generateBeatFileName(currentBeat);
+                const beatLinkName = beatFileName.replace(/\.md$/, "");
+                beatMap.set(beatLinkName, currentBeat);
+                beatIdMap.set(currentBeat.id, currentBeat);
+              }
+            }
+          }
+        } else {
+          const newBeat = await this.apiClient.createBeat({
+            scene_id: currentScene.id,
+            order_num: currentBeatOrderNum,
+            type: "setup",
+            // Default type
+            intent,
+            outcome
+          });
+          const beatFileName = this.fileManager.generateBeatFileName(newBeat);
+          const beatLinkName = beatFileName.replace(/\.md$/, "");
+          beatMap.set(beatLinkName, newBeat);
+          beatIdMap.set(newBeat.id, newBeat);
+        }
+        beatOrderNums.set(currentScene.id, currentBeatOrderNum + 1);
+      }
+    }
+  }
+  // Find prose block by content when file name doesn't match
+  async findProseBlockByContent(proseBlocksFolderPath, content) {
+    try {
+      const folder = this.fileManager.getVault().getAbstractFileByPath(proseBlocksFolderPath);
+      if (!(folder instanceof import_obsidian7.TFolder)) {
+        return null;
+      }
+      const normalizedContent = content.trim();
+      for (const child of folder.children) {
+        if (child instanceof import_obsidian7.TFile && child.extension === "md") {
+          const proseBlock = await this.fileManager.readProseBlockFromFile(child.path);
+          if (proseBlock && proseBlock.content.trim() === normalizedContent) {
+            return proseBlock;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error searching for prose block by content:", err);
+    }
+    return null;
+  }
+  // Find prose block by ID when we have remote ID but need local file
+  async findProseBlockById(proseBlocksFolderPath, id) {
+    try {
+      const folder = this.fileManager.getVault().getAbstractFileByPath(proseBlocksFolderPath);
+      if (!(folder instanceof import_obsidian7.TFolder)) {
+        return null;
+      }
+      for (const child of folder.children) {
+        if (child instanceof import_obsidian7.TFile && child.extension === "md") {
+          const proseBlock = await this.fileManager.readProseBlockFromFile(child.path);
+          if (proseBlock && proseBlock.id === id) {
+            return proseBlock;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error searching for prose block by ID:", err);
+    }
+    return null;
   }
   // Resolve conflict using modal
   async resolveConflict(localProseBlock, remoteProseBlock) {
@@ -2018,32 +4522,36 @@ var SyncService = class {
       modal.open();
     });
   }
-  // Update the Prose section in chapter file (hierarchical structure)
-  async updateChapterProseSectionHierarchical(originalContent, updatedSections, file) {
+  // Update the Chapter section in chapter file (hierarchical structure)
+  async updateChapterProseSectionHierarchical(originalContent, updatedSections, file, frontmatter) {
     const frontmatterMatch = originalContent.match(/^---\n([\s\S]*?)\n---/);
-    const frontmatter = frontmatterMatch ? frontmatterMatch[0] : "";
+    const frontmatterText = frontmatterMatch ? frontmatterMatch[0] : "";
     const bodyStart = frontmatterMatch ? frontmatterMatch[0].length : 0;
     const bodyContent = originalContent.substring(bodyStart).trim();
-    const proseSectionMatch = bodyContent.match(/([\s\S]*?##\s+Prose\s*\n\n)([\s\S]*)$/);
-    if (!proseSectionMatch) {
-      const newProseSection = `
+    const chapterNumber = frontmatter.number || "1";
+    const chapterTitle = frontmatter.title || "Untitled";
+    const chapterHeaderPattern = `##\\s+Chapter\\s+${chapterNumber}:\\s+[^\\n]+`;
+    const chapterSectionMatch = bodyContent.match(new RegExp(`([\\s\\S]*?${chapterHeaderPattern}\\s*\\n+)([\\s\\S]*?)(?=\\n##\\s+Chapter\\s+\\d+:|$)`, "i"));
+    if (!chapterSectionMatch) {
+      const newChapterSection = `
 
-## Prose
+## Chapter ${chapterNumber}: ${chapterTitle}
 
 ${updatedSections.join("\n\n")}
 
 `;
-      const updatedContent2 = `${frontmatter}
-${bodyContent}${newProseSection}`;
+      const updatedContent2 = `${frontmatterText}
+${bodyContent}${newChapterSection}`;
       await this.fileManager.getVault().modify(file, updatedContent2);
       return;
     }
-    const beforeProse = proseSectionMatch[1];
-    const newProseContent = updatedSections.join("\n\n");
-    const updatedBody = `${beforeProse}${newProseContent}
+    const beforeChapter = chapterSectionMatch[1];
+    const afterChapter = bodyContent.substring(chapterSectionMatch.index + chapterSectionMatch[0].length);
+    const newChapterContent = updatedSections.join("\n\n");
+    const updatedBody = `${beforeChapter}${newChapterContent}
 
-`;
-    const updatedContent = `${frontmatter}
+${afterChapter}`;
+    const updatedContent = `${frontmatterText}
 ${updatedBody}`;
     await this.fileManager.getVault().modify(file, updatedContent);
   }
@@ -2602,9 +5110,7 @@ var StoryListView = class extends import_obsidian11.ItemView {
         this.renderStories();
         return;
       }
-      this.stories = await this.plugin.apiClient.listStories(
-        this.plugin.settings.tenantId
-      );
+      this.stories = await this.plugin.apiClient.listStories();
     } catch (err) {
       this.error = err instanceof Error ? err.message : "Unknown error";
     } finally {
@@ -3112,8 +5618,7 @@ var StoryListView = class extends import_obsidian11.ItemView {
         throw new Error("Tenant ID not configured");
       }
       const clonedStory = await this.plugin.apiClient.cloneStory(
-        this.currentStory.id,
-        this.plugin.settings.tenantId
+        this.currentStory.id
       );
       new import_obsidian11.Notice(`Story "${clonedStory.title}" cloned successfully!`);
       await this.loadStories();
@@ -3281,7 +5786,8 @@ var StoryEnginePlugin = class extends import_obsidian12.Plugin {
     await this.loadSettings();
     this.apiClient = new StoryEngineClient(
       this.settings.apiUrl,
-      this.settings.apiKey
+      this.settings.apiKey,
+      this.settings.tenantId || ""
     );
     this.fileManager = new FileManager(
       this.app.vault,
@@ -3315,10 +5821,15 @@ var StoryEnginePlugin = class extends import_obsidian12.Plugin {
   }
   async saveSettings() {
     await this.saveData(this.settings);
-    this.apiClient = new StoryEngineClient(
-      this.settings.apiUrl,
-      this.settings.apiKey
-    );
+    if (this.apiClient) {
+      this.apiClient.setTenantId(this.settings.tenantId || "");
+    } else {
+      this.apiClient = new StoryEngineClient(
+        this.settings.apiUrl,
+        this.settings.apiKey,
+        this.settings.tenantId || ""
+      );
+    }
     this.fileManager = new FileManager(
       this.app.vault,
       this.settings.syncFolderPath || "Stories"
@@ -3345,7 +5856,7 @@ var StoryEnginePlugin = class extends import_obsidian12.Plugin {
     new CreateStoryModal(this.app, async (title, shouldSync) => {
       try {
         new import_obsidian12.Notice(`Creating story "${title}"...`);
-        const story = await this.apiClient.createStory(tenantId, title);
+        const story = await this.apiClient.createStory(title);
         new import_obsidian12.Notice(`Story "${title}" created successfully`);
         if (shouldSync) {
           try {

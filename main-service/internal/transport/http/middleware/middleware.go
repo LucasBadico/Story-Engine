@@ -60,9 +60,11 @@ func CORS() Middleware {
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set(
 				"Access-Control-Allow-Headers",
-				"Content-Type, Authorization, X-Tenant-Id, x-tenant-id",
+				"Content-Type, Authorization, X-Tenant-ID",
 			)
+			w.Header().Set("Access-Control-Allow-Credentials", "true")
 
+			// Handle preflight OPTIONS request
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return

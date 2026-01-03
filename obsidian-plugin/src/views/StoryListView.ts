@@ -220,9 +220,7 @@ export class StoryListView extends ItemView {
 				return;
 			}
 
-			this.stories = await this.plugin.apiClient.listStories(
-				this.plugin.settings.tenantId
-			);
+			this.stories = await this.plugin.apiClient.listStories();
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Unknown error";
 		} finally {
@@ -805,8 +803,7 @@ export class StoryListView extends ItemView {
 			}
 
 			const clonedStory = await this.plugin.apiClient.cloneStory(
-				this.currentStory.id,
-				this.plugin.settings.tenantId
+				this.currentStory.id
 			);
 			
 			new Notice(`Story "${clonedStory.title}" cloned successfully!`);

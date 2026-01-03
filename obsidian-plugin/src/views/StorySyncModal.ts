@@ -98,9 +98,7 @@ export class StorySyncModal extends Modal {
 				return;
 			}
 
-			this.stories = await this.plugin.apiClient.listStories(
-				this.plugin.settings.tenantId
-			);
+			this.stories = await this.plugin.apiClient.listStories();
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Unknown error";
 		} finally {

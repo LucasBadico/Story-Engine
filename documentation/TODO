@@ -6,10 +6,10 @@
 - [ ] upload image endpoint
 - revisar tennat id: Atualizar Membership e AuditLog (requer mudança de interface)
 
-- revisar handlers q usam repo direto, provavelmente ta havendo duplicacao pq tem 2 tipos de handlers
+- [x] revisar handlers q usam repo direto, provavelmente ta havendo duplicacao pq tem 2 tipos de handlers
 # Easy wins
 - [x] add tag date
-
+- [ ] mesclar dinamic relations from prose and image. Entities references to prose and image blocks.
 
 Economia vale a pena? Sim! É:
 Baixo custo (~2-3h de implementação)

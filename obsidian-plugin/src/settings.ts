@@ -51,6 +51,10 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					.setValue(this.plugin.settings.tenantId || "")
 					.onChange(async (value) => {
 						this.plugin.settings.tenantId = value.trim();
+						// Update API client tenant ID immediately
+						if (this.plugin.apiClient) {
+							this.plugin.apiClient.setTenantId(value.trim());
+						}
 						await this.plugin.saveSettings();
 					})
 			);

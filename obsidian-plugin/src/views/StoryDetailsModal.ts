@@ -59,8 +59,7 @@ export class StoryDetailsModal extends Modal {
 				}
 
 				const clonedStory = await this.plugin.apiClient.cloneStory(
-					this.story.id,
-					this.plugin.settings.tenantId
+					this.story.id
 				);
 				this.close();
 				new StoryDetailsModal(this.plugin, clonedStory).open();

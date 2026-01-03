@@ -30,7 +30,8 @@ export default class StoryEnginePlugin extends Plugin {
 
 		this.apiClient = new StoryEngineClient(
 			this.settings.apiUrl,
-			this.settings.apiKey
+			this.settings.apiKey,
+			this.settings.tenantId || ""
 		);
 
 		this.fileManager = new FileManager(
@@ -77,10 +78,15 @@ export default class StoryEnginePlugin extends Plugin {
 	async saveSettings() {
 		await this.saveData(this.settings);
 		// Update API client when settings change
-		this.apiClient = new StoryEngineClient(
-			this.settings.apiUrl,
-			this.settings.apiKey
-		);
+		if (this.apiClient) {
+			this.apiClient.setTenantId(this.settings.tenantId || "");
+		} else {
+			this.apiClient = new StoryEngineClient(
+				this.settings.apiUrl,
+				this.settings.apiKey,
+				this.settings.tenantId || ""
+			);
+		}
 		// Update file manager base path
 		this.fileManager = new FileManager(
 			this.app.vault,
@@ -115,7 +121,7 @@ export default class StoryEnginePlugin extends Plugin {
 			try {
 				new Notice(`Creating story "${title}"...`);
 				
-				const story = await this.apiClient.createStory(tenantId, title);
+				const story = await this.apiClient.createStory(title);
 				
 				new Notice(`Story "${title}" created successfully`);
 

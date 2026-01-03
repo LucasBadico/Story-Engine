@@ -189,5 +189,3 @@ func (r *RPGClassRepository) scanRPGClasses(rows pgx.Rows) ([]*rpg.RPGClass, err
 	}
 	return classes, rows.Err()
 }
-
-

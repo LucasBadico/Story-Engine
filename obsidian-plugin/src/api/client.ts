@@ -15,14 +15,19 @@ import {
 export class StoryEngineClient {
 	constructor(
 		private apiUrl: string,
-		private apiKey: string
+		private apiKey: string,
+		private tenantId: string = ""
 	) {}
+
+	setTenantId(tenantId: string): void {
+		this.tenantId = tenantId.trim();
+	}
 
 	private async request<T>(
 		method: string,
 		endpoint: string,
 		body?: unknown,
-		tenantId?: string
+		tenantIdOverride?: string
 	): Promise<T> {
 		const url = `${this.apiUrl}${endpoint}`;
 		const headers = new Headers();
@@ -33,8 +38,10 @@ export class StoryEngineClient {
 			headers.set("Authorization", `Bearer ${this.apiKey}`);
 		}
 
-		if (tenantId) {
-			const trimmedTenantId = tenantId.trim();
+		// Use override if provided, otherwise use instance tenantId
+		const effectiveTenantId = tenantIdOverride ?? this.tenantId;
+		if (effectiveTenantId) {
+			const trimmedTenantId = effectiveTenantId.trim();
 			if (trimmedTenantId) {
 				headers.set("X-Tenant-ID", trimmedTenantId);
 			}
@@ -69,17 +76,14 @@ export class StoryEngineClient {
 		return response.json() as Promise<T>;
 	}
 
-	async listStories(tenantId: string): Promise<Story[]> {
-		const trimmedTenantId = tenantId.trim();
-		if (!trimmedTenantId) {
+	async listStories(): Promise<Story[]> {
+		if (!this.tenantId || !this.tenantId.trim()) {
 			throw new Error("Tenant ID is required");
 		}
 
 		const response = await this.request<{ stories: Story[] }>(
 			"GET",
-			"/api/v1/stories",
-			undefined,
-			trimmedTenantId
+			"/api/v1/stories"
 		);
 		return response.stories || [];
 	}
@@ -92,9 +96,8 @@ export class StoryEngineClient {
 		return response.story;
 	}
 
-	async createStory(tenantId: string, title: string): Promise<Story> {
-		const trimmedTenantId = tenantId.trim();
-		if (!trimmedTenantId) {
+	async createStory(title: string): Promise<Story> {
+		if (!this.tenantId || !this.tenantId.trim()) {
 			throw new Error("Tenant ID is required");
 		}
 
@@ -103,23 +106,20 @@ export class StoryEngineClient {
 			"/api/v1/stories",
 			{
 				title: title.trim(),
-			},
-			trimmedTenantId
+			}
 		);
 		return response.story;
 	}
 
-	async cloneStory(id: string, tenantId: string): Promise<Story> {
-		const trimmedTenantId = tenantId.trim();
-		if (!trimmedTenantId) {
+	async cloneStory(id: string): Promise<Story> {
+		if (!this.tenantId || !this.tenantId.trim()) {
 			throw new Error("Tenant ID is required");
 		}
 
 		const response = await this.request<{ story: Story }>(
 			"POST",
 			`/api/v1/stories/${id}/clone`,
-			{},
-			trimmedTenantId
+			{}
 		);
 		return response.story;
 	}
