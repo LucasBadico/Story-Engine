@@ -97,7 +97,10 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 
 	newArtifact, err := world.NewArtifact(input.TenantID, input.WorldID, input.Name)
 	if err != nil {
-		return nil, err
+		return nil, &platformerrors.ValidationError{
+			Field:   "name",
+			Message: err.Error(),
+		}
 	}
 
 	if input.Description != "" {

@@ -11,6 +11,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/rpg"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // InventoryHandler handles HTTP requests for inventory operations
@@ -94,7 +95,9 @@ func (h *InventoryHandler) CreateSlot(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.createSlotUseCase.Execute(r.Context(), inventoryslotapp.CreateInventorySlotInput{
+		TenantID:    tenantID,
 		RPGSystemID: rpgSystemID,
 		Name:        req.Name,
 		SlotType:    req.SlotType,
@@ -123,7 +126,9 @@ func (h *InventoryHandler) ListSlots(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.listSlotsUseCase.Execute(r.Context(), inventoryslotapp.ListInventorySlotsInput{
+		TenantID:    tenantID,
 		RPGSystemID: rpgSystemID,
 	})
 	if err != nil {
@@ -186,7 +191,9 @@ func (h *InventoryHandler) CreateItem(w http.ResponseWriter, r *http.Request) {
 		artifactID = &parsedID
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.createItemUseCase.Execute(r.Context(), inventoryitemapp.CreateInventoryItemInput{
+		TenantID:      tenantID,
 		RPGSystemID:   rpgSystemID,
 		ArtifactID:    artifactID,
 		Name:          req.Name,
@@ -225,8 +232,10 @@ func (h *InventoryHandler) GetItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.getItemUseCase.Execute(r.Context(), inventoryitemapp.GetInventoryItemInput{
-		ID: itemID,
+		TenantID: tenantID,
+		ID:       itemID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -265,7 +274,9 @@ func (h *InventoryHandler) ListItems(w http.ResponseWriter, r *http.Request) {
 		artifactID = &parsedID
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.listItemsUseCase.Execute(r.Context(), inventoryitemapp.ListInventoryItemsInput{
+		TenantID:    tenantID,
 		RPGSystemID: rpgSystemID,
 		ArtifactID:  artifactID,
 	})
@@ -329,7 +340,9 @@ func (h *InventoryHandler) UpdateItem(w http.ResponseWriter, r *http.Request) {
 		artifactID = &parsedID
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.updateItemUseCase.Execute(r.Context(), inventoryitemapp.UpdateInventoryItemInput{
+		TenantID:      tenantID,
 		ID:            itemID,
 		ArtifactID:    artifactID,
 		Name:          req.Name,
@@ -367,8 +380,10 @@ func (h *InventoryHandler) DeleteItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	if err := h.deleteItemUseCase.Execute(r.Context(), inventoryitemapp.DeleteInventoryItemInput{
-		ID: itemID,
+		TenantID: tenantID,
+		ID:       itemID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -403,7 +418,9 @@ func (h *InventoryHandler) AddItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.addItemUseCase.Execute(r.Context(), characterinventoryapp.AddItemToInventoryInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		ItemID:      req.ItemID,
 		Quantity:    req.Quantity,
@@ -435,7 +452,9 @@ func (h *InventoryHandler) ListInventory(w http.ResponseWriter, r *http.Request)
 
 	equippedOnly := r.URL.Query().Get("equipped_only") == "true"
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.listInventoryUseCase.Execute(r.Context(), characterinventoryapp.ListCharacterInventoryInput{
+		TenantID:     tenantID,
 		CharacterID: characterID,
 		EquippedOnly: equippedOnly,
 	})
@@ -478,7 +497,9 @@ func (h *InventoryHandler) UpdateInventory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.updateInventoryUseCase.Execute(r.Context(), characterinventoryapp.UpdateCharacterInventoryInput{
+		TenantID:    tenantID,
 		ID:          inventoryID,
 		Quantity:    req.Quantity,
 		SlotID:      req.SlotID,
@@ -508,8 +529,10 @@ func (h *InventoryHandler) EquipItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.equipItemUseCase.Execute(r.Context(), characterinventoryapp.EquipItemInput{
-		ID: inventoryID,
+		TenantID: tenantID,
+		ID:       inventoryID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -534,8 +557,10 @@ func (h *InventoryHandler) UnequipItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.unequipItemUseCase.Execute(r.Context(), characterinventoryapp.UnequipItemInput{
-		ID: inventoryID,
+		TenantID: tenantID,
+		ID:       inventoryID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -560,8 +585,10 @@ func (h *InventoryHandler) DeleteInventory(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	if err := h.deleteInventoryUseCase.Execute(r.Context(), characterinventoryapp.DeleteCharacterInventoryInput{
-		ID: inventoryID,
+		TenantID: tenantID,
+		ID:       inventoryID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -595,7 +622,9 @@ func (h *InventoryHandler) TransferItem(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.transferItemUseCase.Execute(r.Context(), characterinventoryapp.TransferItemInput{
+		TenantID:      tenantID,
 		InventoryID:   inventoryID,
 		ToCharacterID: req.ToCharacterID,
 		Quantity:      req.Quantity,

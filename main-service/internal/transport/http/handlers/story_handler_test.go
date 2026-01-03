@@ -15,13 +15,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
-
-// withTenantMiddleware wraps a handler function with the TenantMiddleware
-func withTenantMiddleware(handlerFunc http.HandlerFunc) http.Handler {
-	return middleware.TenantMiddleware(handlerFunc)
-}
 
 func TestStoryHandler_Create(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)

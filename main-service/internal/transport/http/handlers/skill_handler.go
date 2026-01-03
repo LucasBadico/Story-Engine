@@ -9,6 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/rpg"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // SkillHandler handles HTTP requests for RPG skills
@@ -42,6 +43,7 @@ func NewSkillHandler(
 
 // Create handles POST /api/v1/rpg-systems/{id}/skills
 func (h *SkillHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -82,6 +84,7 @@ func (h *SkillHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.createSkillUseCase.Execute(r.Context(), skillapp.CreateSkillInput{
+		TenantID:      tenantID,
 		RPGSystemID:   rpgSystemID,
 		Name:          req.Name,
 		Category:      category,
@@ -115,8 +118,10 @@ func (h *SkillHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.getSkillUseCase.Execute(r.Context(), skillapp.GetSkillInput{
-		ID: skillID,
+		TenantID: tenantID,
+		ID:       skillID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -141,7 +146,9 @@ func (h *SkillHandler) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.listSkillsUseCase.Execute(r.Context(), skillapp.ListSkillsInput{
+		TenantID:    tenantID,
 		RPGSystemID: rpgSystemID,
 	})
 	if err != nil {
@@ -197,7 +204,9 @@ func (h *SkillHandler) Update(w http.ResponseWriter, r *http.Request) {
 		skillType = &st
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.updateSkillUseCase.Execute(r.Context(), skillapp.UpdateSkillInput{
+		TenantID:      tenantID,
 		ID:            skillID,
 		Name:          req.Name,
 		Category:      category,
@@ -230,8 +239,10 @@ func (h *SkillHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	if err := h.deleteSkillUseCase.Execute(r.Context(), skillapp.DeleteSkillInput{
-		ID: skillID,
+		TenantID: tenantID,
+		ID:       skillID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return

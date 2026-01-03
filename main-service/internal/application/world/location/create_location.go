@@ -73,7 +73,10 @@ func (uc *CreateLocationUseCase) Execute(ctx context.Context, input CreateLocati
 
 	newLocation, err := world.NewLocation(input.TenantID, input.WorldID, input.Name, input.ParentID)
 	if err != nil {
-		return nil, err
+		return nil, &platformerrors.ValidationError{
+			Field:   "name",
+			Message: err.Error(),
+		}
 	}
 
 	if input.Type != "" {

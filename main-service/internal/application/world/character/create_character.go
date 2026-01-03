@@ -69,7 +69,10 @@ func (uc *CreateCharacterUseCase) Execute(ctx context.Context, input CreateChara
 
 	newCharacter, err := world.NewCharacter(input.TenantID, input.WorldID, input.Name)
 	if err != nil {
-		return nil, err
+		return nil, &platformerrors.ValidationError{
+			Field:   "name",
+			Message: err.Error(),
+		}
 	}
 
 	if input.ArchetypeID != nil {

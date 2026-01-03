@@ -59,7 +59,10 @@ func (uc *CreateWorldUseCase) Execute(ctx context.Context, input CreateWorldInpu
 	// Create world
 	newWorld, err := world.NewWorld(input.TenantID, input.Name, input.IsImplicit)
 	if err != nil {
-		return nil, err
+		return nil, &platformerrors.ValidationError{
+			Field:   "name",
+			Message: err.Error(),
+		}
 	}
 
 	if input.Description != "" {

@@ -8,6 +8,7 @@ import (
 	characterskillapp "github.com/story-engine/main-service/internal/application/rpg/character_skill"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // CharacterSkillHandler handles HTTP requests for character skills
@@ -60,7 +61,9 @@ func (h *CharacterSkillHandler) Learn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.learnSkillUseCase.Execute(r.Context(), characterskillapp.LearnSkillInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		SkillID:     req.SkillID,
 	})
@@ -90,7 +93,9 @@ func (h *CharacterSkillHandler) List(w http.ResponseWriter, r *http.Request) {
 
 	activeOnly := r.URL.Query().Get("active_only") == "true"
 
+	tenantID := middleware.GetTenantID(r.Context())
 	output, err := h.listSkillsUseCase.Execute(r.Context(), characterskillapp.ListCharacterSkillsInput{
+		TenantID:    tenantID,
 		CharacterID: characterID,
 		ActiveOnly:  activeOnly,
 	})

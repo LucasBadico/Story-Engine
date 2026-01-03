@@ -55,7 +55,10 @@ func (uc *CreateArchetypeUseCase) Execute(ctx context.Context, input CreateArche
 
 	newArchetype, err := world.NewArchetype(input.TenantID, input.Name)
 	if err != nil {
-		return nil, err
+		return nil, &platformerrors.ValidationError{
+			Field:   "name",
+			Message: err.Error(),
+		}
 	}
 
 	if input.Description != "" {
