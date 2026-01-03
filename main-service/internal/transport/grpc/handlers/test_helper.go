@@ -9,7 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/story"
 	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
 	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
-	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
+	contentblockapp "github.com/story-engine/main-service/internal/application/story/content_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
@@ -30,8 +30,8 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	chapterRepo := postgres.NewChapterRepository(db)
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
-	proseBlockRepo := postgres.NewProseBlockRepository(db)
-	proseBlockRefRepo := postgres.NewProseBlockReferenceRepository(db)
+	contentBlockRepo := postgres.NewContentBlockRepository(db)
+	contentBlockRefRepo := postgres.NewContentBlockReferenceRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
@@ -53,7 +53,7 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 		chapterRepo,
 		sceneRepo,
 		beatRepo,
-		proseBlockRepo,
+		contentBlockRepo,
 		auditLogRepo,
 		transactionRepo,
 		log,
@@ -83,16 +83,16 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	listBeatsUseCase := beatapp.NewListBeatsUseCase(beatRepo, log)
 	moveBeatUseCase := beatapp.NewMoveBeatUseCase(beatRepo, sceneRepo, log)
 
-	createProseBlockUseCase := proseblockapp.NewCreateProseBlockUseCase(proseBlockRepo, chapterRepo, log)
-	getProseBlockUseCase := proseblockapp.NewGetProseBlockUseCase(proseBlockRepo, log)
-	updateProseBlockUseCase := proseblockapp.NewUpdateProseBlockUseCase(proseBlockRepo, log)
-	deleteProseBlockUseCase := proseblockapp.NewDeleteProseBlockUseCase(proseBlockRepo, log)
-	listProseBlocksUseCase := proseblockapp.NewListProseBlocksUseCase(proseBlockRepo, log)
+	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, log)
+	getContentBlockUseCase := contentblockapp.NewGetContentBlockUseCase(contentBlockRepo, log)
+	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, log)
+	deleteContentBlockUseCase := contentblockapp.NewDeleteContentBlockUseCase(contentBlockRepo, log)
+	listContentBlocksUseCase := contentblockapp.NewListContentBlocksUseCase(contentBlockRepo, log)
 
-	createProseBlockReferenceUseCase := proseblockapp.NewCreateProseBlockReferenceUseCase(proseBlockRefRepo, proseBlockRepo, log)
-	listProseBlockReferencesByProseBlockUseCase := proseblockapp.NewListProseBlockReferencesByProseBlockUseCase(proseBlockRefRepo, proseBlockRepo, log)
-	listProseBlocksByEntityUseCase := proseblockapp.NewListProseBlocksByEntityUseCase(proseBlockRefRepo, proseBlockRepo, log)
-	deleteProseBlockReferenceUseCase := proseblockapp.NewDeleteProseBlockReferenceUseCase(proseBlockRefRepo, log)
+	createContentBlockReferenceUseCase := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockRefRepo, contentBlockRepo, log)
+	listContentBlockReferencesByContentBlockUseCase := contentblockapp.NewListContentBlockReferencesByContentBlockUseCase(contentBlockRefRepo, contentBlockRepo, log)
+	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentBlockRefRepo, contentBlockRepo, log)
+	deleteContentBlockReferenceUseCase := contentblockapp.NewDeleteContentBlockReferenceUseCase(contentBlockRefRepo, log)
 
 	// Create handlers
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -134,31 +134,31 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 		moveBeatUseCase,
 		log,
 	)
-	proseBlockHandler := NewProseBlockHandler(
-		createProseBlockUseCase,
-		getProseBlockUseCase,
-		updateProseBlockUseCase,
-		deleteProseBlockUseCase,
-		listProseBlocksUseCase,
+	contentBlockHandler := NewContentBlockHandler(
+		createContentBlockUseCase,
+		getContentBlockUseCase,
+		updateContentBlockUseCase,
+		deleteContentBlockUseCase,
+		listContentBlocksUseCase,
 		log,
 	)
-	proseBlockRefHandler := NewProseBlockReferenceHandler(
-		createProseBlockReferenceUseCase,
-		listProseBlockReferencesByProseBlockUseCase,
-		listProseBlocksByEntityUseCase,
-		deleteProseBlockReferenceUseCase,
+	contentBlockRefHandler := NewContentBlockReferenceHandler(
+		createContentBlockReferenceUseCase,
+		listContentBlockReferencesByContentBlockUseCase,
+		listContentBlocksByEntityUseCase,
+		deleteContentBlockReferenceUseCase,
 		log,
 	)
 
 	// Use the testing package's SetupTestServerWithHandlers with all handlers
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
-		TenantHandler:              tenantHandler,
-		StoryHandler:               storyHandler,
-		ChapterHandler:             chapterHandler,
-		SceneHandler:               sceneHandler,
-		BeatHandler:                beatHandler,
-		ProseBlockHandler:          proseBlockHandler,
-		ProseBlockReferenceHandler: proseBlockRefHandler,
+		TenantHandler:                tenantHandler,
+		StoryHandler:                 storyHandler,
+		ChapterHandler:               chapterHandler,
+		SceneHandler:                 sceneHandler,
+		BeatHandler:                  beatHandler,
+		ContentBlockHandler:          contentBlockHandler,
+		ContentBlockReferenceHandler: contentBlockRefHandler,
 	})
 
 	cleanup := func() {

@@ -18,7 +18,7 @@ type CloneStoryUseCase struct {
 	chapterRepo      repositories.ChapterRepository
 	sceneRepo        repositories.SceneRepository
 	beatRepo         repositories.BeatRepository
-	proseBlockRepo   repositories.ProseBlockRepository
+	contentBlockRepo repositories.ContentBlockRepository
 	auditLogRepo     repositories.AuditLogRepository
 	transactionRepo  repositories.TransactionRepository
 	logger           logger.Logger
@@ -30,7 +30,7 @@ func NewCloneStoryUseCase(
 	chapterRepo repositories.ChapterRepository,
 	sceneRepo repositories.SceneRepository,
 	beatRepo repositories.BeatRepository,
-	proseBlockRepo repositories.ProseBlockRepository,
+	contentBlockRepo repositories.ContentBlockRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	transactionRepo repositories.TransactionRepository,
 	logger logger.Logger,
@@ -40,7 +40,7 @@ func NewCloneStoryUseCase(
 		chapterRepo:    chapterRepo,
 		sceneRepo:      sceneRepo,
 		beatRepo:       beatRepo,
-		proseBlockRepo: proseBlockRepo,
+		contentBlockRepo: contentBlockRepo,
 		auditLogRepo:   auditLogRepo,
 		transactionRepo: transactionRepo,
 		logger:         logger,
@@ -154,26 +154,26 @@ func (uc *CloneStoryUseCase) Execute(ctx context.Context, input CloneStoryInput)
 		}
 	}
 
-	// Clone all prose blocks
+	// Clone all content blocks
 	for _, oldChapter := range chapters {
-		proseBlocks, err := uc.proseBlockRepo.ListByChapter(ctx, input.TenantID, oldChapter.ID)
+		contentBlocks, err := uc.contentBlockRepo.ListByChapter(ctx, input.TenantID, oldChapter.ID)
 		if err != nil {
 			return nil, err
 		}
 
 		newChapterID, ok := chapterIDMap[oldChapter.ID]
 		if !ok {
-			return nil, errors.New("chapter mapping not found for prose block")
+			return nil, errors.New("chapter mapping not found for content block")
 		}
 
-		for _, oldProse := range proseBlocks {
+		for _, oldContent := range contentBlocks {
 			var newOrderNum *int
-			if oldProse.OrderNum != nil {
-				order := *oldProse.OrderNum
+			if oldContent.OrderNum != nil {
+				order := *oldContent.OrderNum
 				newOrderNum = &order
 			}
-			newProse := versioning.CloneProseBlock(oldProse, &newChapterID, newOrderNum)
-			if err := uc.proseBlockRepo.Create(ctx, newProse); err != nil {
+			newContent := versioning.CloneContentBlock(oldContent, &newChapterID, newOrderNum)
+			if err := uc.contentBlockRepo.Create(ctx, newContent); err != nil {
 				return nil, err
 			}
 		}

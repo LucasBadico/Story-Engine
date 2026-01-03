@@ -1,11 +1,11 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
-import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats, ProseBlock, ProseBlockReference } from "../types";
+import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats, ContentBlock, ContentBlockReference } from "../types";
 
-// Structure to organize prose blocks by their associations
-export interface ProseBlockOrganization {
-	chapterOnly: ProseBlock[]; // Prose blocks only associated with chapter
-	byScene: Map<string, { scene: Scene; proseBlocks: ProseBlock[] }>; // Prose blocks by scene ID
-	byBeat: Map<string, { beat: Beat; proseBlocks: ProseBlock[] }>; // Prose blocks by beat ID
+// Structure to organize content blocks by their associations
+export interface ContentBlockOrganization {
+	chapterOnly: ContentBlock[]; // Content blocks only associated with chapter
+	byScene: Map<string, { scene: Scene; contentBlocks: ContentBlock[] }>; // Content blocks by scene ID
+	byBeat: Map<string, { beat: Beat; contentBlocks: ContentBlock[] }>; // Content blocks by beat ID
 }
 
 export class FileManager {
@@ -124,7 +124,7 @@ export class FileManager {
 		chapters?: ChapterWithContent[], 
 		orphanScenes?: SceneWithBeats[], 
 		orphanBeats?: Beat[],
-		chapterProseData?: Map<string, { proseBlocks: ProseBlock[], proseBlockRefs: ProseBlockReference[] }>
+		chapterContentData?: Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentBlockReference[] }>
 	): Promise<void> {
 		await this.ensureFolderExists(folderPath);
 
@@ -296,20 +296,20 @@ export class FileManager {
 				
 				// Get prose data for this chapter
 				const proseData = chapterProseData?.get(chapter.id);
-				let organization: ReturnType<typeof this.organizeProseBlocks> | null = null;
+				let organization: ReturnType<typeof this.organizeContentBlocks> | null = null;
 				
-				if (proseData) {
-					organization = this.organizeProseBlocks(
-						proseData.proseBlocks,
-						proseData.proseBlockRefs,
+				if (contentData) {
+					organization = this.organizeContentBlocks(
+						contentData.contentBlocks,
+						contentData.contentBlockRefs,
 						chapterWithContent.scenes
 					);
 					
-					// Add chapter-only prose blocks
-					for (const proseBlock of organization.chapterOnly) {
-						const fileName = this.generateProseBlockFileName(proseBlock);
+					// Add chapter-only content blocks
+					for (const contentBlock of organization.chapterOnly) {
+						const fileName = this.generateContentBlockFileName(contentBlock);
 						const linkName = fileName.replace(/\.md$/, "");
-						content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+						content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 					}
 				}
 				
@@ -323,13 +323,13 @@ export class FileManager {
 					
 					content += `### Scene: [[${sceneLinkName}|${sceneDisplayText}]]\n\n`;
 					
-					// Add scene prose blocks
+					// Add scene content blocks
 					if (organization) {
-						const sceneProseBlocks = organization.byScene.get(scene.id)?.proseBlocks || [];
-						for (const proseBlock of sceneProseBlocks) {
-							const fileName = this.generateProseBlockFileName(proseBlock);
+						const sceneContentBlocks = organization.byScene.get(scene.id)?.contentBlocks || [];
+						for (const contentBlock of sceneContentBlocks) {
+							const fileName = this.generateContentBlockFileName(contentBlock);
 							const linkName = fileName.replace(/\.md$/, "");
-							content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+							content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 						}
 					}
 					
@@ -343,13 +343,13 @@ export class FileManager {
 						
 						content += `#### Beat: [[${beatLinkName}|${beatDisplayText}]]\n\n`;
 						
-						// Add beat prose blocks
+						// Add beat content blocks
 						if (organization) {
-							const beatProseBlocks = organization.byBeat.get(beat.id)?.proseBlocks || [];
-							for (const proseBlock of beatProseBlocks) {
-								const fileName = this.generateProseBlockFileName(proseBlock);
+							const beatContentBlocks = organization.byBeat.get(beat.id)?.contentBlocks || [];
+							for (const contentBlock of beatContentBlocks) {
+								const fileName = this.generateContentBlockFileName(contentBlock);
 								const linkName = fileName.replace(/\.md$/, "");
-								content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+								content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 							}
 						}
 					}
@@ -396,8 +396,8 @@ export class FileManager {
 		chapterWithContent: ChapterWithContent,
 		filePath: string,
 		storyName?: string,
-		proseBlocks?: ProseBlock[],
-		proseBlockRefs?: ProseBlockReference[],
+		contentBlocks?: ContentBlock[],
+		contentBlockRefs?: ContentBlockReference[],
 		orphanScenes?: SceneWithBeats[] // Include orphan scenes for easy association
 	): Promise<void> {
 		const { chapter, scenes } = chapterWithContent;
@@ -421,9 +421,9 @@ export class FileManager {
 		let content = `${frontmatter}\n# ${chapter.title}\n\n`;
 
 		// Organize prose blocks by their associations
-		const organization = this.organizeProseBlocks(
-			proseBlocks || [],
-			proseBlockRefs || [],
+		const organization = this.organizeContentBlocks(
+			contentBlocks || [],
+			contentBlockRefs || [],
 			scenes
 		);
 
@@ -458,8 +458,8 @@ export class FileManager {
 				: scene.goal;
 			
 			// Check if scene has prose blocks (not associated with beats)
-			const sceneProseBlocks = organization.byScene.get(scene.id)?.proseBlocks || [];
-			const hasSceneProse = sceneProseBlocks.length > 0;
+			const sceneContentBlocks = organization.byScene.get(scene.id)?.contentBlocks || [];
+			const hasSceneContent = sceneContentBlocks.length > 0;
 			const sceneMarker = hasSceneProse ? "+" : "-";
 			
 			content += `${sceneMarker} [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
@@ -473,8 +473,8 @@ export class FileManager {
 					: beat.intent;
 				
 				// Check if beat has prose blocks
-				const beatProseBlocks = organization.byBeat.get(beat.id)?.proseBlocks || [];
-				const hasBeatProse = beatProseBlocks.length > 0;
+				const beatContentBlocks = organization.byBeat.get(beat.id)?.contentBlocks || [];
+				const hasBeatContent = beatContentBlocks.length > 0;
 				const beatMarker = hasBeatProse ? "+" : "-";
 				
 				content += `\t${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
@@ -517,10 +517,10 @@ export class FileManager {
 		content += `## Chapter ${chapter.number}: ${chapter.title}\n\n`;
 
 		// Add prose blocks that are only associated with chapter
-		for (const proseBlock of organization.chapterOnly) {
-			const fileName = this.generateProseBlockFileName(proseBlock);
+		for (const contentBlock of organization.chapterOnly) {
+			const fileName = this.generateContentBlockFileName(contentBlock);
 			const linkName = fileName.replace(/\.md$/, "");
-			content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+			content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 		}
 
 		// Add scenes with their prose blocks and beats
@@ -535,11 +535,11 @@ export class FileManager {
 			content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]\n\n`;
 
 			// Get prose blocks for this scene (not associated with any beat)
-			const sceneProseBlocks = organization.byScene.get(scene.id)?.proseBlocks || [];
-			for (const proseBlock of sceneProseBlocks) {
-				const fileName = this.generateProseBlockFileName(proseBlock);
+			const sceneContentBlocks = organization.byScene.get(scene.id)?.contentBlocks || [];
+			for (const contentBlock of sceneContentBlocks) {
+				const fileName = this.generateContentBlockFileName(contentBlock);
 				const linkName = fileName.replace(/\.md$/, "");
-				content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+				content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 			}
 
 			// Add beats with their prose blocks
@@ -554,11 +554,11 @@ export class FileManager {
 				content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]\n\n`;
 
 				// Get prose blocks for this beat
-				const beatProseBlocks = organization.byBeat.get(beat.id)?.proseBlocks || [];
-				for (const proseBlock of beatProseBlocks) {
-					const fileName = this.generateProseBlockFileName(proseBlock);
+				const beatContentBlocks = organization.byBeat.get(beat.id)?.contentBlocks || [];
+				for (const contentBlock of beatContentBlocks) {
+					const fileName = this.generateContentBlockFileName(contentBlock);
 					const linkName = fileName.replace(/\.md$/, "");
-					content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+					content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 				}
 			}
 		}
@@ -683,7 +683,7 @@ export class FileManager {
 		sceneWithBeats: SceneWithBeats,
 		filePath: string,
 		storyName?: string,
-		proseBlocks?: ProseBlock[],
+		contentBlocks?: ContentBlock[],
 		orphanBeats?: Beat[] // Include orphan beats for easy association
 	): Promise<void> {
 		const { scene, beats } = sceneWithBeats;
@@ -742,8 +742,8 @@ export class FileManager {
 			
 			// Check which beats have prose blocks
 			const beatsWithProse = new Set<string>();
-			if (proseBlocks) {
-				for (const proseBlock of proseBlocks) {
+			if (contentBlocks) {
+				for (const contentBlock of contentBlocks) {
 					// Check if prose block is referenced by any beat
 					// We'll need to check prose block references, but for now we'll use a simple check
 					// This will be updated when we process prose block references
@@ -796,13 +796,13 @@ export class FileManager {
 		content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]\n\n`;
 
 		// Add prose blocks at scene level (not associated with any beat)
-		if (proseBlocks && proseBlocks.length > 0) {
+		if (contentBlocks && contentBlocks.length > 0) {
 			// Sort by order_num
-			const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
-			for (const proseBlock of sortedProseBlocks) {
-				const fileName = this.generateProseBlockFileName(proseBlock);
+			const sortedContentBlocks = [...contentBlocks].sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
+			for (const contentBlock of sortedContentBlocks) {
+				const fileName = this.generateContentBlockFileName(contentBlock);
 				const linkName = fileName.replace(/\.md$/, "");
-				content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+				content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 			}
 		}
 
@@ -830,7 +830,7 @@ export class FileManager {
 		beat: Beat,
 		filePath: string,
 		storyName?: string,
-		proseBlocks?: ProseBlock[]
+		contentBlocks?: ContentBlock[]
 	): Promise<void> {
 		const baseFields = {
 			id: beat.id,
@@ -867,13 +867,13 @@ export class FileManager {
 		
 		content += `## Beat: [[${beatLinkName}|${beatDisplayText}]]\n\n`;
 
-		// Add prose blocks for this beat
-		if (proseBlocks && proseBlocks.length > 0) {
-			const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
-			for (const proseBlock of sortedProseBlocks) {
-				const fileName = this.generateProseBlockFileName(proseBlock);
+		// Add content blocks for this beat
+		if (contentBlocks && contentBlocks.length > 0) {
+			const sortedContentBlocks = [...contentBlocks].sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
+			for (const contentBlock of sortedContentBlocks) {
+				const fileName = this.generateContentBlockFileName(contentBlock);
 				const linkName = fileName.replace(/\.md$/, "");
-				content += `[[${linkName}|${proseBlock.content}]]\n\n`;
+				content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 			}
 		}
 
@@ -980,10 +980,10 @@ export class FileManager {
 		return beatFiles.sort();
 	}
 
-	// Generate filename for prose block based on date and content preview
-	generateProseBlockFileName(proseBlock: ProseBlock): string {
+	// Generate filename for content block based on date and content preview
+	generateContentBlockFileName(contentBlock: ContentBlock): string {
 		// Parse created_at date
-		const date = new Date(proseBlock.created_at);
+		const date = new Date(contentBlock.created_at);
 		const year = date.getFullYear();
 		const month = String(date.getMonth() + 1).padStart(2, "0");
 		const day = String(date.getDate()).padStart(2, "0");
@@ -994,7 +994,7 @@ export class FileManager {
 		const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
 
 		// Get first 30 characters of content and sanitize
-		const contentPreview = proseBlock.content
+		const contentPreview = contentBlock.content
 			.substring(0, 30)
 			.trim()
 			.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
@@ -1004,13 +1004,13 @@ export class FileManager {
 			.toLowerCase();
 
 		// If content is empty, use a default
-		const textPart = contentPreview || "prose-block";
+		const textPart = contentPreview || "content-block";
 
 		return `${dateStr}_${textPart}.md`;
 	}
 
 	// Organize prose blocks by their associations (chapter, scene, beat)
-	private organizeProseBlocks(
+	private organizeContentBlocks(
 		proseBlocks: ProseBlock[],
 		proseBlockRefs: ProseBlockReference[],
 		scenes: SceneWithBeats[]
@@ -1124,8 +1124,8 @@ export class FileManager {
 	}
 
 	// Write prose block file
-	async writeProseBlockFile(
-		proseBlock: ProseBlock,
+	async writeContentBlockFile(
+		contentBlock: ContentBlock,
 		filePath: string,
 		storyName?: string
 	): Promise<void> {
@@ -1156,7 +1156,7 @@ export class FileManager {
 	}
 
 	// Read prose block from file
-	async readProseBlockFromFile(filePath: string): Promise<ProseBlock | null> {
+	async readContentBlockFromFile(filePath: string): Promise<ContentBlock | null> {
 		const file = this.vault.getAbstractFileByPath(filePath);
 		if (!(file instanceof TFile)) {
 			return null;

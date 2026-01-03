@@ -104,7 +104,7 @@ func findMigrationsPath() string {
 // NOTE: With database cloning, this is typically not needed as each test gets a fresh database
 func TruncateTables(ctx context.Context, db *DB) error {
 	query := `TRUNCATE TABLE 
-		prose_blocks, beats, scenes, chapters, stories, 
+		content_blocks, beats, scenes, chapters, stories, 
 		audit_logs, memberships, users, tenants 
 		RESTART IDENTITY CASCADE`
 	

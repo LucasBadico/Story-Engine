@@ -26,7 +26,7 @@ func TestStoryHandler_Create(t *testing.T) {
 	chapterRepo := postgres.NewChapterRepository(db)
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
-	proseBlockRepo := postgres.NewProseBlockRepository(db)
+	contentBlockRepo := postgres.NewContentBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
@@ -65,7 +65,7 @@ func TestStoryHandler_Create(t *testing.T) {
 	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	transactionRepo := postgres.NewTransactionRepository(db)
-	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo, auditLogRepo, transactionRepo, log)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo, auditLogRepo, transactionRepo, log)
 	handler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
 
 	t.Run("successful creation", func(t *testing.T) {
@@ -134,7 +134,7 @@ func TestStoryHandler_Get(t *testing.T) {
 	chapterRepo := postgres.NewChapterRepository(db)
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
-	proseBlockRepo := postgres.NewProseBlockRepository(db)
+	contentBlockRepo := postgres.NewContentBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
@@ -173,7 +173,7 @@ func TestStoryHandler_Get(t *testing.T) {
 	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	transactionRepo := postgres.NewTransactionRepository(db)
-	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo, auditLogRepo, transactionRepo, log)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo, auditLogRepo, transactionRepo, log)
 	storyBody := `{"title": "Get Test Story"}`
 	storyReq := httptest.NewRequest("POST", "/api/v1/stories", strings.NewReader(storyBody))
 	storyReq.Header.Set("Content-Type", "application/json")
@@ -250,7 +250,7 @@ func TestStoryHandler_List(t *testing.T) {
 	chapterRepo := postgres.NewChapterRepository(db)
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
-	proseBlockRepo := postgres.NewProseBlockRepository(db)
+	contentBlockRepo := postgres.NewContentBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	log := logger.New()
@@ -289,7 +289,7 @@ func TestStoryHandler_List(t *testing.T) {
 	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	transactionRepo := postgres.NewTransactionRepository(db)
-	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo, auditLogRepo, transactionRepo, log)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo, auditLogRepo, transactionRepo, log)
 	handler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
 
 	// Create multiple stories

@@ -1,7 +1,7 @@
 import { App, Notice, TFile, TFolder } from "obsidian";
 import { StoryEngineClient } from "../api/client";
 import { FileManager } from "./fileManager";
-import { StoryEngineSettings, ProseBlock, ProseBlockReference, Scene, Beat, Chapter, SceneWithBeats } from "../types";
+import { StoryEngineSettings, ContentBlock, ContentBlockReference, Scene, Beat, Chapter, SceneWithBeats } from "../types";
 import { parseHierarchicalProse, parseChapterProse, compareProseBlocks, ParsedParagraph, ProseBlockComparison, HierarchicalProse, parseSceneBeatList, ParsedSceneBeatListItem, parseChapterList, ParsedChapterListItem, ParsedChapterList, parseBeatList, ParsedBeatList, ParsedBeatListItem, parseOrphanScenesList, parseOrphanBeatsList, parseStoryProse, parseSceneProse, parseBeatProse } from "./proseBlockParser";
 import { ConflictModal, ConflictResolutionResult } from "../views/modals/ConflictModal";
 
@@ -51,15 +51,15 @@ export class SyncService {
 			orphanBeats.sort((a, b) => a.order_num - b.order_num);
 			
 			// Fetch prose blocks for all chapters to include in story.md
-			const chapterProseData = new Map<string, { proseBlocks: ProseBlock[], proseBlockRefs: ProseBlockReference[] }>();
+			const chapterContentData = new Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentBlockReference[] }>();
 			for (const chapterWithContent of storyData.chapters) {
-				const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
-				const proseBlockRefs: ProseBlockReference[] = [];
-				for (const proseBlock of proseBlocks) {
-					const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
-					proseBlockRefs.push(...refs);
+				const contentBlocks = await this.apiClient.getContentBlocks(chapterWithContent.chapter.id);
+				const contentBlockRefs: ContentBlockReference[] = [];
+				for (const contentBlock of contentBlocks) {
+					const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+					contentBlockRefs.push(...refs);
 				}
-				chapterProseData.set(chapterWithContent.chapter.id, { proseBlocks, proseBlockRefs });
+				chapterContentData.set(chapterWithContent.chapter.id, { contentBlocks, contentBlockRefs });
 			}
 			
 			// Write story metadata with chapters list, orphan scenes, orphan beats, and prose data
@@ -69,12 +69,12 @@ export class SyncService {
 				storyData.chapters,
 				orphanScenes,
 				orphanBeats,
-				chapterProseData
+				chapterContentData
 			);
 
 			// Ensure prose-blocks folder exists
-			const proseBlocksFolderPath = `${folderPath}/prose-blocks`;
-			await this.fileManager.ensureFolderExists(proseBlocksFolderPath);
+			const contentBlocksFolderPath = `${folderPath}/content-blocks`;
+			await this.fileManager.ensureFolderExists(contentBlocksFolderPath);
 
 			// Ensure chapters folder exists
 			const chaptersFolderPath = `${folderPath}/chapters`;
@@ -83,17 +83,17 @@ export class SyncService {
 			// Write chapter files with prose blocks
 			for (const chapterWithContent of storyData.chapters) {
 				// Get prose blocks from the already fetched data
-				const proseData = chapterProseData.get(chapterWithContent.chapter.id);
-				const proseBlocks = proseData?.proseBlocks || [];
-				const proseBlockRefs = proseData?.proseBlockRefs || [];
+				const contentData = chapterContentData.get(chapterWithContent.chapter.id);
+				const contentBlocks = contentData?.contentBlocks || [];
+				const contentBlockRefs = contentData?.contentBlockRefs || [];
 
-				// Write prose block files
-				for (const proseBlock of proseBlocks) {
-					const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
-					const proseBlockFilePath = `${proseBlocksFolderPath}/${proseBlockFileName}`;
-					await this.fileManager.writeProseBlockFile(
-						proseBlock,
-						proseBlockFilePath,
+				// Write content block files
+				for (const contentBlock of contentBlocks) {
+					const contentBlockFileName = this.fileManager.generateContentBlockFileName(contentBlock);
+					const contentBlockFilePath = `${contentBlocksFolderPath}/${contentBlockFileName}`;
+					await this.fileManager.writeContentBlockFile(
+						contentBlock,
+						contentBlockFilePath,
 						storyData.story.title
 					);
 				}
@@ -105,8 +105,8 @@ export class SyncService {
 					chapterWithContent,
 					chapterFilePath,
 					storyData.story.title,
-					proseBlocks,
-					proseBlockRefs,
+					contentBlocks,
+					contentBlockRefs,
 					orphanScenes // Include orphan scenes for easy association
 				);
 
@@ -116,7 +116,7 @@ export class SyncService {
 				
 				for (const { scene, beats } of chapterWithContent.scenes) {
 					// Fetch prose blocks referenced by this scene
-					const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+					const sceneContentBlocks = await this.apiClient.getContentBlocksByScene(scene.id);
 
 					const sceneFileName = this.fileManager.generateSceneFileName(scene);
 					const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
@@ -125,7 +125,7 @@ export class SyncService {
 						{ scene, beats },
 						sceneFilePath,
 						storyData.story.title,
-						sceneProseBlocks,
+						sceneContentBlocks,
 						orphanBeats // Include orphan beats for easy association
 					);
 
@@ -134,10 +134,10 @@ export class SyncService {
 					await this.fileManager.ensureFolderExists(beatsFolderPath);
 					
 					for (const beat of beats) {
-						const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+						const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
 						const beatFileName = this.fileManager.generateBeatFileName(beat);
 						const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
-						await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
+						await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
 					}
 				}
 			}
@@ -307,7 +307,7 @@ export class SyncService {
 					await this.fileManager.ensureFolderExists(versionScenesPath);
 					
 					for (const { scene, beats } of chapterWithContent.scenes) {
-						const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+						const sceneContentBlocks = await this.apiClient.getContentBlocksByScene(scene.id);
 						const sceneFileName = this.fileManager.generateSceneFileName(scene);
 						const sceneFilePath = `${versionScenesPath}/${sceneFileName}`;
 						await this.fileManager.writeSceneFile(

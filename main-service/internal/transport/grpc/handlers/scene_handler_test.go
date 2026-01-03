@@ -783,7 +783,7 @@ func setupTestServerWithSceneReferences(t *testing.T) (*grpc.ClientConn, func())
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
 	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
-	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, postgres.NewBeatRepository(db), postgres.NewProseBlockRepository(db), auditLogRepo, postgres.NewTransactionRepository(db), log)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, postgres.NewBeatRepository(db), postgres.NewContentBlockRepository(db), auditLogRepo, postgres.NewTransactionRepository(db), log)
 	versionGraphUseCase := story.NewGetStoryVersionGraphUseCase(storyRepo, log)
 
 	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, log)

@@ -17,8 +17,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/story"
 	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
-	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
-	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
+	contentblockapp "github.com/story-engine/main-service/internal/application/story/content_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
@@ -74,7 +73,8 @@ func main() {
 	sceneRepo := postgres.NewSceneRepository(pgDB)
 	sceneReferenceRepo := postgres.NewSceneReferenceRepository(pgDB)
 	beatRepo := postgres.NewBeatRepository(pgDB)
-	proseBlockRepo := postgres.NewProseBlockRepository(pgDB)
+	contentBlockRepo := postgres.NewContentBlockRepository(pgDB)
+	contentBlockReferenceRepo := postgres.NewContentBlockReferenceRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
 	transactionRepo := postgres.NewTransactionRepository(pgDB)
 	rpgSystemRepo := postgres.NewRPGSystemRepository(pgDB)
@@ -84,7 +84,6 @@ func main() {
 	characterSkillRepo := postgres.NewCharacterSkillRepository(pgDB)
 	characterStatsRepo := postgres.NewCharacterRPGStatsRepository(pgDB)
 	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(pgDB)
-	imageBlockRepo := postgres.NewImageBlockRepository(pgDB)
 	inventoryRepo := postgres.NewCharacterInventoryRepository(pgDB)
 	inventoryItemRepo := postgres.NewInventoryItemRepository(pgDB)
 
@@ -156,7 +155,7 @@ func main() {
 		chapterRepo,
 		sceneRepo,
 		beatRepo,
-		proseBlockRepo,
+		contentBlockRepo,
 		auditLogRepo,
 		transactionRepo,
 		log,
@@ -182,16 +181,15 @@ func main() {
 	deleteBeatUseCase := beatapp.NewDeleteBeatUseCase(beatRepo, log)
 	listBeatsUseCase := beatapp.NewListBeatsUseCase(beatRepo, log)
 	moveBeatUseCase := beatapp.NewMoveBeatUseCase(beatRepo, sceneRepo, log)
-	proseBlockReferenceRepo := postgres.NewProseBlockReferenceRepository(pgDB)
-	createProseBlockUseCase := proseblockapp.NewCreateProseBlockUseCase(proseBlockRepo, chapterRepo, log)
-	getProseBlockUseCase := proseblockapp.NewGetProseBlockUseCase(proseBlockRepo, log)
-	updateProseBlockUseCase := proseblockapp.NewUpdateProseBlockUseCase(proseBlockRepo, log)
-	deleteProseBlockUseCase := proseblockapp.NewDeleteProseBlockUseCase(proseBlockRepo, log)
-	listProseBlocksUseCase := proseblockapp.NewListProseBlocksUseCase(proseBlockRepo, log)
-	createProseBlockReferenceUseCase := proseblockapp.NewCreateProseBlockReferenceUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
-	listProseBlockReferencesByProseBlockUseCase := proseblockapp.NewListProseBlockReferencesByProseBlockUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
-	listProseBlocksByEntityUseCase := proseblockapp.NewListProseBlocksByEntityUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
-	deleteProseBlockReferenceUseCase := proseblockapp.NewDeleteProseBlockReferenceUseCase(proseBlockReferenceRepo, log)
+	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, log)
+	getContentBlockUseCase := contentblockapp.NewGetContentBlockUseCase(contentBlockRepo, log)
+	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, log)
+	deleteContentBlockUseCase := contentblockapp.NewDeleteContentBlockUseCase(contentBlockRepo, log)
+	listContentBlocksUseCase := contentblockapp.NewListContentBlocksUseCase(contentBlockRepo, log)
+	createContentBlockReferenceUseCase := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
+	listContentBlockReferencesByContentBlockUseCase := contentblockapp.NewListContentBlockReferencesByContentBlockUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
+	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
+	deleteContentBlockReferenceUseCase := contentblockapp.NewDeleteContentBlockReferenceUseCase(contentBlockReferenceRepo, log)
 	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
 	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)
 	listRPGSystemsUseCase := rpgsystemapp.NewListRPGSystemsUseCase(rpgSystemRepo, log)
@@ -223,12 +221,6 @@ func main() {
 	getActiveArtifactStatsUseCase := artifactstatsapp.NewGetActiveArtifactStatsUseCase(artifactStatsRepo, log)
 	listArtifactStatsHistoryUseCase := artifactstatsapp.NewListArtifactStatsHistoryUseCase(artifactStatsRepo, log)
 	activateArtifactStatsVersionUseCase := artifactstatsapp.NewActivateArtifactStatsVersionUseCase(artifactStatsRepo, log)
-	createImageBlockUseCase := imageblockapp.NewCreateImageBlockUseCase(imageBlockRepo, chapterRepo, log)
-	getImageBlockUseCase := imageblockapp.NewGetImageBlockUseCase(imageBlockRepo, log)
-	listImageBlocksUseCase := imageblockapp.NewListImageBlocksUseCase(imageBlockRepo, log)
-	updateImageBlockUseCase := imageblockapp.NewUpdateImageBlockUseCase(imageBlockRepo, log)
-	imageBlockReferenceRepo := postgres.NewImageBlockReferenceRepository(pgDB)
-	deleteImageBlockUseCase := imageblockapp.NewDeleteImageBlockUseCase(imageBlockRepo, imageBlockReferenceRepo, log)
 	addItemToInventoryUseCase := characterinventoryapp.NewAddItemToInventoryUseCase(inventoryRepo, characterRepo, inventoryItemRepo, log)
 	updateInventoryItemUseCase := characterinventoryapp.NewUpdateCharacterInventoryUseCase(inventoryRepo, log)
 	deleteInventoryItemUseCase := characterinventoryapp.NewDeleteCharacterInventoryUseCase(inventoryRepo, log)
@@ -255,15 +247,14 @@ func main() {
 	chapterHandler := handlers.NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
 	sceneHandler := handlers.NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
 	beatHandler := handlers.NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
-	proseBlockHandler := handlers.NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
-	proseBlockReferenceHandler := handlers.NewProseBlockReferenceHandler(createProseBlockReferenceUseCase, listProseBlockReferencesByProseBlockUseCase, listProseBlocksByEntityUseCase, deleteProseBlockReferenceUseCase, log)
+	contentBlockHandler := handlers.NewContentBlockHandler(createContentBlockUseCase, getContentBlockUseCase, updateContentBlockUseCase, deleteContentBlockUseCase, listContentBlocksUseCase, log)
+	contentBlockReferenceHandler := handlers.NewContentBlockReferenceHandler(createContentBlockReferenceUseCase, listContentBlockReferencesByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentBlockReferenceUseCase, log)
 	rpgSystemHandler := handlers.NewRPGSystemHandler(createRPGSystemUseCase, getRPGSystemUseCase, listRPGSystemsUseCase, updateRPGSystemUseCase, deleteRPGSystemUseCase, log)
 	skillHandler := handlers.NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
 	rpgClassHandler := handlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, removeSkillFromClassUseCase, log)
 	characterSkillHandler := handlers.NewCharacterSkillHandler(learnSkillUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, listCharacterSkillsUseCase, log)
 	characterRPGStatsHandler := handlers.NewCharacterRPGStatsHandler(createCharacterStatsUseCase, getActiveCharacterStatsUseCase, listCharacterStatsHistoryUseCase, activateCharacterStatsVersionUseCase, deleteAllCharacterStatsUseCase, log)
 	artifactRPGStatsHandler := handlers.NewArtifactRPGStatsHandler(createArtifactStatsUseCase, getActiveArtifactStatsUseCase, listArtifactStatsHistoryUseCase, activateArtifactStatsVersionUseCase, log)
-	imageBlockHandler := handlers.NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, log)
 	inventoryHandler := handlers.NewInventoryHandler(addItemToInventoryUseCase, updateInventoryItemUseCase, deleteInventoryItemUseCase, listInventoryUseCase, log)
 
 	// Create and configure gRPC server
@@ -280,15 +271,14 @@ func main() {
 	grpcServer.RegisterChapterService(chapterHandler)
 	grpcServer.RegisterSceneService(sceneHandler)
 	grpcServer.RegisterBeatService(beatHandler)
-	grpcServer.RegisterProseBlockService(proseBlockHandler)
-	grpcServer.RegisterProseBlockReferenceService(proseBlockReferenceHandler)
+	grpcServer.RegisterContentBlockService(contentBlockHandler)
+	grpcServer.RegisterContentBlockReferenceService(contentBlockReferenceHandler)
 	grpcServer.RegisterRPGSystemService(rpgSystemHandler)
 	grpcServer.RegisterSkillService(skillHandler)
 	grpcServer.RegisterRPGClassService(rpgClassHandler)
 	grpcServer.RegisterCharacterSkillService(characterSkillHandler)
 	grpcServer.RegisterCharacterRPGStatsService(characterRPGStatsHandler)
 	grpcServer.RegisterArtifactRPGStatsService(artifactRPGStatsHandler)
-	grpcServer.RegisterImageBlockService(imageBlockHandler)
 	grpcServer.RegisterInventoryService(inventoryHandler)
 
 	// Setup graceful shutdown

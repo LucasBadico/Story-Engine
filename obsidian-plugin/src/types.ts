@@ -101,20 +101,40 @@ export interface StoryWithHierarchy {
 	chapters: ChapterWithContent[];
 }
 
-export interface ProseBlock {
+export interface ContentMetadata {
+	word_count?: number;
+	alt_text?: string;
+	caption?: string;
+	width?: number;
+	height?: number;
+	mime_type?: string;
+	provider?: string;
+	video_id?: string;
+	duration?: number;
+	thumbnail_url?: string;
+	transcript?: string;
+	html?: string;
+	title?: string;
+	description?: string;
+	image_url?: string;
+	site_name?: string;
+}
+
+export interface ContentBlock {
 	id: string;
-	chapter_id: string;
-	order_num: number;
+	chapter_id?: string | null;
+	order_num?: number | null;
+	type: "text" | "image" | "video" | "audio" | "embed" | "link";
 	kind: string;
 	content: string;
-	word_count: number;
+	metadata: ContentMetadata;
 	created_at: string;
 	updated_at: string;
 }
 
-export interface ProseBlockReference {
+export interface ContentBlockReference {
 	id: string;
-	prose_block_id: string;
+	content_block_id: string;
 	entity_type: string;
 	entity_id: string;
 	created_at: string;

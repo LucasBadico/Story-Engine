@@ -7,11 +7,11 @@ import (
 
 // CloneResult holds the result of a story clone operation
 type CloneResult struct {
-	NewStoryID      uuid.UUID
-	NewChapterIDs   map[uuid.UUID]uuid.UUID // old chapter ID -> new chapter ID
-	NewSceneIDs     map[uuid.UUID]uuid.UUID // old scene ID -> new scene ID
-	NewBeatIDs      map[uuid.UUID]uuid.UUID // old beat ID -> new beat ID
-	NewProseBlockIDs map[uuid.UUID]uuid.UUID // old prose block ID -> new prose block ID
+	NewStoryID         uuid.UUID
+	NewChapterIDs      map[uuid.UUID]uuid.UUID // old chapter ID -> new chapter ID
+	NewSceneIDs        map[uuid.UUID]uuid.UUID // old scene ID -> new scene ID
+	NewBeatIDs         map[uuid.UUID]uuid.UUID // old beat ID -> new beat ID
+	NewContentBlockIDs map[uuid.UUID]uuid.UUID // old content block ID -> new content block ID
 }
 
 // CloneStory creates a deep copy of a story for versioning
@@ -30,7 +30,7 @@ func CloneStory(sourceStory *story.Story, versionNumber int) (*story.Story, erro
 		Status:          sourceStory.Status,
 		VersionNumber:   versionNumber,
 		RootStoryID:     sourceStory.RootStoryID, // Keep same root
-		PreviousStoryID: &sourceStory.ID,          // Point to source
+		PreviousStoryID: &sourceStory.ID,         // Point to source
 		CreatedByUserID: sourceStory.CreatedByUserID,
 		CreatedAt:       sourceStory.CreatedAt,
 		UpdatedAt:       sourceStory.UpdatedAt,
@@ -84,18 +84,18 @@ func CloneBeat(sourceBeat *story.Beat, newSceneID uuid.UUID) *story.Beat {
 	}
 }
 
-// CloneProseBlock creates a deep copy of a prose block
-func CloneProseBlock(sourceProse *story.ProseBlock, newChapterID *uuid.UUID, newOrderNum *int) *story.ProseBlock {
-	return &story.ProseBlock{
+// CloneContentBlock creates a deep copy of a content block
+func CloneContentBlock(sourceContent *story.ContentBlock, newChapterID *uuid.UUID, newOrderNum *int) *story.ContentBlock {
+	return &story.ContentBlock{
 		ID:        uuid.New(),
-		TenantID:  sourceProse.TenantID,
+		TenantID:  sourceContent.TenantID,
 		ChapterID: newChapterID,
 		OrderNum:  newOrderNum,
-		Kind:      sourceProse.Kind,
-		Content:   sourceProse.Content,
-		WordCount: sourceProse.WordCount,
-		CreatedAt: sourceProse.CreatedAt,
-		UpdatedAt: sourceProse.UpdatedAt,
+		Type:      sourceContent.Type,
+		Kind:      sourceContent.Kind,
+		Content:   sourceContent.Content,
+		Metadata:  sourceContent.Metadata,
+		CreatedAt: sourceContent.CreatedAt,
+		UpdatedAt: sourceContent.UpdatedAt,
 	}
 }
-

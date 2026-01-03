@@ -11,7 +11,7 @@ import (
 	grpcserver "github.com/story-engine/main-service/internal/transport/grpc"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
-	prosepb "github.com/story-engine/main-service/proto/prose"
+	contentblockpb "github.com/story-engine/main-service/proto/content_block"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	storypb "github.com/story-engine/main-service/proto/story"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
@@ -28,7 +28,6 @@ import (
 	characterskillpb "github.com/story-engine/main-service/proto/character_skill"
 	characterrpgstatspb "github.com/story-engine/main-service/proto/character_rpg_stats"
 	artifactrpgstatspb "github.com/story-engine/main-service/proto/artifact_rpg_stats"
-	imageblockpb "github.com/story-engine/main-service/proto/image_block"
 	inventorypb "github.com/story-engine/main-service/proto/inventory"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -41,8 +40,8 @@ type TestHandlers struct {
 	ChapterHandler             chapterpb.ChapterServiceServer
 	SceneHandler               scenepb.SceneServiceServer
 	BeatHandler                beatpb.BeatServiceServer
-	ProseBlockHandler          prosepb.ProseBlockServiceServer
-	ProseBlockReferenceHandler prosepb.ProseBlockReferenceServiceServer
+	ContentBlockHandler          contentblockpb.ContentBlockServiceServer
+	ContentBlockReferenceHandler contentblockpb.ContentBlockReferenceServiceServer
 	WorldHandler               worldpb.WorldServiceServer
 	TraitHandler               traitpb.TraitServiceServer
 	ArchetypeHandler           archetypepb.ArchetypeServiceServer
@@ -56,7 +55,6 @@ type TestHandlers struct {
 	CharacterSkillHandler      characterskillpb.CharacterSkillServiceServer
 	CharacterRPGStatsHandler   characterrpgstatspb.CharacterRPGStatsServiceServer
 	ArtifactRPGStatsHandler    artifactrpgstatspb.ArtifactRPGStatsServiceServer
-	ImageBlockHandler          imageblockpb.ImageBlockServiceServer
 	InventoryHandler           inventorypb.InventoryServiceServer
 }
 
@@ -93,11 +91,11 @@ func SetupTestServerWithHandlers(t *testing.T, handlers TestHandlers) (*grpc.Cli
 	if handlers.BeatHandler != nil {
 		grpcServer.RegisterBeatService(handlers.BeatHandler)
 	}
-	if handlers.ProseBlockHandler != nil {
-		grpcServer.RegisterProseBlockService(handlers.ProseBlockHandler)
+	if handlers.ContentBlockHandler != nil {
+		grpcServer.RegisterContentBlockService(handlers.ContentBlockHandler)
 	}
-	if handlers.ProseBlockReferenceHandler != nil {
-		grpcServer.RegisterProseBlockReferenceService(handlers.ProseBlockReferenceHandler)
+	if handlers.ContentBlockReferenceHandler != nil {
+		grpcServer.RegisterContentBlockReferenceService(handlers.ContentBlockReferenceHandler)
 	}
 	if handlers.WorldHandler != nil {
 		grpcServer.RegisterWorldService(handlers.WorldHandler)
@@ -137,9 +135,6 @@ func SetupTestServerWithHandlers(t *testing.T, handlers TestHandlers) (*grpc.Cli
 	}
 	if handlers.ArtifactRPGStatsHandler != nil {
 		grpcServer.RegisterArtifactRPGStatsService(handlers.ArtifactRPGStatsHandler)
-	}
-	if handlers.ImageBlockHandler != nil {
-		grpcServer.RegisterImageBlockService(handlers.ImageBlockHandler)
 	}
 	if handlers.InventoryHandler != nil {
 		grpcServer.RegisterInventoryService(handlers.InventoryHandler)

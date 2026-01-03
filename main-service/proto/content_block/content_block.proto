@@ -1,0 +1,161 @@
+syntax = "proto3";
+package content_block;
+option go_package = "github.com/story-engine/main-service/proto/content_block";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+// ContentBlock represents a block of content (text, image, video, audio, embed, link)
+message ContentBlock {
+  string id = 1;
+  optional string chapter_id = 2;
+  optional int32 order_num = 3;
+  string type = 4; // text, image, video, audio, embed, link
+  string kind = 5; // final, alt_a, alt_b, cleaned, localized, draft, thumbnail
+  string content = 6; // text content or URL depending on type
+  google.protobuf.Struct metadata = 7; // type-specific metadata (JSONB)
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+// ContentBlockReference represents a reference from an entity to a content block
+message ContentBlockReference {
+  string id = 1;
+  string content_block_id = 2;
+  string entity_type = 3; // scene, beat, chapter, character, location, artifact, event, world, rpg_system, rpg_skill, rpg_class, inventory_item
+  string entity_id = 4;
+  google.protobuf.Timestamp created_at = 5;
+}
+
+// CreateContentBlockRequest is the request to create a new content block
+message CreateContentBlockRequest {
+  optional string chapter_id = 1;
+  optional int32 order_num = 2;
+  string type = 3;
+  string kind = 4;
+  string content = 5;
+  optional google.protobuf.Struct metadata = 6;
+}
+
+// CreateContentBlockResponse is the response after creating a content block
+message CreateContentBlockResponse {
+  ContentBlock content_block = 1;
+}
+
+// GetContentBlockRequest is the request to get a content block by ID
+message GetContentBlockRequest {
+  string id = 1;
+}
+
+// GetContentBlockResponse is the response containing a content block
+message GetContentBlockResponse {
+  ContentBlock content_block = 1;
+}
+
+// UpdateContentBlockRequest is the request to update a content block
+message UpdateContentBlockRequest {
+  string id = 1;
+  optional int32 order_num = 2;
+  optional string type = 3;
+  optional string kind = 4;
+  optional string content = 5;
+  optional google.protobuf.Struct metadata = 6;
+}
+
+// UpdateContentBlockResponse is the response after updating a content block
+message UpdateContentBlockResponse {
+  ContentBlock content_block = 1;
+}
+
+// DeleteContentBlockRequest is the request to delete a content block
+message DeleteContentBlockRequest {
+  string id = 1;
+}
+
+// DeleteContentBlockResponse is the response after deleting a content block
+message DeleteContentBlockResponse {
+  bool success = 1;
+}
+
+// ListContentBlocksByChapterRequest is the request to list content blocks for a chapter
+message ListContentBlocksByChapterRequest {
+  string chapter_id = 1;
+}
+
+// ListContentBlocksByChapterResponse is the response containing content blocks
+message ListContentBlocksByChapterResponse {
+  repeated ContentBlock content_blocks = 1;
+  int32 total_count = 2;
+}
+
+// CreateContentBlockReferenceRequest is the request to create a reference
+message CreateContentBlockReferenceRequest {
+  string content_block_id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+}
+
+// CreateContentBlockReferenceResponse is the response after creating a reference
+message CreateContentBlockReferenceResponse {
+  ContentBlockReference reference = 1;
+}
+
+// ListContentBlockReferencesByContentBlockRequest lists references for a content block
+message ListContentBlockReferencesByContentBlockRequest {
+  string content_block_id = 1;
+}
+
+// ListContentBlockReferencesByContentBlockResponse contains references for a content block
+message ListContentBlockReferencesByContentBlockResponse {
+  repeated ContentBlockReference references = 1;
+  int32 total_count = 2;
+}
+
+// ListContentBlocksByEntityRequest lists content blocks for an entity
+message ListContentBlocksByEntityRequest {
+  string entity_type = 1;
+  string entity_id = 2;
+}
+
+// ListContentBlocksByEntityResponse contains content blocks for an entity
+message ListContentBlocksByEntityResponse {
+  repeated ContentBlock content_blocks = 1;
+  int32 total_count = 2;
+}
+
+// DeleteContentBlockReferenceRequest is the request to delete a reference
+message DeleteContentBlockReferenceRequest {
+  string id = 1;
+}
+
+// DeleteContentBlockReferenceResponse is the response after deleting a reference
+message DeleteContentBlockReferenceResponse {
+  bool success = 1;
+}
+
+// ContentBlockService provides content block management operations
+service ContentBlockService {
+  // CreateContentBlock creates a new content block
+  rpc CreateContentBlock(CreateContentBlockRequest) returns (CreateContentBlockResponse);
+  // GetContentBlock retrieves a content block by ID
+  rpc GetContentBlock(GetContentBlockRequest) returns (GetContentBlockResponse);
+  // UpdateContentBlock updates an existing content block
+  rpc UpdateContentBlock(UpdateContentBlockRequest) returns (UpdateContentBlockResponse);
+  // DeleteContentBlock deletes a content block
+  rpc DeleteContentBlock(DeleteContentBlockRequest) returns (DeleteContentBlockResponse);
+  // ListContentBlocksByChapter lists content blocks for a chapter
+  rpc ListContentBlocksByChapter(ListContentBlocksByChapterRequest) returns (ListContentBlocksByChapterResponse);
+}
+
+// ContentBlockReferenceService provides content block reference management operations
+service ContentBlockReferenceService {
+  // CreateContentBlockReference creates a new reference
+  rpc CreateContentBlockReference(CreateContentBlockReferenceRequest) returns (CreateContentBlockReferenceResponse);
+  // ListContentBlockReferencesByContentBlock lists references for a content block
+  rpc ListContentBlockReferencesByContentBlock(ListContentBlockReferencesByContentBlockRequest) returns (ListContentBlockReferencesByContentBlockResponse);
+  // ListContentBlocksByEntity lists content blocks associated with an entity
+  rpc ListContentBlocksByEntity(ListContentBlocksByEntityRequest) returns (ListContentBlocksByEntityResponse);
+  // DeleteContentBlockReference deletes a reference
+  rpc DeleteContentBlockReference(DeleteContentBlockReferenceRequest) returns (DeleteContentBlockReferenceResponse);
+}
+

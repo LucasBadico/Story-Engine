@@ -118,9 +118,9 @@ func setupTestStory(t *testing.T, db *postgres.DB, tenantID string) string {
 	chapterRepo := postgres.NewChapterRepository(db)
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
-	proseBlockRepo := postgres.NewProseBlockRepository(db)
+	contentBlockRepo := postgres.NewContentBlockRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
-	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo, auditLogRepo, transactionRepo, log)
+	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo, auditLogRepo, transactionRepo, log)
 	storyHandler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
 
 	storyBody := `{"title": "Test Story"}`

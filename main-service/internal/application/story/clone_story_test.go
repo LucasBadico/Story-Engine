@@ -30,7 +30,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 	chapterRepo := postgres.NewChapterRepository(db)
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
-	proseBlockRepo := postgres.NewProseBlockRepository(db)
+	contentBlockRepo := postgres.NewContentBlockRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
@@ -59,7 +59,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 	}
 
 	cloneUseCase := NewCloneStoryUseCase(
-		storyRepo, chapterRepo, sceneRepo, beatRepo, proseBlockRepo,
+		storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo,
 		auditLogRepo, transactionRepo, log,
 	)
 
@@ -139,15 +139,15 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 			t.Fatalf("failed to save beat: %v", err)
 		}
 
-		// Create prose block
+		// Create content block
 		chapterID := chapter.ID
-		proseOrderNum := 1
-		prose, err := story.NewProseBlock(tenantOutput.Tenant.ID, &chapterID, &proseOrderNum, story.ProseKindFinal, "This is the prose content.")
+		contentOrderNum := 1
+		contentBlock, err := story.NewContentBlock(tenantOutput.Tenant.ID, &chapterID, &contentOrderNum, story.ContentTypeText, story.ContentKindFinal, "This is the content.")
 		if err != nil {
-			t.Fatalf("failed to create prose block: %v", err)
+			t.Fatalf("failed to create content block: %v", err)
 		}
-		if err := proseBlockRepo.Create(ctx, prose); err != nil {
-			t.Fatalf("failed to save prose block: %v", err)
+		if err := contentBlockRepo.Create(ctx, contentBlock); err != nil {
+			t.Fatalf("failed to save content block: %v", err)
 		}
 
 		// Clone the story
@@ -204,16 +204,16 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 			t.Errorf("expected beat type to match")
 		}
 
-		// Verify prose blocks
-		newProseBlocks, err := proseBlockRepo.ListByChapter(ctx, tenantOutput.Tenant.ID, newChapters[0].ID)
+		// Verify content blocks
+		newContentBlocks, err := contentBlockRepo.ListByChapter(ctx, tenantOutput.Tenant.ID, newChapters[0].ID)
 		if err != nil {
-			t.Fatalf("failed to list prose blocks: %v", err)
+			t.Fatalf("failed to list content blocks: %v", err)
 		}
-		if len(newProseBlocks) != 1 {
-			t.Errorf("expected 1 prose block, got %d", len(newProseBlocks))
+		if len(newContentBlocks) != 1 {
+			t.Errorf("expected 1 content block, got %d", len(newContentBlocks))
 		}
-		if newProseBlocks[0].Content != prose.Content {
-			t.Errorf("expected prose content to match")
+		if newContentBlocks[0].Content != contentBlock.Content {
+			t.Errorf("expected content to match")
 		}
 
 		// Verify versioning fields

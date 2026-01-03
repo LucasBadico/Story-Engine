@@ -8,8 +8,8 @@ import {
 	StoryWithHierarchy,
 	ChapterWithContent,
 	SceneWithBeats,
-	ProseBlock,
-	ProseBlockReference,
+	ContentBlock,
+	ContentBlockReference,
 } from "../types";
 
 export class StoryEngineClient {
@@ -345,66 +345,66 @@ export class StoryEngineClient {
 		return response.beat;
 	}
 
-	async getProseBlocks(chapterId: string): Promise<ProseBlock[]> {
-		const response = await this.request<{ prose_blocks: ProseBlock[] }>(
+	async getContentBlocks(chapterId: string): Promise<ContentBlock[]> {
+		const response = await this.request<{ content_blocks: ContentBlock[] }>(
 			"GET",
-			`/api/v1/chapters/${chapterId}/prose-blocks`
+			`/api/v1/chapters/${chapterId}/content-blocks`
 		);
-		return response.prose_blocks || [];
+		return response.content_blocks || [];
 	}
 
-	async getProseBlock(id: string): Promise<ProseBlock> {
-		const response = await this.request<{ prose_block: ProseBlock }>(
+	async getContentBlock(id: string): Promise<ContentBlock> {
+		const response = await this.request<{ content_block: ContentBlock }>(
 			"GET",
-			`/api/v1/prose-blocks/${id}`
+			`/api/v1/content-blocks/${id}`
 		);
-		return response.prose_block;
+		return response.content_block;
 	}
 
-	async createProseBlock(chapterId: string, proseBlock: Partial<ProseBlock>): Promise<ProseBlock> {
-		const response = await this.request<{ prose_block: ProseBlock }>(
+	async createContentBlock(chapterId: string, contentBlock: Partial<ContentBlock>): Promise<ContentBlock> {
+		const response = await this.request<{ content_block: ContentBlock }>(
 			"POST",
-			`/api/v1/chapters/${chapterId}/prose-blocks`,
-			proseBlock
+			`/api/v1/chapters/${chapterId}/content-blocks`,
+			contentBlock
 		);
-		return response.prose_block;
+		return response.content_block;
 	}
 
-	async updateProseBlock(id: string, proseBlock: Partial<ProseBlock>): Promise<ProseBlock> {
-		const response = await this.request<{ prose_block: ProseBlock }>(
+	async updateContentBlock(id: string, contentBlock: Partial<ContentBlock>): Promise<ContentBlock> {
+		const response = await this.request<{ content_block: ContentBlock }>(
 			"PUT",
-			`/api/v1/prose-blocks/${id}`,
-			proseBlock
+			`/api/v1/content-blocks/${id}`,
+			contentBlock
 		);
-		return response.prose_block;
+		return response.content_block;
 	}
 
-	async deleteProseBlock(id: string): Promise<void> {
-		await this.request("DELETE", `/api/v1/prose-blocks/${id}`);
+	async deleteContentBlock(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/content-blocks/${id}`);
 	}
 
-	async getProseBlockReferences(proseBlockId: string): Promise<ProseBlockReference[]> {
-		const response = await this.request<{ references: ProseBlockReference[] }>(
+	async getContentBlockReferences(contentBlockId: string): Promise<ContentBlockReference[]> {
+		const response = await this.request<{ references: ContentBlockReference[] }>(
 			"GET",
-			`/api/v1/prose-blocks/${proseBlockId}/references`
+			`/api/v1/content-blocks/${contentBlockId}/references`
 		);
 		return response.references || [];
 	}
 
-	async getProseBlocksByScene(sceneId: string): Promise<ProseBlock[]> {
-		const response = await this.request<{ prose_blocks: ProseBlock[] }>(
+	async getContentBlocksByScene(sceneId: string): Promise<ContentBlock[]> {
+		const response = await this.request<{ content_blocks: ContentBlock[] }>(
 			"GET",
-			`/api/v1/scenes/${sceneId}/prose-blocks`
+			`/api/v1/scenes/${sceneId}/content-blocks`
 		);
-		return response.prose_blocks || [];
+		return response.content_blocks || [];
 	}
 
-	async getProseBlocksByBeat(beatId: string): Promise<ProseBlock[]> {
-		const response = await this.request<{ prose_blocks: ProseBlock[] }>(
+	async getContentBlocksByBeat(beatId: string): Promise<ContentBlock[]> {
+		const response = await this.request<{ content_blocks: ContentBlock[] }>(
 			"GET",
-			`/api/v1/beats/${beatId}/prose-blocks`
+			`/api/v1/beats/${beatId}/content-blocks`
 		);
-		return response.prose_blocks || [];
+		return response.content_blocks || [];
 	}
 
 	async createProseBlockReference(proseBlockId: string, entityType: string, entityId: string): Promise<ProseBlockReference> {

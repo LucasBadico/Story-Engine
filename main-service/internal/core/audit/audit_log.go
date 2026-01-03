@@ -23,21 +23,21 @@ const (
 type EntityType string
 
 const (
-	EntityTypeTenant     EntityType = "tenant"
-	EntityTypeUser       EntityType = "user"
-	EntityTypeMembership EntityType = "membership"
-	EntityTypeStory      EntityType = "story"
-	EntityTypeChapter    EntityType = "chapter"
-	EntityTypeScene      EntityType = "scene"
-	EntityTypeBeat       EntityType = "beat"
-	EntityTypeProseBlock EntityType = "prose_block"
-	EntityTypeWorld      EntityType = "world"
-	EntityTypeTrait      EntityType = "trait"
-	EntityTypeArchetype  EntityType = "archetype"
-	EntityTypeLocation   EntityType = "location"
-	EntityTypeCharacter  EntityType = "character"
-	EntityTypeArtifact   EntityType = "artifact"
-	EntityTypeEvent      EntityType = "event"
+	EntityTypeTenant       EntityType = "tenant"
+	EntityTypeUser         EntityType = "user"
+	EntityTypeMembership   EntityType = "membership"
+	EntityTypeStory        EntityType = "story"
+	EntityTypeChapter      EntityType = "chapter"
+	EntityTypeScene        EntityType = "scene"
+	EntityTypeBeat         EntityType = "beat"
+	EntityTypeContentBlock EntityType = "content_block"
+	EntityTypeWorld        EntityType = "world"
+	EntityTypeTrait        EntityType = "trait"
+	EntityTypeArchetype    EntityType = "archetype"
+	EntityTypeLocation     EntityType = "location"
+	EntityTypeCharacter    EntityType = "character"
+	EntityTypeArtifact     EntityType = "artifact"
+	EntityTypeEvent        EntityType = "event"
 )
 
 // AuditLog represents an audit log entry
@@ -76,4 +76,3 @@ func (a *AuditLog) Validate() error {
 	}
 	return nil
 }
-

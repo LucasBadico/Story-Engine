@@ -16,10 +16,9 @@ import (
 	characterskillpb "github.com/story-engine/main-service/proto/character_skill"
 	characterrpgstatspb "github.com/story-engine/main-service/proto/character_rpg_stats"
 	eventpb "github.com/story-engine/main-service/proto/event"
-	imageblockpb "github.com/story-engine/main-service/proto/image_block"
 	inventorypb "github.com/story-engine/main-service/proto/inventory"
 	locationpb "github.com/story-engine/main-service/proto/location"
-	prosepb "github.com/story-engine/main-service/proto/prose"
+	contentblockpb "github.com/story-engine/main-service/proto/content_block"
 	rpgclasspb "github.com/story-engine/main-service/proto/rpg_class"
 	rpgsystempb "github.com/story-engine/main-service/proto/rpg_system"
 	scenepb "github.com/story-engine/main-service/proto/scene"
@@ -143,16 +142,16 @@ func (s *Server) RegisterBeatService(handler beatpb.BeatServiceServer) {
 	s.logger.Info("BeatService registered")
 }
 
-// RegisterProseBlockService registers the ProseBlockService handler
-func (s *Server) RegisterProseBlockService(handler prosepb.ProseBlockServiceServer) {
-	prosepb.RegisterProseBlockServiceServer(s.grpcServer, handler)
-	s.logger.Info("ProseBlockService registered")
+// RegisterContentBlockService registers the ContentBlockService handler
+func (s *Server) RegisterContentBlockService(handler contentblockpb.ContentBlockServiceServer) {
+	contentblockpb.RegisterContentBlockServiceServer(s.grpcServer, handler)
+	s.logger.Info("ContentBlockService registered")
 }
 
-// RegisterProseBlockReferenceService registers the ProseBlockReferenceService handler
-func (s *Server) RegisterProseBlockReferenceService(handler prosepb.ProseBlockReferenceServiceServer) {
-	prosepb.RegisterProseBlockReferenceServiceServer(s.grpcServer, handler)
-	s.logger.Info("ProseBlockReferenceService registered")
+// RegisterContentBlockReferenceService registers the ContentBlockReferenceService handler
+func (s *Server) RegisterContentBlockReferenceService(handler contentblockpb.ContentBlockReferenceServiceServer) {
+	contentblockpb.RegisterContentBlockReferenceServiceServer(s.grpcServer, handler)
+	s.logger.Info("ContentBlockReferenceService registered")
 }
 
 // RegisterRPGSystemService registers the RPGSystemService handler
@@ -189,12 +188,6 @@ func (s *Server) RegisterCharacterRPGStatsService(handler characterrpgstatspb.Ch
 func (s *Server) RegisterArtifactRPGStatsService(handler artifactrpgstatspb.ArtifactRPGStatsServiceServer) {
 	artifactrpgstatspb.RegisterArtifactRPGStatsServiceServer(s.grpcServer, handler)
 	s.logger.Info("ArtifactRPGStatsService registered")
-}
-
-// RegisterImageBlockService registers the ImageBlockService handler
-func (s *Server) RegisterImageBlockService(handler imageblockpb.ImageBlockServiceServer) {
-	imageblockpb.RegisterImageBlockServiceServer(s.grpcServer, handler)
-	s.logger.Info("ImageBlockService registered")
 }
 
 // RegisterInventoryService registers the InventoryService handler

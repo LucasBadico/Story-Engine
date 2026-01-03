@@ -24,8 +24,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/story"
 	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
-	imageblockapp "github.com/story-engine/main-service/internal/application/story/image_block"
-	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
+	contentblockapp "github.com/story-engine/main-service/internal/application/story/content_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
@@ -91,10 +90,8 @@ func main() {
 	sceneRepo := postgres.NewSceneRepository(pgDB)
 	sceneReferenceRepo := postgres.NewSceneReferenceRepository(pgDB)
 	beatRepo := postgres.NewBeatRepository(pgDB)
-	proseBlockRepo := postgres.NewProseBlockRepository(pgDB)
-	proseBlockReferenceRepo := postgres.NewProseBlockReferenceRepository(pgDB)
-	imageBlockRepo := postgres.NewImageBlockRepository(pgDB)
-	imageBlockReferenceRepo := postgres.NewImageBlockReferenceRepository(pgDB)
+	contentBlockRepo := postgres.NewContentBlockRepository(pgDB)
+	contentBlockReferenceRepo := postgres.NewContentBlockReferenceRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
 	transactionRepo := postgres.NewTransactionRepository(pgDB)
 
@@ -166,7 +163,7 @@ func main() {
 		chapterRepo,
 		sceneRepo,
 		beatRepo,
-		proseBlockRepo,
+		contentBlockRepo,
 		auditLogRepo,
 		transactionRepo,
 		log,
@@ -191,23 +188,15 @@ func main() {
 	deleteBeatUseCase := beatapp.NewDeleteBeatUseCase(beatRepo, log)
 	listBeatsUseCase := beatapp.NewListBeatsUseCase(beatRepo, log)
 	moveBeatUseCase := beatapp.NewMoveBeatUseCase(beatRepo, sceneRepo, log)
-	createProseBlockUseCase := proseblockapp.NewCreateProseBlockUseCase(proseBlockRepo, chapterRepo, log)
-	getProseBlockUseCase := proseblockapp.NewGetProseBlockUseCase(proseBlockRepo, log)
-	updateProseBlockUseCase := proseblockapp.NewUpdateProseBlockUseCase(proseBlockRepo, log)
-	deleteProseBlockUseCase := proseblockapp.NewDeleteProseBlockUseCase(proseBlockRepo, log)
-	listProseBlocksUseCase := proseblockapp.NewListProseBlocksUseCase(proseBlockRepo, log)
-	createProseBlockReferenceUseCase := proseblockapp.NewCreateProseBlockReferenceUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
-	listProseBlockReferencesByProseBlockUseCase := proseblockapp.NewListProseBlockReferencesByProseBlockUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
-	listProseBlocksByEntityUseCase := proseblockapp.NewListProseBlocksByEntityUseCase(proseBlockReferenceRepo, proseBlockRepo, log)
-	deleteProseBlockReferenceUseCase := proseblockapp.NewDeleteProseBlockReferenceUseCase(proseBlockReferenceRepo, log)
-	createImageBlockUseCase := imageblockapp.NewCreateImageBlockUseCase(imageBlockRepo, chapterRepo, log)
-	getImageBlockUseCase := imageblockapp.NewGetImageBlockUseCase(imageBlockRepo, log)
-	listImageBlocksUseCase := imageblockapp.NewListImageBlocksUseCase(imageBlockRepo, log)
-	updateImageBlockUseCase := imageblockapp.NewUpdateImageBlockUseCase(imageBlockRepo, log)
-	deleteImageBlockUseCase := imageblockapp.NewDeleteImageBlockUseCase(imageBlockRepo, imageBlockReferenceRepo, log)
-	addImageBlockReferenceUseCase := imageblockapp.NewAddImageBlockReferenceUseCase(imageBlockRepo, imageBlockReferenceRepo, log)
-	removeImageBlockReferenceUseCase := imageblockapp.NewRemoveImageBlockReferenceUseCase(imageBlockReferenceRepo, log)
-	getImageBlockReferencesUseCase := imageblockapp.NewGetImageBlockReferencesUseCase(imageBlockReferenceRepo, log)
+	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, log)
+	getContentBlockUseCase := contentblockapp.NewGetContentBlockUseCase(contentBlockRepo, log)
+	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, log)
+	deleteContentBlockUseCase := contentblockapp.NewDeleteContentBlockUseCase(contentBlockRepo, log)
+	listContentBlocksUseCase := contentblockapp.NewListContentBlocksUseCase(contentBlockRepo, log)
+	createContentBlockReferenceUseCase := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
+	listContentBlockReferencesByContentBlockUseCase := contentblockapp.NewListContentBlockReferencesByContentBlockUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
+	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
+	deleteContentBlockReferenceUseCase := contentblockapp.NewDeleteContentBlockReferenceUseCase(contentBlockReferenceRepo, log)
 	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
 	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)
 	listRPGSystemsUseCase := rpgsystemapp.NewListRPGSystemsUseCase(rpgSystemRepo, log)
@@ -276,9 +265,8 @@ func main() {
 	chapterHandler := httphandlers.NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
 	sceneHandler := httphandlers.NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
 	beatHandler := httphandlers.NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
-	proseBlockHandler := httphandlers.NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
-	proseBlockReferenceHandler := httphandlers.NewProseBlockReferenceHandler(createProseBlockReferenceUseCase, listProseBlockReferencesByProseBlockUseCase, listProseBlocksByEntityUseCase, deleteProseBlockReferenceUseCase, log)
-	imageBlockHandler := httphandlers.NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, addImageBlockReferenceUseCase, removeImageBlockReferenceUseCase, getImageBlockReferencesUseCase, log)
+	contentBlockHandler := httphandlers.NewContentBlockHandler(createContentBlockUseCase, getContentBlockUseCase, updateContentBlockUseCase, deleteContentBlockUseCase, listContentBlocksUseCase, log)
+	contentBlockReferenceHandler := httphandlers.NewContentBlockReferenceHandler(createContentBlockReferenceUseCase, listContentBlockReferencesByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentBlockReferenceUseCase, log)
 
 	// Create router
 	mux := http.NewServeMux()
@@ -383,26 +371,17 @@ func main() {
 	mux.HandleFunc("GET /api/v1/scenes/{id}/beats", beatHandler.List)
 	mux.HandleFunc("DELETE /api/v1/beats/{id}", beatHandler.Delete)
 
-	mux.HandleFunc("GET /api/v1/chapters/{id}/prose-blocks", proseBlockHandler.ListByChapter)
-	mux.HandleFunc("POST /api/v1/chapters/{id}/prose-blocks", proseBlockHandler.Create)
-	mux.HandleFunc("GET /api/v1/prose-blocks/{id}", proseBlockHandler.Get)
-	mux.HandleFunc("PUT /api/v1/prose-blocks/{id}", proseBlockHandler.Update)
-	mux.HandleFunc("DELETE /api/v1/prose-blocks/{id}", proseBlockHandler.Delete)
+	mux.HandleFunc("GET /api/v1/chapters/{id}/content-blocks", contentBlockHandler.ListByChapter)
+	mux.HandleFunc("POST /api/v1/chapters/{id}/content-blocks", contentBlockHandler.Create)
+	mux.HandleFunc("GET /api/v1/content-blocks/{id}", contentBlockHandler.Get)
+	mux.HandleFunc("PUT /api/v1/content-blocks/{id}", contentBlockHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/content-blocks/{id}", contentBlockHandler.Delete)
 
-	mux.HandleFunc("POST /api/v1/prose-blocks/{id}/references", proseBlockReferenceHandler.Create)
-	mux.HandleFunc("GET /api/v1/prose-blocks/{id}/references", proseBlockReferenceHandler.ListByProseBlock)
-	mux.HandleFunc("GET /api/v1/scenes/{id}/prose-blocks", proseBlockReferenceHandler.ListByScene)
-	mux.HandleFunc("GET /api/v1/beats/{id}/prose-blocks", proseBlockReferenceHandler.ListByBeat)
-	mux.HandleFunc("DELETE /api/v1/prose-block-references/{id}", proseBlockReferenceHandler.Delete)
-
-	mux.HandleFunc("GET /api/v1/chapters/{id}/image-blocks", imageBlockHandler.List)
-	mux.HandleFunc("POST /api/v1/chapters/{id}/image-blocks", imageBlockHandler.Create)
-	mux.HandleFunc("GET /api/v1/image-blocks/{id}", imageBlockHandler.Get)
-	mux.HandleFunc("PUT /api/v1/image-blocks/{id}", imageBlockHandler.Update)
-	mux.HandleFunc("DELETE /api/v1/image-blocks/{id}", imageBlockHandler.Delete)
-	mux.HandleFunc("GET /api/v1/image-blocks/{id}/references", imageBlockHandler.GetReferences)
-	mux.HandleFunc("POST /api/v1/image-blocks/{id}/references", imageBlockHandler.AddReference)
-	mux.HandleFunc("DELETE /api/v1/image-blocks/{id}/references/{entity_type}/{entity_id}", imageBlockHandler.RemoveReference)
+	mux.HandleFunc("POST /api/v1/content-blocks/{id}/references", contentBlockReferenceHandler.Create)
+	mux.HandleFunc("GET /api/v1/content-blocks/{id}/references", contentBlockReferenceHandler.ListByContentBlock)
+	mux.HandleFunc("GET /api/v1/scenes/{id}/content-blocks", contentBlockReferenceHandler.ListByScene)
+	mux.HandleFunc("GET /api/v1/beats/{id}/content-blocks", contentBlockReferenceHandler.ListByBeat)
+	mux.HandleFunc("DELETE /api/v1/content-block-references/{id}", contentBlockReferenceHandler.Delete)
 
 	mux.HandleFunc("GET /api/v1/rpg-systems", rpgSystemHandler.List)
 	mux.HandleFunc("POST /api/v1/rpg-systems", rpgSystemHandler.Create)
