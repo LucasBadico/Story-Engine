@@ -6,6 +6,8 @@ export interface StoryEngineSettings {
 	syncFolderPath: string;
 	autoVersionSnapshots: boolean;
 	conflictResolution: "service" | "local" | "manual";
+	unsplashAccessKey?: string;
+	unsplashSecretKey?: string;
 }
 
 export interface ErrorResponse {
@@ -29,7 +31,33 @@ export interface Story {
 	version_number: number;
 	root_story_id: string;
 	previous_story_id: string | null;
+	world_id?: string | null;
 	created_by_user_id: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface World {
+	id: string;
+	tenant_id: string;
+	name: string;
+	description: string;
+	genre: string;
+	is_implicit: boolean;
+	rpg_system_id?: string | null;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface RPGSystem {
+	id: string;
+	tenant_id?: string | null;
+	name: string;
+	description?: string | null;
+	base_stats_schema: Record<string, any>;
+	derived_stats_schema?: Record<string, any> | null;
+	progression_schema?: Record<string, any> | null;
+	is_builtin: boolean;
 	created_at: string;
 	updated_at: string;
 }
@@ -118,6 +146,11 @@ export interface ContentMetadata {
 	description?: string;
 	image_url?: string;
 	site_name?: string;
+	// Image attribution
+	attribution?: string;
+	attribution_url?: string;
+	author_name?: string;
+	source?: "unsplash" | "internet link" | "local";
 }
 
 export interface ContentBlock {

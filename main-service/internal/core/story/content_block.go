@@ -44,6 +44,11 @@ type ContentMetadata struct {
 	Width    *int    `json:"width,omitempty"`
 	Height   *int    `json:"height,omitempty"`
 	MimeType *string `json:"mime_type,omitempty"`
+	// Image attribution
+	Attribution    *string `json:"attribution,omitempty"`
+	AttributionURL *string `json:"attribution_url,omitempty"`
+	AuthorName     *string `json:"author_name,omitempty"`
+	Source         *string `json:"source,omitempty"` // "unsplash", "internet link", "local"
 
 	// Video metadata
 	Provider     *string `json:"provider,omitempty"`

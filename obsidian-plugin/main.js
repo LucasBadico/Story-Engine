@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => StoryEnginePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian12 = require("obsidian");
+var import_obsidian13 = require("obsidian");
 
 // src/api/client.ts
 var StoryEngineClient = class {
@@ -314,64 +314,64 @@ var StoryEngineClient = class {
     );
     return response.beat;
   }
-  async getProseBlocks(chapterId) {
+  async getContentBlocks(chapterId) {
     const response = await this.request(
       "GET",
-      `/api/v1/chapters/${chapterId}/prose-blocks`
+      `/api/v1/chapters/${chapterId}/content-blocks`
     );
-    return response.prose_blocks || [];
+    return response.content_blocks || [];
   }
-  async getProseBlock(id) {
+  async getContentBlock(id) {
     const response = await this.request(
       "GET",
-      `/api/v1/prose-blocks/${id}`
+      `/api/v1/content-blocks/${id}`
     );
-    return response.prose_block;
+    return response.content_block;
   }
-  async createProseBlock(chapterId, proseBlock) {
+  async createContentBlock(chapterId, contentBlock) {
     const response = await this.request(
       "POST",
-      `/api/v1/chapters/${chapterId}/prose-blocks`,
-      proseBlock
+      `/api/v1/chapters/${chapterId}/content-blocks`,
+      contentBlock
     );
-    return response.prose_block;
+    return response.content_block;
   }
-  async updateProseBlock(id, proseBlock) {
+  async updateContentBlock(id, contentBlock) {
     const response = await this.request(
       "PUT",
-      `/api/v1/prose-blocks/${id}`,
-      proseBlock
+      `/api/v1/content-blocks/${id}`,
+      contentBlock
     );
-    return response.prose_block;
+    return response.content_block;
   }
-  async deleteProseBlock(id) {
-    await this.request("DELETE", `/api/v1/prose-blocks/${id}`);
+  async deleteContentBlock(id) {
+    await this.request("DELETE", `/api/v1/content-blocks/${id}`);
   }
-  async getProseBlockReferences(proseBlockId) {
+  async getContentBlockReferences(contentBlockId) {
     const response = await this.request(
       "GET",
-      `/api/v1/prose-blocks/${proseBlockId}/references`
+      `/api/v1/content-blocks/${contentBlockId}/references`
     );
     return response.references || [];
   }
-  async getProseBlocksByScene(sceneId) {
+  async getContentBlocksByScene(sceneId) {
     const response = await this.request(
       "GET",
-      `/api/v1/scenes/${sceneId}/prose-blocks`
+      `/api/v1/scenes/${sceneId}/content-blocks`
     );
-    return response.prose_blocks || [];
+    return response.content_blocks || [];
   }
-  async getProseBlocksByBeat(beatId) {
+  async getContentBlocksByBeat(beatId) {
     const response = await this.request(
       "GET",
-      `/api/v1/beats/${beatId}/prose-blocks`
+      `/api/v1/beats/${beatId}/content-blocks`
     );
-    return response.prose_blocks || [];
+    return response.content_blocks || [];
   }
-  async createProseBlockReference(proseBlockId, entityType, entityId) {
+  async createContentBlockReference(contentBlockId, entityType, entityId) {
     const response = await this.request(
       "POST",
-      `/api/v1/prose-blocks/${proseBlockId}/references`,
+      `/api/v1/content-blocks/${contentBlockId}/references`,
       {
         entity_type: entityType,
         entity_id: entityId
@@ -379,8 +379,36 @@ var StoryEngineClient = class {
     );
     return response.reference;
   }
-  async deleteProseBlockReference(id) {
-    await this.request("DELETE", `/api/v1/prose-block-references/${id}`);
+  async deleteContentBlockReference(id) {
+    await this.request("DELETE", `/api/v1/content-block-references/${id}`);
+  }
+  async getWorlds() {
+    const response = await this.request(
+      "GET",
+      "/api/v1/worlds"
+    );
+    return response.worlds || [];
+  }
+  async getWorld(id) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/worlds/${id}`
+    );
+    return response.world;
+  }
+  async getRPGSystems() {
+    const response = await this.request(
+      "GET",
+      "/api/v1/rpg-systems"
+    );
+    return response.rpg_systems || [];
+  }
+  async getRPGSystem(id) {
+    const response = await this.request(
+      "GET",
+      `/api/v1/rpg-systems/${id}`
+    );
+    return response.rpg_system;
   }
 };
 
@@ -438,6 +466,20 @@ var StoryEngineSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian.Setting(containerEl).setName("Unsplash Access Key").setDesc("Application ID / Access Key for Unsplash API (get one at https://unsplash.com/developers)").addText((text) => {
+      text.setPlaceholder("Enter Unsplash access key").setValue(this.plugin.settings.unsplashAccessKey || "").inputEl.type = "password";
+      text.onChange(async (value) => {
+        this.plugin.settings.unsplashAccessKey = value.trim();
+        await this.plugin.saveSettings();
+      });
+    });
+    new import_obsidian.Setting(containerEl).setName("Unsplash Secret Key").setDesc("Secret Key for Unsplash API (optional, needed for some operations)").addText((text) => {
+      text.setPlaceholder("Enter Unsplash secret key").setValue(this.plugin.settings.unsplashSecretKey || "").inputEl.type = "password";
+      text.onChange(async (value) => {
+        this.plugin.settings.unsplashSecretKey = value.trim();
+        await this.plugin.saveSettings();
+      });
+    });
     new import_obsidian.Setting(containerEl).setName("Test Connection").setDesc("Test connection to the Story Engine API").addButton(
       (button) => button.setButtonText("Test").onClick(async () => {
         button.setButtonText("Testing...");
@@ -742,7 +784,7 @@ var FileManager = class {
     }
   }
   // Write story metadata (story.md)
-  async writeStoryMetadata(story, folderPath, chapters, orphanScenes, orphanBeats, chapterProseData) {
+  async writeStoryMetadata(story, folderPath, chapters, orphanScenes, orphanBeats, chapterContentData) {
     var _a, _b;
     await this.ensureFolderExists(folderPath);
     const baseFields = {
@@ -932,18 +974,18 @@ Status: ${story.status}
         content += `## Chapter ${chapter.number}: [[${chapterLinkName}|${chapter.title}]]
 
 `;
-        const proseData = chapterProseData == null ? void 0 : chapterProseData.get(chapter.id);
+        const contentData = chapterContentData == null ? void 0 : chapterContentData.get(chapter.id);
         let organization = null;
-        if (proseData) {
-          organization = this.organizeProseBlocks(
-            proseData.proseBlocks,
-            proseData.proseBlockRefs,
+        if (contentData) {
+          organization = this.organizeContentBlocks(
+            contentData.contentBlocks,
+            contentData.contentBlockRefs,
             chapterWithContent.scenes
           );
-          for (const proseBlock of organization.chapterOnly) {
-            const fileName = this.generateProseBlockFileName(proseBlock);
+          for (const contentBlock of organization.chapterOnly) {
+            const fileName = this.generateContentBlockFileName(contentBlock);
             const linkName = fileName.replace(/\.md$/, "");
-            content += `[[${linkName}|${proseBlock.content}]]
+            content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
           }
@@ -956,11 +998,11 @@ Status: ${story.status}
 
 `;
           if (organization) {
-            const sceneProseBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.proseBlocks) || [];
-            for (const proseBlock of sceneProseBlocks) {
-              const fileName = this.generateProseBlockFileName(proseBlock);
+            const sceneContentBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.contentBlocks) || [];
+            for (const contentBlock of sceneContentBlocks) {
+              const fileName = this.generateContentBlockFileName(contentBlock);
               const linkName = fileName.replace(/\.md$/, "");
-              content += `[[${linkName}|${proseBlock.content}]]
+              content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
             }
@@ -973,11 +1015,11 @@ Status: ${story.status}
 
 `;
             if (organization) {
-              const beatProseBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.proseBlocks) || [];
-              for (const proseBlock of beatProseBlocks) {
-                const fileName = this.generateProseBlockFileName(proseBlock);
+              const beatContentBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.contentBlocks) || [];
+              for (const contentBlock of beatContentBlocks) {
+                const fileName = this.generateContentBlockFileName(contentBlock);
                 const linkName = fileName.replace(/\.md$/, "");
-                content += `[[${linkName}|${proseBlock.content}]]
+                content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
               }
@@ -1013,7 +1055,7 @@ Status: ${story.status}
     }
   }
   // Write chapter file
-  async writeChapterFile(chapterWithContent, filePath, storyName, proseBlocks, proseBlockRefs, orphanScenes) {
+  async writeChapterFile(chapterWithContent, filePath, storyName, contentBlocks, contentBlockRefs, orphanScenes) {
     var _a, _b, _c, _d;
     const { chapter, scenes } = chapterWithContent;
     const baseFields = {
@@ -1034,9 +1076,9 @@ Status: ${story.status}
 # ${chapter.title}
 
 `;
-    const organization = this.organizeProseBlocks(
-      proseBlocks || [],
-      proseBlockRefs || [],
+    const organization = this.organizeContentBlocks(
+      contentBlocks || [],
+      contentBlockRefs || [],
       scenes
     );
     content += `## Scenes & Beats
@@ -1085,18 +1127,18 @@ Status: ${story.status}
       const sceneFileName = this.generateSceneFileName(scene);
       const sceneLinkName = sceneFileName.replace(/\.md$/, "");
       const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
-      const sceneProseBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.proseBlocks) || [];
-      const hasSceneProse = sceneProseBlocks.length > 0;
-      const sceneMarker = hasSceneProse ? "+" : "-";
+      const sceneContentBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.contentBlocks) || [];
+      const hasSceneContent = sceneContentBlocks.length > 0;
+      const sceneMarker = hasSceneContent ? "+" : "-";
       content += `${sceneMarker} [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
 `;
       for (const beat of beats) {
         const beatFileName = this.generateBeatFileName(beat);
         const beatLinkName = beatFileName.replace(/\.md$/, "");
         const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-        const beatProseBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.proseBlocks) || [];
-        const hasBeatProse = beatProseBlocks.length > 0;
-        const beatMarker = hasBeatProse ? "+" : "-";
+        const beatContentBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.contentBlocks) || [];
+        const hasBeatContent = beatContentBlocks.length > 0;
+        const beatMarker = hasBeatContent ? "+" : "-";
         content += `	${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
 `;
       }
@@ -1129,10 +1171,10 @@ Status: ${story.status}
     content += `## Chapter ${chapter.number}: ${chapter.title}
 
 `;
-    for (const proseBlock of organization.chapterOnly) {
-      const fileName = this.generateProseBlockFileName(proseBlock);
+    for (const contentBlock of organization.chapterOnly) {
+      const fileName = this.generateContentBlockFileName(contentBlock);
       const linkName = fileName.replace(/\.md$/, "");
-      content += `[[${linkName}|${proseBlock.content}]]
+      content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
     }
@@ -1143,11 +1185,11 @@ Status: ${story.status}
       content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]
 
 `;
-      const sceneProseBlocks = ((_c = organization.byScene.get(scene.id)) == null ? void 0 : _c.proseBlocks) || [];
-      for (const proseBlock of sceneProseBlocks) {
-        const fileName = this.generateProseBlockFileName(proseBlock);
+      const sceneContentBlocks = ((_c = organization.byScene.get(scene.id)) == null ? void 0 : _c.contentBlocks) || [];
+      for (const contentBlock of sceneContentBlocks) {
+        const fileName = this.generateContentBlockFileName(contentBlock);
         const linkName = fileName.replace(/\.md$/, "");
-        content += `[[${linkName}|${proseBlock.content}]]
+        content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
       }
@@ -1158,11 +1200,11 @@ Status: ${story.status}
         content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]
 
 `;
-        const beatProseBlocks = ((_d = organization.byBeat.get(beat.id)) == null ? void 0 : _d.proseBlocks) || [];
-        for (const proseBlock of beatProseBlocks) {
-          const fileName = this.generateProseBlockFileName(proseBlock);
+        const beatContentBlocks = ((_d = organization.byBeat.get(beat.id)) == null ? void 0 : _d.contentBlocks) || [];
+        for (const contentBlock of beatContentBlocks) {
+          const fileName = this.generateContentBlockFileName(contentBlock);
           const linkName = fileName.replace(/\.md$/, "");
-          content += `[[${linkName}|${proseBlock.content}]]
+          content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
         }
@@ -1254,7 +1296,7 @@ Status: ${story.status}
     }
   }
   // Write scene file
-  async writeSceneFile(sceneWithBeats, filePath, storyName, proseBlocks, orphanBeats) {
+  async writeSceneFile(sceneWithBeats, filePath, storyName, contentBlocks, orphanBeats) {
     var _a;
     const { scene, beats } = sceneWithBeats;
     const baseFields = {
@@ -1325,8 +1367,8 @@ Status: ${story.status}
 
 `;
       const beatsWithProse = /* @__PURE__ */ new Set();
-      if (proseBlocks) {
-        for (const proseBlock of proseBlocks) {
+      if (contentBlocks) {
+        for (const contentBlock of contentBlocks) {
         }
       }
       for (const beat of beats.sort((a, b) => a.order_num - b.order_num)) {
@@ -1363,12 +1405,12 @@ Status: ${story.status}
     content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]
 
 `;
-    if (proseBlocks && proseBlocks.length > 0) {
-      const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
-      for (const proseBlock of sortedProseBlocks) {
-        const fileName = this.generateProseBlockFileName(proseBlock);
+    if (contentBlocks && contentBlocks.length > 0) {
+      const sortedContentBlocks = [...contentBlocks].sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
+      for (const contentBlock of sortedContentBlocks) {
+        const fileName = this.generateContentBlockFileName(contentBlock);
         const linkName = fileName.replace(/\.md$/, "");
-        content += `[[${linkName}|${proseBlock.content}]]
+        content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
       }
@@ -1389,7 +1431,7 @@ Status: ${story.status}
     }
   }
   // Write beat file
-  async writeBeatFile(beat, filePath, storyName, proseBlocks) {
+  async writeBeatFile(beat, filePath, storyName, contentBlocks) {
     const baseFields = {
       id: beat.id,
       scene_id: beat.scene_id,
@@ -1425,12 +1467,12 @@ Status: ${story.status}
     content += `## Beat: [[${beatLinkName}|${beatDisplayText}]]
 
 `;
-    if (proseBlocks && proseBlocks.length > 0) {
-      const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
-      for (const proseBlock of sortedProseBlocks) {
-        const fileName = this.generateProseBlockFileName(proseBlock);
+    if (contentBlocks && contentBlocks.length > 0) {
+      const sortedContentBlocks = [...contentBlocks].sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
+      for (const contentBlock of sortedContentBlocks) {
+        const fileName = this.generateContentBlockFileName(contentBlock);
         const linkName = fileName.replace(/\.md$/, "");
-        content += `[[${linkName}|${proseBlock.content}]]
+        content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
       }
@@ -1444,7 +1486,7 @@ Status: ${story.status}
   }
   // List all chapter files in a story folder
   async listChapterFiles(storyFolderPath) {
-    const chaptersPath = `${storyFolderPath}/chapters`;
+    const chaptersPath = `${storyFolderPath}/00-chapters`;
     const folder = this.vault.getAbstractFileByPath(chaptersPath);
     if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
@@ -1459,7 +1501,7 @@ Status: ${story.status}
   }
   // List all scene files in a chapter folder
   async listSceneFiles(chapterFolderPath) {
-    const scenesPath = `${chapterFolderPath}/scenes`;
+    const scenesPath = `${chapterFolderPath}/01-scenes`;
     const folder = this.vault.getAbstractFileByPath(scenesPath);
     if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
@@ -1474,7 +1516,7 @@ Status: ${story.status}
   }
   // List all scene files in a story folder
   async listStorySceneFiles(storyFolderPath) {
-    const scenesPath = `${storyFolderPath}/scenes`;
+    const scenesPath = `${storyFolderPath}/01-scenes`;
     const folder = this.vault.getAbstractFileByPath(scenesPath);
     if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
@@ -1489,7 +1531,7 @@ Status: ${story.status}
   }
   // List all beat files in a story folder
   async listStoryBeatFiles(storyFolderPath) {
-    const beatsPath = `${storyFolderPath}/beats`;
+    const beatsPath = `${storyFolderPath}/02-beats`;
     const folder = this.vault.getAbstractFileByPath(beatsPath);
     if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
@@ -1504,7 +1546,7 @@ Status: ${story.status}
   }
   // List all beat files in a scene folder
   async listBeatFiles(sceneFolderPath) {
-    const beatsPath = `${sceneFolderPath}/beats`;
+    const beatsPath = `${sceneFolderPath}/02-beats`;
     const folder = this.vault.getAbstractFileByPath(beatsPath);
     if (!(folder instanceof import_obsidian5.TFolder)) {
       return [];
@@ -1517,32 +1559,63 @@ Status: ${story.status}
     }
     return beatFiles.sort();
   }
-  // Generate filename for prose block based on date and content preview
-  generateProseBlockFileName(proseBlock) {
-    const date = new Date(proseBlock.created_at);
+  // Get the subfolder name for a content block type
+  getContentTypeFolder(type) {
+    const typeFolders = {
+      text: "00-texts",
+      image: "01-images",
+      video: "02-videos",
+      audio: "03-audios",
+      embed: "04-embeds",
+      link: "05-links"
+    };
+    return typeFolders[type] || "99-other";
+  }
+  // Get the full folder path for content blocks of a specific type
+  getContentBlockFolderPath(storyFolderPath, type) {
+    const typeFolder = this.getContentTypeFolder(type);
+    return `${storyFolderPath}/03-contents/${typeFolder}`;
+  }
+  // Generate filename for content block based on date and content preview
+  generateContentBlockFileName(contentBlock) {
+    const date = new Date(contentBlock.created_at);
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, "0");
     const day = String(date.getDate()).padStart(2, "0");
     const hours = String(date.getHours()).padStart(2, "0");
     const minutes = String(date.getMinutes()).padStart(2, "0");
     const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
-    const contentPreview = proseBlock.content.substring(0, 30).trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-    const textPart = contentPreview || "prose-block";
+    let textPart;
+    const type = contentBlock.type || "text";
+    if (type === "text") {
+      textPart = contentBlock.content.substring(0, 30).trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase() || "content";
+    } else if (type === "image" || type === "video" || type === "audio") {
+      const meta = contentBlock.metadata || {};
+      textPart = (meta.alt_text || meta.caption || meta.title || type).substring(0, 30).trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    } else if (type === "embed") {
+      const meta = contentBlock.metadata || {};
+      textPart = (meta.provider || meta.title || "embed").substring(0, 30).trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    } else if (type === "link") {
+      const meta = contentBlock.metadata || {};
+      textPart = (meta.title || meta.site_name || "link").substring(0, 30).trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    } else {
+      textPart = "content";
+    }
     return `${dateStr}_${textPart}.md`;
   }
-  // Organize prose blocks by their associations (chapter, scene, beat)
-  organizeProseBlocks(proseBlocks, proseBlockRefs, scenes) {
+  // Organize content blocks by their associations (chapter, scene, beat)
+  organizeContentBlocks(contentBlocks, contentBlockRefs, scenes) {
     const organization = {
       chapterOnly: [],
       byScene: /* @__PURE__ */ new Map(),
       byBeat: /* @__PURE__ */ new Map()
     };
-    const proseBlockRefsByProseBlock = /* @__PURE__ */ new Map();
-    for (const ref of proseBlockRefs) {
-      if (!proseBlockRefsByProseBlock.has(ref.prose_block_id)) {
-        proseBlockRefsByProseBlock.set(ref.prose_block_id, []);
+    const contentBlockRefsByContentBlock = /* @__PURE__ */ new Map();
+    for (const ref of contentBlockRefs) {
+      if (!contentBlockRefsByContentBlock.has(ref.content_block_id)) {
+        contentBlockRefsByContentBlock.set(ref.content_block_id, []);
       }
-      proseBlockRefsByProseBlock.get(ref.prose_block_id).push(ref);
+      contentBlockRefsByContentBlock.get(ref.content_block_id).push(ref);
     }
     const sceneMap = /* @__PURE__ */ new Map();
     const beatMap = /* @__PURE__ */ new Map();
@@ -1552,25 +1625,25 @@ Status: ${story.status}
         beatMap.set(beat.id, beat);
       }
     }
-    const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
-    for (const proseBlock of sortedProseBlocks) {
-      const refs = proseBlockRefsByProseBlock.get(proseBlock.id) || [];
+    const sortedContentBlocks = [...contentBlocks].sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
+    for (const contentBlock of sortedContentBlocks) {
+      const refs = contentBlockRefsByContentBlock.get(contentBlock.id) || [];
       const sceneRef = refs.find((r) => r.entity_type === "scene");
       const beatRef = refs.find((r) => r.entity_type === "beat");
       if (beatRef && beatMap.has(beatRef.entity_id)) {
         const beat = beatMap.get(beatRef.entity_id);
         if (!organization.byBeat.has(beat.id)) {
-          organization.byBeat.set(beat.id, { beat, proseBlocks: [] });
+          organization.byBeat.set(beat.id, { beat, contentBlocks: [] });
         }
-        organization.byBeat.get(beat.id).proseBlocks.push(proseBlock);
+        organization.byBeat.get(beat.id).contentBlocks.push(contentBlock);
       } else if (sceneRef && sceneMap.has(sceneRef.entity_id)) {
         const scene = sceneMap.get(sceneRef.entity_id);
         if (!organization.byScene.has(scene.id)) {
-          organization.byScene.set(scene.id, { scene, proseBlocks: [] });
+          organization.byScene.set(scene.id, { scene, contentBlocks: [] });
         }
-        organization.byScene.get(scene.id).proseBlocks.push(proseBlock);
+        organization.byScene.get(scene.id).contentBlocks.push(contentBlock);
       } else {
-        organization.chapterOnly.push(proseBlock);
+        organization.chapterOnly.push(contentBlock);
       }
     }
     return organization;
@@ -1599,65 +1672,273 @@ Status: ${story.status}
     const intentSanitized = (beat.intent || "beat").trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
     return `${dateStr}_${intentSanitized}.md`;
   }
-  // Write prose block file
-  async writeProseBlockFile(proseBlock, filePath, storyName) {
+  // Write content block file
+  async writeContentBlockFile(contentBlock, filePath, storyName) {
+    const type = contentBlock.type || "text";
     const baseFields = {
-      id: proseBlock.id,
-      chapter_id: proseBlock.chapter_id,
-      order_num: proseBlock.order_num,
-      kind: proseBlock.kind,
-      word_count: proseBlock.word_count,
-      created_at: proseBlock.created_at,
-      updated_at: proseBlock.updated_at
+      id: contentBlock.id,
+      chapter_id: contentBlock.chapter_id || null,
+      order_num: contentBlock.order_num || 0,
+      type,
+      kind: contentBlock.kind,
+      created_at: contentBlock.created_at,
+      updated_at: contentBlock.updated_at
     };
+    const meta = contentBlock.metadata || {};
+    if (type === "text" && meta.word_count) {
+      baseFields.word_count = meta.word_count;
+    } else if (type === "image") {
+      if (contentBlock.content && contentBlock.content.startsWith("http")) {
+        baseFields.original_url = contentBlock.content;
+      }
+      if (meta.alt_text)
+        baseFields.alt_text = meta.alt_text;
+      if (meta.caption)
+        baseFields.caption = meta.caption;
+      if (meta.width)
+        baseFields.width = meta.width;
+      if (meta.height)
+        baseFields.height = meta.height;
+      if (meta.mime_type)
+        baseFields.mime_type = meta.mime_type;
+      if (meta.source)
+        baseFields.source = meta.source;
+      if (meta.author_name)
+        baseFields.author_name = meta.author_name;
+      if (meta.attribution)
+        baseFields.attribution = meta.attribution;
+      if (meta.attribution_url)
+        baseFields.attribution_url = meta.attribution_url;
+    } else if (type === "video" || type === "audio") {
+      if (meta.provider)
+        baseFields.provider = meta.provider;
+      if (meta.video_id)
+        baseFields.video_id = meta.video_id;
+      if (meta.duration)
+        baseFields.duration = meta.duration;
+      if (meta.thumbnail_url)
+        baseFields.thumbnail_url = meta.thumbnail_url;
+    } else if (type === "embed") {
+      if (meta.provider)
+        baseFields.provider = meta.provider;
+      if (meta.html)
+        baseFields.embed_html = meta.html;
+    } else if (type === "link") {
+      if (meta.title)
+        baseFields.link_title = meta.title;
+      if (meta.description)
+        baseFields.link_description = meta.description;
+      if (meta.image_url)
+        baseFields.link_image = meta.image_url;
+      if (meta.site_name)
+        baseFields.site_name = meta.site_name;
+    }
     const frontmatter = this.generateFrontmatter(baseFields, void 0, {
-      entityType: "prose-block",
+      entityType: "content-block",
       storyName,
-      date: proseBlock.created_at
+      date: contentBlock.created_at
     });
-    const content = `${frontmatter}${proseBlock.content}`;
+    let fileContent;
+    if (type === "text") {
+      fileContent = `${frontmatter}${contentBlock.content}`;
+    } else if (type === "image") {
+      let localImagePath = contentBlock.content || "";
+      if (contentBlock.content && !contentBlock.content.startsWith("http")) {
+        localImagePath = contentBlock.content;
+      } else if (contentBlock.content) {
+        try {
+          localImagePath = await this.downloadImage(contentBlock.content, filePath, contentBlock.id);
+        } catch (err) {
+          console.error("Failed to download image:", err);
+          localImagePath = contentBlock.content;
+        }
+      }
+      const altText = meta.alt_text || "";
+      fileContent = `${frontmatter}![${altText}](${localImagePath})`;
+      if (meta.caption) {
+        fileContent += `
+
+*${meta.caption}*`;
+      }
+    } else if (type === "video") {
+      fileContent = `${frontmatter}[Video](${contentBlock.content})`;
+      if (meta.thumbnail_url) {
+        fileContent += `
+
+![Thumbnail](${meta.thumbnail_url})`;
+      }
+    } else if (type === "audio") {
+      fileContent = `${frontmatter}[Audio](${contentBlock.content})`;
+    } else if (type === "embed") {
+      fileContent = `${frontmatter}${meta.html || contentBlock.content}`;
+    } else if (type === "link") {
+      const title = meta.title || contentBlock.content;
+      fileContent = `${frontmatter}[${title}](${contentBlock.content})`;
+      if (meta.description) {
+        fileContent += `
+
+${meta.description}`;
+      }
+    } else {
+      fileContent = `${frontmatter}${contentBlock.content}`;
+    }
     const file = this.vault.getAbstractFileByPath(filePath);
     if (file instanceof import_obsidian5.TFile) {
-      await this.vault.modify(file, content);
+      await this.vault.modify(file, fileContent);
     } else {
-      await this.vault.create(filePath, content);
+      await this.vault.create(filePath, fileContent);
     }
   }
-  // Read prose block from file
-  async readProseBlockFromFile(filePath) {
+  // Download image from URL and save locally (same folder as content block .md)
+  async downloadImage(imageUrl, contentBlockFilePath, contentBlockId) {
+    try {
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.statusText}`);
+      }
+      const blob = await response.blob();
+      const arrayBuffer = await blob.arrayBuffer();
+      let extension = "jpg";
+      const contentType = response.headers.get("content-type");
+      if (contentType) {
+        if (contentType.includes("png"))
+          extension = "png";
+        else if (contentType.includes("gif"))
+          extension = "gif";
+        else if (contentType.includes("webp"))
+          extension = "webp";
+        else if (contentType.includes("svg"))
+          extension = "svg";
+      } else {
+        const urlMatch = imageUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i);
+        if (urlMatch) {
+          extension = urlMatch[1].toLowerCase();
+        }
+      }
+      const contentBlockDir = contentBlockFilePath.substring(0, contentBlockFilePath.lastIndexOf("/"));
+      const imageFileName = `${contentBlockId}.${extension}`;
+      const imagePath = `${contentBlockDir}/${imageFileName}`;
+      const existingFile = this.vault.getAbstractFileByPath(imagePath);
+      if (existingFile instanceof import_obsidian5.TFile) {
+        await this.vault.modifyBinary(existingFile, arrayBuffer);
+      } else {
+        await this.vault.createBinary(imagePath, arrayBuffer);
+      }
+      return imageFileName;
+    } catch (err) {
+      console.error("Error downloading image:", err);
+      throw err;
+    }
+  }
+  // Read content block from file
+  async readContentBlockFromFile(filePath) {
     const file = this.vault.getAbstractFileByPath(filePath);
     if (!(file instanceof import_obsidian5.TFile)) {
       return null;
     }
     try {
-      const content = await this.vault.read(file);
-      const frontmatter = this.parseFrontmatter(content);
-      const contentMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
-      const proseContent = contentMatch ? contentMatch[1].trim() : "";
+      const fileContent = await this.vault.read(file);
+      const frontmatter = this.parseFrontmatter(fileContent);
+      const contentMatch = fileContent.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+      let blockContent = contentMatch ? contentMatch[1].trim() : "";
       if (!frontmatter.id) {
         return null;
       }
+      const type = frontmatter.type || "text";
+      const metadata = {};
+      if (type === "image") {
+        const imgMatch = blockContent.match(/!\[[^\]]*\]\(([^)]+)\)/);
+        if (imgMatch) {
+          blockContent = imgMatch[1];
+          if (!blockContent.startsWith("http") && frontmatter.original_url) {
+            blockContent = frontmatter.original_url;
+          }
+        }
+      } else if (type === "video" || type === "audio" || type === "link") {
+        const linkMatch = blockContent.match(/\[[^\]]*\]\(([^)]+)\)/);
+        if (linkMatch) {
+          blockContent = linkMatch[1];
+        }
+      }
+      if (frontmatter.word_count)
+        metadata.word_count = parseInt(frontmatter.word_count, 10);
+      if (frontmatter.alt_text)
+        metadata.alt_text = frontmatter.alt_text;
+      if (frontmatter.caption)
+        metadata.caption = frontmatter.caption;
+      if (frontmatter.width)
+        metadata.width = parseInt(frontmatter.width, 10);
+      if (frontmatter.height)
+        metadata.height = parseInt(frontmatter.height, 10);
+      if (frontmatter.mime_type)
+        metadata.mime_type = frontmatter.mime_type;
+      if (frontmatter.source)
+        metadata.source = frontmatter.source;
+      if (frontmatter.author_name)
+        metadata.author_name = frontmatter.author_name;
+      if (frontmatter.attribution)
+        metadata.attribution = frontmatter.attribution;
+      if (frontmatter.attribution_url)
+        metadata.attribution_url = frontmatter.attribution_url;
+      if (frontmatter.provider)
+        metadata.provider = frontmatter.provider;
+      if (frontmatter.video_id)
+        metadata.video_id = frontmatter.video_id;
+      if (frontmatter.duration)
+        metadata.duration = parseInt(frontmatter.duration, 10);
+      if (frontmatter.thumbnail_url)
+        metadata.thumbnail_url = frontmatter.thumbnail_url;
+      if (frontmatter.embed_html)
+        metadata.html = frontmatter.embed_html;
+      if (frontmatter.link_title)
+        metadata.title = frontmatter.link_title;
+      if (frontmatter.link_description)
+        metadata.description = frontmatter.link_description;
+      if (frontmatter.link_image)
+        metadata.image_url = frontmatter.link_image;
+      if (frontmatter.site_name)
+        metadata.site_name = frontmatter.site_name;
       return {
         id: frontmatter.id,
-        chapter_id: frontmatter.chapter_id || "",
+        chapter_id: frontmatter.chapter_id || null,
         order_num: parseInt(frontmatter.order_num || "0", 10),
+        type,
         kind: frontmatter.kind || "final",
-        content: proseContent,
-        word_count: parseInt(frontmatter.word_count || "0", 10),
+        content: blockContent,
+        metadata,
         created_at: frontmatter.created_at || "",
         updated_at: frontmatter.updated_at || ""
       };
     } catch (err) {
-      console.error(`Failed to read prose block from ${filePath}:`, err);
+      console.error(`Failed to read content block from ${filePath}:`, err);
       return null;
     }
+  }
+  // List all content block files in a story folder (across all type subfolders)
+  async listContentBlockFiles(storyFolderPath) {
+    const contentsPath = `${storyFolderPath}/03-contents`;
+    const folder = this.vault.getAbstractFileByPath(contentsPath);
+    if (!(folder instanceof import_obsidian5.TFolder)) {
+      return [];
+    }
+    const contentFiles = [];
+    for (const child of folder.children) {
+      if (child instanceof import_obsidian5.TFolder) {
+        for (const file of child.children) {
+          if (file instanceof import_obsidian5.TFile && file.extension === "md") {
+            contentFiles.push(file.path);
+          }
+        }
+      }
+    }
+    return contentFiles.sort();
   }
 };
 
 // src/sync/syncService.ts
 var import_obsidian7 = require("obsidian");
 
-// src/sync/proseBlockParser.ts
+// src/sync/contentBlockParser.ts
 function parseHierarchicalProse(chapterContent) {
   const sections = [];
   const frontmatterMatch = chapterContent.match(/^---\n([\s\S]*?)\n---/);
@@ -1845,28 +2126,28 @@ function parseBeatText(text) {
     outcome: ""
   };
 }
-function compareProseBlocks(paragraph, localProseBlock, remoteProseBlock) {
+function compareContentBlocks(paragraph, localContentBlock, remoteContentBlock) {
   const paragraphContent = paragraph.content.trim();
   if (!paragraph.linkName) {
-    if (remoteProseBlock && remoteProseBlock.content.trim() === paragraphContent) {
-      if (localProseBlock && localProseBlock.id === remoteProseBlock.id) {
+    if (remoteContentBlock && remoteContentBlock.content.trim() === paragraphContent) {
+      if (localContentBlock && localContentBlock.id === remoteContentBlock.id) {
         return "unchanged";
       }
       return "unchanged";
     }
     return "new";
   }
-  if (!localProseBlock) {
-    if (remoteProseBlock && remoteProseBlock.content.trim() === paragraphContent) {
+  if (!localContentBlock) {
+    if (remoteContentBlock && remoteContentBlock.content.trim() === paragraphContent) {
       return "remote_modified";
     }
     return "new";
   }
-  if (!remoteProseBlock) {
+  if (!remoteContentBlock) {
     return "local_modified";
   }
-  const localContent = localProseBlock.content.trim();
-  const remoteContent = remoteProseBlock.content.trim();
+  const localContent = localContentBlock.content.trim();
+  const remoteContent = remoteContentBlock.content.trim();
   if (localContent === paragraphContent && remoteContent === paragraphContent) {
     return "unchanged";
   }
@@ -2467,27 +2748,27 @@ function parseBeatProse(beatContent) {
 // src/views/modals/ConflictModal.ts
 var import_obsidian6 = require("obsidian");
 var ConflictModal = class extends import_obsidian6.Modal {
-  constructor(app, localProseBlock, remoteProseBlock, onResolve) {
+  constructor(app, localContentBlock, remoteContentBlock, onResolve) {
     super(app);
     this.resolution = null;
-    this.localProseBlock = localProseBlock;
-    this.remoteProseBlock = remoteProseBlock;
+    this.localContentBlock = localContentBlock;
+    this.remoteContentBlock = remoteContentBlock;
     this.onResolve = onResolve;
   }
   onOpen() {
     const { contentEl } = this;
     contentEl.empty();
     contentEl.createEl("h2", {
-      text: "Prose Block Conflict"
+      text: "Content Block Conflict"
     });
     contentEl.createEl("p", {
-      text: "This prose block has been modified both locally and remotely. Choose how to resolve the conflict:"
+      text: "This content block has been modified both locally and remotely. Choose how to resolve the conflict:"
     });
     const diffContainer = contentEl.createDiv("conflict-diff-container");
     const localDiv = diffContainer.createDiv("conflict-local");
     localDiv.createEl("h3", { text: "Local Version" });
     const localContent = localDiv.createEl("pre", {
-      text: this.localProseBlock.content,
+      text: this.localContentBlock.content,
       cls: "conflict-content"
     });
     localContent.style.whiteSpace = "pre-wrap";
@@ -2499,7 +2780,7 @@ var ConflictModal = class extends import_obsidian6.Modal {
     const remoteDiv = diffContainer.createDiv("conflict-remote");
     remoteDiv.createEl("h3", { text: "Remote Version" });
     const remoteContent = remoteDiv.createEl("pre", {
-      text: this.remoteProseBlock.content,
+      text: this.remoteContentBlock.content,
       cls: "conflict-content"
     });
     remoteContent.style.whiteSpace = "pre-wrap";
@@ -2511,7 +2792,7 @@ var ConflictModal = class extends import_obsidian6.Modal {
     const manualDiv = contentEl.createDiv("conflict-manual");
     manualDiv.createEl("h3", { text: "Manual Merge (Optional)" });
     const manualTextarea = manualDiv.createEl("textarea", {
-      text: this.localProseBlock.content,
+      text: this.localContentBlock.content,
       cls: "conflict-manual-input"
     });
     manualTextarea.style.width = "100%";
@@ -2593,15 +2874,15 @@ var SyncService = class {
         }
       }
       orphanBeats.sort((a, b) => a.order_num - b.order_num);
-      const chapterProseData = /* @__PURE__ */ new Map();
+      const chapterContentData = /* @__PURE__ */ new Map();
       for (const chapterWithContent of storyData.chapters) {
-        const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
-        const proseBlockRefs = [];
-        for (const proseBlock of proseBlocks) {
-          const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
-          proseBlockRefs.push(...refs);
+        const contentBlocks = await this.apiClient.getContentBlocks(chapterWithContent.chapter.id);
+        const contentBlockRefs = [];
+        for (const contentBlock of contentBlocks) {
+          const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+          contentBlockRefs.push(...refs);
         }
-        chapterProseData.set(chapterWithContent.chapter.id, { proseBlocks, proseBlockRefs });
+        chapterContentData.set(chapterWithContent.chapter.id, { contentBlocks, contentBlockRefs });
       }
       await this.fileManager.writeStoryMetadata(
         storyData.story,
@@ -2609,22 +2890,27 @@ var SyncService = class {
         storyData.chapters,
         orphanScenes,
         orphanBeats,
-        chapterProseData
+        chapterContentData
       );
-      const proseBlocksFolderPath = `${folderPath}/prose-blocks`;
-      await this.fileManager.ensureFolderExists(proseBlocksFolderPath);
-      const chaptersFolderPath = `${folderPath}/chapters`;
+      const contentsFolderPath = `${folderPath}/03-contents`;
+      await this.fileManager.ensureFolderExists(contentsFolderPath);
+      for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
+        await this.fileManager.ensureFolderExists(`${contentsFolderPath}/${typeFolder}`);
+      }
+      const chaptersFolderPath = `${folderPath}/00-chapters`;
       await this.fileManager.ensureFolderExists(chaptersFolderPath);
       for (const chapterWithContent of storyData.chapters) {
-        const proseData = chapterProseData.get(chapterWithContent.chapter.id);
-        const proseBlocks = (proseData == null ? void 0 : proseData.proseBlocks) || [];
-        const proseBlockRefs = (proseData == null ? void 0 : proseData.proseBlockRefs) || [];
-        for (const proseBlock of proseBlocks) {
-          const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
-          const proseBlockFilePath = `${proseBlocksFolderPath}/${proseBlockFileName}`;
-          await this.fileManager.writeProseBlockFile(
-            proseBlock,
-            proseBlockFilePath,
+        const contentData = chapterContentData.get(chapterWithContent.chapter.id);
+        const contentBlocks = (contentData == null ? void 0 : contentData.contentBlocks) || [];
+        const contentBlockRefs = (contentData == null ? void 0 : contentData.contentBlockRefs) || [];
+        for (const contentBlock of contentBlocks) {
+          const contentBlockFileName = this.fileManager.generateContentBlockFileName(contentBlock);
+          const typeFolderPath = this.fileManager.getContentBlockFolderPath(folderPath, contentBlock.type || "text");
+          await this.fileManager.ensureFolderExists(typeFolderPath);
+          const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
+          await this.fileManager.writeContentBlockFile(
+            contentBlock,
+            contentBlockFilePath,
             storyData.story.title
           );
         }
@@ -2634,65 +2920,65 @@ var SyncService = class {
           chapterWithContent,
           chapterFilePath,
           storyData.story.title,
-          proseBlocks,
-          proseBlockRefs,
+          contentBlocks,
+          contentBlockRefs,
           orphanScenes
           // Include orphan scenes for easy association
         );
-        const scenesFolderPath2 = `${folderPath}/scenes`;
+        const scenesFolderPath2 = `${folderPath}/01-scenes`;
         await this.fileManager.ensureFolderExists(scenesFolderPath2);
         for (const { scene, beats } of chapterWithContent.scenes) {
-          const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+          const sceneContentBlocks = await this.apiClient.getContentBlocksByScene(scene.id);
           const sceneFileName = this.fileManager.generateSceneFileName(scene);
           const sceneFilePath = `${scenesFolderPath2}/${sceneFileName}`;
           await this.fileManager.writeSceneFile(
             { scene, beats },
             sceneFilePath,
             storyData.story.title,
-            sceneProseBlocks,
+            sceneContentBlocks,
             orphanBeats
             // Include orphan beats for easy association
           );
-          const beatsFolderPath2 = `${folderPath}/beats`;
+          const beatsFolderPath2 = `${folderPath}/02-beats`;
           await this.fileManager.ensureFolderExists(beatsFolderPath2);
           for (const beat of beats) {
-            const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+            const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
             const beatFileName = this.fileManager.generateBeatFileName(beat);
             const beatFilePath = `${beatsFolderPath2}/${beatFileName}`;
-            await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
+            await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
           }
         }
       }
-      const scenesFolderPath = `${folderPath}/scenes`;
+      const scenesFolderPath = `${folderPath}/01-scenes`;
       await this.fileManager.ensureFolderExists(scenesFolderPath);
       for (const { scene, beats } of orphanScenes) {
-        const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+        const sceneContentBlocks = await this.apiClient.getContentBlocksByScene(scene.id);
         const sceneFileName = this.fileManager.generateSceneFileName(scene);
         const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
         await this.fileManager.writeSceneFile(
           { scene, beats },
           sceneFilePath,
           storyData.story.title,
-          sceneProseBlocks,
+          sceneContentBlocks,
           orphanBeats
           // Include orphan beats for easy association
         );
-        const beatsFolderPath2 = `${folderPath}/beats`;
+        const beatsFolderPath2 = `${folderPath}/02-beats`;
         await this.fileManager.ensureFolderExists(beatsFolderPath2);
         for (const beat of beats) {
-          const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+          const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
           const beatFileName = this.fileManager.generateBeatFileName(beat);
           const beatFilePath = `${beatsFolderPath2}/${beatFileName}`;
-          await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
+          await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
         }
       }
-      const beatsFolderPath = `${folderPath}/beats`;
+      const beatsFolderPath = `${folderPath}/02-beats`;
       await this.fileManager.ensureFolderExists(beatsFolderPath);
       for (const beat of orphanBeats) {
-        const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+        const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
         const beatFileName = this.fileManager.generateBeatFileName(beat);
         const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
-        await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
+        await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
       }
       const existingMetadata = await this.fileManager.readStoryMetadata(folderPath).catch(() => null);
       if (existingMetadata && existingMetadata.frontmatter.version !== void 0 && existingMetadata.frontmatter.version !== storyData.story.version_number) {
@@ -2738,23 +3024,28 @@ var SyncService = class {
           versionData.story,
           versionFolderPath
         );
-        const versionProseBlocksFolderPath = `${versionFolderPath}/prose-blocks`;
-        await this.fileManager.ensureFolderExists(versionProseBlocksFolderPath);
-        const versionChaptersPath = `${versionFolderPath}/chapters`;
+        const versionContentsFolderPath = `${versionFolderPath}/03-contents`;
+        await this.fileManager.ensureFolderExists(versionContentsFolderPath);
+        for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
+          await this.fileManager.ensureFolderExists(`${versionContentsFolderPath}/${typeFolder}`);
+        }
+        const versionChaptersPath = `${versionFolderPath}/00-chapters`;
         await this.fileManager.ensureFolderExists(versionChaptersPath);
         for (const chapterWithContent of versionData.chapters) {
-          const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
-          const proseBlockRefs = [];
-          for (const proseBlock of proseBlocks) {
-            const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
-            proseBlockRefs.push(...refs);
+          const contentBlocks = await this.apiClient.getContentBlocks(chapterWithContent.chapter.id);
+          const contentBlockRefs = [];
+          for (const contentBlock of contentBlocks) {
+            const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+            contentBlockRefs.push(...refs);
           }
-          for (const proseBlock of proseBlocks) {
-            const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
-            const proseBlockFilePath = `${versionProseBlocksFolderPath}/${proseBlockFileName}`;
-            await this.fileManager.writeProseBlockFile(
-              proseBlock,
-              proseBlockFilePath,
+          for (const contentBlock of contentBlocks) {
+            const contentBlockFileName = this.fileManager.generateContentBlockFileName(contentBlock);
+            const typeFolderPath = this.fileManager.getContentBlockFolderPath(versionFolderPath, contentBlock.type || "text");
+            await this.fileManager.ensureFolderExists(typeFolderPath);
+            const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
+            await this.fileManager.writeContentBlockFile(
+              contentBlock,
+              contentBlockFilePath,
               versionData.story.title
             );
           }
@@ -2764,28 +3055,28 @@ var SyncService = class {
             chapterWithContent,
             chapterFilePath,
             versionData.story.title,
-            proseBlocks,
-            proseBlockRefs
+            contentBlocks,
+            contentBlockRefs
           );
-          const versionScenesPath = `${versionFolderPath}/scenes`;
+          const versionScenesPath = `${versionFolderPath}/01-scenes`;
           await this.fileManager.ensureFolderExists(versionScenesPath);
           for (const { scene, beats } of chapterWithContent.scenes) {
-            const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+            const sceneContentBlocks = await this.apiClient.getContentBlocksByScene(scene.id);
             const sceneFileName = this.fileManager.generateSceneFileName(scene);
             const sceneFilePath = `${versionScenesPath}/${sceneFileName}`;
             await this.fileManager.writeSceneFile(
               { scene, beats },
               sceneFilePath,
               versionData.story.title,
-              sceneProseBlocks
+              sceneContentBlocks
             );
-            const versionBeatsPath = `${versionFolderPath}/beats`;
+            const versionBeatsPath = `${versionFolderPath}/02-beats`;
             await this.fileManager.ensureFolderExists(versionBeatsPath);
             for (const beat of beats) {
-              const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+              const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
               const beatFileName = this.fileManager.generateBeatFileName(beat);
               const beatFilePath = `${versionBeatsPath}/${beatFileName}`;
-              await this.fileManager.writeBeatFile(beat, beatFilePath, versionData.story.title, beatProseBlocks);
+              await this.fileManager.writeBeatFile(beat, beatFilePath, versionData.story.title, beatContentBlocks);
             }
           }
         }
@@ -2836,7 +3127,7 @@ var SyncService = class {
         }
         const storyProse = parseStoryProse(storyContent);
         if (storyProse.sections.length > 0) {
-          await this.pushStoryProseBlocks(storyFilePath, folderPath, storyId);
+          await this.pushStoryContentBlocks(storyFilePath, folderPath, storyId);
         }
       }
       await this.apiClient.updateStory(
@@ -2849,16 +3140,16 @@ var SyncService = class {
         console.log(`Would update chapter: ${chapterFilePath}`);
       }
       for (const chapterFilePath of chapterFiles) {
-        await this.pushChapterProseBlocks(chapterFilePath, folderPath);
+        await this.pushChapterContentBlocks(chapterFilePath, folderPath);
       }
       const sceneFiles = await this.fileManager.listStorySceneFiles(folderPath);
       for (const sceneFilePath of sceneFiles) {
         await this.pushSceneBeats(sceneFilePath, storyId);
-        await this.pushSceneProseBlocks(sceneFilePath, folderPath);
+        await this.pushSceneContentBlocks(sceneFilePath, folderPath);
       }
       const beatFiles = await this.fileManager.listStoryBeatFiles(folderPath);
       for (const beatFilePath of beatFiles) {
-        await this.pushBeatProseBlocks(beatFilePath, folderPath);
+        await this.pushBeatContentBlocks(beatFilePath, folderPath);
       }
       new import_obsidian7.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
       try {
@@ -2876,7 +3167,7 @@ var SyncService = class {
     }
   }
   // Push prose blocks from a chapter file (hierarchical structure)
-  async pushChapterProseBlocks(chapterFilePath, storyFolderPath) {
+  async pushChapterContentBlocks(chapterFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
     if (!(file instanceof import_obsidian7.TFile)) {
       throw new Error(`Chapter file not found: ${chapterFilePath}`);
@@ -2888,13 +3179,13 @@ var SyncService = class {
     }
     const chapterId = frontmatter.id;
     const storyId = frontmatter.story_id;
-    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const contentsFolderPath = `${storyFolderPath}/03-contents`;
     const sceneBeatList = parseSceneBeatList(chapterContent);
     await this.processSceneBeatList(sceneBeatList, chapterId, storyId);
-    const remoteProseBlocks = await this.apiClient.getProseBlocks(chapterId);
-    const remoteProseBlocksMap = /* @__PURE__ */ new Map();
-    for (const pb of remoteProseBlocks) {
-      remoteProseBlocksMap.set(pb.id, pb);
+    const remoteContentBlocks = await this.apiClient.getContentBlocks(chapterId);
+    const remoteContentBlocksMap = /* @__PURE__ */ new Map();
+    for (const pb of remoteContentBlocks) {
+      remoteContentBlocksMap.set(pb.id, pb);
     }
     const existingScenes = await this.apiClient.getScenes(chapterId);
     const sceneMap = /* @__PURE__ */ new Map();
@@ -3000,119 +3291,119 @@ var SyncService = class {
         }
       } else if (section.type === "prose" && section.prose) {
         const { prose: paragraph } = section;
-        let localProseBlock = null;
-        let remoteProseBlock = null;
+        let localContentBlock = null;
+        let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
-          if (!localProseBlock) {
-            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          if (!localContentBlock) {
+            localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
-          if (localProseBlock) {
-            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          if (localContentBlock) {
+            remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
           } else {
             const normalizedContent = paragraph.content.trim();
-            for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+            for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
               if (remotePB.content.trim() === normalizedContent) {
-                remoteProseBlock = remotePB;
+                remoteContentBlock = remotePB;
                 break;
               }
             }
           }
         } else {
-          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           const normalizedContent = paragraph.content.trim();
-          for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+          for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
             if (remotePB.content.trim() === normalizedContent) {
-              remoteProseBlock = remotePB;
-              if (!localProseBlock) {
-                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              remoteContentBlock = remotePB;
+              if (!localContentBlock) {
+                localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
               }
               break;
             }
           }
         }
-        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
-        let finalProseBlock;
+        const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
+        let finalContentBlock;
         switch (status) {
           case "new": {
-            finalProseBlock = await this.apiClient.createProseBlock(chapterId, {
+            finalContentBlock = await this.apiClient.createContentBlock(chapterId, {
               order_num: proseOrderNum++,
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             if (currentScene) {
-              await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+              await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
             }
             if (currentBeat) {
-              await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+              await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
             }
             const linkName = fileName.replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "unchanged": {
-            if (!localProseBlock && remoteProseBlock) {
-              finalProseBlock = remoteProseBlock;
-              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-              const filePath = `${proseBlocksFolderPath}/${fileName}`;
-              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            } else if (localProseBlock) {
-              if (localProseBlock.order_num !== proseOrderNum) {
-                finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            if (!localContentBlock && remoteContentBlock) {
+              finalContentBlock = remoteContentBlock;
+              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+              const filePath = `${contentsFolderPath}/${fileName}`;
+              await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            } else if (localContentBlock) {
+              if (localContentBlock.order_num !== proseOrderNum) {
+                finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
                   order_num: proseOrderNum++
                 });
-                const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-                const filePath = `${proseBlocksFolderPath}/${fileName}`;
-                await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+                const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+                const filePath = `${contentsFolderPath}/${fileName}`;
+                await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
               } else {
-                finalProseBlock = localProseBlock;
+                finalContentBlock = localContentBlock;
                 proseOrderNum++;
               }
             } else {
-              finalProseBlock = remoteProseBlock;
+              finalContentBlock = remoteContentBlock;
               proseOrderNum++;
             }
-            if (finalProseBlock) {
-              const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+            if (finalContentBlock) {
+              const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
               const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
               const hasBeatRef = existingRefs.some((r) => r.entity_type === "beat" && r.entity_id === (currentBeat == null ? void 0 : currentBeat.id));
               if (currentScene && !hasSceneRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
               }
               if (currentBeat && !hasBeatRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
               }
             }
             if (paragraph.linkName) {
               updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
             } else {
-              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
               const linkName = fileName.replace(/\.md$/, "");
               updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             }
             break;
           }
           case "local_modified": {
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            if (finalProseBlock) {
-              const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            if (finalContentBlock) {
+              const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
               const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
               const hasBeatRef = existingRefs.some((r) => r.entity_type === "beat" && r.entity_id === (currentBeat == null ? void 0 : currentBeat.id));
               if (currentScene && !hasSceneRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
               }
               if (currentBeat && !hasBeatRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
               }
             }
             const linkName = fileName.replace(/\.md$/, "");
@@ -3120,53 +3411,53 @@ var SyncService = class {
             break;
           }
           case "remote_modified": {
-            finalProseBlock = remoteProseBlock;
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            if (finalProseBlock) {
-              const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+            finalContentBlock = remoteContentBlock;
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            if (finalContentBlock) {
+              const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
               const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
               const hasBeatRef = existingRefs.some((r) => r.entity_type === "beat" && r.entity_id === (currentBeat == null ? void 0 : currentBeat.id));
               if (currentScene && !hasSceneRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
               }
               if (currentBeat && !hasBeatRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
               }
             }
             const linkName = fileName.replace(/\.md$/, "");
-            updatedSections.push(`[[${linkName}|${finalProseBlock.content}]]`);
+            updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
             new import_obsidian7.Notice(`Prose block updated from remote: ${linkName}`, 3e3);
             proseOrderNum++;
             break;
           }
           case "conflict": {
-            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
+            const resolution = await this.resolveConflict(localContentBlock, remoteContentBlock);
             let resolvedContent;
             if (resolution.resolution === "local") {
               resolvedContent = paragraph.content;
             } else if (resolution.resolution === "remote") {
-              resolvedContent = remoteProseBlock.content;
+              resolvedContent = remoteContentBlock.content;
             } else {
               resolvedContent = resolution.mergedContent || paragraph.content;
             }
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            if (finalProseBlock) {
-              const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            if (finalContentBlock) {
+              const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
               const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
               const hasBeatRef = existingRefs.some((r) => r.entity_type === "beat" && r.entity_id === (currentBeat == null ? void 0 : currentBeat.id));
               if (currentScene && !hasSceneRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
               }
               if (currentBeat && !hasBeatRef) {
-                await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+                await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
               }
             }
             const linkName = fileName.replace(/\.md$/, "");
@@ -3176,18 +3467,18 @@ var SyncService = class {
         }
       }
     }
-    await this.updateChapterFile(chapterContent, updatedSections, file, frontmatter, existingScenes, beatMap, remoteProseBlocks, chapterId);
+    await this.updateChapterFile(chapterContent, updatedSections, file, frontmatter, existingScenes, beatMap, remoteContentBlocks, chapterId);
   }
   // Update chapter file with both scene/beat list and chapter content
-  async updateChapterFile(originalContent, updatedSections, file, frontmatter, scenes, beatMap, proseBlocks, chapterId) {
-    const allProseBlockRefs = [];
-    for (const proseBlock of proseBlocks) {
-      const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
-      allProseBlockRefs.push(...refs);
+  async updateChapterFile(originalContent, updatedSections, file, frontmatter, scenes, beatMap, contentBlocks, chapterId) {
+    const allContentBlockRefs = [];
+    for (const contentBlock of contentBlocks) {
+      const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+      allContentBlockRefs.push(...refs);
     }
     const proseRefsByScene = /* @__PURE__ */ new Map();
     const proseRefsByBeat = /* @__PURE__ */ new Map();
-    for (const ref of allProseBlockRefs) {
+    for (const ref of allContentBlockRefs) {
       if (ref.entity_type === "scene") {
         if (!proseRefsByScene.has(ref.entity_id)) {
           proseRefsByScene.set(ref.entity_id, []);
@@ -3206,9 +3497,9 @@ var SyncService = class {
       const sceneLinkName = sceneFileName.replace(/\.md$/, "");
       const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
       const sceneProseRefs = proseRefsByScene.get(scene.id) || [];
-      const sceneProseBlockIds = new Set(sceneProseRefs.map((r) => r.prose_block_id));
-      const hasSceneProse = Array.from(sceneProseBlockIds).some((proseBlockId) => {
-        const blockRefs = allProseBlockRefs.filter((r) => r.prose_block_id === proseBlockId);
+      const sceneContentBlockIds = new Set(sceneProseRefs.map((r) => r.content_block_id));
+      const hasSceneProse = Array.from(sceneContentBlockIds).some((contentBlockId) => {
+        const blockRefs = allContentBlockRefs.filter((r) => r.content_block_id === contentBlockId);
         return !blockRefs.some((r) => r.entity_type === "beat");
       });
       const sceneMarker = hasSceneProse ? "+" : "-";
@@ -3530,13 +3821,13 @@ ${updatedBody}`;
   }
   // Push prose blocks from a story file with hierarchical structure
   // Format: # Story: title, ## Chapter: title, ### Scene: title, #### Beat: title
-  async pushStoryProseBlocks(storyFilePath, storyFolderPath, storyId) {
+  async pushStoryContentBlocks(storyFilePath, storyFolderPath, storyId) {
     const file = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
     if (!(file instanceof import_obsidian7.TFile)) {
       throw new Error(`Story file not found: ${storyFilePath}`);
     }
     const storyContent = await this.fileManager.getVault().read(file);
-    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const contentsFolderPath = `${storyFolderPath}/03-contents`;
     const storyProse = parseStoryProse(storyContent);
     if (storyProse.sections.length === 0) {
       return;
@@ -3632,106 +3923,106 @@ ${updatedBody}`;
             chapterByTitle.set("story prose", currentChapter);
           }
         }
-        const remoteProseBlocks = await this.apiClient.getProseBlocks(currentChapter.id);
-        const remoteProseBlocksMap = /* @__PURE__ */ new Map();
-        for (const pb of remoteProseBlocks) {
-          remoteProseBlocksMap.set(pb.id, pb);
+        const remoteContentBlocks = await this.apiClient.getContentBlocks(currentChapter.id);
+        const remoteContentBlocksMap = /* @__PURE__ */ new Map();
+        for (const pb of remoteContentBlocks) {
+          remoteContentBlocksMap.set(pb.id, pb);
         }
-        let localProseBlock = null;
-        let remoteProseBlock = null;
+        let localContentBlock = null;
+        let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
-          if (!localProseBlock) {
-            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          if (!localContentBlock) {
+            localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
-          if (localProseBlock) {
-            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          if (localContentBlock) {
+            remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
           } else {
             const normalizedContent = paragraph.content.trim();
-            for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+            for (const [, remotePB] of remoteContentBlocksMap.entries()) {
               if (remotePB.content.trim() === normalizedContent) {
-                remoteProseBlock = remotePB;
+                remoteContentBlock = remotePB;
                 break;
               }
             }
           }
         } else {
-          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           const normalizedContent = paragraph.content.trim();
-          for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+          for (const [, remotePB] of remoteContentBlocksMap.entries()) {
             if (remotePB.content.trim() === normalizedContent) {
-              remoteProseBlock = remotePB;
-              if (!localProseBlock) {
-                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              remoteContentBlock = remotePB;
+              if (!localContentBlock) {
+                localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
               }
               break;
             }
           }
         }
-        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
-        let finalProseBlock;
+        const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
+        let finalContentBlock;
         switch (status) {
           case "new": {
-            finalProseBlock = await this.apiClient.createProseBlock(currentChapter.id, {
+            finalContentBlock = await this.apiClient.createContentBlock(currentChapter.id, {
               order_num: proseOrderNum++,
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             if (currentScene) {
-              await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+              await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
             }
             if (currentBeat) {
-              await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+              await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
             }
             break;
           }
           case "unchanged": {
-            if (!localProseBlock && remoteProseBlock) {
-              finalProseBlock = remoteProseBlock;
-              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-              const filePath = `${proseBlocksFolderPath}/${fileName}`;
-              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            } else if (localProseBlock) {
-              finalProseBlock = localProseBlock;
+            if (!localContentBlock && remoteContentBlock) {
+              finalContentBlock = remoteContentBlock;
+              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+              const filePath = `${contentsFolderPath}/${fileName}`;
+              await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            } else if (localContentBlock) {
+              finalContentBlock = localContentBlock;
               proseOrderNum++;
             } else {
-              finalProseBlock = remoteProseBlock;
+              finalContentBlock = remoteContentBlock;
               proseOrderNum++;
             }
             break;
           }
           case "local_modified": {
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             break;
           }
           case "remote_modified": {
-            finalProseBlock = remoteProseBlock;
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            finalContentBlock = remoteContentBlock;
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             proseOrderNum++;
             break;
           }
           case "conflict": {
-            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
-            let resolvedContent = resolution.resolution === "local" ? paragraph.content : resolution.resolution === "remote" ? remoteProseBlock.content : resolution.mergedContent || paragraph.content;
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            const resolution = await this.resolveConflict(localContentBlock, remoteContentBlock);
+            let resolvedContent = resolution.resolution === "local" ? paragraph.content : resolution.resolution === "remote" ? remoteContentBlock.content : resolution.mergedContent || paragraph.content;
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             break;
           }
         }
@@ -3739,7 +4030,7 @@ ${updatedBody}`;
     }
   }
   // Push prose blocks from a scene file (scene-level prose, not inside chapters)
-  async pushSceneProseBlocks(sceneFilePath, storyFolderPath) {
+  async pushSceneContentBlocks(sceneFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
     if (!(file instanceof import_obsidian7.TFile)) {
       return;
@@ -3751,7 +4042,7 @@ ${updatedBody}`;
     }
     const sceneId = frontmatter.id;
     const storyId = frontmatter.story_id;
-    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const contentsFolderPath = `${storyFolderPath}/03-contents`;
     const sceneProse = parseSceneProse(sceneContent);
     if (sceneProse.sections.length === 0) {
       return;
@@ -3766,10 +4057,10 @@ ${updatedBody}`;
         status: "draft"
       });
     }
-    const remoteProseBlocks = await this.apiClient.getProseBlocks(tempChapter.id);
-    const remoteProseBlocksMap = /* @__PURE__ */ new Map();
-    for (const pb of remoteProseBlocks) {
-      remoteProseBlocksMap.set(pb.id, pb);
+    const remoteContentBlocks = await this.apiClient.getContentBlocks(tempChapter.id);
+    const remoteContentBlocksMap = /* @__PURE__ */ new Map();
+    for (const pb of remoteContentBlocks) {
+      remoteContentBlocksMap.set(pb.id, pb);
     }
     const existingBeats = await this.apiClient.getBeats(sceneId);
     const beatMap = /* @__PURE__ */ new Map();
@@ -3800,129 +4091,129 @@ ${updatedBody}`;
         }
       } else if (section.type === "prose" && section.prose) {
         const { prose: paragraph } = section;
-        let localProseBlock = null;
-        let remoteProseBlock = null;
+        let localContentBlock = null;
+        let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
-          if (!localProseBlock) {
-            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          if (!localContentBlock) {
+            localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
-          if (localProseBlock) {
-            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          if (localContentBlock) {
+            remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
           } else {
             const normalizedContent = paragraph.content.trim();
-            for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+            for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
               if (remotePB.content.trim() === normalizedContent) {
-                remoteProseBlock = remotePB;
+                remoteContentBlock = remotePB;
                 break;
               }
             }
           }
         } else {
-          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           const normalizedContent = paragraph.content.trim();
-          for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+          for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
             if (remotePB.content.trim() === normalizedContent) {
-              remoteProseBlock = remotePB;
-              if (!localProseBlock) {
-                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              remoteContentBlock = remotePB;
+              if (!localContentBlock) {
+                localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
               }
               break;
             }
           }
         }
-        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
-        let finalProseBlock;
+        const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
+        let finalContentBlock;
         switch (status) {
           case "new": {
-            finalProseBlock = await this.apiClient.createProseBlock(tempChapter.id, {
+            finalContentBlock = await this.apiClient.createContentBlock(tempChapter.id, {
               order_num: proseOrderNum++,
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", sceneId);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
             if (currentBeat) {
-              await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+              await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
             }
             const linkName = fileName.replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "unchanged": {
-            if (!localProseBlock && remoteProseBlock) {
-              finalProseBlock = remoteProseBlock;
-              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-              const filePath = `${proseBlocksFolderPath}/${fileName}`;
-              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            } else if (localProseBlock) {
-              if (localProseBlock.order_num !== proseOrderNum) {
-                finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            if (!localContentBlock && remoteContentBlock) {
+              finalContentBlock = remoteContentBlock;
+              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+              const filePath = `${contentsFolderPath}/${fileName}`;
+              await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            } else if (localContentBlock) {
+              if (localContentBlock.order_num !== proseOrderNum) {
+                finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
                   order_num: proseOrderNum++
                 });
-                const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-                const filePath = `${proseBlocksFolderPath}/${fileName}`;
-                await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+                const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+                const filePath = `${contentsFolderPath}/${fileName}`;
+                await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
               } else {
-                finalProseBlock = localProseBlock;
+                finalContentBlock = localContentBlock;
                 proseOrderNum++;
               }
             } else {
-              finalProseBlock = remoteProseBlock;
+              finalContentBlock = remoteContentBlock;
               proseOrderNum++;
             }
             if (paragraph.linkName) {
               updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
             } else {
-              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
               const linkName = fileName.replace(/\.md$/, "");
               updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             }
             break;
           }
           case "local_modified": {
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             const linkName = fileName.replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "remote_modified": {
-            finalProseBlock = remoteProseBlock;
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            finalContentBlock = remoteContentBlock;
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             const linkName = fileName.replace(/\.md$/, "");
-            updatedSections.push(`[[${linkName}|${finalProseBlock.content}]]`);
+            updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
             new import_obsidian7.Notice(`Scene prose block updated from remote: ${linkName}`, 3e3);
             proseOrderNum++;
             break;
           }
           case "conflict": {
-            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
+            const resolution = await this.resolveConflict(localContentBlock, remoteContentBlock);
             let resolvedContent;
             if (resolution.resolution === "local") {
               resolvedContent = paragraph.content;
             } else if (resolution.resolution === "remote") {
-              resolvedContent = remoteProseBlock.content;
+              resolvedContent = remoteContentBlock.content;
             } else {
               resolvedContent = resolution.mergedContent || paragraph.content;
             }
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             const linkName = fileName.replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
             break;
@@ -3946,7 +4237,7 @@ ${afterProse}`;
     }
   }
   // Push prose blocks from a beat file
-  async pushBeatProseBlocks(beatFilePath, storyFolderPath) {
+  async pushBeatContentBlocks(beatFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(beatFilePath);
     if (!(file instanceof import_obsidian7.TFile)) {
       return;
@@ -3958,7 +4249,7 @@ ${afterProse}`;
     }
     const beatId = frontmatter.id;
     const sceneId = frontmatter.scene_id;
-    const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+    const contentsFolderPath = `${storyFolderPath}/03-contents`;
     const beatProse = parseBeatProse(beatContent);
     if (beatProse.sections.length === 0) {
       return;
@@ -3978,10 +4269,10 @@ ${afterProse}`;
         status: "draft"
       });
     }
-    const remoteProseBlocks = await this.apiClient.getProseBlocks(tempChapter.id);
-    const remoteProseBlocksMap = /* @__PURE__ */ new Map();
-    for (const pb of remoteProseBlocks) {
-      remoteProseBlocksMap.set(pb.id, pb);
+    const remoteContentBlocks = await this.apiClient.getContentBlocks(tempChapter.id);
+    const remoteContentBlocksMap = /* @__PURE__ */ new Map();
+    for (const pb of remoteContentBlocks) {
+      remoteContentBlocksMap.set(pb.id, pb);
     }
     let proseOrderNum = 1;
     const updatedSections = [];
@@ -3995,67 +4286,67 @@ ${afterProse}`;
     for (const section of beatProse.sections) {
       if (section.type === "prose" && section.prose) {
         const { prose: paragraph } = section;
-        let localProseBlock = null;
-        let remoteProseBlock = null;
+        let localContentBlock = null;
+        let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-          localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
-          if (!localProseBlock) {
-            localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          if (!localContentBlock) {
+            localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
-          if (localProseBlock) {
-            remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+          if (localContentBlock) {
+            remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
           } else {
             const normalizedContent = paragraph.content.trim();
-            for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+            for (const [, remotePB] of remoteContentBlocksMap.entries()) {
               if (remotePB.content.trim() === normalizedContent) {
-                remoteProseBlock = remotePB;
+                remoteContentBlock = remotePB;
                 break;
               }
             }
           }
         } else {
-          localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+          localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           const normalizedContent = paragraph.content.trim();
-          for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+          for (const [, remotePB] of remoteContentBlocksMap.entries()) {
             if (remotePB.content.trim() === normalizedContent) {
-              remoteProseBlock = remotePB;
-              if (!localProseBlock) {
-                localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+              remoteContentBlock = remotePB;
+              if (!localContentBlock) {
+                localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
               }
               break;
             }
           }
         }
-        const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
-        let finalProseBlock;
+        const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
+        let finalContentBlock;
         switch (status) {
           case "new": {
-            finalProseBlock = await this.apiClient.createProseBlock(tempChapter.id, {
+            finalContentBlock = await this.apiClient.createContentBlock(tempChapter.id, {
               order_num: proseOrderNum++,
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
-            await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", sceneId);
-            await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", beatId);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
+            await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", beatId);
             const linkName = fileName.replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "unchanged": {
-            if (!localProseBlock && remoteProseBlock) {
-              finalProseBlock = remoteProseBlock;
-              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-              const filePath = `${proseBlocksFolderPath}/${fileName}`;
-              await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            if (!localContentBlock && remoteContentBlock) {
+              finalContentBlock = remoteContentBlock;
+              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+              const filePath = `${contentsFolderPath}/${fileName}`;
+              await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
               const linkName = fileName.replace(/\.md$/, "");
-              updatedSections.push(`[[${linkName}|${remoteProseBlock.content}]]`);
-            } else if (localProseBlock) {
-              finalProseBlock = localProseBlock;
-              const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+              updatedSections.push(`[[${linkName}|${remoteContentBlock.content}]]`);
+            } else if (localContentBlock) {
+              finalContentBlock = localContentBlock;
+              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
               const linkName = fileName.replace(/\.md$/, "");
               updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
               proseOrderNum++;
@@ -4066,44 +4357,44 @@ ${afterProse}`;
             break;
           }
           case "local_modified": {
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             const linkName = fileName.replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "remote_modified": {
-            finalProseBlock = remoteProseBlock;
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            finalContentBlock = remoteContentBlock;
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             proseOrderNum++;
             const linkName = fileName.replace(/\.md$/, "");
-            updatedSections.push(`[[${linkName}|${remoteProseBlock.content}]]`);
+            updatedSections.push(`[[${linkName}|${remoteContentBlock.content}]]`);
             break;
           }
           case "conflict": {
-            const resolution = await this.resolveConflict(localProseBlock, remoteProseBlock);
+            const resolution = await this.resolveConflict(localContentBlock, remoteContentBlock);
             let resolvedContent;
             if (resolution.resolution === "local") {
               resolvedContent = paragraph.content;
             } else if (resolution.resolution === "remote") {
-              resolvedContent = remoteProseBlock.content;
+              resolvedContent = remoteContentBlock.content;
             } else {
               resolvedContent = resolution.mergedContent || paragraph.content;
             }
-            finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+            finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-            const filePath = `${proseBlocksFolderPath}/${fileName}`;
-            await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, void 0);
+            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+            const filePath = `${contentsFolderPath}/${fileName}`;
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             const linkName = fileName.replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
             break;
@@ -4468,18 +4759,18 @@ ${updatedSections.join("\n\n")}
     }
   }
   // Find prose block by content when file name doesn't match
-  async findProseBlockByContent(proseBlocksFolderPath, content) {
+  async findContentBlockByContent(contentsFolderPath, content) {
     try {
-      const folder = this.fileManager.getVault().getAbstractFileByPath(proseBlocksFolderPath);
+      const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
       if (!(folder instanceof import_obsidian7.TFolder)) {
         return null;
       }
       const normalizedContent = content.trim();
       for (const child of folder.children) {
         if (child instanceof import_obsidian7.TFile && child.extension === "md") {
-          const proseBlock = await this.fileManager.readProseBlockFromFile(child.path);
-          if (proseBlock && proseBlock.content.trim() === normalizedContent) {
-            return proseBlock;
+          const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+          if (contentBlock && contentBlock.content.trim() === normalizedContent) {
+            return contentBlock;
           }
         }
       }
@@ -4489,17 +4780,17 @@ ${updatedSections.join("\n\n")}
     return null;
   }
   // Find prose block by ID when we have remote ID but need local file
-  async findProseBlockById(proseBlocksFolderPath, id) {
+  async findContentBlockById(contentsFolderPath, id) {
     try {
-      const folder = this.fileManager.getVault().getAbstractFileByPath(proseBlocksFolderPath);
+      const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
       if (!(folder instanceof import_obsidian7.TFolder)) {
         return null;
       }
       for (const child of folder.children) {
         if (child instanceof import_obsidian7.TFile && child.extension === "md") {
-          const proseBlock = await this.fileManager.readProseBlockFromFile(child.path);
-          if (proseBlock && proseBlock.id === id) {
-            return proseBlock;
+          const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+          if (contentBlock && contentBlock.id === id) {
+            return contentBlock;
           }
         }
       }
@@ -4509,12 +4800,12 @@ ${updatedSections.join("\n\n")}
     return null;
   }
   // Resolve conflict using modal
-  async resolveConflict(localProseBlock, remoteProseBlock) {
+  async resolveConflict(localContentBlock, remoteContentBlock) {
     return new Promise((resolve) => {
       const modal = new ConflictModal(
         this.app,
-        localProseBlock,
-        remoteProseBlock,
+        localContentBlock,
+        remoteContentBlock,
         async (result) => {
           resolve(result);
         }
@@ -4588,7 +4879,7 @@ ${updatedBody}`;
 };
 
 // src/views/StoryListView.ts
-var import_obsidian11 = require("obsidian");
+var import_obsidian12 = require("obsidian");
 
 // src/views/modals/ChapterModal.ts
 var import_obsidian8 = require("obsidian");
@@ -4938,20 +5229,397 @@ var BeatModal = class extends import_obsidian10.Modal {
   }
 };
 
+// src/views/modals/ContentBlockModal.ts
+var import_obsidian11 = require("obsidian");
+
+// src/api/unsplash.ts
+var UnsplashClient = class {
+  constructor(accessKey, secretKey) {
+    this.apiUrl = "https://api.unsplash.com";
+    this.accessKey = accessKey || "YOUR_UNSPLASH_ACCESS_KEY";
+    this.secretKey = secretKey || "";
+  }
+  async searchImages(query, page = 1, perPage = 20) {
+    const url = `${this.apiUrl}/search/photos?query=${encodeURIComponent(query)}&page=${page}&per_page=${perPage}`;
+    const headers = {
+      "Accept-Version": "v1"
+    };
+    if (!this.accessKey || this.accessKey === "YOUR_UNSPLASH_ACCESS_KEY") {
+      throw new Error("Unsplash access key is required. Please configure it in plugin settings.");
+    }
+    headers["Authorization"] = `Client-ID ${this.accessKey}`;
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Unsplash API error: ${response.status} ${response.statusText}. ${errorText}`);
+    }
+    return response.json();
+  }
+  getImageUrl(photo, size = "regular") {
+    return photo.urls[size];
+  }
+  getAttributionUrl(photo) {
+    return photo.links.html;
+  }
+  getAttributionText(photo) {
+    return `Photo by ${photo.user.name} on Unsplash`;
+  }
+};
+
+// src/views/modals/ContentBlockModal.ts
+var ContentBlockModal = class extends import_obsidian11.Modal {
+  constructor(app, onSubmit, contentBlock, plugin) {
+    var _a, _b, _c, _d;
+    super(app);
+    this.contentBlock = {
+      type: "text",
+      kind: "final",
+      content: "",
+      metadata: {}
+    };
+    this.isEdit = false;
+    this.unsplashResults = [];
+    this.unsplashSearchQuery = "";
+    this.unsplashSearching = false;
+    this.selectedImageUrl = "";
+    this.currentImageSourceTab = "internet link";
+    this.onSubmit = onSubmit;
+    this.plugin = plugin;
+    const unsplashAccessKey = ((_b = (_a = this.plugin) == null ? void 0 : _a.settings) == null ? void 0 : _b.unsplashAccessKey) || "";
+    const unsplashSecretKey = ((_d = (_c = this.plugin) == null ? void 0 : _c.settings) == null ? void 0 : _d.unsplashSecretKey) || "";
+    this.unsplashClient = new UnsplashClient(unsplashAccessKey, unsplashSecretKey);
+    if (contentBlock) {
+      this.isEdit = true;
+      this.contentBlock = {
+        type: contentBlock.type,
+        kind: contentBlock.kind || "final",
+        content: contentBlock.content,
+        metadata: contentBlock.metadata || {}
+      };
+      if (contentBlock.type === "image" && contentBlock.content) {
+        this.selectedImageUrl = contentBlock.content;
+      }
+    }
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h2", {
+      text: this.isEdit ? "Edit Content Block" : "Create Content Block"
+    });
+    if (this.isEdit && !this.contentBlock.type) {
+      new import_obsidian11.Setting(contentEl).setName("Type").setDesc("Select the content type").addDropdown(
+        (dropdown) => dropdown.addOption("text", "Text").addOption("image", "Image").setValue(this.contentBlock.type || "text").onChange((value) => {
+          this.contentBlock.type = value;
+          this.renderContentFields();
+        })
+      );
+    }
+    this.renderContentFields();
+    const buttonContainer = contentEl.createDiv({ cls: "modal-button-container" });
+    const submitButton = buttonContainer.createEl("button", {
+      text: this.isEdit ? "Update" : "Create",
+      cls: "mod-cta"
+    });
+    submitButton.addEventListener("click", () => this.submit());
+    const cancelButton = buttonContainer.createEl("button", {
+      text: "Cancel"
+    });
+    cancelButton.addEventListener("click", () => this.close());
+  }
+  renderContentFields() {
+    var _a, _b, _c, _d, _e, _f, _g;
+    const { contentEl } = this;
+    const existingFields = contentEl.querySelectorAll(".content-block-field");
+    existingFields.forEach((el) => el.remove());
+    if (this.contentBlock.type === "text") {
+      const textField = contentEl.createDiv({ cls: "content-block-field" });
+      new import_obsidian11.Setting(textField).setName("Content").setDesc("Enter the text content").addTextArea(
+        (text) => text.setPlaceholder("Enter text...").setValue(this.contentBlock.content || "").onChange((value) => {
+          this.contentBlock.content = value;
+          if (!this.contentBlock.metadata) {
+            this.contentBlock.metadata = {};
+          }
+          this.contentBlock.metadata.word_count = value.trim().split(/\s+/).filter((w) => w.length > 0).length;
+        })
+      );
+    } else if (this.contentBlock.type === "image") {
+      const imageField = contentEl.createDiv({ cls: "content-block-field" });
+      const sourceValue = ((_a = this.contentBlock.metadata) == null ? void 0 : _a.source) || "internet link";
+      this.currentImageSourceTab = sourceValue;
+      const tabsContainer = imageField.createDiv({ cls: "content-block-source-tabs" });
+      const unsplashTab = tabsContainer.createEl("button", {
+        text: "Unsplash",
+        cls: `content-block-source-tab ${this.currentImageSourceTab === "unsplash" ? "is-active" : ""}`
+      });
+      const internetTab = tabsContainer.createEl("button", {
+        text: "Internet Link",
+        cls: `content-block-source-tab ${this.currentImageSourceTab === "internet link" ? "is-active" : ""}`
+      });
+      const localTab = tabsContainer.createEl("button", {
+        text: "Local Upload",
+        cls: `content-block-source-tab ${this.currentImageSourceTab === "local" ? "is-active" : ""}`
+      });
+      const tabContent = imageField.createDiv({ cls: "content-block-source-tab-content" });
+      unsplashTab.onclick = () => {
+        this.currentImageSourceTab = "unsplash";
+        if (!this.contentBlock.metadata) {
+          this.contentBlock.metadata = {};
+        }
+        this.contentBlock.metadata.source = "unsplash";
+        this.renderContentFields();
+      };
+      internetTab.onclick = () => {
+        this.currentImageSourceTab = "internet link";
+        if (!this.contentBlock.metadata) {
+          this.contentBlock.metadata = {};
+        }
+        this.contentBlock.metadata.source = "internet link";
+        this.renderContentFields();
+      };
+      localTab.onclick = () => {
+        this.currentImageSourceTab = "local";
+        if (!this.contentBlock.metadata) {
+          this.contentBlock.metadata = {};
+        }
+        this.contentBlock.metadata.source = "local";
+        this.renderContentFields();
+      };
+      if (this.currentImageSourceTab === "unsplash") {
+        const unsplashAccessKey = ((_c = (_b = this.plugin) == null ? void 0 : _b.settings) == null ? void 0 : _c.unsplashAccessKey) || "";
+        if (unsplashAccessKey && unsplashAccessKey !== "YOUR_UNSPLASH_ACCESS_KEY") {
+          const unsplashSetting = new import_obsidian11.Setting(tabContent);
+          unsplashSetting.setName("Search Unsplash");
+          unsplashSetting.setDesc("Search for free images");
+          unsplashSetting.addButton((button) => {
+            button.setButtonText("Search");
+            button.onClick(() => {
+              this.showUnsplashSearch();
+            });
+          });
+        } else {
+          const unsplashSetting = new import_obsidian11.Setting(tabContent);
+          unsplashSetting.setName("Search Unsplash");
+          unsplashSetting.setDesc("Configure Unsplash Access Key and Secret Key in plugin settings to enable image search");
+          unsplashSetting.addButton((button) => {
+            button.setButtonText("Search");
+            button.setDisabled(true);
+          });
+        }
+        if (this.selectedImageUrl) {
+          new import_obsidian11.Setting(tabContent).setName("Selected Image URL").setDesc("Image URL from Unsplash").addText(
+            (text) => text.setValue(this.selectedImageUrl).setDisabled(true)
+          );
+        }
+      } else if (this.currentImageSourceTab === "internet link") {
+        new import_obsidian11.Setting(tabContent).setName("Image URL").setDesc("Enter image URL").addText(
+          (text) => text.setPlaceholder("https://example.com/image.jpg").setValue(this.selectedImageUrl).onChange((value) => {
+            this.selectedImageUrl = value;
+            this.contentBlock.content = value;
+            if (!this.contentBlock.metadata) {
+              this.contentBlock.metadata = {};
+            }
+            this.contentBlock.metadata.source = "internet link";
+          })
+        );
+      } else if (this.currentImageSourceTab === "local") {
+        new import_obsidian11.Setting(tabContent).setName("Upload from Computer").setDesc("Upload image from your computer (coming soon)").addButton((button) => {
+          button.setButtonText("Choose File");
+          button.setDisabled(true);
+        });
+      }
+      const altTextValue = ((_d = this.contentBlock.metadata) == null ? void 0 : _d.alt_text) || "";
+      const altTextSetting = new import_obsidian11.Setting(imageField);
+      altTextSetting.setName("Alt Text");
+      altTextSetting.setDesc("Alt text for accessibility");
+      altTextSetting.addText(
+        (text) => text.setPlaceholder("Describe the image for accessibility").setValue(altTextValue).onChange((value) => {
+          if (!this.contentBlock.metadata) {
+            this.contentBlock.metadata = {};
+          }
+          this.contentBlock.metadata.alt_text = value || void 0;
+        })
+      );
+      const authorNameValue = ((_e = this.contentBlock.metadata) == null ? void 0 : _e.author_name) || "";
+      new import_obsidian11.Setting(imageField).setName("Author Name").setDesc("Name of the image author/photographer").addText(
+        (text) => text.setPlaceholder("Author name").setValue(authorNameValue).onChange((value) => {
+          if (!this.contentBlock.metadata) {
+            this.contentBlock.metadata = {};
+          }
+          this.contentBlock.metadata.author_name = value || void 0;
+        })
+      );
+      const attributionValue = ((_f = this.contentBlock.metadata) == null ? void 0 : _f.attribution) || "";
+      new import_obsidian11.Setting(imageField).setName("Attribution").setDesc("Attribution text (e.g., 'Photo by John Doe on Unsplash')").addText(
+        (text) => text.setPlaceholder("Photo by Author Name on Source").setValue(attributionValue).onChange((value) => {
+          if (!this.contentBlock.metadata) {
+            this.contentBlock.metadata = {};
+          }
+          this.contentBlock.metadata.attribution = value || void 0;
+        })
+      );
+      const attributionUrlValue = ((_g = this.contentBlock.metadata) == null ? void 0 : _g.attribution_url) || "";
+      new import_obsidian11.Setting(imageField).setName("Attribution URL").setDesc("Link to the original image or author page").addText(
+        (text) => text.setPlaceholder("https://example.com/photo").setValue(attributionUrlValue).onChange((value) => {
+          if (!this.contentBlock.metadata) {
+            this.contentBlock.metadata = {};
+          }
+          this.contentBlock.metadata.attribution_url = value || void 0;
+        })
+      );
+    }
+  }
+  showUnsplashSearch() {
+    const { contentEl } = this;
+    const searchModal = new import_obsidian11.Modal(this.app);
+    searchModal.titleEl.setText("Search Unsplash");
+    const searchContent = searchModal.contentEl;
+    const searchInput = searchContent.createEl("input", {
+      type: "text",
+      placeholder: "Search for images...",
+      cls: "unsplash-search-input"
+    });
+    searchInput.value = this.unsplashSearchQuery;
+    searchInput.style.width = "100%";
+    searchInput.style.padding = "0.5rem";
+    searchInput.style.marginBottom = "1rem";
+    const searchButton = searchContent.createEl("button", {
+      text: "Search",
+      cls: "mod-cta"
+    });
+    searchButton.style.marginBottom = "1rem";
+    const resultsContainer = searchContent.createDiv({ cls: "unsplash-results-grid" });
+    const performSearch = async () => {
+      const query = searchInput.value.trim();
+      if (!query) {
+        new import_obsidian11.Notice("Please enter a search query", 3e3);
+        return;
+      }
+      this.unsplashSearching = true;
+      searchButton.disabled = true;
+      searchButton.setText("Searching...");
+      resultsContainer.empty();
+      resultsContainer.createEl("p", { text: "Searching..." });
+      try {
+        const response = await this.unsplashClient.searchImages(query, 1, 20);
+        this.unsplashResults = response.results;
+        resultsContainer.empty();
+        if (this.unsplashResults.length === 0) {
+          resultsContainer.createEl("p", { text: "No results found." });
+        } else {
+          for (const photo of this.unsplashResults) {
+            const photoItem = resultsContainer.createDiv({ cls: "unsplash-photo-item" });
+            const img = photoItem.createEl("img", {
+              attr: {
+                src: this.unsplashClient.getImageUrl(photo, "thumb"),
+                alt: photo.alt_description || photo.description || "Unsplash photo"
+              }
+            });
+            img.style.width = "100%";
+            img.style.height = "150px";
+            img.style.objectFit = "cover";
+            img.style.borderRadius = "4px";
+            img.style.cursor = "pointer";
+            const photoInfo = photoItem.createDiv({ cls: "unsplash-photo-info" });
+            photoInfo.createEl("p", {
+              text: photo.alt_description || photo.description || "Untitled",
+              cls: "unsplash-photo-title"
+            });
+            photoInfo.createEl("p", {
+              text: this.unsplashClient.getAttributionText(photo),
+              cls: "unsplash-photo-attribution"
+            });
+            photoItem.onclick = () => {
+              const imageUrl = this.unsplashClient.getImageUrl(photo, "regular");
+              this.selectedImageUrl = imageUrl;
+              this.contentBlock.content = imageUrl;
+              if (!this.contentBlock.metadata) {
+                this.contentBlock.metadata = {};
+              }
+              const altText = photo.alt_description || photo.description || "";
+              this.contentBlock.metadata.alt_text = altText;
+              this.contentBlock.metadata.attribution = this.unsplashClient.getAttributionText(photo);
+              this.contentBlock.metadata.attribution_url = this.unsplashClient.getAttributionUrl(photo);
+              this.contentBlock.metadata.author_name = photo.user.name;
+              this.contentBlock.metadata.source = "unsplash";
+              searchModal.close();
+              this.renderContentFields();
+              new import_obsidian11.Notice("Image selected");
+            };
+          }
+        }
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : "Failed to search Unsplash";
+        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+        resultsContainer.empty();
+        resultsContainer.createEl("p", {
+          text: `Error: ${errorMessage}`,
+          cls: "story-engine-error"
+        });
+      } finally {
+        this.unsplashSearching = false;
+        searchButton.disabled = false;
+        searchButton.setText("Search");
+      }
+    };
+    searchButton.onclick = performSearch;
+    searchInput.addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        performSearch();
+      }
+    });
+    if (this.unsplashSearchQuery) {
+      performSearch();
+    }
+    searchModal.open();
+  }
+  async submit() {
+    var _a, _b;
+    if (!this.contentBlock.type) {
+      this.contentBlock.type = "text";
+    }
+    if (this.contentBlock.type === "text" && !((_a = this.contentBlock.content) == null ? void 0 : _a.trim())) {
+      new import_obsidian11.Notice("Please enter text content", 3e3);
+      return;
+    }
+    if (this.contentBlock.type === "image" && !((_b = this.contentBlock.content) == null ? void 0 : _b.trim())) {
+      new import_obsidian11.Notice("Please enter an image URL or select an image", 3e3);
+      return;
+    }
+    try {
+      await this.onSubmit(this.contentBlock);
+      this.close();
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to save content block";
+      new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+    }
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+};
+
 // src/views/StoryListView.ts
 var STORY_LIST_VIEW_TYPE = "story-engine-list-view";
-var StoryListView = class extends import_obsidian11.ItemView {
+var StoryListView = class extends import_obsidian12.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.stories = [];
+    this.worlds = [];
+    this.rpgSystems = [];
     this.loading = true;
     this.error = null;
     this.currentStory = null;
     this.viewMode = "list";
     this.currentTab = "chapters";
+    this.listTab = "stories";
+    this.expandedWorldId = null;
     this.chapters = [];
     this.scenes = [];
     this.beats = [];
+    this.contentBlocks = [];
+    this.contentBlockRefs = [];
     this.loadingHierarchy = false;
     this.plugin = plugin;
   }
@@ -4984,6 +5652,7 @@ var StoryListView = class extends import_obsidian11.ItemView {
       this.renderDetails();
     } else {
       this.renderListHeader();
+      this.renderListContent();
     }
   }
   renderListHeader() {
@@ -4991,39 +5660,113 @@ var StoryListView = class extends import_obsidian11.ItemView {
       return;
     this.headerEl.empty();
     this.headerEl.createEl("h2", { text: "Stories" });
-    const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
-    const refreshButton = headerActions.createEl("button", {
+    const tabsContainer = this.headerEl.createDiv({ cls: "story-engine-tabs" });
+    const storiesTab = tabsContainer.createEl("button", {
+      text: "Stories",
+      cls: `story-engine-tab ${this.listTab === "stories" ? "is-active" : ""}`
+    });
+    storiesTab.onclick = () => {
+      this.listTab = "stories";
+      this.renderListHeader();
+      this.renderListContent();
+    };
+    const worldsTab = tabsContainer.createEl("button", {
+      text: "Worlds",
+      cls: `story-engine-tab ${this.listTab === "worlds" ? "is-active" : ""}`
+    });
+    worldsTab.onclick = () => {
+      this.listTab = "worlds";
+      this.renderListHeader();
+      this.renderListContent();
+    };
+    const rpgSystemsTab = tabsContainer.createEl("button", {
+      text: "RPG Systems",
+      cls: `story-engine-tab ${this.listTab === "rpg-systems" ? "is-active" : ""}`
+    });
+    rpgSystemsTab.onclick = () => {
+      this.listTab = "rpg-systems";
+      this.renderListHeader();
+      this.renderListContent();
+    };
+  }
+  renderListContent() {
+    if (!this.contentEl)
+      return;
+    this.contentEl.empty();
+    if (this.loading) {
+      this.contentEl.createEl("p", { text: "Loading..." });
+      return;
+    }
+    if (this.error) {
+      this.contentEl.createEl("p", {
+        text: `Error: ${this.error}`,
+        cls: "story-engine-error"
+      });
+      this.renderActionsBar();
+      return;
+    }
+    switch (this.listTab) {
+      case "stories":
+        this.renderStoriesTab();
+        break;
+      case "worlds":
+        this.renderWorldsTab();
+        break;
+      case "rpg-systems":
+        this.renderRPGSystemsTab();
+        break;
+    }
+    this.renderActionsBar();
+  }
+  renderActionsBar() {
+    if (!this.contentEl)
+      return;
+    const actionsBar = this.contentEl.createDiv({ cls: "story-engine-actions-bar" });
+    const refreshButton = actionsBar.createEl("button", {
       text: "Refresh",
       cls: "story-engine-refresh-btn"
     });
     refreshButton.onclick = async () => {
       await this.loadStories();
     };
-    const syncAllButton = headerActions.createEl("button", {
+    const syncAllButton = actionsBar.createEl("button", {
       text: "Sync All",
       cls: "story-engine-sync-all-btn"
     });
     syncAllButton.onclick = async () => {
       if (!this.plugin.settings.tenantId) {
-        new import_obsidian11.Notice("Please configure Tenant ID in settings", 5e3);
+        new import_obsidian12.Notice("Please configure Tenant ID in settings", 5e3);
         return;
       }
       try {
-        new import_obsidian11.Notice("Syncing all stories...");
+        new import_obsidian12.Notice("Syncing all stories...");
         await this.plugin.syncService.pullAllStories();
         await this.loadStories();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
-        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
-    const createButton = headerActions.createEl("button", {
-      text: "Create Story",
-      cls: "mod-cta story-engine-create-btn"
-    });
-    createButton.onclick = () => {
+    let createButtonText = "Create Story";
+    let createButtonAction = () => {
       this.plugin.createStoryCommand();
     };
+    if (this.listTab === "worlds") {
+      createButtonText = "Create World";
+      createButtonAction = () => {
+        new import_obsidian12.Notice("Create World - Coming soon", 3e3);
+      };
+    } else if (this.listTab === "rpg-systems") {
+      createButtonText = "Create RPG System";
+      createButtonAction = () => {
+        new import_obsidian12.Notice("Create RPG System - Coming soon", 3e3);
+      };
+    }
+    const createButton = actionsBar.createEl("button", {
+      text: createButtonText,
+      cls: "mod-cta story-engine-create-btn"
+    });
+    createButton.onclick = createButtonAction;
   }
   renderDetailsHeader() {
     var _a;
@@ -5057,65 +5800,164 @@ var StoryListView = class extends import_obsidian11.ItemView {
       };
     }
   }
-  renderStories() {
-    if (!this.contentEl)
-      return;
-    this.contentEl.empty();
-    if (this.loading) {
-      this.contentEl.createEl("p", { text: "Loading stories..." });
-      return;
-    }
-    if (this.error) {
-      this.contentEl.createEl("p", {
-        text: `Error: ${this.error}`,
-        cls: "story-engine-error"
-      });
-      return;
-    }
+  renderStoriesTab() {
     if (this.stories.length === 0) {
       this.contentEl.createEl("p", { text: "No stories found." });
       return;
     }
     const storiesList = this.contentEl.createDiv({ cls: "story-engine-list" });
     for (const story of this.stories) {
-      const storyItem = storiesList.createDiv({
+      this.renderStoryItem(storiesList, story);
+    }
+  }
+  renderWorldsTab() {
+    if (this.worlds.length === 0) {
+      this.contentEl.createEl("p", { text: "No worlds found." });
+      return;
+    }
+    const storiesByWorld = /* @__PURE__ */ new Map();
+    for (const story of this.stories) {
+      const worldId = story.world_id || null;
+      if (!storiesByWorld.has(worldId)) {
+        storiesByWorld.set(worldId, []);
+      }
+      storiesByWorld.get(worldId).push(story);
+    }
+    const worldsList = this.contentEl.createDiv({ cls: "story-engine-list" });
+    for (const world of this.worlds) {
+      const worldStories = storiesByWorld.get(world.id) || [];
+      const worldItem = worldsList.createDiv({ cls: "story-engine-world-item" });
+      const worldHeader = worldItem.createDiv({ cls: "story-engine-world-item-header" });
+      const worldTitle = worldHeader.createDiv({ cls: "story-engine-world-title" });
+      worldTitle.createEl("h3", { text: world.name });
+      if (world.description) {
+        worldTitle.createEl("p", {
+          text: world.description,
+          cls: "story-engine-world-description"
+        });
+      }
+      const accordionButton = worldHeader.createEl("button", {
+        text: worldStories.length > 0 ? `${worldStories.length} story${worldStories.length !== 1 ? "s" : ""}` : "No stories",
+        cls: `story-engine-accordion-btn ${this.expandedWorldId === world.id ? "is-expanded" : ""}`
+      });
+      accordionButton.onclick = () => {
+        if (this.expandedWorldId === world.id) {
+          this.expandedWorldId = null;
+        } else {
+          this.expandedWorldId = world.id;
+        }
+        this.renderListContent();
+      };
+      if (this.expandedWorldId === world.id && worldStories.length > 0) {
+        const storiesContent = worldItem.createDiv({ cls: "story-engine-world-stories-content" });
+        for (const story of worldStories) {
+          this.renderStoryItem(storiesContent, story);
+        }
+      }
+    }
+    const storiesWithoutWorld = storiesByWorld.get(null) || [];
+    if (storiesWithoutWorld.length > 0) {
+      const noWorldItem = worldsList.createDiv({ cls: "story-engine-world-item" });
+      const noWorldHeader = noWorldItem.createDiv({ cls: "story-engine-world-item-header" });
+      noWorldHeader.createEl("h3", { text: "No World" });
+      const accordionButton = noWorldHeader.createEl("button", {
+        text: `${storiesWithoutWorld.length} story${storiesWithoutWorld.length !== 1 ? "s" : ""}`,
+        cls: `story-engine-accordion-btn ${this.expandedWorldId === "no-world" ? "is-expanded" : ""}`
+      });
+      accordionButton.onclick = () => {
+        if (this.expandedWorldId === "no-world") {
+          this.expandedWorldId = null;
+        } else {
+          this.expandedWorldId = "no-world";
+        }
+        this.renderListContent();
+      };
+      if (this.expandedWorldId === "no-world") {
+        const storiesContent = noWorldItem.createDiv({ cls: "story-engine-world-stories-content" });
+        for (const story of storiesWithoutWorld) {
+          this.renderStoryItem(storiesContent, story);
+        }
+      }
+    }
+  }
+  renderRPGSystemsTab() {
+    if (this.rpgSystems.length === 0) {
+      this.contentEl.createEl("p", { text: "No RPG systems found." });
+      return;
+    }
+    const rpgSystemsList = this.contentEl.createDiv({ cls: "story-engine-list" });
+    for (const rpgSystem of this.rpgSystems) {
+      const rpgSystemItem = rpgSystemsList.createDiv({
         cls: "story-engine-item"
       });
-      const title = storyItem.createDiv({
+      const title = rpgSystemItem.createDiv({
         cls: "story-engine-title",
-        text: story.title
+        text: rpgSystem.name
       });
-      const meta = storyItem.createDiv({
+      const meta = rpgSystemItem.createDiv({
         cls: "story-engine-meta"
       });
-      meta.createEl("span", {
-        text: `Version ${story.version_number}`
-      });
-      meta.createEl("span", {
-        text: `Status: ${story.status}`
-      });
-      storyItem.onclick = async () => {
-        await this.showStoryDetails(story);
-      };
+      if (rpgSystem.description) {
+        meta.createEl("span", {
+          text: rpgSystem.description
+        });
+      }
+      if (rpgSystem.is_builtin) {
+        meta.createEl("span", {
+          text: "Built-in",
+          cls: "story-engine-badge"
+        });
+      }
     }
+  }
+  renderStoryItem(container, story) {
+    const storyItem = container.createDiv({
+      cls: "story-engine-item"
+    });
+    const title = storyItem.createDiv({
+      cls: "story-engine-title",
+      text: story.title
+    });
+    const meta = storyItem.createDiv({
+      cls: "story-engine-meta"
+    });
+    meta.createEl("span", {
+      text: `Version ${story.version_number}`
+    });
+    meta.createEl("span", {
+      text: `Status: ${story.status}`
+    });
+    if (story.world_id) {
+      const world = this.worlds.find((w) => w.id === story.world_id);
+      if (world) {
+        meta.createEl("span", {
+          text: `World: ${world.name}`
+        });
+      }
+    }
+    storyItem.onclick = async () => {
+      await this.showStoryDetails(story);
+    };
   }
   async loadStories() {
     this.loading = true;
     this.error = null;
-    this.renderStories();
     try {
       if (!this.plugin.settings.tenantId) {
         this.error = "Tenant ID not configured";
         this.loading = false;
-        this.renderStories();
+        this.renderListContent();
         return;
       }
+      this.worlds = await this.plugin.apiClient.getWorlds();
       this.stories = await this.plugin.apiClient.listStories();
+      this.rpgSystems = await this.plugin.apiClient.getRPGSystems();
     } catch (err) {
-      this.error = err instanceof Error ? err.message : "Unknown error";
+      this.error = err instanceof Error ? err.message : "Failed to load stories";
+      console.error("Error loading stories:", err);
     } finally {
       this.loading = false;
-      this.renderStories();
+      this.renderListContent();
     }
   }
   // Method to refresh the view
@@ -5137,9 +5979,34 @@ var StoryListView = class extends import_obsidian11.ItemView {
       this.chapters = await this.plugin.apiClient.getChapters(this.currentStory.id);
       this.scenes = await this.plugin.apiClient.getScenesByStory(this.currentStory.id);
       this.beats = await this.plugin.apiClient.getBeatsByStory(this.currentStory.id);
+      const contentBlocksMap = /* @__PURE__ */ new Map();
+      this.contentBlockRefs = [];
+      for (const chapter of this.chapters) {
+        const chapterBlocks = await this.plugin.apiClient.getContentBlocks(chapter.id);
+        for (const block of chapterBlocks) {
+          contentBlocksMap.set(block.id, block);
+        }
+      }
+      for (const scene of this.scenes) {
+        const sceneBlocks = await this.plugin.apiClient.getContentBlocksByScene(scene.id);
+        for (const block of sceneBlocks) {
+          contentBlocksMap.set(block.id, block);
+        }
+      }
+      for (const beat of this.beats) {
+        const beatBlocks = await this.plugin.apiClient.getContentBlocksByBeat(beat.id);
+        for (const block of beatBlocks) {
+          contentBlocksMap.set(block.id, block);
+        }
+      }
+      this.contentBlocks = Array.from(contentBlocksMap.values());
+      for (const block of this.contentBlocks) {
+        const refs = await this.plugin.apiClient.getContentBlockReferences(block.id);
+        this.contentBlockRefs.push(...refs);
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load hierarchy";
-      new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
     } finally {
       this.loadingHierarchy = false;
     }
@@ -5148,7 +6015,7 @@ var StoryListView = class extends import_obsidian11.ItemView {
     this.currentStory = null;
     this.viewMode = "list";
     this.renderListHeader();
-    this.renderStories();
+    this.renderListContent();
   }
   renderDetails() {
     if (!this.contentEl || !this.currentStory)
@@ -5180,14 +6047,14 @@ var StoryListView = class extends import_obsidian11.ItemView {
     });
     syncButton.onclick = async () => {
       try {
-        new import_obsidian11.Notice(`Syncing story "${story.title}"...`);
+        new import_obsidian12.Notice(`Syncing story "${story.title}"...`);
         await this.plugin.syncService.pullStory(story.id);
         await this.loadHierarchy();
         this.renderTabContent();
-        new import_obsidian11.Notice(`Story synced successfully!`);
+        new import_obsidian12.Notice(`Story synced successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const pushButton = actionsSection.createEl("button", {
@@ -5197,12 +6064,12 @@ var StoryListView = class extends import_obsidian11.ItemView {
     pushButton.onclick = async () => {
       try {
         const folderPath = this.plugin.fileManager.getStoryFolderPath(story.title);
-        new import_obsidian11.Notice(`Pushing story "${story.title}"...`);
+        new import_obsidian12.Notice(`Pushing story "${story.title}"...`);
         await this.plugin.syncService.pushStory(folderPath);
-        new import_obsidian11.Notice(`Story pushed successfully!`);
+        new import_obsidian12.Notice(`Story pushed successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     this.renderTabs();
@@ -5243,6 +6110,15 @@ var StoryListView = class extends import_obsidian11.ItemView {
       this.renderTabs();
       this.renderTabContent();
     };
+    const contentsTab = tabsContainer.createEl("button", {
+      text: "Contents",
+      cls: `story-engine-tab ${this.currentTab === "contents" ? "is-active" : ""}`
+    });
+    contentsTab.onclick = () => {
+      this.currentTab = "contents";
+      this.renderTabs();
+      this.renderTabContent();
+    };
   }
   renderTabContent() {
     if (!this.contentEl)
@@ -5266,12 +6142,69 @@ var StoryListView = class extends import_obsidian11.ItemView {
       case "beats":
         this.renderBeatsTab(tabContent);
         break;
+      case "contents":
+        this.renderContentsTab(tabContent);
+        break;
     }
   }
   renderChaptersTab(container) {
     container.empty();
-    const header = container.createDiv({ cls: "story-engine-tab-header" });
-    const createButton = header.createEl("button", {
+    const list = container.createDiv({ cls: "story-engine-list" });
+    if (this.chapters.length === 0) {
+      list.createEl("p", { text: "No chapters found." });
+    } else {
+      for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+        const item = list.createDiv({ cls: "story-engine-item" });
+        item.createDiv({
+          cls: "story-engine-title",
+          text: `Chapter ${chapter.number}: ${chapter.title}`
+        });
+        const meta = item.createDiv({ cls: "story-engine-meta" });
+        meta.createEl("span", { text: `Status: ${chapter.status}` });
+        const actions = item.createDiv({ cls: "story-engine-item-actions" });
+        actions.createEl("button", { text: "Edit" }).onclick = () => {
+          new ChapterModal(this.app, async (updatedChapter) => {
+            try {
+              await this.plugin.apiClient.updateChapter(chapter.id, updatedChapter);
+              await this.loadHierarchy();
+              this.renderTabContent();
+              new import_obsidian12.Notice("Chapter updated successfully");
+            } catch (err) {
+              throw err;
+            }
+          }, this.chapters, chapter).open();
+        };
+        if (chapter.number > 1) {
+          actions.createEl("button", { text: "Up" }).onclick = () => {
+            this.moveChapterUp(chapter);
+          };
+        }
+        if (chapter.number < this.chapters.length) {
+          actions.createEl("button", { text: "Down" }).onclick = () => {
+            this.moveChapterDown(chapter);
+          };
+        }
+        if (this.currentTab === "contents") {
+          actions.createEl("button", { text: "+ Content" }).onclick = () => {
+            this.createContentForEntity("chapter", chapter.id, chapter.id);
+          };
+        }
+        actions.createEl("button", { text: "Delete" }).onclick = async () => {
+          if (confirm("Delete this chapter?")) {
+            try {
+              await this.plugin.apiClient.deleteChapter(chapter.id);
+              await this.loadHierarchy();
+              this.renderTabContent();
+              new import_obsidian12.Notice("Chapter deleted");
+            } catch (err) {
+              new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            }
+          }
+        };
+      }
+    }
+    const footer = container.createDiv({ cls: "story-engine-list-footer" });
+    const createButton = footer.createEl("button", {
       text: "Create Chapter",
       cls: "mod-cta"
     });
@@ -5283,51 +6216,12 @@ var StoryListView = class extends import_obsidian11.ItemView {
           await this.plugin.apiClient.createChapter(this.currentStory.id, chapter);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian11.Notice("Chapter created successfully");
+          new import_obsidian12.Notice("Chapter created successfully");
         } catch (err) {
           throw err;
         }
       }, this.chapters).open();
     };
-    const list = container.createDiv({ cls: "story-engine-list" });
-    if (this.chapters.length === 0) {
-      list.createEl("p", { text: "No chapters found." });
-      return;
-    }
-    for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
-      const item = list.createDiv({ cls: "story-engine-item" });
-      item.createDiv({
-        cls: "story-engine-title",
-        text: `Chapter ${chapter.number}: ${chapter.title}`
-      });
-      const meta = item.createDiv({ cls: "story-engine-meta" });
-      meta.createEl("span", { text: `Status: ${chapter.status}` });
-      const actions = item.createDiv({ cls: "story-engine-item-actions" });
-      actions.createEl("button", { text: "Edit" }).onclick = () => {
-        new ChapterModal(this.app, async (updatedChapter) => {
-          try {
-            await this.plugin.apiClient.updateChapter(chapter.id, updatedChapter);
-            await this.loadHierarchy();
-            this.renderTabContent();
-            new import_obsidian11.Notice("Chapter updated successfully");
-          } catch (err) {
-            throw err;
-          }
-        }, this.chapters, chapter).open();
-      };
-      actions.createEl("button", { text: "Delete" }).onclick = async () => {
-        if (confirm("Delete this chapter?")) {
-          try {
-            await this.plugin.apiClient.deleteChapter(chapter.id);
-            await this.loadHierarchy();
-            this.renderTabContent();
-            new import_obsidian11.Notice("Chapter deleted");
-          } catch (err) {
-            new import_obsidian11.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
-          }
-        }
-      };
-    }
   }
   renderScenesTab(container) {
     container.empty();
@@ -5345,7 +6239,16 @@ var StoryListView = class extends import_obsidian11.ItemView {
       const group = list.createDiv({ cls: "story-engine-group" });
       const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
       groupHeader.createEl("h3", { text: `Chapter ${chapter.number}: ${chapter.title}` });
-      const addButton = groupHeader.createEl("button", {
+      const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+      if (chapterScenes.length === 0) {
+        groupItems.createEl("p", { text: "No scenes in this chapter." });
+      } else {
+        for (const scene of chapterScenes.sort((a, b) => a.order_num - b.order_num)) {
+          this.renderSceneItem(groupItems, scene);
+        }
+      }
+      const groupFooter = group.createDiv({ cls: "story-engine-group-footer" });
+      const addButton = groupFooter.createEl("button", {
         text: "+ Add Scene",
         cls: "story-engine-add-btn"
       });
@@ -5358,27 +6261,24 @@ var StoryListView = class extends import_obsidian11.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian11.Notice("Scene created successfully");
+            new import_obsidian12.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
         }, this.scenes).open();
       };
-      const groupItems = group.createDiv({ cls: "story-engine-group-items" });
-      if (chapterScenes.length === 0) {
-        groupItems.createEl("p", { text: "No scenes in this chapter." });
-      } else {
-        for (const scene of chapterScenes.sort((a, b) => a.order_num - b.order_num)) {
-          this.renderSceneItem(groupItems, scene);
-        }
-      }
     }
     const orphanScenes = scenesByChapter.get(null) || [];
     if (orphanScenes.length > 0 || scenesByChapter.size === 0) {
       const group = list.createDiv({ cls: "story-engine-group" });
       const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
       groupHeader.createEl("h3", { text: "Sem Chapter" });
-      const addButton = groupHeader.createEl("button", {
+      const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+      for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
+        this.renderSceneItem(groupItems, scene);
+      }
+      const groupFooter = group.createDiv({ cls: "story-engine-group-footer" });
+      const addButton = groupFooter.createEl("button", {
         text: "+ Add Scene",
         cls: "story-engine-add-btn"
       });
@@ -5391,16 +6291,12 @@ var StoryListView = class extends import_obsidian11.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian11.Notice("Scene created successfully");
+            new import_obsidian12.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
         }, this.scenes).open();
       };
-      const groupItems = group.createDiv({ cls: "story-engine-group-items" });
-      for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
-        this.renderSceneItem(groupItems, scene);
-      }
     }
   }
   renderSceneItem(container, scene) {
@@ -5422,24 +6318,45 @@ var StoryListView = class extends import_obsidian11.ItemView {
           await this.plugin.apiClient.updateScene(scene.id, updatedScene);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian11.Notice("Scene updated successfully");
+          new import_obsidian12.Notice("Scene updated successfully");
         } catch (err) {
           throw err;
         }
       }, this.scenes, scene).open();
     };
-    actions.createEl("button", { text: "Move" }).onclick = async () => {
+    const siblingScenes = this.scenes.filter((s) => s.chapter_id === scene.chapter_id).sort((a, b) => a.order_num - b.order_num);
+    const minOrderNum = siblingScenes.length > 0 ? Math.min(...siblingScenes.map((s) => s.order_num)) : scene.order_num;
+    const maxOrderNum = siblingScenes.length > 0 ? Math.max(...siblingScenes.map((s) => s.order_num)) : scene.order_num;
+    if (scene.order_num > minOrderNum) {
+      actions.createEl("button", { text: "Up" }).onclick = () => {
+        this.moveSceneUp(scene);
+      };
+    }
+    if (scene.order_num < maxOrderNum) {
+      actions.createEl("button", { text: "Down" }).onclick = () => {
+        this.moveSceneDown(scene);
+      };
+    }
+    actions.createEl("button", { text: "Relinkar" }).onclick = async () => {
       await this.showMoveSceneModal(scene);
     };
+    if (this.currentTab === "contents") {
+      const chapterId = scene.chapter_id || (this.chapters.length > 0 ? this.chapters[0].id : "");
+      if (chapterId) {
+        actions.createEl("button", { text: "+ Content" }).onclick = () => {
+          this.createContentForEntity("scene", scene.id, chapterId);
+        };
+      }
+    }
     actions.createEl("button", { text: "Delete" }).onclick = async () => {
       if (confirm("Delete this scene?")) {
         try {
           await this.plugin.apiClient.deleteScene(scene.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian11.Notice("Scene deleted");
+          new import_obsidian12.Notice("Scene deleted");
         } catch (err) {
-          new import_obsidian11.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -5470,7 +6387,16 @@ var StoryListView = class extends import_obsidian11.ItemView {
           sceneHeader.createEl("h3", {
             text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`
           });
-          const addButton = sceneHeader.createEl("button", {
+          const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
+          if (sceneBeats.length === 0) {
+            sceneItems.createEl("p", { text: "No beats in this scene." });
+          } else {
+            for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
+              this.renderBeatItem(sceneItems, beat);
+            }
+          }
+          const sceneFooter = sceneGroup.createDiv({ cls: "story-engine-group-footer" });
+          const addButton = sceneFooter.createEl("button", {
             text: "+ Add Beat",
             cls: "story-engine-add-btn"
           });
@@ -5483,20 +6409,12 @@ var StoryListView = class extends import_obsidian11.ItemView {
                 await this.plugin.apiClient.createBeat(beat);
                 await this.loadHierarchy();
                 this.renderTabContent();
-                new import_obsidian11.Notice("Beat created successfully");
+                new import_obsidian12.Notice("Beat created successfully");
               } catch (err) {
                 throw err;
               }
             }, this.beats).open();
           };
-          const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
-          if (sceneBeats.length === 0) {
-            sceneItems.createEl("p", { text: "No beats in this scene." });
-          } else {
-            for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
-              this.renderBeatItem(sceneItems, beat);
-            }
-          }
         }
       }
     }
@@ -5517,7 +6435,16 @@ var StoryListView = class extends import_obsidian11.ItemView {
         sceneHeader.createEl("h3", {
           text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`
         });
-        const addButton = sceneHeader.createEl("button", {
+        const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
+        if (sceneBeats.length === 0) {
+          sceneItems.createEl("p", { text: "No beats in this scene." });
+        } else {
+          for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
+            this.renderBeatItem(sceneItems, beat);
+          }
+        }
+        const sceneFooter = sceneGroup.createDiv({ cls: "story-engine-group-footer" });
+        const addButton = sceneFooter.createEl("button", {
           text: "+ Add Beat",
           cls: "story-engine-add-btn"
         });
@@ -5530,20 +6457,12 @@ var StoryListView = class extends import_obsidian11.ItemView {
               await this.plugin.apiClient.createBeat(beat);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian11.Notice("Beat created successfully");
+              new import_obsidian12.Notice("Beat created successfully");
             } catch (err) {
               throw err;
             }
           }, this.beats).open();
         };
-        const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
-        if (sceneBeats.length === 0) {
-          sceneItems.createEl("p", { text: "No beats in this scene." });
-        } else {
-          for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
-            this.renderBeatItem(sceneItems, beat);
-          }
-        }
       }
       const beatsWithoutScene = orphanBeats.filter((b) => {
         const scene = this.scenes.find((s) => s.id === b.scene_id);
@@ -5582,24 +6501,46 @@ var StoryListView = class extends import_obsidian11.ItemView {
           await this.plugin.apiClient.updateBeat(beat.id, updatedBeat);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian11.Notice("Beat updated successfully");
+          new import_obsidian12.Notice("Beat updated successfully");
         } catch (err) {
           throw err;
         }
       }, this.beats, beat).open();
     };
-    actions.createEl("button", { text: "Move" }).onclick = async () => {
+    const siblingBeats = this.beats.filter((b) => b.scene_id === beat.scene_id).sort((a, b) => a.order_num - b.order_num);
+    const minOrderNum = siblingBeats.length > 0 ? Math.min(...siblingBeats.map((b) => b.order_num)) : beat.order_num;
+    const maxOrderNum = siblingBeats.length > 0 ? Math.max(...siblingBeats.map((b) => b.order_num)) : beat.order_num;
+    if (beat.order_num > minOrderNum) {
+      actions.createEl("button", { text: "Up" }).onclick = () => {
+        this.moveBeatUp(beat);
+      };
+    }
+    if (beat.order_num < maxOrderNum) {
+      actions.createEl("button", { text: "Down" }).onclick = () => {
+        this.moveBeatDown(beat);
+      };
+    }
+    actions.createEl("button", { text: "Relinkar" }).onclick = async () => {
       await this.showMoveBeatModal(beat);
     };
+    if (this.currentTab === "contents") {
+      const scene = this.scenes.find((s) => s.id === beat.scene_id);
+      const chapterId = (scene == null ? void 0 : scene.chapter_id) || (this.chapters.length > 0 ? this.chapters[0].id : "");
+      if (chapterId) {
+        actions.createEl("button", { text: "+ Content" }).onclick = () => {
+          this.createContentForEntity("beat", beat.id, chapterId);
+        };
+      }
+    }
     actions.createEl("button", { text: "Delete" }).onclick = async () => {
       if (confirm("Delete this beat?")) {
         try {
           await this.plugin.apiClient.deleteBeat(beat.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian11.Notice("Beat deleted");
+          new import_obsidian12.Notice("Beat deleted");
         } catch (err) {
-          new import_obsidian11.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -5620,12 +6561,12 @@ var StoryListView = class extends import_obsidian11.ItemView {
       const clonedStory = await this.plugin.apiClient.cloneStory(
         this.currentStory.id
       );
-      new import_obsidian11.Notice(`Story "${clonedStory.title}" cloned successfully!`);
+      new import_obsidian12.Notice(`Story "${clonedStory.title}" cloned successfully!`);
       await this.loadStories();
       await this.showStoryDetails(clonedStory);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Clone failed";
-      new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
       if (cloneButton) {
         cloneButton.setText("Clone Story");
         cloneButton.disabled = false;
@@ -5654,18 +6595,120 @@ var StoryListView = class extends import_obsidian11.ItemView {
             copyButton.setText("Copy ID");
           }, 2e3);
         }
-        new import_obsidian11.Notice("Story ID copied to clipboard");
+        new import_obsidian12.Notice("Story ID copied to clipboard");
       }
     } catch (err) {
       console.error("Failed to copy ID:", err);
-      new import_obsidian11.Notice("Failed to copy ID", 3e3);
+      new import_obsidian12.Notice("Failed to copy ID", 3e3);
     }
     document.body.removeChild(textarea);
+  }
+  async moveChapterUp(chapter) {
+    const sortedChapters = [...this.chapters].sort((a, b) => a.number - b.number);
+    const currentIndex = sortedChapters.findIndex((c) => c.id === chapter.id);
+    if (currentIndex <= 0)
+      return;
+    const previousChapter = sortedChapters[currentIndex - 1];
+    const tempNumber = chapter.number;
+    try {
+      await this.plugin.apiClient.updateChapter(chapter.id, { number: previousChapter.number });
+      await this.plugin.apiClient.updateChapter(previousChapter.id, { number: tempNumber });
+      await this.loadHierarchy();
+      this.renderTabContent();
+      new import_obsidian12.Notice("Chapter moved up");
+    } catch (err) {
+      new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+    }
+  }
+  async moveChapterDown(chapter) {
+    const sortedChapters = [...this.chapters].sort((a, b) => a.number - b.number);
+    const currentIndex = sortedChapters.findIndex((c) => c.id === chapter.id);
+    if (currentIndex < 0 || currentIndex >= sortedChapters.length - 1)
+      return;
+    const nextChapter = sortedChapters[currentIndex + 1];
+    const tempNumber = chapter.number;
+    try {
+      await this.plugin.apiClient.updateChapter(chapter.id, { number: nextChapter.number });
+      await this.plugin.apiClient.updateChapter(nextChapter.id, { number: tempNumber });
+      await this.loadHierarchy();
+      this.renderTabContent();
+      new import_obsidian12.Notice("Chapter moved down");
+    } catch (err) {
+      new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+    }
+  }
+  async moveSceneUp(scene) {
+    const siblingScenes = this.scenes.filter((s) => s.chapter_id === scene.chapter_id).sort((a, b) => a.order_num - b.order_num);
+    const currentIndex = siblingScenes.findIndex((s) => s.id === scene.id);
+    if (currentIndex <= 0)
+      return;
+    const previousScene = siblingScenes[currentIndex - 1];
+    const tempOrderNum = scene.order_num;
+    try {
+      await this.plugin.apiClient.updateScene(scene.id, { order_num: previousScene.order_num });
+      await this.plugin.apiClient.updateScene(previousScene.id, { order_num: tempOrderNum });
+      await this.loadHierarchy();
+      this.renderTabContent();
+      new import_obsidian12.Notice("Scene moved up");
+    } catch (err) {
+      new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+    }
+  }
+  async moveSceneDown(scene) {
+    const siblingScenes = this.scenes.filter((s) => s.chapter_id === scene.chapter_id).sort((a, b) => a.order_num - b.order_num);
+    const currentIndex = siblingScenes.findIndex((s) => s.id === scene.id);
+    if (currentIndex < 0 || currentIndex >= siblingScenes.length - 1)
+      return;
+    const nextScene = siblingScenes[currentIndex + 1];
+    const tempOrderNum = scene.order_num;
+    try {
+      await this.plugin.apiClient.updateScene(scene.id, { order_num: nextScene.order_num });
+      await this.plugin.apiClient.updateScene(nextScene.id, { order_num: tempOrderNum });
+      await this.loadHierarchy();
+      this.renderTabContent();
+      new import_obsidian12.Notice("Scene moved down");
+    } catch (err) {
+      new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+    }
+  }
+  async moveBeatUp(beat) {
+    const siblingBeats = this.beats.filter((b) => b.scene_id === beat.scene_id).sort((a, b) => a.order_num - b.order_num);
+    const currentIndex = siblingBeats.findIndex((b) => b.id === beat.id);
+    if (currentIndex <= 0)
+      return;
+    const previousBeat = siblingBeats[currentIndex - 1];
+    const tempOrderNum = beat.order_num;
+    try {
+      await this.plugin.apiClient.updateBeat(beat.id, { order_num: previousBeat.order_num });
+      await this.plugin.apiClient.updateBeat(previousBeat.id, { order_num: tempOrderNum });
+      await this.loadHierarchy();
+      this.renderTabContent();
+      new import_obsidian12.Notice("Beat moved up");
+    } catch (err) {
+      new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+    }
+  }
+  async moveBeatDown(beat) {
+    const siblingBeats = this.beats.filter((b) => b.scene_id === beat.scene_id).sort((a, b) => a.order_num - b.order_num);
+    const currentIndex = siblingBeats.findIndex((b) => b.id === beat.id);
+    if (currentIndex < 0 || currentIndex >= siblingBeats.length - 1)
+      return;
+    const nextBeat = siblingBeats[currentIndex + 1];
+    const tempOrderNum = beat.order_num;
+    try {
+      await this.plugin.apiClient.updateBeat(beat.id, { order_num: nextBeat.order_num });
+      await this.plugin.apiClient.updateBeat(nextBeat.id, { order_num: tempOrderNum });
+      await this.loadHierarchy();
+      this.renderTabContent();
+      new import_obsidian12.Notice("Beat moved down");
+    } catch (err) {
+      new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+    }
   }
   async showMoveSceneModal(scene) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian11.Modal(this.app);
+    const modal = new import_obsidian12.Modal(this.app);
     modal.titleEl.setText("Move Scene");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move scene "${scene.goal || `Scene ${scene.order_num}`}" to:` });
@@ -5695,10 +6738,10 @@ var StoryListView = class extends import_obsidian11.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian11.Notice("Scene moved successfully");
+        new import_obsidian12.Notice("Scene moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move scene";
-        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -5708,7 +6751,7 @@ var StoryListView = class extends import_obsidian11.ItemView {
   async showMoveBeatModal(beat) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian11.Modal(this.app);
+    const modal = new import_obsidian12.Modal(this.app);
     modal.titleEl.setText("Move Beat");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move beat "${beat.type}" to:` });
@@ -5751,7 +6794,7 @@ var StoryListView = class extends import_obsidian11.ItemView {
     moveButton.onclick = async () => {
       const selectedSceneId = select.value;
       if (!selectedSceneId) {
-        new import_obsidian11.Notice("Please select a scene", 3e3);
+        new import_obsidian12.Notice("Please select a scene", 3e3);
         return;
       }
       try {
@@ -5759,15 +6802,448 @@ var StoryListView = class extends import_obsidian11.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian11.Notice("Beat moved successfully");
+        new import_obsidian12.Notice("Beat moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move beat";
-        new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
     cancelButton.onclick = () => modal.close();
     modal.open();
+  }
+  renderContentsTab(container) {
+    container.empty();
+    const contentsByChapter = /* @__PURE__ */ new Map();
+    const contentsByScene = /* @__PURE__ */ new Map();
+    const contentsByBeat = /* @__PURE__ */ new Map();
+    const orphanContents = [];
+    for (const block of this.contentBlocks) {
+      const refs = this.contentBlockRefs.filter((r) => r.content_block_id === block.id);
+      if (refs.length === 0) {
+        orphanContents.push(block);
+        continue;
+      }
+      for (const ref of refs) {
+        if (ref.entity_type === "chapter") {
+          if (!contentsByChapter.has(ref.entity_id)) {
+            contentsByChapter.set(ref.entity_id, []);
+          }
+          contentsByChapter.get(ref.entity_id).push(block);
+        } else if (ref.entity_type === "scene") {
+          if (!contentsByScene.has(ref.entity_id)) {
+            contentsByScene.set(ref.entity_id, []);
+          }
+          contentsByScene.get(ref.entity_id).push(block);
+        } else if (ref.entity_type === "beat") {
+          if (!contentsByBeat.has(ref.entity_id)) {
+            contentsByBeat.set(ref.entity_id, []);
+          }
+          contentsByBeat.get(ref.entity_id).push(block);
+        }
+      }
+    }
+    const list = container.createDiv({ cls: "story-engine-list" });
+    for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+      const chapterContents = contentsByChapter.get(chapter.id) || [];
+      const chapterScenes = this.scenes.filter((s) => s.chapter_id === chapter.id).sort((a, b) => a.order_num - b.order_num);
+      if (chapterContents.length > 0 || chapterScenes.length > 0 || chapterScenes.some((s) => {
+        const sceneContents = contentsByScene.get(s.id) || [];
+        const sceneBeats = this.beats.filter((b) => b.scene_id === s.id);
+        const beatContents = sceneBeats.flatMap((b) => contentsByBeat.get(b.id) || []);
+        return sceneContents.length > 0 || beatContents.length > 0;
+      })) {
+        const chapterGroup = list.createDiv({ cls: "story-engine-chapter-group" });
+        const chapterHeader = chapterGroup.createDiv({ cls: "story-engine-chapter-group-header story-engine-hoverable-header" });
+        chapterHeader.createEl("h2", {
+          text: `Chapter ${chapter.number}: ${chapter.title}`
+        });
+        const chapterHeaderActions = chapterHeader.createDiv({ cls: "story-engine-hover-header-actions" });
+        const textBtn = chapterHeaderActions.createEl("button", {
+          cls: "story-engine-add-content-btn story-engine-add-text-btn",
+          attr: { "aria-label": "Add text content" }
+        });
+        textBtn.innerHTML = '<span class="story-engine-icon">\u{1F4DD}</span>';
+        textBtn.onclick = () => {
+          this.createContentForEntity("chapter", chapter.id, chapter.id, "text");
+        };
+        const imageBtn = chapterHeaderActions.createEl("button", {
+          cls: "story-engine-add-content-btn story-engine-add-image-btn",
+          attr: { "aria-label": "Add image content" }
+        });
+        imageBtn.innerHTML = '<span class="story-engine-icon">\u{1F5BC}\uFE0F</span>';
+        imageBtn.onclick = () => {
+          this.createContentForEntity("chapter", chapter.id, chapter.id, "image");
+        };
+        const chapterContent = chapterGroup.createDiv({ cls: "story-engine-chapter-group-content" });
+        const chapterContentsGroup = chapterContent.createDiv({ cls: "story-engine-group" });
+        const chapterContentsHeader = chapterContentsGroup.createDiv({ cls: "story-engine-group-header" });
+        chapterContentsHeader.createEl("h3", { text: "Chapter Contents" });
+        const chapterContentsItems = chapterContentsGroup.createDiv({ cls: "story-engine-group-items" });
+        if (chapterContents.length > 0) {
+          for (const block of chapterContents) {
+            this.renderContentItem(chapterContentsItems, block, "chapter", chapter.id);
+          }
+        } else {
+          chapterContentsItems.createEl("p", { text: "No content in this chapter.", cls: "story-engine-empty-content" });
+        }
+        for (const scene of chapterScenes) {
+          const sceneContents = contentsByScene.get(scene.id) || [];
+          const sceneBeats = this.beats.filter((b) => b.scene_id === scene.id).sort((a, b) => a.order_num - b.order_num);
+          const beatContents = sceneBeats.flatMap((b) => contentsByBeat.get(b.id) || []);
+          const sceneGroup = chapterContent.createDiv({ cls: "story-engine-group" });
+          const sceneHeader = sceneGroup.createDiv({ cls: "story-engine-group-header story-engine-hoverable-header" });
+          sceneHeader.createEl("h3", {
+            text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`
+          });
+          const sceneHeaderActions = sceneHeader.createDiv({ cls: "story-engine-hover-header-actions" });
+          const chapterId = scene.chapter_id || (this.chapters.length > 0 ? this.chapters[0].id : "");
+          if (chapterId) {
+            const textBtn2 = sceneHeaderActions.createEl("button", {
+              cls: "story-engine-add-content-btn story-engine-add-text-btn",
+              attr: { "aria-label": "Add text content" }
+            });
+            textBtn2.innerHTML = '<span class="story-engine-icon">\u{1F4DD}</span>';
+            textBtn2.onclick = () => {
+              this.createContentForEntity("scene", scene.id, chapterId, "text");
+            };
+            const imageBtn2 = sceneHeaderActions.createEl("button", {
+              cls: "story-engine-add-content-btn story-engine-add-image-btn",
+              attr: { "aria-label": "Add image content" }
+            });
+            imageBtn2.innerHTML = '<span class="story-engine-icon">\u{1F5BC}\uFE0F</span>';
+            imageBtn2.onclick = () => {
+              this.createContentForEntity("scene", scene.id, chapterId, "image");
+            };
+          }
+          const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
+          if (sceneContents.length > 0) {
+            for (const block of sceneContents) {
+              this.renderContentItem(sceneItems, block, "scene", scene.id);
+            }
+          } else {
+            sceneItems.createEl("p", { text: "No content in this scene.", cls: "story-engine-empty-content" });
+          }
+          for (const beat of sceneBeats) {
+            const beatContents2 = contentsByBeat.get(beat.id) || [];
+            const beatSubGroup = sceneItems.createDiv({ cls: "story-engine-beat-subgroup" });
+            const beatSubGroupTitle = beatSubGroup.createDiv({ cls: "story-engine-beat-subgroup-title-container story-engine-hoverable-header" });
+            beatSubGroupTitle.createEl("h4", {
+              text: `Beat ${beat.order_num}: ${beat.type}`,
+              cls: "story-engine-beat-subgroup-title"
+            });
+            const beatHeaderActions = beatSubGroupTitle.createDiv({ cls: "story-engine-hover-header-actions" });
+            const beatChapterId = scene.chapter_id || (this.chapters.length > 0 ? this.chapters[0].id : "");
+            if (beatChapterId) {
+              const textBtn2 = beatHeaderActions.createEl("button", {
+                cls: "story-engine-add-content-btn story-engine-add-text-btn",
+                attr: { "aria-label": "Add text content" }
+              });
+              textBtn2.innerHTML = '<span class="story-engine-icon">\u{1F4DD}</span>';
+              textBtn2.onclick = () => {
+                this.createContentForEntity("beat", beat.id, beatChapterId, "text");
+              };
+              const imageBtn2 = beatHeaderActions.createEl("button", {
+                cls: "story-engine-add-content-btn story-engine-add-image-btn",
+                attr: { "aria-label": "Add image content" }
+              });
+              imageBtn2.innerHTML = '<span class="story-engine-icon">\u{1F5BC}\uFE0F</span>';
+              imageBtn2.onclick = () => {
+                this.createContentForEntity("beat", beat.id, beatChapterId, "image");
+              };
+            }
+            if (beatContents2.length > 0) {
+              for (const block of beatContents2) {
+                this.renderContentItem(beatSubGroup, block, "beat", beat.id);
+              }
+            } else {
+              beatSubGroup.createEl("p", { text: "No content in this beat.", cls: "story-engine-empty-beat-content" });
+            }
+          }
+        }
+      }
+    }
+    if (orphanContents.length > 0 || this.scenes.some((s) => !s.chapter_id)) {
+      const orphanGroup = list.createDiv({ cls: "story-engine-chapter-group" });
+      const orphanHeader = orphanGroup.createDiv({ cls: "story-engine-chapter-group-header" });
+      orphanHeader.createEl("h2", { text: "Sem Chapter" });
+      const orphanContent = orphanGroup.createDiv({ cls: "story-engine-chapter-group-content" });
+      const orphanScenes = this.scenes.filter((s) => !s.chapter_id).sort((a, b) => a.order_num - b.order_num);
+      for (const scene of orphanScenes) {
+        const sceneContents = contentsByScene.get(scene.id) || [];
+        const sceneBeats = this.beats.filter((b) => b.scene_id === scene.id).sort((a, b) => a.order_num - b.order_num);
+        const beatContents = sceneBeats.flatMap((b) => contentsByBeat.get(b.id) || []);
+        const sceneGroup = orphanContent.createDiv({ cls: "story-engine-group" });
+        const sceneHeader = sceneGroup.createDiv({ cls: "story-engine-group-header story-engine-hoverable-header" });
+        sceneHeader.createEl("h3", {
+          text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`
+        });
+        const sceneHeaderActions = sceneHeader.createDiv({ cls: "story-engine-header-actions" });
+        const chapterId = this.chapters.length > 0 ? this.chapters[0].id : "";
+        if (chapterId) {
+          sceneHeaderActions.createEl("button", {
+            text: "+ Content",
+            cls: "story-engine-add-content-btn"
+          }).onclick = () => {
+            this.createContentForEntity("scene", scene.id, chapterId);
+          };
+        }
+        const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
+        if (sceneContents.length > 0) {
+          for (const block of sceneContents) {
+            this.renderContentItem(sceneItems, block, "scene", scene.id);
+          }
+        } else {
+          sceneItems.createEl("p", { text: "No content in this scene." });
+        }
+        for (const beat of sceneBeats) {
+          const beatContents2 = contentsByBeat.get(beat.id) || [];
+          const beatSubGroup = sceneItems.createDiv({ cls: "story-engine-beat-subgroup" });
+          const beatSubGroupTitle = beatSubGroup.createDiv({ cls: "story-engine-beat-subgroup-title-container story-engine-hoverable-header" });
+          beatSubGroupTitle.createEl("h4", {
+            text: `Beat ${beat.order_num}: ${beat.type}`,
+            cls: "story-engine-beat-subgroup-title"
+          });
+          const beatHeaderActions = beatSubGroupTitle.createDiv({ cls: "story-engine-hover-header-actions" });
+          const beatChapterId = this.chapters.length > 0 ? this.chapters[0].id : "";
+          if (beatChapterId) {
+            beatHeaderActions.createEl("button", {
+              text: "+ Content",
+              cls: "story-engine-add-content-btn"
+            }).onclick = () => {
+              this.createContentForEntity("beat", beat.id, beatChapterId);
+            };
+          }
+          if (beatContents2.length > 0) {
+            for (const block of beatContents2) {
+              this.renderContentItem(beatSubGroup, block, "beat", beat.id);
+            }
+          } else {
+            beatSubGroup.createEl("p", { text: "No content in this beat.", cls: "story-engine-empty-beat-content" });
+          }
+        }
+      }
+      if (orphanContents.length > 0) {
+        const orphanContentsGroup = orphanContent.createDiv({ cls: "story-engine-group" });
+        const orphanContentsHeader = orphanContentsGroup.createDiv({ cls: "story-engine-group-header" });
+        orphanContentsHeader.createEl("h3", { text: "Sem Refer\xEAncia" });
+        const orphanContentsItems = orphanContentsGroup.createDiv({ cls: "story-engine-group-items" });
+        for (const block of orphanContents) {
+          this.renderContentItem(orphanContentsItems, block, null, null);
+        }
+      }
+    }
+  }
+  renderContentItem(container, contentBlock, entityType, entityId) {
+    var _a, _b;
+    const item = container.createDiv({ cls: "story-engine-item story-engine-content-item" });
+    const itemContent = item.createDiv({ cls: "story-engine-content-item-content" });
+    const iconContainer = itemContent.createDiv({ cls: "story-engine-content-icon" });
+    const iconMap = {
+      text: "file-text",
+      image: "image",
+      video: "video",
+      audio: "music",
+      embed: "code",
+      link: "external-link"
+    };
+    const iconName = iconMap[contentBlock.type] || "file";
+    (0, import_obsidian12.setIcon)(iconContainer, iconName);
+    const preview = itemContent.createDiv({ cls: "story-engine-content-preview" });
+    if (contentBlock.type === "text") {
+      const textPreview = contentBlock.content || "";
+      const truncated = textPreview.length > 100 ? textPreview.substring(0, 100) + "..." : textPreview;
+      preview.createEl("span", { text: truncated });
+    } else if (contentBlock.type === "image") {
+      const imgContainer = preview.createDiv({ cls: "story-engine-image-container" });
+      const img = imgContainer.createEl("img", {
+        attr: { src: contentBlock.content || "", alt: ((_a = contentBlock.metadata) == null ? void 0 : _a.alt_text) || "" },
+        cls: "story-engine-content-thumbnail"
+      });
+      img.style.maxWidth = "100px";
+      img.style.maxHeight = "60px";
+      img.style.objectFit = "cover";
+      img.style.borderRadius = "4px";
+      if ((_b = contentBlock.metadata) == null ? void 0 : _b.attribution) {
+        const attribution = imgContainer.createDiv({ cls: "story-engine-unsplash-attribution" });
+        attribution.createEl("span", {
+          text: contentBlock.metadata.attribution,
+          cls: "story-engine-attribution-text"
+        });
+      }
+    } else {
+      preview.createEl("span", { text: contentBlock.content || "" });
+    }
+    const actions = item.createDiv({ cls: "story-engine-item-actions" });
+    actions.createEl("button", { text: "Edit" }).onclick = () => {
+      new ContentBlockModal(this.app, async (updatedContentBlock) => {
+        try {
+          await this.plugin.apiClient.updateContentBlock(contentBlock.id, updatedContentBlock);
+          await this.loadHierarchy();
+          this.renderTabContent();
+          new import_obsidian12.Notice("Content block updated successfully");
+        } catch (err) {
+          throw err;
+        }
+      }, contentBlock, this.plugin).open();
+    };
+    actions.createEl("button", { text: "Move" }).onclick = async () => {
+      await this.showMoveContentModal(contentBlock, entityType, entityId, "move");
+    };
+    actions.createEl("button", { text: "Link" }).onclick = async () => {
+      await this.showMoveContentModal(contentBlock, entityType, entityId, "link");
+    };
+    actions.createEl("button", { text: "Delete" }).onclick = async () => {
+      if (confirm("Delete this content block?")) {
+        try {
+          await this.plugin.apiClient.deleteContentBlock(contentBlock.id);
+          await this.loadHierarchy();
+          this.renderTabContent();
+          new import_obsidian12.Notice("Content block deleted");
+        } catch (err) {
+          new import_obsidian12.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        }
+      }
+    };
+  }
+  async showMoveContentModal(contentBlock, currentEntityType, currentEntityId, mode) {
+    if (!this.currentStory)
+      return;
+    const modal = new import_obsidian12.Modal(this.app);
+    modal.titleEl.setText(mode === "move" ? "Move Content Block" : "Link Content Block");
+    const content = modal.contentEl;
+    content.createEl("p", {
+      text: mode === "move" ? `Move content block to:` : `Link content block to (will appear in both places):`
+    });
+    const select = content.createEl("select", { cls: "story-engine-move-select" });
+    const noRefOption = select.createEl("option", { text: "No Reference", value: "" });
+    for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+      const option = select.createEl("option", {
+        text: `Chapter ${chapter.number}: ${chapter.title}`,
+        value: `chapter:${chapter.id}`
+      });
+      if (currentEntityType === "chapter" && currentEntityId === chapter.id) {
+        option.selected = true;
+      }
+    }
+    for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
+      const chapterScenes = this.scenes.filter((s) => s.chapter_id === chapter.id).sort((a, b) => a.order_num - b.order_num);
+      if (chapterScenes.length > 0) {
+        const optgroup = select.createEl("optgroup");
+        optgroup.label = `Chapter ${chapter.number}: ${chapter.title} - Scenes`;
+        for (const scene of chapterScenes) {
+          const option = optgroup.createEl("option", {
+            text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`,
+            value: `scene:${scene.id}`
+          });
+          if (currentEntityType === "scene" && currentEntityId === scene.id) {
+            option.selected = true;
+          }
+        }
+      }
+    }
+    const orphanScenes = this.scenes.filter((s) => !s.chapter_id);
+    if (orphanScenes.length > 0) {
+      const optgroup = select.createEl("optgroup");
+      optgroup.label = "No Chapter - Scenes";
+      for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
+        const option = optgroup.createEl("option", {
+          text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}`,
+          value: `scene:${scene.id}`
+        });
+        if (currentEntityType === "scene" && currentEntityId === scene.id) {
+          option.selected = true;
+        }
+      }
+    }
+    for (const scene of this.scenes.sort((a, b) => a.order_num - b.order_num)) {
+      const sceneBeats = this.beats.filter((b) => b.scene_id === scene.id).sort((a, b) => a.order_num - b.order_num);
+      if (sceneBeats.length > 0) {
+        const chapter = this.chapters.find((c) => c.id === scene.chapter_id);
+        const chapterLabel = chapter ? `Chapter ${chapter.number}` : "No Chapter";
+        const optgroup = select.createEl("optgroup");
+        optgroup.label = `${chapterLabel} > Scene ${scene.order_num} - Beats`;
+        for (const beat of sceneBeats) {
+          const option = optgroup.createEl("option", {
+            text: `Beat ${beat.order_num}: ${beat.type}`,
+            value: `beat:${beat.id}`
+          });
+          if (currentEntityType === "beat" && currentEntityId === beat.id) {
+            option.selected = true;
+          }
+        }
+      }
+    }
+    if (!currentEntityType) {
+      noRefOption.selected = true;
+    }
+    const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+    const actionButton = buttonContainer.createEl("button", {
+      text: mode === "move" ? "Move" : "Link",
+      cls: "mod-cta"
+    });
+    actionButton.onclick = async () => {
+      const selectedValue = select.value;
+      try {
+        if (mode === "move" && currentEntityType && currentEntityId) {
+          const currentRef = this.contentBlockRefs.find(
+            (r) => r.content_block_id === contentBlock.id && r.entity_type === currentEntityType && r.entity_id === currentEntityId
+          );
+          if (currentRef) {
+            await this.plugin.apiClient.deleteContentBlockReference(currentRef.id);
+          }
+        }
+        if (selectedValue) {
+          const [entityType, entityId] = selectedValue.split(":");
+          await this.plugin.apiClient.createContentBlockReference(contentBlock.id, entityType, entityId);
+        }
+        await this.loadHierarchy();
+        this.renderTabContent();
+        modal.close();
+        new import_obsidian12.Notice(mode === "move" ? "Content block moved successfully" : "Content block linked successfully");
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : `Failed to ${mode} content block`;
+        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
+      }
+    };
+    const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
+    cancelButton.onclick = () => modal.close();
+    modal.open();
+  }
+  async createContentForEntity(entityType, entityId, chapterId, contentType = "text") {
+    if (!this.currentStory)
+      return;
+    if (!chapterId) {
+      if (this.chapters.length === 0) {
+        new import_obsidian12.Notice("No chapter available. Please create a chapter first.", 5e3);
+        return;
+      }
+      chapterId = this.chapters[0].id;
+    }
+    const chapterBlocks = this.contentBlocks.filter((cb) => {
+      const refs = this.contentBlockRefs.filter((r) => r.content_block_id === cb.id && r.entity_type === "chapter" && r.entity_id === chapterId);
+      return refs.length > 0 || cb.chapter_id === chapterId;
+    });
+    const maxOrderNum = chapterBlocks.length > 0 ? Math.max(...chapterBlocks.map((cb) => cb.order_num || 0)) : 0;
+    const nextOrderNum = maxOrderNum + 1;
+    const initialContentBlock = {
+      type: contentType,
+      kind: "final",
+      content: "",
+      metadata: {}
+    };
+    new ContentBlockModal(this.app, async (contentBlock) => {
+      try {
+        contentBlock.order_num = nextOrderNum;
+        const created = await this.plugin.apiClient.createContentBlock(chapterId, contentBlock);
+        await this.plugin.apiClient.createContentBlockReference(created.id, entityType, entityId);
+        await this.loadHierarchy();
+        this.renderTabContent();
+        new import_obsidian12.Notice("Content block created successfully");
+      } catch (err) {
+        throw err;
+      }
+    }, initialContentBlock, this.plugin).open();
   }
 };
 
@@ -5781,7 +7257,7 @@ var DEFAULT_SETTINGS = {
   autoVersionSnapshots: true,
   conflictResolution: "service"
 };
-var StoryEnginePlugin = class extends import_obsidian12.Plugin {
+var StoryEnginePlugin = class extends import_obsidian13.Plugin {
   async onload() {
     await this.loadSettings();
     this.apiClient = new StoryEngineClient(
@@ -5845,27 +7321,27 @@ var StoryEnginePlugin = class extends import_obsidian12.Plugin {
     var _a;
     const tenantId = (_a = this.settings.tenantId) == null ? void 0 : _a.trim();
     if (!tenantId) {
-      new import_obsidian12.Notice("Please configure Tenant ID in settings", 5e3);
+      new import_obsidian13.Notice("Please configure Tenant ID in settings", 5e3);
       return;
     }
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(tenantId)) {
-      new import_obsidian12.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
+      new import_obsidian13.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
       return;
     }
     new CreateStoryModal(this.app, async (title, shouldSync) => {
       try {
-        new import_obsidian12.Notice(`Creating story "${title}"...`);
+        new import_obsidian13.Notice(`Creating story "${title}"...`);
         const story = await this.apiClient.createStory(title);
-        new import_obsidian12.Notice(`Story "${title}" created successfully`);
+        new import_obsidian13.Notice(`Story "${title}" created successfully`);
         if (shouldSync) {
           try {
-            new import_obsidian12.Notice(`Syncing story to Obsidian...`);
+            new import_obsidian13.Notice(`Syncing story to Obsidian...`);
             await this.syncService.pullStory(story.id);
-            new import_obsidian12.Notice(`Story synced to your vault!`);
+            new import_obsidian13.Notice(`Story synced to your vault!`);
           } catch (syncErr) {
             const syncErrorMessage = syncErr instanceof Error ? syncErr.message : "Failed to sync story";
-            new import_obsidian12.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
+            new import_obsidian13.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
           }
         }
         const openView = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
@@ -5878,7 +7354,7 @@ var StoryEnginePlugin = class extends import_obsidian12.Plugin {
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to create story";
-        new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian13.Notice(`Error: ${errorMessage}`, 5e3);
       }
     }).open();
   }
@@ -5888,7 +7364,7 @@ var StoryEnginePlugin = class extends import_obsidian12.Plugin {
     if (!leaf) {
       const rightLeaf = workspace.getRightLeaf(false);
       if (!rightLeaf) {
-        new import_obsidian12.Notice("Could not create view. Please try again.", 3e3);
+        new import_obsidian13.Notice("Could not create view. Please try again.", 3e3);
         return;
       }
       leaf = rightLeaf;

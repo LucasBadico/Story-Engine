@@ -100,6 +100,32 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Unsplash Access Key")
+			.setDesc("Application ID / Access Key for Unsplash API (get one at https://unsplash.com/developers)")
+			.addText((text) => {
+				text.setPlaceholder("Enter Unsplash access key")
+					.setValue(this.plugin.settings.unsplashAccessKey || "")
+					.inputEl.type = "password";
+				text.onChange(async (value) => {
+					this.plugin.settings.unsplashAccessKey = value.trim();
+					await this.plugin.saveSettings();
+				});
+			});
+
+		new Setting(containerEl)
+			.setName("Unsplash Secret Key")
+			.setDesc("Secret Key for Unsplash API (optional, needed for some operations)")
+			.addText((text) => {
+				text.setPlaceholder("Enter Unsplash secret key")
+					.setValue(this.plugin.settings.unsplashSecretKey || "")
+					.inputEl.type = "password";
+				text.onChange(async (value) => {
+					this.plugin.settings.unsplashSecretKey = value.trim();
+					await this.plugin.saveSettings();
+				});
+			});
+
 		// Test connection button
 		new Setting(containerEl)
 			.setName("Test Connection")

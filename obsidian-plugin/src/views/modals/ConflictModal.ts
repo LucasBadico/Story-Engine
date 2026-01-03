@@ -1,5 +1,5 @@
 import { App, Modal, Setting } from "obsidian";
-import { ProseBlock } from "../../types";
+import { ContentBlock } from "../../types";
 
 export type ConflictResolution = "local" | "remote" | "manual";
 
@@ -9,20 +9,20 @@ export interface ConflictResolutionResult {
 }
 
 export class ConflictModal extends Modal {
-	localProseBlock: ProseBlock;
-	remoteProseBlock: ProseBlock;
+	localContentBlock: ContentBlock;
+	remoteContentBlock: ContentBlock;
 	resolution: ConflictResolutionResult | null = null;
 	onResolve: (result: ConflictResolutionResult) => Promise<void>;
 
 	constructor(
 		app: App,
-		localProseBlock: ProseBlock,
-		remoteProseBlock: ProseBlock,
+		localContentBlock: ContentBlock,
+		remoteContentBlock: ContentBlock,
 		onResolve: (result: ConflictResolutionResult) => Promise<void>
 	) {
 		super(app);
-		this.localProseBlock = localProseBlock;
-		this.remoteProseBlock = remoteProseBlock;
+		this.localContentBlock = localContentBlock;
+		this.remoteContentBlock = remoteContentBlock;
 		this.onResolve = onResolve;
 	}
 
@@ -31,11 +31,11 @@ export class ConflictModal extends Modal {
 		contentEl.empty();
 
 		contentEl.createEl("h2", {
-			text: "Prose Block Conflict",
+			text: "Content Block Conflict",
 		});
 
 		contentEl.createEl("p", {
-			text: "This prose block has been modified both locally and remotely. Choose how to resolve the conflict:",
+			text: "This content block has been modified both locally and remotely. Choose how to resolve the conflict:",
 		});
 
 		// Show diff
@@ -45,7 +45,7 @@ export class ConflictModal extends Modal {
 		const localDiv = diffContainer.createDiv("conflict-local");
 		localDiv.createEl("h3", { text: "Local Version" });
 		const localContent = localDiv.createEl("pre", {
-			text: this.localProseBlock.content,
+			text: this.localContentBlock.content,
 			cls: "conflict-content",
 		});
 		localContent.style.whiteSpace = "pre-wrap";
@@ -59,7 +59,7 @@ export class ConflictModal extends Modal {
 		const remoteDiv = diffContainer.createDiv("conflict-remote");
 		remoteDiv.createEl("h3", { text: "Remote Version" });
 		const remoteContent = remoteDiv.createEl("pre", {
-			text: this.remoteProseBlock.content,
+			text: this.remoteContentBlock.content,
 			cls: "conflict-content",
 		});
 		remoteContent.style.whiteSpace = "pre-wrap";
@@ -73,7 +73,7 @@ export class ConflictModal extends Modal {
 		const manualDiv = contentEl.createDiv("conflict-manual");
 		manualDiv.createEl("h3", { text: "Manual Merge (Optional)" });
 		const manualTextarea = manualDiv.createEl("textarea", {
-			text: this.localProseBlock.content,
+			text: this.localContentBlock.content,
 			cls: "conflict-manual-input",
 		});
 		manualTextarea.style.width = "100%";

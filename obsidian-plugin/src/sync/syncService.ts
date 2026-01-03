@@ -2,7 +2,7 @@ import { App, Notice, TFile, TFolder } from "obsidian";
 import { StoryEngineClient } from "../api/client";
 import { FileManager } from "./fileManager";
 import { StoryEngineSettings, ContentBlock, ContentBlockReference, Scene, Beat, Chapter, SceneWithBeats } from "../types";
-import { parseHierarchicalProse, parseChapterProse, compareProseBlocks, ParsedParagraph, ProseBlockComparison, HierarchicalProse, parseSceneBeatList, ParsedSceneBeatListItem, parseChapterList, ParsedChapterListItem, ParsedChapterList, parseBeatList, ParsedBeatList, ParsedBeatListItem, parseOrphanScenesList, parseOrphanBeatsList, parseStoryProse, parseSceneProse, parseBeatProse } from "./proseBlockParser";
+import { parseHierarchicalProse, parseChapterProse, compareContentBlocks, ParsedParagraph, ContentBlockComparison, HierarchicalProse, parseSceneBeatList, ParsedSceneBeatListItem, parseChapterList, ParsedChapterListItem, ParsedChapterList, parseBeatList, ParsedBeatList, ParsedBeatListItem, parseOrphanScenesList, parseOrphanBeatsList, parseStoryProse, parseSceneProse, parseBeatProse } from "./contentBlockParser";
 import { ConflictModal, ConflictResolutionResult } from "../views/modals/ConflictModal";
 
 export class SyncService {
@@ -72,25 +72,31 @@ export class SyncService {
 				chapterContentData
 			);
 
-			// Ensure prose-blocks folder exists
-			const contentBlocksFolderPath = `${folderPath}/content-blocks`;
-			await this.fileManager.ensureFolderExists(contentBlocksFolderPath);
+			// Ensure contents folder and type subfolders exist
+			const contentsFolderPath = `${folderPath}/03-contents`;
+			await this.fileManager.ensureFolderExists(contentsFolderPath);
+			// Create type subfolders
+			for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
+				await this.fileManager.ensureFolderExists(`${contentsFolderPath}/${typeFolder}`);
+			}
 
 			// Ensure chapters folder exists
-			const chaptersFolderPath = `${folderPath}/chapters`;
+			const chaptersFolderPath = `${folderPath}/00-chapters`;
 			await this.fileManager.ensureFolderExists(chaptersFolderPath);
 
-			// Write chapter files with prose blocks
+			// Write chapter files with content blocks
 			for (const chapterWithContent of storyData.chapters) {
-				// Get prose blocks from the already fetched data
+				// Get content blocks from the already fetched data
 				const contentData = chapterContentData.get(chapterWithContent.chapter.id);
 				const contentBlocks = contentData?.contentBlocks || [];
 				const contentBlockRefs = contentData?.contentBlockRefs || [];
 
-				// Write content block files
+				// Write content block files to their type-specific subfolders
 				for (const contentBlock of contentBlocks) {
 					const contentBlockFileName = this.fileManager.generateContentBlockFileName(contentBlock);
-					const contentBlockFilePath = `${contentBlocksFolderPath}/${contentBlockFileName}`;
+					const typeFolderPath = this.fileManager.getContentBlockFolderPath(folderPath, contentBlock.type || "text");
+					await this.fileManager.ensureFolderExists(typeFolderPath);
+					const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
 					await this.fileManager.writeContentBlockFile(
 						contentBlock,
 						contentBlockFilePath,
@@ -111,7 +117,7 @@ export class SyncService {
 				);
 
 				// Write scene files with prose block references (flat structure)
-				const scenesFolderPath = `${folderPath}/scenes`;
+				const scenesFolderPath = `${folderPath}/01-scenes`;
 				await this.fileManager.ensureFolderExists(scenesFolderPath);
 				
 				for (const { scene, beats } of chapterWithContent.scenes) {
@@ -130,7 +136,7 @@ export class SyncService {
 					);
 
 					// Write beat files with prose block references (flat structure)
-					const beatsFolderPath = `${folderPath}/beats`;
+					const beatsFolderPath = `${folderPath}/02-beats`;
 					await this.fileManager.ensureFolderExists(beatsFolderPath);
 					
 					for (const beat of beats) {
@@ -143,12 +149,12 @@ export class SyncService {
 			}
 			
 			// Write orphan scene files (scenes without chapter_id)
-			const scenesFolderPath = `${folderPath}/scenes`;
+			const scenesFolderPath = `${folderPath}/01-scenes`;
 			await this.fileManager.ensureFolderExists(scenesFolderPath);
 			
 			for (const { scene, beats } of orphanScenes) {
 				// Fetch prose blocks referenced by this scene
-				const sceneProseBlocks = await this.apiClient.getProseBlocksByScene(scene.id);
+				const sceneContentBlocks = await this.apiClient.getContentBlocksByScene(scene.id);
 
 				const sceneFileName = this.fileManager.generateSceneFileName(scene);
 				const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
@@ -157,31 +163,31 @@ export class SyncService {
 					{ scene, beats },
 					sceneFilePath,
 					storyData.story.title,
-					sceneProseBlocks,
+					sceneContentBlocks,
 					orphanBeats // Include orphan beats for easy association
 				);
 
 				// Write beat files with prose block references (flat structure)
-				const beatsFolderPath = `${folderPath}/beats`;
+				const beatsFolderPath = `${folderPath}/02-beats`;
 				await this.fileManager.ensureFolderExists(beatsFolderPath);
 				
 				for (const beat of beats) {
-					const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+					const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
 					const beatFileName = this.fileManager.generateBeatFileName(beat);
 					const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
-					await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
+					await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
 				}
 			}
 			
 			// Write orphan beat files (beats without scene_id)
-			const beatsFolderPath = `${folderPath}/beats`;
+			const beatsFolderPath = `${folderPath}/02-beats`;
 			await this.fileManager.ensureFolderExists(beatsFolderPath);
 			
 			for (const beat of orphanBeats) {
-				const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+				const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
 				const beatFileName = this.fileManager.generateBeatFileName(beat);
 				const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
-				await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatProseBlocks);
+				await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
 			}
 
 			// Check if version changed and create snapshot if needed
@@ -262,32 +268,37 @@ export class SyncService {
 					versionFolderPath
 				);
 
-				// Ensure prose-blocks folder exists for version
-				const versionProseBlocksFolderPath = `${versionFolderPath}/prose-blocks`;
-				await this.fileManager.ensureFolderExists(versionProseBlocksFolderPath);
+				// Ensure contents folder and type subfolders exist for version
+				const versionContentsFolderPath = `${versionFolderPath}/03-contents`;
+				await this.fileManager.ensureFolderExists(versionContentsFolderPath);
+				for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
+					await this.fileManager.ensureFolderExists(`${versionContentsFolderPath}/${typeFolder}`);
+				}
 
 				// Write version chapters
-				const versionChaptersPath = `${versionFolderPath}/chapters`;
+				const versionChaptersPath = `${versionFolderPath}/00-chapters`;
 				await this.fileManager.ensureFolderExists(versionChaptersPath);
 
 				for (const chapterWithContent of versionData.chapters) {
 					// Fetch prose blocks for this chapter
-					const proseBlocks = await this.apiClient.getProseBlocks(chapterWithContent.chapter.id);
+					const contentBlocks = await this.apiClient.getContentBlocks(chapterWithContent.chapter.id);
 
 					// Fetch prose block references for all prose blocks
-					const proseBlockRefs: ProseBlockReference[] = [];
-					for (const proseBlock of proseBlocks) {
-						const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
-						proseBlockRefs.push(...refs);
+					const contentBlockRefs: ContentBlockReference[] = [];
+					for (const contentBlock of contentBlocks) {
+						const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+						contentBlockRefs.push(...refs);
 					}
 
 					// Write prose block files
-					for (const proseBlock of proseBlocks) {
-						const proseBlockFileName = this.fileManager.generateProseBlockFileName(proseBlock);
-						const proseBlockFilePath = `${versionProseBlocksFolderPath}/${proseBlockFileName}`;
-						await this.fileManager.writeProseBlockFile(
-							proseBlock,
-							proseBlockFilePath,
+					for (const contentBlock of contentBlocks) {
+						const contentBlockFileName = this.fileManager.generateContentBlockFileName(contentBlock);
+						const typeFolderPath = this.fileManager.getContentBlockFolderPath(versionFolderPath, contentBlock.type || "text");
+						await this.fileManager.ensureFolderExists(typeFolderPath);
+						const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
+						await this.fileManager.writeContentBlockFile(
+							contentBlock,
+							contentBlockFilePath,
 							versionData.story.title
 						);
 					}
@@ -298,12 +309,12 @@ export class SyncService {
 						chapterWithContent,
 						chapterFilePath,
 						versionData.story.title,
-						proseBlocks,
-						proseBlockRefs
+						contentBlocks,
+						contentBlockRefs
 					);
 
 					// Write scene files (flat structure)
-					const versionScenesPath = `${versionFolderPath}/scenes`;
+					const versionScenesPath = `${versionFolderPath}/01-scenes`;
 					await this.fileManager.ensureFolderExists(versionScenesPath);
 					
 					for (const { scene, beats } of chapterWithContent.scenes) {
@@ -314,18 +325,18 @@ export class SyncService {
 							{ scene, beats },
 							sceneFilePath,
 							versionData.story.title,
-							sceneProseBlocks
+							sceneContentBlocks
 						);
 
 						// Write beat files (flat structure)
-						const versionBeatsPath = `${versionFolderPath}/beats`;
+						const versionBeatsPath = `${versionFolderPath}/02-beats`;
 						await this.fileManager.ensureFolderExists(versionBeatsPath);
 						
 						for (const beat of beats) {
-							const beatProseBlocks = await this.apiClient.getProseBlocksByBeat(beat.id);
+							const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
 							const beatFileName = this.fileManager.generateBeatFileName(beat);
 							const beatFilePath = `${versionBeatsPath}/${beatFileName}`;
-							await this.fileManager.writeBeatFile(beat, beatFilePath, versionData.story.title, beatProseBlocks);
+							await this.fileManager.writeBeatFile(beat, beatFilePath, versionData.story.title, beatContentBlocks);
 						}
 					}
 				}
@@ -397,7 +408,7 @@ export class SyncService {
 				// Parse and process prose blocks at story level
 				const storyProse = parseStoryProse(storyContent);
 				if (storyProse.sections.length > 0) {
-					await this.pushStoryProseBlocks(storyFilePath, folderPath, storyId);
+					await this.pushStoryContentBlocks(storyFilePath, folderPath, storyId);
 				}
 			}
 
@@ -419,24 +430,24 @@ export class SyncService {
 
 			// Push prose blocks for each chapter
 			for (const chapterFilePath of chapterFiles) {
-				await this.pushChapterProseBlocks(chapterFilePath, folderPath);
+				await this.pushChapterContentBlocks(chapterFilePath, folderPath);
 			}
 
 			// Process scene files to update beat lists and prose blocks
-			// Scenes are stored in ${folderPath}/scenes (not in chapters/scenes)
+			// Scenes are stored in ${folderPath}/01-scenes (not in chapters/01-scenes)
 			const sceneFiles = await this.fileManager.listStorySceneFiles(folderPath);
 			
 			for (const sceneFilePath of sceneFiles) {
 				await this.pushSceneBeats(sceneFilePath, storyId);
-				await this.pushSceneProseBlocks(sceneFilePath, folderPath);
+				await this.pushSceneContentBlocks(sceneFilePath, folderPath);
 			}
 
 			// Process beat files to update prose blocks
-			// Beats are stored in ${folderPath}/beats
+			// Beats are stored in ${folderPath}/02-beats
 			const beatFiles = await this.fileManager.listStoryBeatFiles(folderPath);
 			
 			for (const beatFilePath of beatFiles) {
-				await this.pushBeatProseBlocks(beatFilePath, folderPath);
+				await this.pushBeatContentBlocks(beatFilePath, folderPath);
 			}
 
 			new Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
@@ -461,7 +472,7 @@ export class SyncService {
 	}
 
 	// Push prose blocks from a chapter file (hierarchical structure)
-	async pushChapterProseBlocks(chapterFilePath: string, storyFolderPath: string): Promise<void> {
+	async pushChapterContentBlocks(chapterFilePath: string, storyFolderPath: string): Promise<void> {
 		// Read chapter file
 		const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
 		if (!(file instanceof TFile)) {
@@ -477,17 +488,17 @@ export class SyncService {
 
 		const chapterId = frontmatter.id;
 		const storyId = frontmatter.story_id;
-		const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+		const contentsFolderPath = `${storyFolderPath}/03-contents`;
 
 		// Parse and process the "## Scenes & Beats" list first
 		const sceneBeatList = parseSceneBeatList(chapterContent);
 		await this.processSceneBeatList(sceneBeatList, chapterId, storyId);
 
 		// Get all prose blocks from API for this chapter
-		const remoteProseBlocks = await this.apiClient.getProseBlocks(chapterId);
-		const remoteProseBlocksMap = new Map<string, ProseBlock>();
-		for (const pb of remoteProseBlocks) {
-			remoteProseBlocksMap.set(pb.id, pb);
+		const remoteContentBlocks = await this.apiClient.getContentBlocks(chapterId);
+		const remoteContentBlocksMap = new Map<string, ContentBlock>();
+		for (const pb of remoteContentBlocks) {
+			remoteContentBlocksMap.set(pb.id, pb);
 		}
 
 		// Get existing scenes and beats for this chapter (after processing list)
@@ -640,45 +651,45 @@ export class SyncService {
 				const { prose: paragraph } = section;
 				
 				// Process prose block
-				let localProseBlock: ProseBlock | null = null;
-				let remoteProseBlock: ProseBlock | null = null;
+				let localContentBlock: ContentBlock | null = null;
+				let remoteContentBlock: ContentBlock | null = null;
 
 				// If paragraph has a link, read the local file
 				if (paragraph.linkName) {
-					const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-					localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
 
 					// If file not found by exact name, try to find by searching all prose block files
-					if (!localProseBlock) {
-						localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					if (!localContentBlock) {
+						localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					}
 
 					// Find corresponding remote prose block
-					if (localProseBlock) {
-						remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+					if (localContentBlock) {
+						remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
 					} else {
 						// If local file not found, try to find remote by content match
 						const normalizedContent = paragraph.content.trim();
-						for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+						for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
 							if (remotePB.content.trim() === normalizedContent) {
-								remoteProseBlock = remotePB;
+								remoteContentBlock = remotePB;
 								break;
 							}
 						}
 					}
 				} else {
 					// No link - check if there's a local file with matching content
-					localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					
 					// Also check remote prose blocks for content match
 					const normalizedContent = paragraph.content.trim();
-					for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+					for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
 						if (remotePB.content.trim() === normalizedContent) {
-							remoteProseBlock = remotePB;
+							remoteContentBlock = remotePB;
 							// If we found a remote match, try to find local file by ID
-							if (!localProseBlock) {
+							if (!localContentBlock) {
 								// Search for file with this ID in frontmatter
-								localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+								localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
 							}
 							break;
 						}
@@ -686,30 +697,30 @@ export class SyncService {
 				}
 
 				// Compare and determine status
-				const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+				const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
 
-				let finalProseBlock: ProseBlock;
+				let finalContentBlock: ContentBlock;
 
 				switch (status) {
 					case "new": {
 						// Create new prose block
-						finalProseBlock = await this.apiClient.createProseBlock(chapterId, {
+						finalContentBlock = await this.apiClient.createContentBlock(chapterId, {
 							order_num: proseOrderNum++,
 							kind: "final",
 							content: paragraph.content,
 						});
 
 						// Create file
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create references if needed
 						if (currentScene) {
-							await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+							await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
 						}
 						if (currentBeat) {
-							await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+							await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 						}
 
 						// Add link to paragraph
@@ -719,43 +730,43 @@ export class SyncService {
 					}
 
 					case "unchanged": {
-						// Use remoteProseBlock if localProseBlock doesn't exist
-						if (!localProseBlock && remoteProseBlock) {
-							finalProseBlock = remoteProseBlock;
+						// Use remoteContentBlock if localContentBlock doesn't exist
+						if (!localContentBlock && remoteContentBlock) {
+							finalContentBlock = remoteContentBlock;
 							// Create local file since it doesn't exist
-							const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-							const filePath = `${proseBlocksFolderPath}/${fileName}`;
-							await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
-						} else if (localProseBlock) {
+							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+							const filePath = `${contentsFolderPath}/${fileName}`;
+							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
+						} else if (localContentBlock) {
 							// Check if order_num needs update
-							if (localProseBlock.order_num !== proseOrderNum) {
-								finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+							if (localContentBlock.order_num !== proseOrderNum) {
+								finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
 									order_num: proseOrderNum++,
 								});
-								const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-								const filePath = `${proseBlocksFolderPath}/${fileName}`;
-								await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+								const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+								const filePath = `${contentsFolderPath}/${fileName}`;
+								await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 							} else {
-								finalProseBlock = localProseBlock;
+								finalContentBlock = localContentBlock;
 								proseOrderNum++;
 							}
 						} else {
 							// Should not happen, but handle gracefully
-							finalProseBlock = remoteProseBlock!;
+							finalContentBlock = remoteContentBlock!;
 							proseOrderNum++;
 						}
 
 						// Update references if needed
-						if (finalProseBlock) {
-							const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+						if (finalContentBlock) {
+							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
@@ -763,8 +774,8 @@ export class SyncService {
 						if (paragraph.linkName) {
 							updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
 						} else {
-							// No linkName - generate from finalProseBlock
-							const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+							// No linkName - generate from finalContentBlock
+							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
 							const linkName = fileName.replace(/\.md$/, "");
 							updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						}
@@ -773,27 +784,27 @@ export class SyncService {
 
 					case "local_modified": {
 						// Update prose block with local content
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: paragraph.content,
 							order_num: proseOrderNum++,
 						});
 
 						// Update local file
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Update references if needed
-						if (finalProseBlock) {
-							const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+						if (finalContentBlock) {
+							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
@@ -804,27 +815,27 @@ export class SyncService {
 
 					case "remote_modified": {
 						// Update local file with remote content
-						finalProseBlock = remoteProseBlock!;
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						finalContentBlock = remoteContentBlock!;
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Update references if needed
-						if (finalProseBlock) {
-							const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+						if (finalContentBlock) {
+							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
 						const linkName = fileName.replace(/\.md$/, "");
-						updatedSections.push(`[[${linkName}|${finalProseBlock.content}]]`);
+						updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
 						new Notice(`Prose block updated from remote: ${linkName}`, 3000);
 						proseOrderNum++;
 						break;
@@ -832,39 +843,39 @@ export class SyncService {
 
 					case "conflict": {
 						// Show conflict modal
-						const resolution = await this.resolveConflict(localProseBlock!, remoteProseBlock!);
+						const resolution = await this.resolveConflict(localContentBlock!, remoteContentBlock!);
 
 						let resolvedContent: string;
 						if (resolution.resolution === "local") {
 							resolvedContent = paragraph.content;
 						} else if (resolution.resolution === "remote") {
-							resolvedContent = remoteProseBlock!.content;
+							resolvedContent = remoteContentBlock!.content;
 						} else {
 							resolvedContent = resolution.mergedContent || paragraph.content;
 						}
 
 						// Update prose block with resolved content
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: resolvedContent,
 							order_num: proseOrderNum++,
 						});
 
 						// Update local file
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Update references if needed
-						if (finalProseBlock) {
-							const existingRefs = await this.apiClient.getProseBlockReferences(finalProseBlock.id);
+						if (finalContentBlock) {
+							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
@@ -877,7 +888,7 @@ export class SyncService {
 		}
 
 		// Update chapter file with new hierarchical content and scene/beat list
-		await this.updateChapterFile(chapterContent, updatedSections, file, frontmatter, existingScenes, beatMap, remoteProseBlocks, chapterId);
+		await this.updateChapterFile(chapterContent, updatedSections, file, frontmatter, existingScenes, beatMap, remoteContentBlocks, chapterId);
 	}
 
 	// Update chapter file with both scene/beat list and chapter content
@@ -888,20 +899,20 @@ export class SyncService {
 		frontmatter: Record<string, string>,
 		scenes: Scene[],
 		beatMap: Map<string, Beat>,
-		proseBlocks: ProseBlock[],
+		contentBlocks: ContentBlock[],
 		chapterId: string
 	): Promise<void> {
-		// Get prose block references to determine which scenes/beats have prose
-		const allProseBlockRefs: ProseBlockReference[] = [];
-		for (const proseBlock of proseBlocks) {
-			const refs = await this.apiClient.getProseBlockReferences(proseBlock.id);
-			allProseBlockRefs.push(...refs);
+		// Get prose block references to determine which scenes/02-beats have prose
+		const allContentBlockRefs: ContentBlockReference[] = [];
+		for (const contentBlock of contentBlocks) {
+			const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+			allContentBlockRefs.push(...refs);
 		}
 
 		// Create maps for quick lookup
-		const proseRefsByScene = new Map<string, ProseBlockReference[]>();
-		const proseRefsByBeat = new Map<string, ProseBlockReference[]>();
-		for (const ref of allProseBlockRefs) {
+		const proseRefsByScene = new Map<string, ContentBlockReference[]>();
+		const proseRefsByBeat = new Map<string, ContentBlockReference[]>();
+		for (const ref of allContentBlockRefs) {
 			if (ref.entity_type === "scene") {
 				if (!proseRefsByScene.has(ref.entity_id)) {
 					proseRefsByScene.set(ref.entity_id, []);
@@ -926,11 +937,11 @@ export class SyncService {
 			
 			// Check if scene has prose blocks (not associated with beats)
 			const sceneProseRefs = proseRefsByScene.get(scene.id) || [];
-			const sceneProseBlockIds = new Set(sceneProseRefs.map((r: ProseBlockReference) => r.prose_block_id));
+			const sceneContentBlockIds = new Set(sceneProseRefs.map((r: ContentBlockReference) => r.content_block_id));
 			// Check if any prose block is not also associated with a beat
-			const hasSceneProse = Array.from(sceneProseBlockIds).some((proseBlockId: string) => {
-				const blockRefs = allProseBlockRefs.filter((r: ProseBlockReference) => r.prose_block_id === proseBlockId);
-				return !blockRefs.some((r: ProseBlockReference) => r.entity_type === "beat");
+			const hasSceneProse = Array.from(sceneContentBlockIds).some((contentBlockId: string) => {
+				const blockRefs = allContentBlockRefs.filter((r: ContentBlockReference) => r.content_block_id === contentBlockId);
+				return !blockRefs.some((r: ContentBlockReference) => r.entity_type === "beat");
 			});
 			const sceneMarker = hasSceneProse ? "+" : "-";
 			
@@ -1361,14 +1372,14 @@ export class SyncService {
 
 	// Push prose blocks from a story file with hierarchical structure
 	// Format: # Story: title, ## Chapter: title, ### Scene: title, #### Beat: title
-	private async pushStoryProseBlocks(storyFilePath: string, storyFolderPath: string, storyId: string): Promise<void> {
+	private async pushStoryContentBlocks(storyFilePath: string, storyFolderPath: string, storyId: string): Promise<void> {
 		const file = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
 		if (!(file instanceof TFile)) {
 			throw new Error(`Story file not found: ${storyFilePath}`);
 		}
 
 		const storyContent = await this.fileManager.getVault().read(file);
-		const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+		const contentsFolderPath = `${storyFolderPath}/03-contents`;
 
 		// Parse hierarchical prose from story content
 		const storyProse = parseStoryProse(storyContent);
@@ -1506,127 +1517,127 @@ export class SyncService {
 				}
 
 				// Get remote prose blocks for current chapter
-				const remoteProseBlocks = await this.apiClient.getProseBlocks(currentChapter.id);
-				const remoteProseBlocksMap = new Map<string, ProseBlock>();
-				for (const pb of remoteProseBlocks) {
-					remoteProseBlocksMap.set(pb.id, pb);
+				const remoteContentBlocks = await this.apiClient.getContentBlocks(currentChapter.id);
+				const remoteContentBlocksMap = new Map<string, ContentBlock>();
+				for (const pb of remoteContentBlocks) {
+					remoteContentBlocksMap.set(pb.id, pb);
 				}
 
-				let localProseBlock: ProseBlock | null = null;
-				let remoteProseBlock: ProseBlock | null = null;
+				let localContentBlock: ContentBlock | null = null;
+				let remoteContentBlock: ContentBlock | null = null;
 
 				if (paragraph.linkName) {
-					const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-					localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
 
-					if (!localProseBlock) {
-						localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					if (!localContentBlock) {
+						localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					}
 
-					if (localProseBlock) {
-						remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+					if (localContentBlock) {
+						remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
 					} else {
 						const normalizedContent = paragraph.content.trim();
-						for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+						for (const [, remotePB] of remoteContentBlocksMap.entries()) {
 							if (remotePB.content.trim() === normalizedContent) {
-								remoteProseBlock = remotePB;
+								remoteContentBlock = remotePB;
 								break;
 							}
 						}
 					}
 				} else {
-					localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					
 					const normalizedContent = paragraph.content.trim();
-					for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+					for (const [, remotePB] of remoteContentBlocksMap.entries()) {
 						if (remotePB.content.trim() === normalizedContent) {
-							remoteProseBlock = remotePB;
-							if (!localProseBlock) {
-								localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+							remoteContentBlock = remotePB;
+							if (!localContentBlock) {
+								localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
 							}
 							break;
 						}
 					}
 				}
 
-				const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
-				let finalProseBlock: ProseBlock;
+				const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
+				let finalContentBlock: ContentBlock;
 
 				switch (status) {
 					case "new": {
-						finalProseBlock = await this.apiClient.createProseBlock(currentChapter.id, {
+						finalContentBlock = await this.apiClient.createContentBlock(currentChapter.id, {
 							order_num: proseOrderNum++,
 							kind: "final",
 							content: paragraph.content,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create references
 						if (currentScene) {
-							await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", currentScene.id);
+							await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
 						}
 						if (currentBeat) {
-							await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+							await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 						}
 						break;
 					}
 
 					case "unchanged": {
-						if (!localProseBlock && remoteProseBlock) {
-							finalProseBlock = remoteProseBlock;
-							const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-							const filePath = `${proseBlocksFolderPath}/${fileName}`;
-							await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
-						} else if (localProseBlock) {
-							finalProseBlock = localProseBlock;
+						if (!localContentBlock && remoteContentBlock) {
+							finalContentBlock = remoteContentBlock;
+							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+							const filePath = `${contentsFolderPath}/${fileName}`;
+							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
+						} else if (localContentBlock) {
+							finalContentBlock = localContentBlock;
 							proseOrderNum++;
 						} else {
-							finalProseBlock = remoteProseBlock!;
+							finalContentBlock = remoteContentBlock!;
 							proseOrderNum++;
 						}
 						break;
 					}
 
 					case "local_modified": {
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: paragraph.content,
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						break;
 					}
 
 					case "remote_modified": {
-						finalProseBlock = remoteProseBlock!;
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						finalContentBlock = remoteContentBlock!;
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						proseOrderNum++;
 						break;
 					}
 
 					case "conflict": {
-						const resolution = await this.resolveConflict(localProseBlock!, remoteProseBlock!);
+						const resolution = await this.resolveConflict(localContentBlock!, remoteContentBlock!);
 						let resolvedContent = resolution.resolution === "local" 
 							? paragraph.content 
 							: resolution.resolution === "remote" 
-								? remoteProseBlock!.content 
+								? remoteContentBlock!.content 
 								: resolution.mergedContent || paragraph.content;
 
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: resolvedContent,
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						break;
 					}
 				}
@@ -1635,7 +1646,7 @@ export class SyncService {
 	}
 
 	// Push prose blocks from a scene file (scene-level prose, not inside chapters)
-	private async pushSceneProseBlocks(sceneFilePath: string, storyFolderPath: string): Promise<void> {
+	private async pushSceneContentBlocks(sceneFilePath: string, storyFolderPath: string): Promise<void> {
 		// Read scene file
 		const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
 		if (!(file instanceof TFile)) {
@@ -1651,7 +1662,7 @@ export class SyncService {
 
 		const sceneId = frontmatter.id;
 		const storyId = frontmatter.story_id;
-		const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+		const contentsFolderPath = `${storyFolderPath}/03-contents`;
 
 		// Parse prose blocks from scene content
 		const sceneProse = parseSceneProse(sceneContent);
@@ -1673,10 +1684,10 @@ export class SyncService {
 		}
 
 		// Get prose blocks referenced to this scene
-		const remoteProseBlocks = await this.apiClient.getProseBlocks(tempChapter.id);
-		const remoteProseBlocksMap = new Map<string, ProseBlock>();
-		for (const pb of remoteProseBlocks) {
-			remoteProseBlocksMap.set(pb.id, pb);
+		const remoteContentBlocks = await this.apiClient.getContentBlocks(tempChapter.id);
+		const remoteContentBlocksMap = new Map<string, ContentBlock>();
+		for (const pb of remoteContentBlocks) {
+			remoteContentBlocksMap.set(pb.id, pb);
 		}
 
 		// Get beats for this scene
@@ -1717,65 +1728,65 @@ export class SyncService {
 			} else if (section.type === "prose" && section.prose) {
 				const { prose: paragraph } = section;
 				
-				let localProseBlock: ProseBlock | null = null;
-				let remoteProseBlock: ProseBlock | null = null;
+				let localContentBlock: ContentBlock | null = null;
+				let remoteContentBlock: ContentBlock | null = null;
 
 				if (paragraph.linkName) {
-					const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-					localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
 
-					if (!localProseBlock) {
-						localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					if (!localContentBlock) {
+						localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					}
 
-					if (localProseBlock) {
-						remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+					if (localContentBlock) {
+						remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
 					} else {
 						const normalizedContent = paragraph.content.trim();
-						for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+						for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
 							if (remotePB.content.trim() === normalizedContent) {
-								remoteProseBlock = remotePB;
+								remoteContentBlock = remotePB;
 								break;
 							}
 						}
 					}
 				} else {
-					localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					
 					const normalizedContent = paragraph.content.trim();
-					for (const [id, remotePB] of remoteProseBlocksMap.entries()) {
+					for (const [id, remotePB] of remoteContentBlocksMap.entries()) {
 						if (remotePB.content.trim() === normalizedContent) {
-							remoteProseBlock = remotePB;
-							if (!localProseBlock) {
-								localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+							remoteContentBlock = remotePB;
+							if (!localContentBlock) {
+								localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
 							}
 							break;
 						}
 					}
 				}
 
-				const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+				const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
 
-				let finalProseBlock: ProseBlock;
+				let finalContentBlock: ContentBlock;
 
 				switch (status) {
 					case "new": {
-						finalProseBlock = await this.apiClient.createProseBlock(tempChapter!.id, {
+						finalContentBlock = await this.apiClient.createContentBlock(tempChapter!.id, {
 							order_num: proseOrderNum++,
 							kind: "final",
 							content: paragraph.content,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create reference to scene
-						await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", sceneId);
+						await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
 						
 						// Also create reference to beat if we're under one
 						if (currentBeat) {
-							await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", currentBeat.id);
+							await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 						}
 
 						const linkName = fileName.replace(/\.md$/, "");
@@ -1784,32 +1795,32 @@ export class SyncService {
 					}
 
 					case "unchanged": {
-						if (!localProseBlock && remoteProseBlock) {
-							finalProseBlock = remoteProseBlock;
-							const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-							const filePath = `${proseBlocksFolderPath}/${fileName}`;
-							await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
-						} else if (localProseBlock) {
-							if (localProseBlock.order_num !== proseOrderNum) {
-								finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock.id, {
+						if (!localContentBlock && remoteContentBlock) {
+							finalContentBlock = remoteContentBlock;
+							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+							const filePath = `${contentsFolderPath}/${fileName}`;
+							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
+						} else if (localContentBlock) {
+							if (localContentBlock.order_num !== proseOrderNum) {
+								finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
 									order_num: proseOrderNum++,
 								});
-								const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-								const filePath = `${proseBlocksFolderPath}/${fileName}`;
-								await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+								const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+								const filePath = `${contentsFolderPath}/${fileName}`;
+								await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 							} else {
-								finalProseBlock = localProseBlock;
+								finalContentBlock = localContentBlock;
 								proseOrderNum++;
 							}
 						} else {
-							finalProseBlock = remoteProseBlock!;
+							finalContentBlock = remoteContentBlock!;
 							proseOrderNum++;
 						}
 
 						if (paragraph.linkName) {
 							updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
 						} else {
-							const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
 							const linkName = fileName.replace(/\.md$/, "");
 							updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						}
@@ -1817,14 +1828,14 @@ export class SyncService {
 					}
 
 					case "local_modified": {
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: paragraph.content,
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
@@ -1832,38 +1843,38 @@ export class SyncService {
 					}
 
 					case "remote_modified": {
-						finalProseBlock = remoteProseBlock!;
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						finalContentBlock = remoteContentBlock!;
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						const linkName = fileName.replace(/\.md$/, "");
-						updatedSections.push(`[[${linkName}|${finalProseBlock.content}]]`);
+						updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
 						new Notice(`Scene prose block updated from remote: ${linkName}`, 3000);
 						proseOrderNum++;
 						break;
 					}
 
 					case "conflict": {
-						const resolution = await this.resolveConflict(localProseBlock!, remoteProseBlock!);
+						const resolution = await this.resolveConflict(localContentBlock!, remoteContentBlock!);
 
 						let resolvedContent: string;
 						if (resolution.resolution === "local") {
 							resolvedContent = paragraph.content;
 						} else if (resolution.resolution === "remote") {
-							resolvedContent = remoteProseBlock!.content;
+							resolvedContent = remoteContentBlock!.content;
 						} else {
 							resolvedContent = resolution.mergedContent || paragraph.content;
 						}
 
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: resolvedContent,
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
@@ -1896,7 +1907,7 @@ export class SyncService {
 	}
 
 	// Push prose blocks from a beat file
-	private async pushBeatProseBlocks(beatFilePath: string, storyFolderPath: string): Promise<void> {
+	private async pushBeatContentBlocks(beatFilePath: string, storyFolderPath: string): Promise<void> {
 		// Read beat file
 		const file = this.fileManager.getVault().getAbstractFileByPath(beatFilePath);
 		if (!(file instanceof TFile)) {
@@ -1912,7 +1923,7 @@ export class SyncService {
 
 		const beatId = frontmatter.id;
 		const sceneId = frontmatter.scene_id;
-		const proseBlocksFolderPath = `${storyFolderPath}/prose-blocks`;
+		const contentsFolderPath = `${storyFolderPath}/03-contents`;
 
 		// Parse prose blocks from beat content
 		const beatProse = parseBeatProse(beatContent);
@@ -1942,10 +1953,10 @@ export class SyncService {
 		}
 
 		// Get existing remote prose blocks
-		const remoteProseBlocks = await this.apiClient.getProseBlocks(tempChapter.id);
-		const remoteProseBlocksMap = new Map<string, ProseBlock>();
-		for (const pb of remoteProseBlocks) {
-			remoteProseBlocksMap.set(pb.id, pb);
+		const remoteContentBlocks = await this.apiClient.getContentBlocks(tempChapter.id);
+		const remoteContentBlocksMap = new Map<string, ContentBlock>();
+		for (const pb of remoteContentBlocks) {
+			remoteContentBlocksMap.set(pb.id, pb);
 		}
 
 		// Process prose sections
@@ -1967,62 +1978,62 @@ export class SyncService {
 			if (section.type === "prose" && section.prose) {
 				const { prose: paragraph } = section;
 				
-				let localProseBlock: ProseBlock | null = null;
-				let remoteProseBlock: ProseBlock | null = null;
+				let localContentBlock: ContentBlock | null = null;
+				let remoteContentBlock: ContentBlock | null = null;
 
 				if (paragraph.linkName) {
-					const proseBlockFilePath = `${proseBlocksFolderPath}/${paragraph.linkName}.md`;
-					localProseBlock = await this.fileManager.readProseBlockFromFile(proseBlockFilePath);
+					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
+					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
 
-					if (!localProseBlock) {
-						localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					if (!localContentBlock) {
+						localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					}
 
-					if (localProseBlock) {
-						remoteProseBlock = remoteProseBlocksMap.get(localProseBlock.id) || null;
+					if (localContentBlock) {
+						remoteContentBlock = remoteContentBlocksMap.get(localContentBlock.id) || null;
 					} else {
 						const normalizedContent = paragraph.content.trim();
-						for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+						for (const [, remotePB] of remoteContentBlocksMap.entries()) {
 							if (remotePB.content.trim() === normalizedContent) {
-								remoteProseBlock = remotePB;
+								remoteContentBlock = remotePB;
 								break;
 							}
 						}
 					}
 				} else {
-					localProseBlock = await this.findProseBlockByContent(proseBlocksFolderPath, paragraph.content);
+					localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
 					
 					const normalizedContent = paragraph.content.trim();
-					for (const [, remotePB] of remoteProseBlocksMap.entries()) {
+					for (const [, remotePB] of remoteContentBlocksMap.entries()) {
 						if (remotePB.content.trim() === normalizedContent) {
-							remoteProseBlock = remotePB;
-							if (!localProseBlock) {
-								localProseBlock = await this.findProseBlockById(proseBlocksFolderPath, remotePB.id);
+							remoteContentBlock = remotePB;
+							if (!localContentBlock) {
+								localContentBlock = await this.findContentBlockById(contentsFolderPath, remotePB.id);
 							}
 							break;
 						}
 					}
 				}
 
-				const status = compareProseBlocks(paragraph, localProseBlock, remoteProseBlock);
+				const status = compareContentBlocks(paragraph, localContentBlock, remoteContentBlock);
 
-				let finalProseBlock: ProseBlock;
+				let finalContentBlock: ContentBlock;
 
 				switch (status) {
 					case "new": {
-						finalProseBlock = await this.apiClient.createProseBlock(tempChapter!.id, {
+						finalContentBlock = await this.apiClient.createContentBlock(tempChapter!.id, {
 							order_num: proseOrderNum++,
 							kind: "final",
 							content: paragraph.content,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create reference to scene and beat
-						await this.apiClient.createProseBlockReference(finalProseBlock.id, "scene", sceneId);
-						await this.apiClient.createProseBlockReference(finalProseBlock.id, "beat", beatId);
+						await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
+						await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", beatId);
 
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
@@ -2030,17 +2041,17 @@ export class SyncService {
 					}
 
 					case "unchanged": {
-						if (!localProseBlock && remoteProseBlock) {
-							finalProseBlock = remoteProseBlock;
-							const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-							const filePath = `${proseBlocksFolderPath}/${fileName}`;
-							await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						if (!localContentBlock && remoteContentBlock) {
+							finalContentBlock = remoteContentBlock;
+							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+							const filePath = `${contentsFolderPath}/${fileName}`;
+							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 							
 							const linkName = fileName.replace(/\.md$/, "");
-							updatedSections.push(`[[${linkName}|${remoteProseBlock.content}]]`);
-						} else if (localProseBlock) {
-							finalProseBlock = localProseBlock;
-							const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
+							updatedSections.push(`[[${linkName}|${remoteContentBlock.content}]]`);
+						} else if (localContentBlock) {
+							finalContentBlock = localContentBlock;
+							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
 							const linkName = fileName.replace(/\.md$/, "");
 							updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 							proseOrderNum++;
@@ -2052,14 +2063,14 @@ export class SyncService {
 					}
 
 					case "local_modified": {
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: paragraph.content,
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
@@ -2067,37 +2078,37 @@ export class SyncService {
 					}
 
 					case "remote_modified": {
-						finalProseBlock = remoteProseBlock!;
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						finalContentBlock = remoteContentBlock!;
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						proseOrderNum++;
 
 						const linkName = fileName.replace(/\.md$/, "");
-						updatedSections.push(`[[${linkName}|${remoteProseBlock!.content}]]`);
+						updatedSections.push(`[[${linkName}|${remoteContentBlock!.content}]]`);
 						break;
 					}
 
 					case "conflict": {
-						const resolution = await this.resolveConflict(localProseBlock!, remoteProseBlock!);
+						const resolution = await this.resolveConflict(localContentBlock!, remoteContentBlock!);
 
 						let resolvedContent: string;
 						if (resolution.resolution === "local") {
 							resolvedContent = paragraph.content;
 						} else if (resolution.resolution === "remote") {
-							resolvedContent = remoteProseBlock!.content;
+							resolvedContent = remoteContentBlock!.content;
 						} else {
 							resolvedContent = resolution.mergedContent || paragraph.content;
 						}
 
-						finalProseBlock = await this.apiClient.updateProseBlock(localProseBlock!.id, {
+						finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock!.id, {
 							content: resolvedContent,
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateProseBlockFileName(finalProseBlock);
-						const filePath = `${proseBlocksFolderPath}/${fileName}`;
-						await this.fileManager.writeProseBlockFile(finalProseBlock, filePath, undefined);
+						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
+						const filePath = `${contentsFolderPath}/${fileName}`;
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						const linkName = fileName.replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
@@ -2593,12 +2604,12 @@ export class SyncService {
 	}
 
 	// Find prose block by content when file name doesn't match
-	private async findProseBlockByContent(
-		proseBlocksFolderPath: string,
+	private async findContentBlockByContent(
+		contentsFolderPath: string,
 		content: string
-	): Promise<ProseBlock | null> {
+	): Promise<ContentBlock | null> {
 		try {
-			const folder = this.fileManager.getVault().getAbstractFileByPath(proseBlocksFolderPath);
+			const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
 			if (!(folder instanceof TFolder)) {
 				return null;
 			}
@@ -2608,9 +2619,9 @@ export class SyncService {
 			// Search through all prose block files
 			for (const child of folder.children) {
 				if (child instanceof TFile && child.extension === "md") {
-					const proseBlock = await this.fileManager.readProseBlockFromFile(child.path);
-					if (proseBlock && proseBlock.content.trim() === normalizedContent) {
-						return proseBlock;
+					const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+					if (contentBlock && contentBlock.content.trim() === normalizedContent) {
+						return contentBlock;
 					}
 				}
 			}
@@ -2622,12 +2633,12 @@ export class SyncService {
 	}
 
 	// Find prose block by ID when we have remote ID but need local file
-	private async findProseBlockById(
-		proseBlocksFolderPath: string,
+	private async findContentBlockById(
+		contentsFolderPath: string,
 		id: string
-	): Promise<ProseBlock | null> {
+	): Promise<ContentBlock | null> {
 		try {
-			const folder = this.fileManager.getVault().getAbstractFileByPath(proseBlocksFolderPath);
+			const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
 			if (!(folder instanceof TFolder)) {
 				return null;
 			}
@@ -2635,9 +2646,9 @@ export class SyncService {
 			// Search through all prose block files
 			for (const child of folder.children) {
 				if (child instanceof TFile && child.extension === "md") {
-					const proseBlock = await this.fileManager.readProseBlockFromFile(child.path);
-					if (proseBlock && proseBlock.id === id) {
-						return proseBlock;
+					const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+					if (contentBlock && contentBlock.id === id) {
+						return contentBlock;
 					}
 				}
 			}
@@ -2650,14 +2661,14 @@ export class SyncService {
 
 	// Resolve conflict using modal
 	private async resolveConflict(
-		localProseBlock: ProseBlock,
-		remoteProseBlock: ProseBlock
+		localContentBlock: ContentBlock,
+		remoteContentBlock: ContentBlock
 	): Promise<ConflictResolutionResult> {
 		return new Promise((resolve) => {
 			const modal = new ConflictModal(
 				this.app,
-				localProseBlock,
-				remoteProseBlock,
+				localContentBlock,
+				remoteContentBlock,
 				async (result) => {
 					resolve(result);
 				}

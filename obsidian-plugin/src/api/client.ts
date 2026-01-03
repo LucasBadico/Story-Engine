@@ -10,6 +10,8 @@ import {
 	SceneWithBeats,
 	ContentBlock,
 	ContentBlockReference,
+	World,
+	RPGSystem,
 } from "../types";
 
 export class StoryEngineClient {
@@ -407,10 +409,10 @@ export class StoryEngineClient {
 		return response.content_blocks || [];
 	}
 
-	async createProseBlockReference(proseBlockId: string, entityType: string, entityId: string): Promise<ProseBlockReference> {
-		const response = await this.request<{ reference: ProseBlockReference }>(
+	async createContentBlockReference(contentBlockId: string, entityType: string, entityId: string): Promise<ContentBlockReference> {
+		const response = await this.request<{ reference: ContentBlockReference }>(
 			"POST",
-			`/api/v1/prose-blocks/${proseBlockId}/references`,
+			`/api/v1/content-blocks/${contentBlockId}/references`,
 			{
 				entity_type: entityType,
 				entity_id: entityId,
@@ -419,8 +421,40 @@ export class StoryEngineClient {
 		return response.reference;
 	}
 
-	async deleteProseBlockReference(id: string): Promise<void> {
-		await this.request("DELETE", `/api/v1/prose-block-references/${id}`);
+	async deleteContentBlockReference(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/content-block-references/${id}`);
+	}
+
+	async getWorlds(): Promise<World[]> {
+		const response = await this.request<{ worlds: World[] }>(
+			"GET",
+			"/api/v1/worlds"
+		);
+		return response.worlds || [];
+	}
+
+	async getWorld(id: string): Promise<World> {
+		const response = await this.request<{ world: World }>(
+			"GET",
+			`/api/v1/worlds/${id}`
+		);
+		return response.world;
+	}
+
+	async getRPGSystems(): Promise<RPGSystem[]> {
+		const response = await this.request<{ rpg_systems: RPGSystem[] }>(
+			"GET",
+			"/api/v1/rpg-systems"
+		);
+		return response.rpg_systems || [];
+	}
+
+	async getRPGSystem(id: string): Promise<RPGSystem> {
+		const response = await this.request<{ rpg_system: RPGSystem }>(
+			"GET",
+			`/api/v1/rpg-systems/${id}`
+		);
+		return response.rpg_system;
 	}
 }
 

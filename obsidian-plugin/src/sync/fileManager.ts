@@ -38,7 +38,7 @@ export class FileManager {
 		baseFields: Record<string, string | number | null>,
 		extraFields?: Record<string, string | number | null>,
 		options?: {
-			entityType: "story" | "chapter" | "scene" | "beat" | "prose-block";
+			entityType: "story" | "chapter" | "scene" | "beat" | "content-block";
 			storyName?: string;
 			date?: string; // ISO date string (YYYY-MM-DD) or Date object
 		}
@@ -294,8 +294,8 @@ export class FileManager {
 				
 				content += `## Chapter ${chapter.number}: [[${chapterLinkName}|${chapter.title}]]\n\n`;
 				
-				// Get prose data for this chapter
-				const proseData = chapterProseData?.get(chapter.id);
+				// Get content data for this chapter
+				const contentData = chapterContentData?.get(chapter.id);
 				let organization: ReturnType<typeof this.organizeContentBlocks> | null = null;
 				
 				if (contentData) {
@@ -457,10 +457,10 @@ export class FileManager {
 				? `${scene.goal} - ${scene.time_ref}`
 				: scene.goal;
 			
-			// Check if scene has prose blocks (not associated with beats)
+			// Check if scene has content blocks (not associated with beats)
 			const sceneContentBlocks = organization.byScene.get(scene.id)?.contentBlocks || [];
 			const hasSceneContent = sceneContentBlocks.length > 0;
-			const sceneMarker = hasSceneProse ? "+" : "-";
+			const sceneMarker = hasSceneContent ? "+" : "-";
 			
 			content += `${sceneMarker} [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
 			
@@ -472,10 +472,10 @@ export class FileManager {
 					? `${beat.intent} -> ${beat.outcome}`
 					: beat.intent;
 				
-				// Check if beat has prose blocks
+				// Check if beat has content blocks
 				const beatContentBlocks = organization.byBeat.get(beat.id)?.contentBlocks || [];
 				const hasBeatContent = beatContentBlocks.length > 0;
-				const beatMarker = hasBeatProse ? "+" : "-";
+				const beatMarker = hasBeatContent ? "+" : "-";
 				
 				content += `\t${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
 			}
@@ -887,7 +887,7 @@ export class FileManager {
 
 	// List all chapter files in a story folder
 	async listChapterFiles(storyFolderPath: string): Promise<string[]> {
-		const chaptersPath = `${storyFolderPath}/chapters`;
+		const chaptersPath = `${storyFolderPath}/00-chapters`;
 		const folder = this.vault.getAbstractFileByPath(chaptersPath);
 
 		if (!(folder instanceof TFolder)) {
@@ -906,7 +906,7 @@ export class FileManager {
 
 	// List all scene files in a chapter folder
 	async listSceneFiles(chapterFolderPath: string): Promise<string[]> {
-		const scenesPath = `${chapterFolderPath}/scenes`;
+		const scenesPath = `${chapterFolderPath}/01-scenes`;
 		const folder = this.vault.getAbstractFileByPath(scenesPath);
 
 		if (!(folder instanceof TFolder)) {
@@ -925,7 +925,7 @@ export class FileManager {
 
 	// List all scene files in a story folder
 	async listStorySceneFiles(storyFolderPath: string): Promise<string[]> {
-		const scenesPath = `${storyFolderPath}/scenes`;
+		const scenesPath = `${storyFolderPath}/01-scenes`;
 		const folder = this.vault.getAbstractFileByPath(scenesPath);
 
 		if (!(folder instanceof TFolder)) {
@@ -944,7 +944,7 @@ export class FileManager {
 
 	// List all beat files in a story folder
 	async listStoryBeatFiles(storyFolderPath: string): Promise<string[]> {
-		const beatsPath = `${storyFolderPath}/beats`;
+		const beatsPath = `${storyFolderPath}/02-beats`;
 		const folder = this.vault.getAbstractFileByPath(beatsPath);
 
 		if (!(folder instanceof TFolder)) {
@@ -963,7 +963,7 @@ export class FileManager {
 
 	// List all beat files in a scene folder
 	async listBeatFiles(sceneFolderPath: string): Promise<string[]> {
-		const beatsPath = `${sceneFolderPath}/beats`;
+		const beatsPath = `${sceneFolderPath}/02-beats`;
 		const folder = this.vault.getAbstractFileByPath(beatsPath);
 
 		if (!(folder instanceof TFolder)) {
@@ -980,6 +980,26 @@ export class FileManager {
 		return beatFiles.sort();
 	}
 
+	// Get the subfolder name for a content block type
+	getContentTypeFolder(type: string): string {
+		// Map types to folder names with numeric prefixes
+		const typeFolders: Record<string, string> = {
+			text: "00-texts",
+			image: "01-images",
+			video: "02-videos",
+			audio: "03-audios",
+			embed: "04-embeds",
+			link: "05-links",
+		};
+		return typeFolders[type] || "99-other";
+	}
+
+	// Get the full folder path for content blocks of a specific type
+	getContentBlockFolderPath(storyFolderPath: string, type: string): string {
+		const typeFolder = this.getContentTypeFolder(type);
+		return `${storyFolderPath}/03-contents/${typeFolder}`;
+	}
+
 	// Generate filename for content block based on date and content preview
 	generateContentBlockFileName(contentBlock: ContentBlock): string {
 		// Parse created_at date
@@ -993,41 +1013,79 @@ export class FileManager {
 		// Format: 2024-01-15T14-30
 		const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
 
-		// Get first 30 characters of content and sanitize
-		const contentPreview = contentBlock.content
-			.substring(0, 30)
-			.trim()
-			.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
-			.replace(/\s+/g, "-")
-			.replace(/-+/g, "-")
-			.replace(/^-|-$/g, "")
-			.toLowerCase();
-
-		// If content is empty, use a default
-		const textPart = contentPreview || "content-block";
+		// Get preview based on content type
+		let textPart: string;
+		const type = contentBlock.type || "text";
+		
+		if (type === "text") {
+			// For text: first 30 chars of content
+			textPart = contentBlock.content
+				.substring(0, 30)
+				.trim()
+				.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
+				.replace(/\s+/g, "-")
+				.replace(/-+/g, "-")
+				.replace(/^-|-$/g, "")
+				.toLowerCase() || "content";
+		} else if (type === "image" || type === "video" || type === "audio") {
+			// For media: use alt_text, caption, or filename from metadata
+			const meta = contentBlock.metadata || {};
+			textPart = (meta.alt_text || meta.caption || meta.title || type)
+				.substring(0, 30)
+				.trim()
+				.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
+				.replace(/\s+/g, "-")
+				.replace(/-+/g, "-")
+				.replace(/^-|-$/g, "")
+				.toLowerCase();
+		} else if (type === "embed") {
+			// For embeds: use provider or title
+			const meta = contentBlock.metadata || {};
+			textPart = (meta.provider || meta.title || "embed")
+				.substring(0, 30)
+				.trim()
+				.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
+				.replace(/\s+/g, "-")
+				.replace(/-+/g, "-")
+				.replace(/^-|-$/g, "")
+				.toLowerCase();
+		} else if (type === "link") {
+			// For links: use title or site_name
+			const meta = contentBlock.metadata || {};
+			textPart = (meta.title || meta.site_name || "link")
+				.substring(0, 30)
+				.trim()
+				.replace(/[<>:"/\\|?*\n\r\t]/g, "-")
+				.replace(/\s+/g, "-")
+				.replace(/-+/g, "-")
+				.replace(/^-|-$/g, "")
+				.toLowerCase();
+		} else {
+			textPart = "content";
+		}
 
 		return `${dateStr}_${textPart}.md`;
 	}
 
-	// Organize prose blocks by their associations (chapter, scene, beat)
-	private organizeContentBlocks(
-		proseBlocks: ProseBlock[],
-		proseBlockRefs: ProseBlockReference[],
+	// Organize content blocks by their associations (chapter, scene, beat)
+	organizeContentBlocks(
+		contentBlocks: ContentBlock[],
+		contentBlockRefs: ContentBlockReference[],
 		scenes: SceneWithBeats[]
-	): ProseBlockOrganization {
-		const organization: ProseBlockOrganization = {
+	): ContentBlockOrganization {
+		const organization: ContentBlockOrganization = {
 			chapterOnly: [],
 			byScene: new Map(),
 			byBeat: new Map(),
 		};
 
 		// Create maps for quick lookup
-		const proseBlockRefsByProseBlock = new Map<string, ProseBlockReference[]>();
-		for (const ref of proseBlockRefs) {
-			if (!proseBlockRefsByProseBlock.has(ref.prose_block_id)) {
-				proseBlockRefsByProseBlock.set(ref.prose_block_id, []);
+		const contentBlockRefsByContentBlock = new Map<string, ContentBlockReference[]>();
+		for (const ref of contentBlockRefs) {
+			if (!contentBlockRefsByContentBlock.has(ref.content_block_id)) {
+				contentBlockRefsByContentBlock.set(ref.content_block_id, []);
 			}
-			proseBlockRefsByProseBlock.get(ref.prose_block_id)!.push(ref);
+			contentBlockRefsByContentBlock.get(ref.content_block_id)!.push(ref);
 		}
 
 		// Create scene and beat maps for quick lookup
@@ -1040,11 +1098,11 @@ export class FileManager {
 			}
 		}
 
-		// Sort prose blocks by order_num
-		const sortedProseBlocks = [...proseBlocks].sort((a, b) => a.order_num - b.order_num);
+		// Sort content blocks by order_num
+		const sortedContentBlocks = [...contentBlocks].sort((a, b) => (a.order_num || 0) - (b.order_num || 0));
 
-		for (const proseBlock of sortedProseBlocks) {
-			const refs = proseBlockRefsByProseBlock.get(proseBlock.id) || [];
+		for (const contentBlock of sortedContentBlocks) {
+			const refs = contentBlockRefsByContentBlock.get(contentBlock.id) || [];
 			
 			// Find scene and beat references
 			const sceneRef = refs.find(r => r.entity_type === "scene");
@@ -1054,19 +1112,19 @@ export class FileManager {
 				// Associated with a beat (and implicitly with its scene)
 				const beat = beatMap.get(beatRef.entity_id)!;
 				if (!organization.byBeat.has(beat.id)) {
-					organization.byBeat.set(beat.id, { beat, proseBlocks: [] });
+					organization.byBeat.set(beat.id, { beat, contentBlocks: [] });
 				}
-				organization.byBeat.get(beat.id)!.proseBlocks.push(proseBlock);
+				organization.byBeat.get(beat.id)!.contentBlocks.push(contentBlock);
 			} else if (sceneRef && sceneMap.has(sceneRef.entity_id)) {
 				// Associated with a scene but not a beat
 				const scene = sceneMap.get(sceneRef.entity_id)!;
 				if (!organization.byScene.has(scene.id)) {
-					organization.byScene.set(scene.id, { scene, proseBlocks: [] });
+					organization.byScene.set(scene.id, { scene, contentBlocks: [] });
 				}
-				organization.byScene.get(scene.id)!.proseBlocks.push(proseBlock);
+				organization.byScene.get(scene.id)!.contentBlocks.push(contentBlock);
 			} else {
 				// Only associated with chapter
-				organization.chapterOnly.push(proseBlock);
+				organization.chapterOnly.push(contentBlock);
 			}
 		}
 
@@ -1123,39 +1181,168 @@ export class FileManager {
 		return `${dateStr}_${intentSanitized}.md`;
 	}
 
-	// Write prose block file
+	// Write content block file
 	async writeContentBlockFile(
 		contentBlock: ContentBlock,
 		filePath: string,
 		storyName?: string
 	): Promise<void> {
-		const baseFields = {
-			id: proseBlock.id,
-			chapter_id: proseBlock.chapter_id,
-			order_num: proseBlock.order_num,
-			kind: proseBlock.kind,
-			word_count: proseBlock.word_count,
-			created_at: proseBlock.created_at,
-			updated_at: proseBlock.updated_at,
+		const type = contentBlock.type || "text";
+		
+		const baseFields: Record<string, string | number | null> = {
+			id: contentBlock.id,
+			chapter_id: contentBlock.chapter_id || null,
+			order_num: contentBlock.order_num || 0,
+			type: type,
+			kind: contentBlock.kind,
+			created_at: contentBlock.created_at,
+			updated_at: contentBlock.updated_at,
 		};
 
+		// Add metadata fields based on type
+		const meta = contentBlock.metadata || {};
+		if (type === "text" && meta.word_count) {
+			baseFields.word_count = meta.word_count;
+		} else if (type === "image") {
+			// Store original URL for sync purposes
+			if (contentBlock.content && contentBlock.content.startsWith("http")) {
+				baseFields.original_url = contentBlock.content;
+			}
+			if (meta.alt_text) baseFields.alt_text = meta.alt_text;
+			if (meta.caption) baseFields.caption = meta.caption;
+			if (meta.width) baseFields.width = meta.width;
+			if (meta.height) baseFields.height = meta.height;
+			if (meta.mime_type) baseFields.mime_type = meta.mime_type;
+			if (meta.source) baseFields.source = meta.source;
+			if (meta.author_name) baseFields.author_name = meta.author_name;
+			if (meta.attribution) baseFields.attribution = meta.attribution;
+			if (meta.attribution_url) baseFields.attribution_url = meta.attribution_url;
+		} else if (type === "video" || type === "audio") {
+			if (meta.provider) baseFields.provider = meta.provider;
+			if (meta.video_id) baseFields.video_id = meta.video_id;
+			if (meta.duration) baseFields.duration = meta.duration;
+			if (meta.thumbnail_url) baseFields.thumbnail_url = meta.thumbnail_url;
+		} else if (type === "embed") {
+			if (meta.provider) baseFields.provider = meta.provider;
+			if (meta.html) baseFields.embed_html = meta.html;
+		} else if (type === "link") {
+			if (meta.title) baseFields.link_title = meta.title;
+			if (meta.description) baseFields.link_description = meta.description;
+			if (meta.image_url) baseFields.link_image = meta.image_url;
+			if (meta.site_name) baseFields.site_name = meta.site_name;
+		}
+
 		const frontmatter = this.generateFrontmatter(baseFields, undefined, {
-			entityType: "prose-block",
+			entityType: "content-block",
 			storyName: storyName,
-			date: proseBlock.created_at,
+			date: contentBlock.created_at,
 		});
 
-		const content = `${frontmatter}${proseBlock.content}`;
+		// Generate content based on type
+		let fileContent: string;
+		if (type === "text") {
+			fileContent = `${frontmatter}${contentBlock.content}`;
+		} else if (type === "image") {
+			// Download image and save locally
+			let localImagePath: string = contentBlock.content || "";
+			if (contentBlock.content && !contentBlock.content.startsWith("http")) {
+				// Already a local path, use as is
+				localImagePath = contentBlock.content;
+			} else if (contentBlock.content) {
+				// Download image from remote URL
+				try {
+					localImagePath = await this.downloadImage(contentBlock.content, filePath, contentBlock.id);
+				} catch (err) {
+					console.error("Failed to download image:", err);
+					// Fallback to original URL if download fails
+					localImagePath = contentBlock.content;
+				}
+			}
+			
+			const altText = meta.alt_text || "";
+			fileContent = `${frontmatter}![${altText}](${localImagePath})`;
+			if (meta.caption) {
+				fileContent += `\n\n*${meta.caption}*`;
+			}
+		} else if (type === "video") {
+			fileContent = `${frontmatter}[Video](${contentBlock.content})`;
+			if (meta.thumbnail_url) {
+				fileContent += `\n\n![Thumbnail](${meta.thumbnail_url})`;
+			}
+		} else if (type === "audio") {
+			fileContent = `${frontmatter}[Audio](${contentBlock.content})`;
+		} else if (type === "embed") {
+			fileContent = `${frontmatter}${meta.html || contentBlock.content}`;
+		} else if (type === "link") {
+			const title = meta.title || contentBlock.content;
+			fileContent = `${frontmatter}[${title}](${contentBlock.content})`;
+			if (meta.description) {
+				fileContent += `\n\n${meta.description}`;
+			}
+		} else {
+			fileContent = `${frontmatter}${contentBlock.content}`;
+		}
 
 		const file = this.vault.getAbstractFileByPath(filePath);
 		if (file instanceof TFile) {
-			await this.vault.modify(file, content);
+			await this.vault.modify(file, fileContent);
 		} else {
-			await this.vault.create(filePath, content);
+			await this.vault.create(filePath, fileContent);
 		}
 	}
 
-	// Read prose block from file
+	// Download image from URL and save locally (same folder as content block .md)
+	private async downloadImage(imageUrl: string, contentBlockFilePath: string, contentBlockId: string): Promise<string> {
+		try {
+			// Fetch image
+			const response = await fetch(imageUrl);
+			if (!response.ok) {
+				throw new Error(`Failed to fetch image: ${response.statusText}`);
+			}
+
+			const blob = await response.blob();
+			const arrayBuffer = await blob.arrayBuffer();
+
+			// Determine file extension from content type or URL
+			let extension = "jpg";
+			const contentType = response.headers.get("content-type");
+			if (contentType) {
+				if (contentType.includes("png")) extension = "png";
+				else if (contentType.includes("gif")) extension = "gif";
+				else if (contentType.includes("webp")) extension = "webp";
+				else if (contentType.includes("svg")) extension = "svg";
+			} else {
+				// Try to get extension from URL
+				const urlMatch = imageUrl.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|$)/i);
+				if (urlMatch) {
+					extension = urlMatch[1].toLowerCase();
+				}
+			}
+
+			// Get directory of content block file (same folder for image)
+			const contentBlockDir = contentBlockFilePath.substring(0, contentBlockFilePath.lastIndexOf("/"));
+
+			// Generate image filename based on content block ID
+			const imageFileName = `${contentBlockId}.${extension}`;
+			const imagePath = `${contentBlockDir}/${imageFileName}`;
+
+			// Save image file (Obsidian's createBinary expects ArrayBuffer)
+			const existingFile = this.vault.getAbstractFileByPath(imagePath);
+			if (existingFile instanceof TFile) {
+				await this.vault.modifyBinary(existingFile, arrayBuffer);
+			} else {
+				await this.vault.createBinary(imagePath, arrayBuffer);
+			}
+
+			// Return just the filename (same folder)
+			return imageFileName;
+		} catch (err) {
+			console.error("Error downloading image:", err);
+			throw err;
+		}
+	}
+
+	// Read content block from file
 	async readContentBlockFromFile(filePath: string): Promise<ContentBlock | null> {
 		const file = this.vault.getAbstractFileByPath(filePath);
 		if (!(file instanceof TFile)) {
@@ -1163,31 +1350,103 @@ export class FileManager {
 		}
 
 		try {
-			const content = await this.vault.read(file);
-			const frontmatter = this.parseFrontmatter(content);
+			const fileContent = await this.vault.read(file);
+			const frontmatter = this.parseFrontmatter(fileContent);
 
 			// Extract content after frontmatter
-			const contentMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
-			const proseContent = contentMatch ? contentMatch[1].trim() : "";
+			const contentMatch = fileContent.match(/^---\n[\s\S]*?\n---\n([\s\S]*)$/);
+			let blockContent = contentMatch ? contentMatch[1].trim() : "";
 
 			if (!frontmatter.id) {
 				return null;
 			}
 
+			const type = (frontmatter.type || "text") as ContentBlock["type"];
+			
+			// Build metadata from frontmatter first
+			const metadata: ContentBlock["metadata"] = {};
+			
+			// Parse content based on type
+			if (type === "image") {
+				// Extract image path from ![alt](path)
+				const imgMatch = blockContent.match(/!\[[^\]]*\]\(([^)]+)\)/);
+				if (imgMatch) {
+					blockContent = imgMatch[1];
+					// If it's a local filename (not a URL), use original_url from frontmatter for sync
+					if (!blockContent.startsWith("http") && frontmatter.original_url) {
+						blockContent = frontmatter.original_url as string;
+					}
+				}
+			} else if (type === "video" || type === "audio" || type === "link") {
+				// Extract URL from [text](url)
+				const linkMatch = blockContent.match(/\[[^\]]*\]\(([^)]+)\)/);
+				if (linkMatch) {
+					blockContent = linkMatch[1];
+				}
+			}
+
+			// Continue building metadata from frontmatter
+			if (frontmatter.word_count) metadata.word_count = parseInt(frontmatter.word_count, 10);
+			if (frontmatter.alt_text) metadata.alt_text = frontmatter.alt_text;
+			if (frontmatter.caption) metadata.caption = frontmatter.caption;
+			if (frontmatter.width) metadata.width = parseInt(frontmatter.width, 10);
+			if (frontmatter.height) metadata.height = parseInt(frontmatter.height, 10);
+			if (frontmatter.mime_type) metadata.mime_type = frontmatter.mime_type;
+			if (frontmatter.source) metadata.source = frontmatter.source as "unsplash" | "internet link" | "local";
+			if (frontmatter.author_name) metadata.author_name = frontmatter.author_name;
+			if (frontmatter.attribution) metadata.attribution = frontmatter.attribution;
+			if (frontmatter.attribution_url) metadata.attribution_url = frontmatter.attribution_url;
+			if (frontmatter.provider) metadata.provider = frontmatter.provider;
+			if (frontmatter.video_id) metadata.video_id = frontmatter.video_id;
+			if (frontmatter.duration) metadata.duration = parseInt(frontmatter.duration, 10);
+			if (frontmatter.thumbnail_url) metadata.thumbnail_url = frontmatter.thumbnail_url;
+			if (frontmatter.embed_html) metadata.html = frontmatter.embed_html;
+			if (frontmatter.link_title) metadata.title = frontmatter.link_title;
+			if (frontmatter.link_description) metadata.description = frontmatter.link_description;
+			if (frontmatter.link_image) metadata.image_url = frontmatter.link_image;
+			if (frontmatter.site_name) metadata.site_name = frontmatter.site_name;
+
 			return {
 				id: frontmatter.id,
-				chapter_id: frontmatter.chapter_id || "",
+				chapter_id: frontmatter.chapter_id || null,
 				order_num: parseInt(frontmatter.order_num || "0", 10),
+				type: type,
 				kind: frontmatter.kind || "final",
-				content: proseContent,
-				word_count: parseInt(frontmatter.word_count || "0", 10),
+				content: blockContent,
+				metadata: metadata,
 				created_at: frontmatter.created_at || "",
 				updated_at: frontmatter.updated_at || "",
 			};
 		} catch (err) {
-			console.error(`Failed to read prose block from ${filePath}:`, err);
+			console.error(`Failed to read content block from ${filePath}:`, err);
 			return null;
 		}
+	}
+
+	// List all content block files in a story folder (across all type subfolders)
+	async listContentBlockFiles(storyFolderPath: string): Promise<string[]> {
+		const contentsPath = `${storyFolderPath}/03-contents`;
+		const folder = this.vault.getAbstractFileByPath(contentsPath);
+
+		if (!(folder instanceof TFolder)) {
+			return [];
+		}
+
+		const contentFiles: string[] = [];
+		
+		// Iterate through type subfolders
+		for (const child of folder.children) {
+			if (child instanceof TFolder) {
+				// This is a type subfolder (text, images, etc.)
+				for (const file of child.children) {
+					if (file instanceof TFile && file.extension === "md") {
+						contentFiles.push(file.path);
+					}
+				}
+			}
+		}
+
+		return contentFiles.sort();
 	}
 }
 

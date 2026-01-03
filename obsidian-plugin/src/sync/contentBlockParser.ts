@@ -1,4 +1,4 @@
-import { ProseBlock } from "../types";
+import { ContentBlock } from "../types";
 
 export interface ParsedParagraph {
 	content: string; // Text without the link
@@ -69,16 +69,16 @@ export interface ParsedBeatList {
 	items: ParsedBeatListItem[];
 }
 
-export interface ProseBlockComparison {
+export interface ContentBlockComparison {
 	paragraph: ParsedParagraph;
-	localProseBlock: ProseBlock | null; // Do arquivo .md
-	remoteProseBlock: ProseBlock | null; // Da API
+	localContentBlock: ContentBlock | null; // From .md file
+	remoteContentBlock: ContentBlock | null; // From API
 	status: "new" | "unchanged" | "local_modified" | "remote_modified" | "conflict";
 }
 
 /**
  * Parse the Prose section from a chapter markdown content
- * Extracts hierarchical structure: scenes (##), beats (###), and prose blocks
+ * Extracts hierarchical structure: scenes (##), beats (###), and content blocks
  */
 export function parseHierarchicalProse(chapterContent: string): HierarchicalProse {
 	const sections: ParsedSection[] = [];
@@ -168,7 +168,7 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 			continue;
 		}
 
-		// Check for prose block: [[link|content]] or plain text
+		// Check for content block: [[link|content]] or plain text
 		// Match can have optional whitespace around the link
 		const proseMatch = line.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
 		if (proseMatch) {
@@ -187,7 +187,7 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 			continue;
 		}
 
-		// Plain text paragraph (new prose block without link)
+		// Plain text paragraph (new content block without link)
 		// Only if it's not a markdown header and not empty
 		if (line.length > 0 && !line.startsWith('#')) {
 			const paragraph: ParsedParagraph = {
@@ -323,7 +323,7 @@ function parseBeatText(text: string): { intent: string; outcome: string } {
 /**
  * Legacy function - kept for backward compatibility
  * Parse the Prose section from a chapter markdown content
- * Extracts paragraphs and identifies which ones have links to prose blocks
+ * Extracts paragraphs and identifies which ones have links to content blocks
  */
 export function parseChapterProse(chapterContent: string): ParsedParagraph[] {
 	const hierarchical = parseHierarchicalProse(chapterContent);
@@ -339,45 +339,45 @@ export function parseChapterProse(chapterContent: string): ParsedParagraph[] {
 }
 
 /**
- * Compare local and remote prose blocks to determine status
+ * Compare local and remote content blocks to determine status
  */
-export function compareProseBlocks(
+export function compareContentBlocks(
 	paragraph: ParsedParagraph,
-	localProseBlock: ProseBlock | null,
-	remoteProseBlock: ProseBlock | null
-): ProseBlockComparison["status"] {
+	localContentBlock: ContentBlock | null,
+	remoteContentBlock: ContentBlock | null
+): ContentBlockComparison["status"] {
 	const paragraphContent = paragraph.content.trim();
 
 	// Paragraph without link - check if remote exists with same content
 	if (!paragraph.linkName) {
-		if (remoteProseBlock && remoteProseBlock.content.trim() === paragraphContent) {
+		if (remoteContentBlock && remoteContentBlock.content.trim() === paragraphContent) {
 			// Remote exists with same content - treat as unchanged if local matches, otherwise need to create local file
-			if (localProseBlock && localProseBlock.id === remoteProseBlock.id) {
+			if (localContentBlock && localContentBlock.id === remoteContentBlock.id) {
 				return "unchanged";
 			}
 			// Remote exists but no local file - need to create local file (treat as unchanged for content, but need file creation)
 			return "unchanged";
 		}
-		// No remote match - this is a new prose block
+		// No remote match - this is a new content block
 		return "new";
 	}
 
 	// No local file found (shouldn't happen if link exists, but handle gracefully)
-	if (!localProseBlock) {
+	if (!localContentBlock) {
 		// If remote exists with same content, treat as remote_modified
-		if (remoteProseBlock && remoteProseBlock.content.trim() === paragraphContent) {
+		if (remoteContentBlock && remoteContentBlock.content.trim() === paragraphContent) {
 			return "remote_modified";
 		}
 		return "new";
 	}
 
-	// No remote prose block found (deleted on server?)
-	if (!remoteProseBlock) {
+	// No remote content block found (deleted on server?)
+	if (!remoteContentBlock) {
 		return "local_modified";
 	}
 
-	const localContent = localProseBlock.content.trim();
-	const remoteContent = remoteProseBlock.content.trim();
+	const localContent = localContentBlock.content.trim();
+	const remoteContent = remoteContentBlock.content.trim();
 
 	// Both local and remote match paragraph
 	if (localContent === paragraphContent && remoteContent === paragraphContent) {
@@ -786,7 +786,7 @@ export function parseOrphanBeatsList(storyContent: string): ParsedBeatList {
 }
 
 /**
- * Parse prose blocks from story content using hierarchical headers
+ * Parse content blocks from story content using hierarchical headers
  * Format:
  * # Story: title
  * prose at story level
@@ -912,7 +912,7 @@ export function parseStoryProse(storyContent: string): HierarchicalProse {
 			continue;
 		}
 
-		// Check for prose block: [[link|content]] or plain text
+		// Check for content block: [[link|content]] or plain text
 		const proseMatch = trimmedLine.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
 		if (proseMatch) {
 			const linkName = proseMatch[1].trim();
@@ -930,7 +930,7 @@ export function parseStoryProse(storyContent: string): HierarchicalProse {
 			continue;
 		}
 
-		// Plain text paragraph (new prose block without link)
+		// Plain text paragraph (new content block without link)
 		if (trimmedLine.length > 0) {
 			const paragraph: ParsedParagraph = {
 				content: trimmedLine,
@@ -1021,7 +1021,7 @@ function parseBeatHeaderText(text: string): ParsedBeat {
 }
 
 /**
- * Parse prose blocks from scene content using hierarchical headers
+ * Parse content blocks from scene content using hierarchical headers
  * Format (no chapters in scenes):
  * 
  * ## Beats (list - skipped)
@@ -1128,7 +1128,7 @@ export function parseSceneProse(sceneContent: string): HierarchicalProse {
 			continue;
 		}
 
-		// Check for prose block: [[link|content]] or plain text
+		// Check for content block: [[link|content]] or plain text
 		const proseMatch = trimmedLine.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
 		if (proseMatch) {
 			const linkName = proseMatch[1].trim();
@@ -1146,7 +1146,7 @@ export function parseSceneProse(sceneContent: string): HierarchicalProse {
 			continue;
 		}
 
-		// Plain text paragraph (new prose block without link)
+		// Plain text paragraph (new content block without link)
 		if (trimmedLine.length > 0) {
 			const paragraph: ParsedParagraph = {
 				content: trimmedLine,
@@ -1165,7 +1165,7 @@ export function parseSceneProse(sceneContent: string): HierarchicalProse {
 }
 
 /**
- * Parse prose blocks from beat content using hierarchical headers
+ * Parse content blocks from beat content using hierarchical headers
  * Format:
  * 
  * ## Beat: [[link|intent -> outcome]]
@@ -1226,7 +1226,7 @@ export function parseBeatProse(beatContent: string): HierarchicalProse {
 			continue;
 		}
 
-		// Check for prose block: [[link|content]] or plain text
+		// Check for content block: [[link|content]] or plain text
 		const proseMatch = trimmedLine.match(/^\s*\[\[([^\|]+)\|([^\]]+)\]\]\s*$/);
 		if (proseMatch) {
 			const linkName = proseMatch[1].trim();
@@ -1244,7 +1244,7 @@ export function parseBeatProse(beatContent: string): HierarchicalProse {
 			continue;
 		}
 
-		// Plain text paragraph (new prose block without link)
+		// Plain text paragraph (new content block without link)
 		if (trimmedLine.length > 0) {
 			const paragraph: ParsedParagraph = {
 				content: trimmedLine,
@@ -1261,3 +1261,4 @@ export function parseBeatProse(beatContent: string): HierarchicalProse {
 
 	return { sections };
 }
+
