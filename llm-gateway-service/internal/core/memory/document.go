@@ -10,11 +10,16 @@ import (
 type SourceType string
 
 const (
-	SourceTypeStory      SourceType = "story"
-	SourceTypeChapter    SourceType = "chapter"
-	SourceTypeScene      SourceType = "scene"
-	SourceTypeBeat       SourceType = "beat"
-	SourceTypeProseBlock SourceType = "prose_block"
+	SourceTypeStory        SourceType = "story"
+	SourceTypeChapter      SourceType = "chapter"
+	SourceTypeScene        SourceType = "scene"
+	SourceTypeBeat         SourceType = "beat"
+	SourceTypeContentBlock SourceType = "content_block"
+	SourceTypeWorld        SourceType = "world"
+	SourceTypeCharacter    SourceType = "character"
+	SourceTypeLocation     SourceType = "location"
+	SourceTypeEvent        SourceType = "event"
+	SourceTypeArtifact     SourceType = "artifact"
 )
 
 // Document represents an embedding document

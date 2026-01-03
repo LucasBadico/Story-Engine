@@ -95,7 +95,42 @@ func main() {
 		embedder,
 		log,
 	)
-	ingestProseBlockUseCase := ingest.NewIngestProseBlockUseCase(
+	ingestContentBlockUseCase := ingest.NewIngestContentBlockUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
+	ingestWorldUseCase := ingest.NewIngestWorldUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
+	ingestCharacterUseCase := ingest.NewIngestCharacterUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
+	ingestLocationUseCase := ingest.NewIngestLocationUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
+	ingestEventUseCase := ingest.NewIngestEventUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
+	ingestArtifactUseCase := ingest.NewIngestArtifactUseCase(
 		grpcClient,
 		documentRepo,
 		chunkRepo,
@@ -117,7 +152,12 @@ func main() {
 		ingestionQueue,
 		ingestStoryUseCase,
 		ingestChapterUseCase,
-		ingestProseBlockUseCase,
+		ingestContentBlockUseCase,
+		ingestWorldUseCase,
+		ingestCharacterUseCase,
+		ingestLocationUseCase,
+		ingestEventUseCase,
+		ingestArtifactUseCase,
 		log,
 		cfg,
 	)

@@ -54,23 +54,23 @@ func (m *MockIngestChapterUseCase) Execute(ctx context.Context, input IngestChap
 	return m.Output, nil
 }
 
-// MockIngestProseBlockUseCase is a mock implementation of IngestProseBlockUseCase for testing
-type MockIngestProseBlockUseCase struct {
+// MockIngestContentBlockUseCase is a mock implementation of IngestContentBlockUseCase for testing
+type MockIngestContentBlockUseCase struct {
 	Called bool
 	Error  error
-	Output *IngestProseBlockOutput
+	Output *IngestContentBlockOutput
 }
 
-func NewMockIngestProseBlockUseCase() *MockIngestProseBlockUseCase {
-	return &MockIngestProseBlockUseCase{
-		Output: &IngestProseBlockOutput{
+func NewMockIngestContentBlockUseCase() *MockIngestContentBlockUseCase {
+	return &MockIngestContentBlockUseCase{
+		Output: &IngestContentBlockOutput{
 			DocumentID: uuid.New(),
 			ChunkCount: 1,
 		},
 	}
 }
 
-func (m *MockIngestProseBlockUseCase) Execute(ctx context.Context, input IngestProseBlockInput) (*IngestProseBlockOutput, error) {
+func (m *MockIngestContentBlockUseCase) Execute(ctx context.Context, input IngestContentBlockInput) (*IngestContentBlockOutput, error) {
 	m.Called = true
 	if m.Error != nil {
 		return nil, m.Error

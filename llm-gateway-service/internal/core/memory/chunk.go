@@ -29,8 +29,23 @@ type Chunk struct {
 	Timeline     *string    `json:"timeline,omitempty"`
 	POVCharacter *string    `json:"pov_character,omitempty"`
 
-	// Tipo do bloco
-	ProseKind *string `json:"prose_kind,omitempty"`
+	// Content Block metadata
+	ContentType *string `json:"content_type,omitempty"` // text, image, video, etc.
+	ContentKind *string `json:"content_kind,omitempty"` // final, alt_a, draft, etc.
+
+	// World entity metadata
+	WorldID       *uuid.UUID `json:"world_id,omitempty"`
+	WorldName     *string    `json:"world_name,omitempty"`
+	WorldGenre    *string    `json:"world_genre,omitempty"`
+	EntityName    *string    `json:"entity_name,omitempty"` // nome da entidade (character, location, etc)
+	EventTimeline *string    `json:"event_timeline,omitempty"`
+	Importance    *int       `json:"importance,omitempty"` // para events
+
+	// Relacionamentos World
+	RelatedCharacters []string `json:"related_characters,omitempty"`
+	RelatedLocations  []string `json:"related_locations,omitempty"`
+	RelatedArtifacts  []string `json:"related_artifacts,omitempty"`
+	RelatedEvents     []string `json:"related_events,omitempty"`
 }
 
 // NewChunk creates a new chunk

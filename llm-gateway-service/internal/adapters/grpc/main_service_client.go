@@ -10,22 +10,33 @@ import (
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	beatpb "github.com/story-engine/main-service/proto/beat"
-	prosepb "github.com/story-engine/main-service/proto/prose"
+	contentblockpb "github.com/story-engine/main-service/proto/content_block"
+	worldpb "github.com/story-engine/main-service/proto/world"
+	characterpb "github.com/story-engine/main-service/proto/character"
+	locationpb "github.com/story-engine/main-service/proto/location"
+	eventpb "github.com/story-engine/main-service/proto/event"
+	artifactpb "github.com/story-engine/main-service/proto/artifact"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var _ grpcclient.MainServiceClient = (*MainServiceClient)(nil)
 
 // MainServiceClient implements the gRPC client interface for main-service
 type MainServiceClient struct {
-	storyClient              storypb.StoryServiceClient
-	chapterClient            chapterpb.ChapterServiceClient
-	sceneClient              scenepb.SceneServiceClient
-	beatClient               beatpb.BeatServiceClient
-	proseClient              prosepb.ProseBlockServiceClient
-	proseReferenceClient     prosepb.ProseBlockReferenceServiceClient
-	conn                     *grpclib.ClientConn
+	storyClient                storypb.StoryServiceClient
+	chapterClient              chapterpb.ChapterServiceClient
+	sceneClient                scenepb.SceneServiceClient
+	beatClient                 beatpb.BeatServiceClient
+	contentBlockClient         contentblockpb.ContentBlockServiceClient
+	contentBlockReferenceClient contentblockpb.ContentBlockReferenceServiceClient
+	worldClient                worldpb.WorldServiceClient
+	characterClient            characterpb.CharacterServiceClient
+	locationClient             locationpb.LocationServiceClient
+	eventClient                eventpb.EventServiceClient
+	artifactClient             artifactpb.ArtifactServiceClient
+	conn                       *grpclib.ClientConn
 }
 
 // NewMainServiceClient creates a new gRPC client for main-service
@@ -36,13 +47,18 @@ func NewMainServiceClient(addr string) (*MainServiceClient, error) {
 	}
 
 	return &MainServiceClient{
-		storyClient:          storypb.NewStoryServiceClient(conn),
-		chapterClient:       chapterpb.NewChapterServiceClient(conn),
-		sceneClient:         scenepb.NewSceneServiceClient(conn),
-		beatClient:          beatpb.NewBeatServiceClient(conn),
-		proseClient:         prosepb.NewProseBlockServiceClient(conn),
-		proseReferenceClient: prosepb.NewProseBlockReferenceServiceClient(conn),
-		conn:                 conn,
+		storyClient:                storypb.NewStoryServiceClient(conn),
+		chapterClient:              chapterpb.NewChapterServiceClient(conn),
+		sceneClient:                scenepb.NewSceneServiceClient(conn),
+		beatClient:                 beatpb.NewBeatServiceClient(conn),
+		contentBlockClient:         contentblockpb.NewContentBlockServiceClient(conn),
+		contentBlockReferenceClient: contentblockpb.NewContentBlockReferenceServiceClient(conn),
+		worldClient:                worldpb.NewWorldServiceClient(conn),
+		characterClient:            characterpb.NewCharacterServiceClient(conn),
+		locationClient:             locationpb.NewLocationServiceClient(conn),
+		eventClient:                eventpb.NewEventServiceClient(conn),
+		artifactClient:             artifactpb.NewArtifactServiceClient(conn),
+		conn:                       conn,
 	}, nil
 }
 
@@ -99,47 +115,47 @@ func (c *MainServiceClient) GetBeat(ctx context.Context, beatID uuid.UUID) (*grp
 	return protoToBeat(resp.Beat), nil
 }
 
-// GetProseBlock retrieves a prose block by ID
-func (c *MainServiceClient) GetProseBlock(ctx context.Context, proseBlockID uuid.UUID) (*grpcclient.ProseBlock, error) {
-	resp, err := c.proseClient.GetProseBlock(ctx, &prosepb.GetProseBlockRequest{
-		Id: proseBlockID.String(),
+// GetContentBlock retrieves a content block by ID
+func (c *MainServiceClient) GetContentBlock(ctx context.Context, contentBlockID uuid.UUID) (*grpcclient.ContentBlock, error) {
+	resp, err := c.contentBlockClient.GetContentBlock(ctx, &contentblockpb.GetContentBlockRequest{
+		Id: contentBlockID.String(),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return protoToProseBlock(resp.ProseBlock), nil
+	return protoToContentBlock(resp.ContentBlock), nil
 }
 
-// ListProseBlocksByChapter lists prose blocks for a chapter
-func (c *MainServiceClient) ListProseBlocksByChapter(ctx context.Context, chapterID uuid.UUID) ([]*grpcclient.ProseBlock, error) {
-	resp, err := c.proseClient.ListProseBlocksByChapter(ctx, &prosepb.ListProseBlocksByChapterRequest{
+// ListContentBlocksByChapter lists content blocks for a chapter
+func (c *MainServiceClient) ListContentBlocksByChapter(ctx context.Context, chapterID uuid.UUID) ([]*grpcclient.ContentBlock, error) {
+	resp, err := c.contentBlockClient.ListContentBlocksByChapter(ctx, &contentblockpb.ListContentBlocksByChapterRequest{
 		ChapterId: chapterID.String(),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	proseBlocks := make([]*grpcclient.ProseBlock, len(resp.ProseBlocks))
-	for i, pb := range resp.ProseBlocks {
-		proseBlocks[i] = protoToProseBlock(pb)
+	contentBlocks := make([]*grpcclient.ContentBlock, len(resp.ContentBlocks))
+	for i, cb := range resp.ContentBlocks {
+		contentBlocks[i] = protoToContentBlock(cb)
 	}
 
-	return proseBlocks, nil
+	return contentBlocks, nil
 }
 
-// ListProseBlockReferences lists references for a prose block
-func (c *MainServiceClient) ListProseBlockReferences(ctx context.Context, proseBlockID uuid.UUID) ([]*grpcclient.ProseBlockReference, error) {
-	resp, err := c.proseReferenceClient.ListProseBlockReferencesByProseBlock(ctx, &prosepb.ListProseBlockReferencesByProseBlockRequest{
-		ProseBlockId: proseBlockID.String(),
+// ListContentBlockReferences lists references for a content block
+func (c *MainServiceClient) ListContentBlockReferences(ctx context.Context, contentBlockID uuid.UUID) ([]*grpcclient.ContentBlockReference, error) {
+	resp, err := c.contentBlockReferenceClient.ListContentBlockReferencesByContentBlock(ctx, &contentblockpb.ListContentBlockReferencesByContentBlockRequest{
+		ContentBlockId: contentBlockID.String(),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	references := make([]*grpcclient.ProseBlockReference, len(resp.References))
+	references := make([]*grpcclient.ContentBlockReference, len(resp.References))
 	for i, ref := range resp.References {
-		references[i] = protoToProseBlockReference(ref)
+		references[i] = protoToContentBlockReference(ref)
 	}
 
 	return references, nil
@@ -222,33 +238,371 @@ func protoToBeat(b *beatpb.Beat) *grpcclient.Beat {
 	}
 }
 
-func protoToProseBlock(pb *prosepb.ProseBlock) *grpcclient.ProseBlock {
-	proseID, _ := uuid.Parse(pb.Id)
-	chapterID, _ := uuid.Parse(pb.ChapterId)
+func protoToContentBlock(cb *contentblockpb.ContentBlock) *grpcclient.ContentBlock {
+	contentBlockID, _ := uuid.Parse(cb.Id)
 
-	return &grpcclient.ProseBlock{
-		ID:        proseID,
-		ChapterID: chapterID,
-		OrderNum:  int(pb.OrderNum),
-		Kind:      pb.Kind,
-		Content:   pb.Content,
-		WordCount: int(pb.WordCount),
-		CreatedAt: pb.CreatedAt.Seconds,
-		UpdatedAt: pb.UpdatedAt.Seconds,
+	contentBlock := &grpcclient.ContentBlock{
+		ID:        contentBlockID,
+		Type:      cb.Type,
+		Kind:      cb.Kind,
+		Content:   cb.Content,
+		CreatedAt: cb.CreatedAt.Seconds,
+		UpdatedAt: cb.UpdatedAt.Seconds,
+	}
+
+	if cb.ChapterId != nil {
+		chapterID, _ := uuid.Parse(*cb.ChapterId)
+		contentBlock.ChapterID = &chapterID
+	}
+	if cb.OrderNum != nil {
+		orderNum := int(*cb.OrderNum)
+		contentBlock.OrderNum = &orderNum
+	}
+
+	// Convert metadata from structpb.Struct to map[string]interface{}
+	if cb.Metadata != nil {
+		contentBlock.Metadata = cb.Metadata.AsMap()
+	} else {
+		contentBlock.Metadata = make(map[string]interface{})
+	}
+
+	return contentBlock
+}
+
+func protoToContentBlockReference(ref *contentblockpb.ContentBlockReference) *grpcclient.ContentBlockReference {
+	refID, _ := uuid.Parse(ref.Id)
+	contentBlockID, _ := uuid.Parse(ref.ContentBlockId)
+	entityID, _ := uuid.Parse(ref.EntityId)
+
+	return &grpcclient.ContentBlockReference{
+		ID:            refID,
+		ContentBlockID: contentBlockID,
+		EntityType:    ref.EntityType,
+		EntityID:      entityID,
+		CreatedAt:     ref.CreatedAt.Seconds,
 	}
 }
 
-func protoToProseBlockReference(ref *prosepb.ProseBlockReference) *grpcclient.ProseBlockReference {
+// World entity methods
+
+// GetWorld retrieves a world by ID
+func (c *MainServiceClient) GetWorld(ctx context.Context, worldID uuid.UUID) (*grpcclient.World, error) {
+	resp, err := c.worldClient.GetWorld(ctx, &worldpb.GetWorldRequest{
+		Id: worldID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToWorld(resp.World), nil
+}
+
+// GetCharacter retrieves a character by ID
+func (c *MainServiceClient) GetCharacter(ctx context.Context, characterID uuid.UUID) (*grpcclient.Character, error) {
+	resp, err := c.characterClient.GetCharacter(ctx, &characterpb.GetCharacterRequest{
+		Id: characterID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToCharacter(resp.Character), nil
+}
+
+// GetLocation retrieves a location by ID
+func (c *MainServiceClient) GetLocation(ctx context.Context, locationID uuid.UUID) (*grpcclient.Location, error) {
+	resp, err := c.locationClient.GetLocation(ctx, &locationpb.GetLocationRequest{
+		Id: locationID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToLocation(resp.Location), nil
+}
+
+// GetEvent retrieves an event by ID
+func (c *MainServiceClient) GetEvent(ctx context.Context, eventID uuid.UUID) (*grpcclient.Event, error) {
+	resp, err := c.eventClient.GetEvent(ctx, &eventpb.GetEventRequest{
+		Id: eventID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToEvent(resp.Event), nil
+}
+
+// GetArtifact retrieves an artifact by ID
+func (c *MainServiceClient) GetArtifact(ctx context.Context, artifactID uuid.UUID) (*grpcclient.Artifact, error) {
+	resp, err := c.artifactClient.GetArtifact(ctx, &artifactpb.GetArtifactRequest{
+		Id: artifactID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToArtifact(resp.Artifact), nil
+}
+
+// GetCharacterTraits retrieves traits for a character
+func (c *MainServiceClient) GetCharacterTraits(ctx context.Context, characterID uuid.UUID) ([]*grpcclient.CharacterTrait, error) {
+	resp, err := c.characterClient.GetCharacterTraits(ctx, &characterpb.GetCharacterTraitsRequest{
+		CharacterId: characterID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	traits := make([]*grpcclient.CharacterTrait, len(resp.Traits))
+	for i, t := range resp.Traits {
+		traits[i] = protoToCharacterTrait(t)
+	}
+	return traits, nil
+}
+
+// GetEventCharacters retrieves characters for an event
+func (c *MainServiceClient) GetEventCharacters(ctx context.Context, eventID uuid.UUID) ([]*grpcclient.EventCharacter, error) {
+	resp, err := c.eventClient.GetEventCharacters(ctx, &eventpb.GetEventCharactersRequest{
+		EventId: eventID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	eventChars := make([]*grpcclient.EventCharacter, len(resp.Characters))
+	for i, ec := range resp.Characters {
+		eventChars[i] = protoToEventCharacter(ec)
+	}
+	return eventChars, nil
+}
+
+// GetEventLocations retrieves locations for an event
+func (c *MainServiceClient) GetEventLocations(ctx context.Context, eventID uuid.UUID) ([]*grpcclient.EventLocation, error) {
+	resp, err := c.eventClient.GetEventLocations(ctx, &eventpb.GetEventLocationsRequest{
+		EventId: eventID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	eventLocs := make([]*grpcclient.EventLocation, len(resp.Locations))
+	for i, el := range resp.Locations {
+		eventLocs[i] = protoToEventLocation(el)
+	}
+	return eventLocs, nil
+}
+
+// GetEventArtifacts retrieves artifacts for an event
+func (c *MainServiceClient) GetEventArtifacts(ctx context.Context, eventID uuid.UUID) ([]*grpcclient.EventArtifact, error) {
+	resp, err := c.eventClient.GetEventArtifacts(ctx, &eventpb.GetEventArtifactsRequest{
+		EventId: eventID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	eventArts := make([]*grpcclient.EventArtifact, len(resp.Artifacts))
+	for i, ea := range resp.Artifacts {
+		eventArts[i] = protoToEventArtifact(ea)
+	}
+	return eventArts, nil
+}
+
+// ListSceneReferences lists references for a scene
+func (c *MainServiceClient) ListSceneReferences(ctx context.Context, sceneID uuid.UUID) ([]*grpcclient.SceneReference, error) {
+	resp, err := c.sceneClient.GetSceneReferences(ctx, &scenepb.GetSceneReferencesRequest{
+		SceneId: sceneID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	refs := make([]*grpcclient.SceneReference, len(resp.References))
+	for i, ref := range resp.References {
+		refs[i] = protoToSceneReference(ref)
+	}
+	return refs, nil
+}
+
+// Helper functions to convert proto to domain models for World entities
+
+func protoToWorld(w *worldpb.World) *grpcclient.World {
+	worldID, _ := uuid.Parse(w.Id)
+	tenantID, _ := uuid.Parse(w.TenantId)
+
+	return &grpcclient.World{
+		ID:          worldID,
+		TenantID:    tenantID,
+		Name:        w.Name,
+		Description: w.Description,
+		Genre:       w.Genre,
+		IsImplicit:  w.IsImplicit,
+		CreatedAt:   w.CreatedAt.Seconds,
+		UpdatedAt:   w.UpdatedAt.Seconds,
+	}
+}
+
+func protoToCharacter(ch *characterpb.Character) *grpcclient.Character {
+	charID, _ := uuid.Parse(ch.Id)
+	worldID, _ := uuid.Parse(ch.WorldId)
+
+	char := &grpcclient.Character{
+		ID:          charID,
+		WorldID:     worldID,
+		Name:        ch.Name,
+		Description: ch.Description,
+		CreatedAt:    ch.CreatedAt.Seconds,
+		UpdatedAt:   ch.UpdatedAt.Seconds,
+	}
+
+	if ch.ArchetypeId != "" {
+		archetypeID, _ := uuid.Parse(ch.ArchetypeId)
+		char.ArchetypeID = &archetypeID
+	}
+
+	return char
+}
+
+func protoToCharacterTrait(ct *characterpb.CharacterTrait) *grpcclient.CharacterTrait {
+	traitID, _ := uuid.Parse(ct.Id)
+	charID, _ := uuid.Parse(ct.CharacterId)
+	traitID2, _ := uuid.Parse(ct.TraitId)
+
+	return &grpcclient.CharacterTrait{
+		ID:          traitID,
+		CharacterID: charID,
+		TraitID:     traitID2,
+		TraitName:   ct.TraitName,
+		Value:       ct.Value,
+		Notes:       ct.Notes,
+		CreatedAt:   ct.CreatedAt.Seconds,
+		UpdatedAt:   ct.UpdatedAt.Seconds,
+	}
+}
+
+func protoToLocation(loc *locationpb.Location) *grpcclient.Location {
+	locID, _ := uuid.Parse(loc.Id)
+	worldID, _ := uuid.Parse(loc.WorldId)
+
+	location := &grpcclient.Location{
+		ID:             locID,
+		WorldID:        worldID,
+		Name:           loc.Name,
+		Type:           loc.Type,
+		Description:    loc.Description,
+		HierarchyLevel: int(loc.HierarchyLevel),
+		CreatedAt:      loc.CreatedAt.Seconds,
+		UpdatedAt:      loc.UpdatedAt.Seconds,
+	}
+
+	if loc.ParentId != "" {
+		parentID, _ := uuid.Parse(loc.ParentId)
+		location.ParentID = &parentID
+	}
+
+	return location
+}
+
+func protoToEvent(e *eventpb.Event) *grpcclient.Event {
+	eventID, _ := uuid.Parse(e.Id)
+	worldID, _ := uuid.Parse(e.WorldId)
+
+	event := &grpcclient.Event{
+		ID:         eventID,
+		WorldID:    worldID,
+		Name:       e.Name,
+		Importance: int(e.Importance),
+		CreatedAt:  e.CreatedAt.Seconds,
+		UpdatedAt:  e.UpdatedAt.Seconds,
+	}
+
+	if e.Type != nil {
+		event.Type = e.Type
+	}
+	if e.Description != nil {
+		event.Description = e.Description
+	}
+	if e.Timeline != nil {
+		event.Timeline = e.Timeline
+	}
+
+	return event
+}
+
+func protoToEventCharacter(ec *eventpb.EventCharacter) *grpcclient.EventCharacter {
+	ecID, _ := uuid.Parse(ec.Id)
+	eventID, _ := uuid.Parse(ec.EventId)
+	charID, _ := uuid.Parse(ec.CharacterId)
+
+	eventChar := &grpcclient.EventCharacter{
+		ID:          ecID,
+		EventID:     eventID,
+		CharacterID: charID,
+		CreatedAt:   ec.CreatedAt.Seconds,
+	}
+
+	if ec.Role != nil {
+		eventChar.Role = ec.Role
+	}
+
+	return eventChar
+}
+
+func protoToEventLocation(el *eventpb.EventLocation) *grpcclient.EventLocation {
+	elID, _ := uuid.Parse(el.Id)
+	eventID, _ := uuid.Parse(el.EventId)
+	locID, _ := uuid.Parse(el.LocationId)
+
+	eventLoc := &grpcclient.EventLocation{
+		ID:         elID,
+		EventID:    eventID,
+		LocationID: locID,
+		CreatedAt:  el.CreatedAt.Seconds,
+	}
+
+	if el.Significance != nil {
+		eventLoc.Significance = el.Significance
+	}
+
+	return eventLoc
+}
+
+func protoToEventArtifact(ea *eventpb.EventArtifact) *grpcclient.EventArtifact {
+	eaID, _ := uuid.Parse(ea.Id)
+	eventID, _ := uuid.Parse(ea.EventId)
+	artifactID, _ := uuid.Parse(ea.ArtifactId)
+
+	eventArt := &grpcclient.EventArtifact{
+		ID:         eaID,
+		EventID:    eventID,
+		ArtifactID: artifactID,
+		CreatedAt:  ea.CreatedAt.Seconds,
+	}
+
+	if ea.Role != nil {
+		eventArt.Role = ea.Role
+	}
+
+	return eventArt
+}
+
+func protoToArtifact(a *artifactpb.Artifact) *grpcclient.Artifact {
+	artifactID, _ := uuid.Parse(a.Id)
+	worldID, _ := uuid.Parse(a.WorldId)
+
+	return &grpcclient.Artifact{
+		ID:          artifactID,
+		WorldID:     worldID,
+		Name:        a.Name,
+		Description: a.Description,
+		Rarity:      a.Rarity,
+		CreatedAt:   a.CreatedAt.Seconds,
+		UpdatedAt:   a.UpdatedAt.Seconds,
+	}
+}
+
+func protoToSceneReference(ref *scenepb.SceneReference) *grpcclient.SceneReference {
 	refID, _ := uuid.Parse(ref.Id)
-	proseBlockID, _ := uuid.Parse(ref.ProseBlockId)
+	sceneID, _ := uuid.Parse(ref.SceneId)
 	entityID, _ := uuid.Parse(ref.EntityId)
 
-	return &grpcclient.ProseBlockReference{
-		ID:          refID,
-		ProseBlockID: proseBlockID,
-		EntityType:  ref.EntityType,
-		EntityID:    entityID,
-		CreatedAt:   ref.CreatedAt.Seconds,
+	return &grpcclient.SceneReference{
+		ID:         refID,
+		SceneID:    sceneID,
+		EntityType: ref.EntityType,
+		EntityID:   entityID,
+		CreatedAt:  ref.CreatedAt.Seconds,
 	}
 }
 

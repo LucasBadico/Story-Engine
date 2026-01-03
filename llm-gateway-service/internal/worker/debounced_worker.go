@@ -15,14 +15,19 @@ import (
 
 // DebouncedWorker processes ingestion queue items with debounce
 type DebouncedWorker struct {
-	queue            queue.IngestionQueue
-	ingestStory      *ingest.IngestStoryUseCase
-	ingestChapter    *ingest.IngestChapterUseCase
-	ingestProseBlock *ingest.IngestProseBlockUseCase
-	logger           *logger.Logger
-	debounceInterval time.Duration
-	pollInterval     time.Duration
-	batchSize        int
+	queue              queue.IngestionQueue
+	ingestStory        *ingest.IngestStoryUseCase
+	ingestChapter      *ingest.IngestChapterUseCase
+	ingestContentBlock *ingest.IngestContentBlockUseCase
+	ingestWorld        *ingest.IngestWorldUseCase
+	ingestCharacter    *ingest.IngestCharacterUseCase
+	ingestLocation     *ingest.IngestLocationUseCase
+	ingestEvent        *ingest.IngestEventUseCase
+	ingestArtifact     *ingest.IngestArtifactUseCase
+	logger             *logger.Logger
+	debounceInterval   time.Duration
+	pollInterval       time.Duration
+	batchSize          int
 }
 
 // NewDebouncedWorker creates a new debounced worker
@@ -30,19 +35,29 @@ func NewDebouncedWorker(
 	queue queue.IngestionQueue,
 	ingestStory *ingest.IngestStoryUseCase,
 	ingestChapter *ingest.IngestChapterUseCase,
-	ingestProseBlock *ingest.IngestProseBlockUseCase,
+	ingestContentBlock *ingest.IngestContentBlockUseCase,
+	ingestWorld *ingest.IngestWorldUseCase,
+	ingestCharacter *ingest.IngestCharacterUseCase,
+	ingestLocation *ingest.IngestLocationUseCase,
+	ingestEvent *ingest.IngestEventUseCase,
+	ingestArtifact *ingest.IngestArtifactUseCase,
 	logger *logger.Logger,
 	cfg *config.Config,
 ) *DebouncedWorker {
 	return &DebouncedWorker{
-		queue:            queue,
-		ingestStory:      ingestStory,
-		ingestChapter:    ingestChapter,
-		ingestProseBlock: ingestProseBlock,
-		logger:           logger,
-		debounceInterval: time.Duration(cfg.Worker.DebounceMinutes) * time.Minute,
-		pollInterval:     time.Duration(cfg.Worker.PollSeconds) * time.Second,
-		batchSize:        cfg.Worker.BatchSize,
+		queue:              queue,
+		ingestStory:        ingestStory,
+		ingestChapter:      ingestChapter,
+		ingestContentBlock: ingestContentBlock,
+		ingestWorld:        ingestWorld,
+		ingestCharacter:    ingestCharacter,
+		ingestLocation:     ingestLocation,
+		ingestEvent:        ingestEvent,
+		ingestArtifact:     ingestArtifact,
+		logger:             logger,
+		debounceInterval:   time.Duration(cfg.Worker.DebounceMinutes) * time.Minute,
+		pollInterval:       time.Duration(cfg.Worker.PollSeconds) * time.Second,
+		batchSize:          cfg.Worker.BatchSize,
 	}
 }
 
@@ -154,15 +169,65 @@ func (w *DebouncedWorker) processItem(ctx context.Context, item *queue.QueueItem
 		}
 		w.logger.Info("Successfully ingested chapter", "chapter_id", item.SourceID)
 
-	case memory.SourceTypeProseBlock:
-		_, err := w.ingestProseBlock.Execute(ctx, ingest.IngestProseBlockInput{
-			TenantID:     item.TenantID,
-			ProseBlockID: item.SourceID,
+	case memory.SourceTypeContentBlock:
+		_, err := w.ingestContentBlock.Execute(ctx, ingest.IngestContentBlockInput{
+			TenantID:       item.TenantID,
+			ContentBlockID: item.SourceID,
 		})
 		if err != nil {
-			return fmt.Errorf("failed to ingest prose block: %w", err)
+			return fmt.Errorf("failed to ingest content block: %w", err)
 		}
-		w.logger.Info("Successfully ingested prose block", "prose_block_id", item.SourceID)
+		w.logger.Info("Successfully ingested content block", "content_block_id", item.SourceID)
+
+	case memory.SourceTypeWorld:
+		_, err := w.ingestWorld.Execute(ctx, ingest.IngestWorldInput{
+			TenantID: item.TenantID,
+			WorldID:  item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest world: %w", err)
+		}
+		w.logger.Info("Successfully ingested world", "world_id", item.SourceID)
+
+	case memory.SourceTypeCharacter:
+		_, err := w.ingestCharacter.Execute(ctx, ingest.IngestCharacterInput{
+			TenantID:    item.TenantID,
+			CharacterID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest character: %w", err)
+		}
+		w.logger.Info("Successfully ingested character", "character_id", item.SourceID)
+
+	case memory.SourceTypeLocation:
+		_, err := w.ingestLocation.Execute(ctx, ingest.IngestLocationInput{
+			TenantID:   item.TenantID,
+			LocationID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest location: %w", err)
+		}
+		w.logger.Info("Successfully ingested location", "location_id", item.SourceID)
+
+	case memory.SourceTypeEvent:
+		_, err := w.ingestEvent.Execute(ctx, ingest.IngestEventInput{
+			TenantID: item.TenantID,
+			EventID:  item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest event: %w", err)
+		}
+		w.logger.Info("Successfully ingested event", "event_id", item.SourceID)
+
+	case memory.SourceTypeArtifact:
+		_, err := w.ingestArtifact.Execute(ctx, ingest.IngestArtifactInput{
+			TenantID:   item.TenantID,
+			ArtifactID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest artifact: %w", err)
+		}
+		w.logger.Info("Successfully ingested artifact", "artifact_id", item.SourceID)
 
 	default:
 		return fmt.Errorf("unsupported source type: %s", item.SourceType)

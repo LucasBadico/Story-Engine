@@ -13,20 +13,20 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/ports/repositories"
 )
 
-// IngestChapterInput is the input for ingesting a chapter
-type IngestChapterInput struct {
-	TenantID  uuid.UUID
-	ChapterID uuid.UUID
+// IngestArtifactInput is the input for ingesting an artifact
+type IngestArtifactInput struct {
+	TenantID   uuid.UUID
+	ArtifactID uuid.UUID
 }
 
-// IngestChapterOutput is the output after ingesting a chapter
-type IngestChapterOutput struct {
+// IngestArtifactOutput is the output after ingesting an artifact
+type IngestArtifactOutput struct {
 	DocumentID uuid.UUID
 	ChunkCount int
 }
 
-// IngestChapterUseCase handles chapter ingestion
-type IngestChapterUseCase struct {
+// IngestArtifactUseCase handles artifact ingestion
+type IngestArtifactUseCase struct {
 	mainServiceClient grpcclient.MainServiceClient
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
@@ -34,15 +34,15 @@ type IngestChapterUseCase struct {
 	logger            *logger.Logger
 }
 
-// NewIngestChapterUseCase creates a new IngestChapterUseCase
-func NewIngestChapterUseCase(
+// NewIngestArtifactUseCase creates a new IngestArtifactUseCase
+func NewIngestArtifactUseCase(
 	mainServiceClient grpcclient.MainServiceClient,
 	documentRepo repositories.DocumentRepository,
 	chunkRepo repositories.ChunkRepository,
 	embedder embeddings.Embedder,
 	logger *logger.Logger,
-) *IngestChapterUseCase {
-	return &IngestChapterUseCase{
+) *IngestArtifactUseCase {
+	return &IngestArtifactUseCase{
 		mainServiceClient: mainServiceClient,
 		documentRepo:     documentRepo,
 		chunkRepo:        chunkRepo,
@@ -51,29 +51,29 @@ func NewIngestChapterUseCase(
 	}
 }
 
-// Execute ingests a chapter by fetching its content and generating embeddings
-func (uc *IngestChapterUseCase) Execute(ctx context.Context, input IngestChapterInput) (*IngestChapterOutput, error) {
-	// Fetch chapter from main-service
-	chapter, err := uc.mainServiceClient.GetChapter(ctx, input.ChapterID)
+// Execute ingests an artifact by fetching its content and generating embeddings
+func (uc *IngestArtifactUseCase) Execute(ctx context.Context, input IngestArtifactInput) (*IngestArtifactOutput, error) {
+	// Fetch artifact from main-service
+	artifact, err := uc.mainServiceClient.GetArtifact(ctx, input.ArtifactID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch chapter: %w", err)
+		return nil, fmt.Errorf("failed to fetch artifact: %w", err)
 	}
 
-	// Fetch content blocks for the chapter
-	contentBlocks, err := uc.mainServiceClient.ListContentBlocksByChapter(ctx, input.ChapterID)
+	// Fetch world to get world metadata
+	world, err := uc.mainServiceClient.GetWorld(ctx, artifact.WorldID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch content blocks: %w", err)
+		uc.logger.Warn("failed to fetch world", "world_id", artifact.WorldID, "error", err)
 	}
 
-	// Build content from chapter and content blocks
-	content := uc.buildChapterContent(chapter, contentBlocks)
+	// Build content from artifact
+	content := uc.buildArtifactContent(artifact, world)
 
 	// Create or update document
 	doc := memory.NewDocument(
 		input.TenantID,
-		memory.SourceTypeChapter,
-		input.ChapterID,
-		chapter.Title,
+		memory.SourceTypeArtifact,
+		input.ArtifactID,
+		artifact.Name,
 		content,
 	)
 
@@ -82,7 +82,7 @@ func (uc *IngestChapterUseCase) Execute(ctx context.Context, input IngestChapter
 	}
 
 	// Check if document already exists
-	existingDoc, err := uc.documentRepo.GetBySource(ctx, input.TenantID, memory.SourceTypeChapter, input.ChapterID)
+	existingDoc, err := uc.documentRepo.GetBySource(ctx, input.TenantID, memory.SourceTypeArtifact, input.ArtifactID)
 	if err == nil && existingDoc != nil {
 		// Update existing document
 		doc.ID = existingDoc.ID
@@ -102,7 +102,7 @@ func (uc *IngestChapterUseCase) Execute(ctx context.Context, input IngestChapter
 	}
 
 	// Chunk content and generate embeddings
-	chunks, err := uc.chunkAndEmbed(ctx, doc.ID, content)
+	chunks, err := uc.chunkAndEmbed(ctx, doc.ID, artifact, world, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to chunk and embed: %w", err)
 	}
@@ -112,35 +112,32 @@ func (uc *IngestChapterUseCase) Execute(ctx context.Context, input IngestChapter
 		return nil, fmt.Errorf("failed to save chunks: %w", err)
 	}
 
-	uc.logger.Info("Chapter ingested successfully", "chapter_id", input.ChapterID, "chunks", len(chunks))
+	uc.logger.Info("Artifact ingested successfully", "artifact_id", input.ArtifactID, "chunks", len(chunks))
 
-	return &IngestChapterOutput{
+	return &IngestArtifactOutput{
 		DocumentID: doc.ID,
 		ChunkCount: len(chunks),
 	}, nil
 }
 
-// buildChapterContent builds content string from chapter and content blocks
-func (uc *IngestChapterUseCase) buildChapterContent(chapter *grpcclient.Chapter, contentBlocks []*grpcclient.ContentBlock) string {
+// buildArtifactContent builds content string from artifact
+func (uc *IngestArtifactUseCase) buildArtifactContent(artifact *grpcclient.Artifact, world *grpcclient.World) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Chapter %d: %s", chapter.Number, chapter.Title))
-	parts = append(parts, fmt.Sprintf("Status: %s", chapter.Status))
-	parts = append(parts, "")
-
-	// Add content blocks content (only text type)
-	for _, cb := range contentBlocks {
-		if cb.Type == "text" {
-			parts = append(parts, cb.Content)
-			parts = append(parts, "")
-		}
+	parts = append(parts, fmt.Sprintf("Artifact: %s", artifact.Name))
+	if artifact.Description != "" {
+		parts = append(parts, fmt.Sprintf("Description: %s", artifact.Description))
 	}
-
+	if artifact.Rarity != "" {
+		parts = append(parts, fmt.Sprintf("Rarity: %s", artifact.Rarity))
+	}
+	if world != nil {
+		parts = append(parts, fmt.Sprintf("World: %s", world.Name))
+	}
 	return strings.Join(parts, "\n")
 }
 
-// chunkAndEmbed chunks content and generates embeddings (same as IngestStoryUseCase)
-func (uc *IngestChapterUseCase) chunkAndEmbed(ctx context.Context, documentID uuid.UUID, content string) ([]*memory.Chunk, error) {
-	// Simple chunking: split by paragraphs
+// chunkAndEmbed chunks content and generates embeddings with artifact metadata
+func (uc *IngestArtifactUseCase) chunkAndEmbed(ctx context.Context, documentID uuid.UUID, artifact *grpcclient.Artifact, world *grpcclient.World, content string) ([]*memory.Chunk, error) {
 	paragraphs := strings.Split(content, "\n\n")
 	chunks := make([]*memory.Chunk, 0, len(paragraphs))
 
@@ -150,16 +147,24 @@ func (uc *IngestChapterUseCase) chunkAndEmbed(ctx context.Context, documentID uu
 			continue
 		}
 
-		// Generate embedding
 		embedding, err := uc.embedder.EmbedText(para)
 		if err != nil {
 			return nil, fmt.Errorf("failed to generate embedding: %w", err)
 		}
 
-		// Estimate token count
 		tokenCount := len(para) / 4
-
 		chunk := memory.NewChunk(documentID, i, para, embedding, tokenCount)
+
+		// Set world metadata
+		chunk.WorldID = &artifact.WorldID
+		if world != nil {
+			chunk.WorldName = &world.Name
+			if world.Genre != "" {
+				chunk.WorldGenre = &world.Genre
+			}
+		}
+		chunk.EntityName = &artifact.Name
+
 		if err := chunk.Validate(); err != nil {
 			return nil, fmt.Errorf("invalid chunk: %w", err)
 		}

@@ -13,20 +13,20 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/ports/repositories"
 )
 
-// IngestProseBlockInput is the input for ingesting a prose block
-type IngestProseBlockInput struct {
-	TenantID    uuid.UUID
-	ProseBlockID uuid.UUID
+// IngestContentBlockInput is the input for ingesting a content block
+type IngestContentBlockInput struct {
+	TenantID       uuid.UUID
+	ContentBlockID uuid.UUID
 }
 
-// IngestProseBlockOutput is the output after ingesting a prose block
-type IngestProseBlockOutput struct {
+// IngestContentBlockOutput is the output after ingesting a content block
+type IngestContentBlockOutput struct {
 	DocumentID uuid.UUID
 	ChunkCount int
 }
 
-// IngestProseBlockUseCase handles prose block ingestion with enriched metadata
-type IngestProseBlockUseCase struct {
+// IngestContentBlockUseCase handles content block ingestion with enriched metadata
+type IngestContentBlockUseCase struct {
 	mainServiceClient grpcclient.MainServiceClient
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
@@ -34,15 +34,15 @@ type IngestProseBlockUseCase struct {
 	logger            *logger.Logger
 }
 
-// NewIngestProseBlockUseCase creates a new IngestProseBlockUseCase
-func NewIngestProseBlockUseCase(
+// NewIngestContentBlockUseCase creates a new IngestContentBlockUseCase
+func NewIngestContentBlockUseCase(
 	mainServiceClient grpcclient.MainServiceClient,
 	documentRepo repositories.DocumentRepository,
 	chunkRepo repositories.ChunkRepository,
 	embedder embeddings.Embedder,
 	logger *logger.Logger,
-) *IngestProseBlockUseCase {
-	return &IngestProseBlockUseCase{
+) *IngestContentBlockUseCase {
+	return &IngestContentBlockUseCase{
 		mainServiceClient: mainServiceClient,
 		documentRepo:     documentRepo,
 		chunkRepo:        chunkRepo,
@@ -51,18 +51,28 @@ func NewIngestProseBlockUseCase(
 	}
 }
 
-// Execute ingests a prose block by fetching its content, references, and generating enriched embeddings
-func (uc *IngestProseBlockUseCase) Execute(ctx context.Context, input IngestProseBlockInput) (*IngestProseBlockOutput, error) {
-	// Fetch prose block from main-service
-	proseBlock, err := uc.mainServiceClient.GetProseBlock(ctx, input.ProseBlockID)
+// Execute ingests a content block by fetching its content, references, and generating enriched embeddings
+// Only processes content blocks of type "text" for embeddings
+func (uc *IngestContentBlockUseCase) Execute(ctx context.Context, input IngestContentBlockInput) (*IngestContentBlockOutput, error) {
+	// Fetch content block from main-service
+	contentBlock, err := uc.mainServiceClient.GetContentBlock(ctx, input.ContentBlockID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch prose block: %w", err)
+		return nil, fmt.Errorf("failed to fetch content block: %w", err)
 	}
 
-	// Fetch references for the prose block
-	references, err := uc.mainServiceClient.ListProseBlockReferences(ctx, input.ProseBlockID)
+	// Only process text content blocks for embeddings
+	if contentBlock.Type != "text" {
+		uc.logger.Debug("Skipping non-text content block", "content_block_id", input.ContentBlockID, "type", contentBlock.Type)
+		return &IngestContentBlockOutput{
+			DocumentID: uuid.Nil,
+			ChunkCount: 0,
+		}, nil
+	}
+
+	// Fetch references for the content block
+	references, err := uc.mainServiceClient.ListContentBlockReferences(ctx, input.ContentBlockID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch prose block references: %w", err)
+		return nil, fmt.Errorf("failed to fetch content block references: %w", err)
 	}
 
 	// Fetch related entities and build metadata
@@ -72,14 +82,18 @@ func (uc *IngestProseBlockUseCase) Execute(ctx context.Context, input IngestPros
 	}
 
 	// Build enriched content for embedding
-	enrichedContent := uc.buildEnrichedContent(proseBlock, metadata)
+	enrichedContent := uc.buildEnrichedContent(contentBlock, metadata)
 
-	// Create or update document (one document per prose block)
+	// Create or update document (one document per content block)
+	title := fmt.Sprintf("Content Block")
+	if contentBlock.OrderNum != nil {
+		title = fmt.Sprintf("Content Block %d", *contentBlock.OrderNum)
+	}
 	doc := memory.NewDocument(
 		input.TenantID,
-		memory.SourceTypeProseBlock,
-		input.ProseBlockID,
-		fmt.Sprintf("Prose Block %d", proseBlock.OrderNum),
+		memory.SourceTypeContentBlock,
+		input.ContentBlockID,
+		title,
 		enrichedContent,
 	)
 
@@ -88,7 +102,7 @@ func (uc *IngestProseBlockUseCase) Execute(ctx context.Context, input IngestPros
 	}
 
 	// Check if document already exists
-	existingDoc, err := uc.documentRepo.GetBySource(ctx, input.TenantID, memory.SourceTypeProseBlock, input.ProseBlockID)
+	existingDoc, err := uc.documentRepo.GetBySource(ctx, input.TenantID, memory.SourceTypeContentBlock, input.ContentBlockID)
 	if err == nil && existingDoc != nil {
 		// Update existing document
 		doc.ID = existingDoc.ID
@@ -108,7 +122,7 @@ func (uc *IngestProseBlockUseCase) Execute(ctx context.Context, input IngestPros
 	}
 
 	// Create chunk with metadata
-	chunk, err := uc.createChunkWithMetadata(ctx, doc.ID, proseBlock, metadata, enrichedContent)
+	chunk, err := uc.createChunkWithMetadata(ctx, doc.ID, contentBlock, metadata, enrichedContent)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chunk: %w", err)
 	}
@@ -118,16 +132,16 @@ func (uc *IngestProseBlockUseCase) Execute(ctx context.Context, input IngestPros
 		return nil, fmt.Errorf("failed to save chunk: %w", err)
 	}
 
-	uc.logger.Info("Prose block ingested successfully", "prose_block_id", input.ProseBlockID, "beat_type", metadata.BeatType)
+	uc.logger.Info("Content block ingested successfully", "content_block_id", input.ContentBlockID, "beat_type", metadata.BeatType)
 
-	return &IngestProseBlockOutput{
+	return &IngestContentBlockOutput{
 		DocumentID: doc.ID,
 		ChunkCount: 1,
 	}, nil
 }
 
-// ProseBlockMetadata contains enriched metadata for a prose block
-type ProseBlockMetadata struct {
+// ContentBlockMetadata contains enriched metadata for a content block
+type ContentBlockMetadata struct {
 	SceneID      *uuid.UUID
 	BeatID       *uuid.UUID
 	BeatType     *string
@@ -140,8 +154,8 @@ type ProseBlockMetadata struct {
 }
 
 // buildMetadata fetches related entities and builds metadata
-func (uc *IngestProseBlockUseCase) buildMetadata(ctx context.Context, references []*grpcclient.ProseBlockReference) (*ProseBlockMetadata, error) {
-	metadata := &ProseBlockMetadata{
+func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, references []*grpcclient.ContentBlockReference) (*ContentBlockMetadata, error) {
+	metadata := &ContentBlockMetadata{
 		Characters: []string{},
 	}
 
@@ -169,13 +183,25 @@ func (uc *IngestProseBlockUseCase) buildMetadata(ctx context.Context, references
 					metadata.Timeline = &scene.TimeRef
 				}
 				if scene.POVCharacterID != nil {
-					// For now, we'll store the UUID as string. In the future, we could fetch character name
-					povStr := scene.POVCharacterID.String()
-					metadata.POVCharacter = &povStr
+					// Fetch character name
+					char, err := uc.mainServiceClient.GetCharacter(ctx, *scene.POVCharacterID)
+					if err == nil {
+						metadata.POVCharacter = &char.Name
+					} else {
+						uc.logger.Warn("failed to fetch POV character", "character_id", *scene.POVCharacterID, "error", err)
+						povStr := scene.POVCharacterID.String()
+						metadata.POVCharacter = &povStr
+					}
 				}
 				if scene.LocationID != nil {
 					metadata.LocationID = scene.LocationID
-					// In the future, we could fetch location name from a location service
+					// Fetch location name
+					loc, err := uc.mainServiceClient.GetLocation(ctx, *scene.LocationID)
+					if err == nil {
+						metadata.LocationName = &loc.Name
+					} else {
+						uc.logger.Warn("failed to fetch location", "location_id", *scene.LocationID, "error", err)
+					}
 				}
 			}
 
@@ -192,21 +218,48 @@ func (uc *IngestProseBlockUseCase) buildMetadata(ctx context.Context, references
 				metadata.Timeline = &scene.TimeRef
 			}
 			if scene.POVCharacterID != nil && metadata.POVCharacter == nil {
-				povStr := scene.POVCharacterID.String()
-				metadata.POVCharacter = &povStr
+				// Fetch character name
+				char, err := uc.mainServiceClient.GetCharacter(ctx, *scene.POVCharacterID)
+				if err == nil {
+					metadata.POVCharacter = &char.Name
+				} else {
+					uc.logger.Warn("failed to fetch POV character", "character_id", *scene.POVCharacterID, "error", err)
+					povStr := scene.POVCharacterID.String()
+					metadata.POVCharacter = &povStr
+				}
 			}
 			if scene.LocationID != nil && metadata.LocationID == nil {
 				metadata.LocationID = scene.LocationID
+				// Fetch location name
+				loc, err := uc.mainServiceClient.GetLocation(ctx, *scene.LocationID)
+				if err == nil {
+					metadata.LocationName = &loc.Name
+				} else {
+					uc.logger.Warn("failed to fetch location", "location_id", *scene.LocationID, "error", err)
+				}
 			}
 
 		case "character":
-			// For now, we'll just store the character ID. In the future, fetch character name
-			charID := ref.EntityID.String()
-			metadata.Characters = append(metadata.Characters, charID)
+			// Fetch character name
+			char, err := uc.mainServiceClient.GetCharacter(ctx, ref.EntityID)
+			if err == nil {
+				metadata.Characters = append(metadata.Characters, char.Name)
+			} else {
+				uc.logger.Warn("failed to fetch character", "character_id", ref.EntityID, "error", err)
+				charID := ref.EntityID.String()
+				metadata.Characters = append(metadata.Characters, charID)
+			}
 
 		case "location":
 			if metadata.LocationID == nil {
 				metadata.LocationID = &ref.EntityID
+			}
+			// Fetch location name
+			loc, err := uc.mainServiceClient.GetLocation(ctx, ref.EntityID)
+			if err == nil {
+				metadata.LocationName = &loc.Name
+			} else {
+				uc.logger.Warn("failed to fetch location", "location_id", ref.EntityID, "error", err)
 			}
 		}
 	}
@@ -215,11 +268,11 @@ func (uc *IngestProseBlockUseCase) buildMetadata(ctx context.Context, references
 }
 
 // buildEnrichedContent builds content string enriched with metadata
-func (uc *IngestProseBlockUseCase) buildEnrichedContent(proseBlock *grpcclient.ProseBlock, metadata *ProseBlockMetadata) string {
+func (uc *IngestContentBlockUseCase) buildEnrichedContent(contentBlock *grpcclient.ContentBlock, metadata *ContentBlockMetadata) string {
 	var parts []string
 
-	// Add prose block content
-	parts = append(parts, proseBlock.Content)
+	// Add content block content
+	parts = append(parts, contentBlock.Content)
 
 	// Add beat context if available
 	if metadata.BeatType != nil {
@@ -252,7 +305,7 @@ func (uc *IngestProseBlockUseCase) buildEnrichedContent(proseBlock *grpcclient.P
 }
 
 // createChunkWithMetadata creates a chunk with enriched metadata
-func (uc *IngestProseBlockUseCase) createChunkWithMetadata(ctx context.Context, documentID uuid.UUID, proseBlock *grpcclient.ProseBlock, metadata *ProseBlockMetadata, content string) (*memory.Chunk, error) {
+func (uc *IngestContentBlockUseCase) createChunkWithMetadata(ctx context.Context, documentID uuid.UUID, contentBlock *grpcclient.ContentBlock, metadata *ContentBlockMetadata, content string) (*memory.Chunk, error) {
 	// Generate embedding
 	embedding, err := uc.embedder.EmbedText(content)
 	if err != nil {
@@ -274,7 +327,10 @@ func (uc *IngestProseBlockUseCase) createChunkWithMetadata(ctx context.Context, 
 	chunk.LocationName = metadata.LocationName
 	chunk.Timeline = metadata.Timeline
 	chunk.POVCharacter = metadata.POVCharacter
-	chunk.ProseKind = &proseBlock.Kind
+	
+	// Set ContentBlock metadata
+	chunk.ContentType = &contentBlock.Type
+	chunk.ContentKind = &contentBlock.Kind
 
 	if err := chunk.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid chunk: %w", err)
