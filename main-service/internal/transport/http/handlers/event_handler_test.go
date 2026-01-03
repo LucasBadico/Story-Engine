@@ -10,13 +10,9 @@ import (
 	"testing"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
-	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	rpgeventapp "github.com/story-engine/main-service/internal/application/rpg/event"
-	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
-	locationapp "github.com/story-engine/main-service/internal/application/world/location"
-	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
+	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
 
@@ -34,16 +30,16 @@ func TestEventHandler_Create(t *testing.T) {
 	storyRepo := postgres.NewStoryRepository(db)
 	log := logger.New()
 
-	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
-	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
 	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	sceneHandler := NewSceneHandler(createSceneUseCase, getSceneUseCase, listScenesUseCase, updateSceneUseCase, deleteSceneUseCase, moveSceneUseCase, nil, nil, nil, log)
+	sceneHandler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, nil, nil, nil, log)
 
 	// Create scene
-	sceneBody := `{"chapter_id": "` + chapterID + `", "title": "Test Scene"}`
+	sceneBody := `{"story_id": "` + storyID + `", "chapter_id": "` + chapterID + `", "title": "Test Scene", "order_num": 1}`
 	sceneReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/scenes", strings.NewReader(sceneBody))
 	sceneReq.Header.Set("Content-Type", "application/json")
 	sceneReq.Header.Set("X-Tenant-ID", tenantID)
@@ -65,7 +61,7 @@ func TestEventHandler_Create(t *testing.T) {
 		t.Fatalf("scene response missing scene object: %v", sceneResp)
 	}
 
-	sceneID, ok := sceneObj["id"].(string)
+	_, ok = sceneObj["id"].(string)
 	if !ok {
 		t.Fatalf("scene response missing id: %v", sceneObj)
 	}
@@ -75,35 +71,36 @@ func TestEventHandler_Create(t *testing.T) {
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
-	archetypeRepo := postgres.NewArchetypeRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	eventCharacterRepo := postgres.NewEventCharacterRepository(db)
 	eventLocationRepo := postgres.NewEventLocationRepository(db)
 	eventArtifactRepo := postgres.NewEventArtifactRepository(db)
 	characterStatsRepo := postgres.NewCharacterRPGStatsRepository(db)
+	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(db)
 
-	createEventUseCase := eventapp.NewCreateEventUseCase(eventRepo, worldRepo, log)
+	createEventUseCase := eventapp.NewCreateEventUseCase(eventRepo, worldRepo, auditLogRepo, log)
 	getEventUseCase := eventapp.NewGetEventUseCase(eventRepo, log)
 	listEventsUseCase := eventapp.NewListEventsUseCase(eventRepo, log)
 	updateEventUseCase := eventapp.NewUpdateEventUseCase(eventRepo, auditLogRepo, log)
 	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, eventCharacterRepo, eventLocationRepo, eventArtifactRepo, auditLogRepo, log)
-	addCharacterUseCase := eventapp.NewAddCharacterToEventUseCase(eventCharacterRepo, eventRepo, characterRepo, log)
+	addCharacterUseCase := eventapp.NewAddCharacterToEventUseCase(eventRepo, characterRepo, eventCharacterRepo, log)
 	removeCharacterUseCase := eventapp.NewRemoveCharacterFromEventUseCase(eventCharacterRepo, log)
 	getCharactersUseCase := eventapp.NewGetEventCharactersUseCase(eventCharacterRepo, log)
-	addLocationUseCase := eventapp.NewAddLocationToEventUseCase(eventLocationRepo, eventRepo, locationRepo, log)
+	addLocationUseCase := eventapp.NewAddLocationToEventUseCase(eventRepo, locationRepo, eventLocationRepo, log)
 	removeLocationUseCase := eventapp.NewRemoveLocationFromEventUseCase(eventLocationRepo, log)
 	getLocationsUseCase := eventapp.NewGetEventLocationsUseCase(eventLocationRepo, log)
-	addArtifactUseCase := eventapp.NewAddArtifactToEventUseCase(eventArtifactRepo, eventRepo, artifactRepo, log)
+	addArtifactUseCase := eventapp.NewAddArtifactToEventUseCase(eventRepo, artifactRepo, eventArtifactRepo, log)
 	removeArtifactUseCase := eventapp.NewRemoveArtifactFromEventUseCase(eventArtifactRepo, log)
 	getArtifactsUseCase := eventapp.NewGetEventArtifactsUseCase(eventArtifactRepo, log)
-	getStatChangesUseCase := rpgeventapp.NewGetEventStatChangesUseCase(eventCharacterRepo, characterStatsRepo, log)
+	getStatChangesUseCase := rpgeventapp.NewGetEventStatChangesUseCase(characterStatsRepo, artifactStatsRepo, log)
 	handler := NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterUseCase, removeCharacterUseCase, getCharactersUseCase, addLocationUseCase, removeLocationUseCase, getLocationsUseCase, addArtifactUseCase, removeArtifactUseCase, getArtifactsUseCase, getStatChangesUseCase, log)
 
 	t.Run("successful creation", func(t *testing.T) {
-		body := `{"world_id": "` + worldID + `", "scene_id": "` + sceneID + `", "name": "Test Event", "description": "A test event"}`
-		req := httptest.NewRequest("POST", "/api/v1/events", strings.NewReader(body))
+		body := `{"name": "Test Event", "description": "A test event"}`
+		req := httptest.NewRequest("POST", "/api/v1/worlds/"+worldID+"/events", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Tenant-ID", tenantID)
+		req.SetPathValue("world_id", worldID)
 		w := httptest.NewRecorder()
 
 		withTenantMiddleware(handler.Create).ServeHTTP(w, req)
@@ -127,10 +124,11 @@ func TestEventHandler_Create(t *testing.T) {
 	})
 
 	t.Run("empty name", func(t *testing.T) {
-		body := `{"world_id": "` + worldID + `", "scene_id": "` + sceneID + `", "name": ""}`
-		req := httptest.NewRequest("POST", "/api/v1/events", strings.NewReader(body))
+		body := `{"name": ""}`
+		req := httptest.NewRequest("POST", "/api/v1/worlds/"+worldID+"/events", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Tenant-ID", tenantID)
+		req.SetPathValue("world_id", worldID)
 		w := httptest.NewRecorder()
 
 		withTenantMiddleware(handler.Create).ServeHTTP(w, req)
@@ -141,9 +139,10 @@ func TestEventHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing tenant_id", func(t *testing.T) {
-		body := `{"world_id": "` + worldID + `", "scene_id": "` + sceneID + `", "name": "Test Event"}`
-		req := httptest.NewRequest("POST", "/api/v1/events", strings.NewReader(body))
+		body := `{"name": "Test Event"}`
+		req := httptest.NewRequest("POST", "/api/v1/worlds/"+worldID+"/events", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
+		req.SetPathValue("world_id", worldID)
 		w := httptest.NewRecorder()
 
 		withTenantMiddleware(handler.Create).ServeHTTP(w, req)
@@ -165,18 +164,19 @@ func TestEventHandler_Get(t *testing.T) {
 
 	sceneRepo := postgres.NewSceneRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
+	storyRepo := postgres.NewStoryRepository(db)
 	log := logger.New()
 
-	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
-	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
 	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	sceneHandler := NewSceneHandler(createSceneUseCase, getSceneUseCase, listScenesUseCase, updateSceneUseCase, deleteSceneUseCase, moveSceneUseCase, nil, nil, nil, log)
+	sceneHandler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, nil, nil, nil, log)
 
 	// Create scene
-	sceneBody := `{"chapter_id": "` + chapterID + `", "title": "Test Scene"}`
+	sceneBody := `{"story_id": "` + storyID + `", "chapter_id": "` + chapterID + `", "title": "Test Scene", "order_num": 1}`
 	sceneReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/scenes", strings.NewReader(sceneBody))
 	sceneReq.Header.Set("Content-Type", "application/json")
 	sceneReq.Header.Set("X-Tenant-ID", tenantID)
@@ -198,7 +198,7 @@ func TestEventHandler_Get(t *testing.T) {
 		t.Fatalf("scene response missing scene object: %v", sceneResp)
 	}
 
-	sceneID, ok := sceneObj["id"].(string)
+	_, ok = sceneObj["id"].(string)
 	if !ok {
 		t.Fatalf("scene response missing id: %v", sceneObj)
 	}
@@ -213,29 +213,31 @@ func TestEventHandler_Get(t *testing.T) {
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
 	characterStatsRepo := postgres.NewCharacterRPGStatsRepository(db)
+	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(db)
 
-	createEventUseCase := eventapp.NewCreateEventUseCase(eventRepo, worldRepo, log)
+	createEventUseCase := eventapp.NewCreateEventUseCase(eventRepo, worldRepo, auditLogRepo, log)
 	getEventUseCase := eventapp.NewGetEventUseCase(eventRepo, log)
 	listEventsUseCase := eventapp.NewListEventsUseCase(eventRepo, log)
 	updateEventUseCase := eventapp.NewUpdateEventUseCase(eventRepo, auditLogRepo, log)
 	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, eventCharacterRepo, eventLocationRepo, eventArtifactRepo, auditLogRepo, log)
-	addCharacterUseCase := eventapp.NewAddCharacterToEventUseCase(eventCharacterRepo, eventRepo, characterRepo, log)
+	addCharacterUseCase := eventapp.NewAddCharacterToEventUseCase(eventRepo, characterRepo, eventCharacterRepo, log)
 	removeCharacterUseCase := eventapp.NewRemoveCharacterFromEventUseCase(eventCharacterRepo, log)
 	getCharactersUseCase := eventapp.NewGetEventCharactersUseCase(eventCharacterRepo, log)
-	addLocationUseCase := eventapp.NewAddLocationToEventUseCase(eventLocationRepo, eventRepo, locationRepo, log)
+	addLocationUseCase := eventapp.NewAddLocationToEventUseCase(eventRepo, locationRepo, eventLocationRepo, log)
 	removeLocationUseCase := eventapp.NewRemoveLocationFromEventUseCase(eventLocationRepo, log)
 	getLocationsUseCase := eventapp.NewGetEventLocationsUseCase(eventLocationRepo, log)
-	addArtifactUseCase := eventapp.NewAddArtifactToEventUseCase(eventArtifactRepo, eventRepo, artifactRepo, log)
+	addArtifactUseCase := eventapp.NewAddArtifactToEventUseCase(eventRepo, artifactRepo, eventArtifactRepo, log)
 	removeArtifactUseCase := eventapp.NewRemoveArtifactFromEventUseCase(eventArtifactRepo, log)
 	getArtifactsUseCase := eventapp.NewGetEventArtifactsUseCase(eventArtifactRepo, log)
-	getStatChangesUseCase := rpgeventapp.NewGetEventStatChangesUseCase(eventCharacterRepo, characterStatsRepo, log)
+	getStatChangesUseCase := rpgeventapp.NewGetEventStatChangesUseCase(characterStatsRepo, artifactStatsRepo, log)
 	handler := NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterUseCase, removeCharacterUseCase, getCharactersUseCase, addLocationUseCase, removeLocationUseCase, getLocationsUseCase, addArtifactUseCase, removeArtifactUseCase, getArtifactsUseCase, getStatChangesUseCase, log)
 
 	// Create event
-	createBody := `{"world_id": "` + worldID + `", "scene_id": "` + sceneID + `", "name": "Test Event"}`
-	createReq := httptest.NewRequest("POST", "/api/v1/events", strings.NewReader(createBody))
+	createBody := `{"name": "Test Event"}`
+	createReq := httptest.NewRequest("POST", "/api/v1/worlds/"+worldID+"/events", strings.NewReader(createBody))
 	createReq.Header.Set("Content-Type", "application/json")
 	createReq.Header.Set("X-Tenant-ID", tenantID)
+	createReq.SetPathValue("world_id", worldID)
 	createW := httptest.NewRecorder()
 	withTenantMiddleware(handler.Create).ServeHTTP(createW, createReq)
 

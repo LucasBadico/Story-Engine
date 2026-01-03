@@ -8,6 +8,7 @@ import (
 	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // RPGClassHandler handles HTTP requests for RPG classes
@@ -47,6 +48,7 @@ func NewRPGClassHandler(
 
 // Create handles POST /api/v1/rpg-systems/{id}/classes
 func (h *RPGClassHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -88,6 +90,7 @@ func (h *RPGClassHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.createClassUseCase.Execute(r.Context(), rpgclassapp.CreateRPGClassInput{
+		TenantID:      tenantID,
 		RPGSystemID:   rpgSystemID,
 		ParentClassID: parentClassID,
 		Name:          req.Name,
@@ -110,6 +113,7 @@ func (h *RPGClassHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/rpg-classes/{id}
 func (h *RPGClassHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -121,7 +125,8 @@ func (h *RPGClassHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getClassUseCase.Execute(r.Context(), rpgclassapp.GetRPGClassInput{
-		ID: classID,
+		TenantID: tenantID,
+		ID:       classID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -136,6 +141,7 @@ func (h *RPGClassHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/rpg-systems/{id}/classes
 func (h *RPGClassHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	rpgSystemIDStr := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(rpgSystemIDStr)
 	if err != nil {
@@ -161,6 +167,7 @@ func (h *RPGClassHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listClassesUseCase.Execute(r.Context(), rpgclassapp.ListRPGClassesInput{
+		TenantID:      tenantID,
 		RPGSystemID:   rpgSystemID,
 		ParentClassID: parentClassID,
 	})
@@ -178,6 +185,7 @@ func (h *RPGClassHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/rpg-classes/{id}
 func (h *RPGClassHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -219,6 +227,7 @@ func (h *RPGClassHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateClassUseCase.Execute(r.Context(), rpgclassapp.UpdateRPGClassInput{
+		TenantID:      tenantID,
 		ID:            classID,
 		ParentClassID: parentClassID,
 		Name:          req.Name,
@@ -240,6 +249,7 @@ func (h *RPGClassHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/rpg-classes/{id}
 func (h *RPGClassHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -251,7 +261,8 @@ func (h *RPGClassHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.deleteClassUseCase.Execute(r.Context(), rpgclassapp.DeleteRPGClassInput{
-		ID: classID,
+		TenantID: tenantID,
+		ID:       classID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -262,6 +273,7 @@ func (h *RPGClassHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // ListSkills handles GET /api/v1/rpg-classes/{id}/skills
 func (h *RPGClassHandler) ListSkills(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -273,7 +285,8 @@ func (h *RPGClassHandler) ListSkills(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listClassSkillsUseCase.Execute(r.Context(), rpgclassapp.ListClassSkillsInput{
-		ClassID: classID,
+		TenantID: tenantID,
+		ClassID:  classID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -289,6 +302,7 @@ func (h *RPGClassHandler) ListSkills(w http.ResponseWriter, r *http.Request) {
 
 // AddSkill handles POST /api/v1/rpg-classes/{id}/skills
 func (h *RPGClassHandler) AddSkill(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	classID, err := uuid.Parse(id)
 	if err != nil {
@@ -313,6 +327,7 @@ func (h *RPGClassHandler) AddSkill(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.addSkillUseCase.Execute(r.Context(), rpgclassapp.AddSkillToClassInput{
+		TenantID:    tenantID,
 		ClassID:     classID,
 		SkillID:     req.SkillID,
 		UnlockLevel: req.UnlockLevel,

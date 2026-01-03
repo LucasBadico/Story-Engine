@@ -145,8 +145,17 @@ func (r *SkillRepository) Update(ctx context.Context, skill *rpg.Skill) error {
 // Delete deletes a skill
 func (r *SkillRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
 	query := `DELETE FROM rpg_skills WHERE tenant_id = $1 AND id = $2`
-	_, err := r.db.Exec(ctx, query, tenantID, id)
-	return err
+	result, err := r.db.Exec(ctx, query, tenantID, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return &platformerrors.NotFoundError{
+			Resource: "skill",
+			ID:       id.String(),
+		}
+	}
+	return nil
 }
 
 func (r *SkillRepository) scanSkills(rows pgx.Rows) ([]*rpg.Skill, error) {

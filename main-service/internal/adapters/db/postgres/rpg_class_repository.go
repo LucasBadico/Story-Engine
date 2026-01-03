@@ -137,8 +137,17 @@ func (r *RPGClassRepository) Update(ctx context.Context, class *rpg.RPGClass) er
 // Delete deletes an RPG class
 func (r *RPGClassRepository) Delete(ctx context.Context, tenantID, id uuid.UUID) error {
 	query := `DELETE FROM rpg_classes WHERE tenant_id = $1 AND id = $2`
-	_, err := r.db.Exec(ctx, query, tenantID, id)
-	return err
+	result, err := r.db.Exec(ctx, query, tenantID, id)
+	if err != nil {
+		return err
+	}
+	if result.RowsAffected() == 0 {
+		return &platformerrors.NotFoundError{
+			Resource: "rpg_class",
+			ID:       id.String(),
+		}
+	}
+	return nil
 }
 
 func (r *RPGClassRepository) scanRPGClasses(rows pgx.Rows) ([]*rpg.RPGClass, error) {

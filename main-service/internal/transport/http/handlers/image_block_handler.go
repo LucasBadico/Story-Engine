@@ -9,6 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // ImageBlockHandler handles HTTP requests for image blocks
@@ -51,6 +52,7 @@ func NewImageBlockHandler(
 
 // Create handles POST /api/v1/chapters/{id}/image-blocks
 func (h *ImageBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	chapterIDStr := r.PathValue("id")
 
 	var chapterID *uuid.UUID
@@ -86,6 +88,7 @@ func (h *ImageBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 	kind := story.ImageKind(req.Kind)
 	output, err := h.createImageBlockUseCase.Execute(r.Context(), imageblockapp.CreateImageBlockInput{
+		TenantID:  tenantID,
 		ChapterID: chapterID,
 		OrderNum:  req.OrderNum,
 		Kind:      kind,
@@ -109,6 +112,7 @@ func (h *ImageBlockHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/image-blocks/{id}
 func (h *ImageBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -120,7 +124,8 @@ func (h *ImageBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getImageBlockUseCase.Execute(r.Context(), imageblockapp.GetImageBlockInput{
-		ID: imageBlockID,
+		TenantID: tenantID,
+		ID:       imageBlockID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -135,6 +140,7 @@ func (h *ImageBlockHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 // List handles GET /api/v1/chapters/{id}/image-blocks
 func (h *ImageBlockHandler) List(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	chapterIDStr := r.PathValue("id")
 	chapterID, err := uuid.Parse(chapterIDStr)
 	if err != nil {
@@ -146,6 +152,7 @@ func (h *ImageBlockHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.listImageBlocksUseCase.Execute(r.Context(), imageblockapp.ListImageBlocksInput{
+		TenantID:  tenantID,
 		ChapterID: chapterID,
 	})
 	if err != nil {
@@ -162,6 +169,7 @@ func (h *ImageBlockHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/image-blocks/{id}
 func (h *ImageBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -198,6 +206,7 @@ func (h *ImageBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateImageBlockUseCase.Execute(r.Context(), imageblockapp.UpdateImageBlockInput{
+		TenantID:  tenantID,
 		ID:        imageBlockID,
 		ChapterID: req.ChapterID,
 		OrderNum:  req.OrderNum,
@@ -221,6 +230,7 @@ func (h *ImageBlockHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/image-blocks/{id}
 func (h *ImageBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -232,7 +242,8 @@ func (h *ImageBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.deleteImageBlockUseCase.Execute(r.Context(), imageblockapp.DeleteImageBlockInput{
-		ID: imageBlockID,
+		TenantID: tenantID,
+		ID:       imageBlockID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -243,6 +254,7 @@ func (h *ImageBlockHandler) Delete(w http.ResponseWriter, r *http.Request) {
 
 // GetReferences handles GET /api/v1/image-blocks/{id}/references
 func (h *ImageBlockHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -254,6 +266,7 @@ func (h *ImageBlockHandler) GetReferences(w http.ResponseWriter, r *http.Request
 	}
 
 	output, err := h.getReferencesUseCase.Execute(r.Context(), imageblockapp.GetImageBlockReferencesInput{
+		TenantID:     tenantID,
 		ImageBlockID: imageBlockID,
 	})
 	if err != nil {
@@ -270,6 +283,7 @@ func (h *ImageBlockHandler) GetReferences(w http.ResponseWriter, r *http.Request
 
 // AddReference handles POST /api/v1/image-blocks/{id}/references
 func (h *ImageBlockHandler) AddReference(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	imageBlockID, err := uuid.Parse(id)
 	if err != nil {
@@ -312,6 +326,7 @@ func (h *ImageBlockHandler) AddReference(w http.ResponseWriter, r *http.Request)
 	}
 
 	if err := h.addReferenceUseCase.Execute(r.Context(), imageblockapp.AddImageBlockReferenceInput{
+		TenantID:     tenantID,
 		ImageBlockID: imageBlockID,
 		EntityType:   entityType,
 		EntityID:     entityID,
@@ -325,6 +340,7 @@ func (h *ImageBlockHandler) AddReference(w http.ResponseWriter, r *http.Request)
 
 // RemoveReference handles DELETE /api/v1/image-blocks/{id}/references/{entity_type}/{entity_id}
 func (h *ImageBlockHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	entityTypeStr := r.PathValue("entity_type")
 	entityIDStr := r.PathValue("entity_id")
@@ -357,6 +373,7 @@ func (h *ImageBlockHandler) RemoveReference(w http.ResponseWriter, r *http.Reque
 	}
 
 	if err := h.removeReferenceUseCase.Execute(r.Context(), imageblockapp.RemoveImageBlockReferenceInput{
+		TenantID:     tenantID,
 		ImageBlockID: imageBlockID,
 		EntityType:   entityType,
 		EntityID:     entityID,

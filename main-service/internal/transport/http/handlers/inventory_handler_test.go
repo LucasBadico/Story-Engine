@@ -31,17 +31,21 @@ func TestInventoryHandler_AddItem(t *testing.T) {
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
+	traitRepo := postgres.NewTraitRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	rpgClassRepo := postgres.NewRPGClassRepository(db)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
@@ -73,7 +77,6 @@ func TestInventoryHandler_AddItem(t *testing.T) {
 	}
 
 	// Create RPG system and inventory item
-	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	tenantRepo := postgres.NewTenantRepository(db)
 	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
 	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)
@@ -211,17 +214,21 @@ func TestInventoryHandler_ListInventory(t *testing.T) {
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
+	traitRepo := postgres.NewTraitRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	rpgClassRepo := postgres.NewRPGClassRepository(db)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
@@ -254,8 +261,6 @@ func TestInventoryHandler_ListInventory(t *testing.T) {
 
 	characterInventoryRepo := postgres.NewCharacterInventoryRepository(db)
 	inventoryItemRepo := postgres.NewInventoryItemRepository(db)
-	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
-	tenantRepo := postgres.NewTenantRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
 	inventorySlotRepo := postgres.NewInventorySlotRepository(db)
 	createSlotUseCase := inventoryslotapp.NewCreateInventorySlotUseCase(inventorySlotRepo, rpgSystemRepo, log)
@@ -309,17 +314,21 @@ func TestInventoryHandler_DeleteInventory(t *testing.T) {
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
+	traitRepo := postgres.NewTraitRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	rpgClassRepo := postgres.NewRPGClassRepository(db)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
@@ -351,7 +360,6 @@ func TestInventoryHandler_DeleteInventory(t *testing.T) {
 	}
 
 	// Create RPG system and inventory item
-	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	tenantRepo := postgres.NewTenantRepository(db)
 	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
 	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)

@@ -34,7 +34,7 @@ func TestProseBlockHandler_Create(t *testing.T) {
 	handler := NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
 
 	t.Run("successful creation", func(t *testing.T) {
-		body := `{"kind": "narrative", "content": "Test content"}`
+		body := `{"kind": "draft", "content": "Test content", "order_num": 1}`
 		req := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -62,7 +62,7 @@ func TestProseBlockHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing tenant_id", func(t *testing.T) {
-		body := `{"kind": "narrative", "content": "Test content"}`
+		body := `{"kind": "draft", "content": "Test content", "order_num": 1}`
 		req := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.SetPathValue("id", chapterID)
@@ -95,7 +95,7 @@ func TestProseBlockHandler_Get(t *testing.T) {
 	handler := NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
 
 	// Create prose block
-	proseBlockBody := `{"kind": "narrative", "content": "Get Test Content"}`
+	proseBlockBody := `{"kind": "draft", "content": "Get Test Content", "order_num": 1}`
 	proseBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(proseBlockBody))
 	proseBlockReq.Header.Set("Content-Type", "application/json")
 	proseBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -182,7 +182,7 @@ func TestProseBlockHandler_List(t *testing.T) {
 
 	// Create multiple prose blocks
 	for i := 1; i <= 3; i++ {
-		proseBlockBody := `{"kind": "narrative", "content": "Content ` + strconv.Itoa(i) + `"}`
+		proseBlockBody := `{"kind": "draft", "content": "Content ` + strconv.Itoa(i) + `", "order_num": ` + strconv.Itoa(i) + `}`
 		proseBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(proseBlockBody))
 		proseBlockReq.Header.Set("Content-Type", "application/json")
 		proseBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -241,7 +241,7 @@ func TestProseBlockHandler_Update(t *testing.T) {
 	handler := NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
 
 	// Create prose block
-	proseBlockBody := `{"kind": "narrative", "content": "Original Content"}`
+	proseBlockBody := `{"kind": "draft", "content": "Original Content", "order_num": 1}`
 	proseBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(proseBlockBody))
 	proseBlockReq.Header.Set("Content-Type", "application/json")
 	proseBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -331,7 +331,7 @@ func TestProseBlockHandler_Delete(t *testing.T) {
 	handler := NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
 
 	// Create prose block
-	proseBlockBody := `{"kind": "narrative", "content": "Content to Delete"}`
+	proseBlockBody := `{"kind": "draft", "content": "Content to Delete", "order_num": 1}`
 	proseBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(proseBlockBody))
 	proseBlockReq.Header.Set("Content-Type", "application/json")
 	proseBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -396,4 +396,3 @@ func TestProseBlockHandler_Delete(t *testing.T) {
 		}
 	})
 }
-

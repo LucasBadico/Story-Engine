@@ -2,10 +2,12 @@ package event
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/core/audit"
 	"github.com/story-engine/main-service/internal/core/world"
+	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
@@ -60,6 +62,12 @@ func (uc *CreateEventUseCase) Execute(ctx context.Context, input CreateEventInpu
 	// Create event
 	evt, err := world.NewEvent(input.TenantID, input.WorldID, input.Name)
 	if err != nil {
+		if errors.Is(err, world.ErrEventNameRequired) {
+			return nil, &platformerrors.ValidationError{
+				Field:   "name",
+				Message: err.Error(),
+			}
+		}
 		return nil, err
 	}
 
@@ -74,12 +82,18 @@ func (uc *CreateEventUseCase) Execute(ctx context.Context, input CreateEventInpu
 	}
 	if input.Importance > 0 {
 		if err := evt.UpdateImportance(input.Importance); err != nil {
-			return nil, err
+			return nil, &platformerrors.ValidationError{
+				Field:   "importance",
+				Message: err.Error(),
+			}
 		}
 	}
 
 	if err := evt.Validate(); err != nil {
-		return nil, err
+		return nil, &platformerrors.ValidationError{
+			Field:   "event",
+			Message: err.Error(),
+		}
 	}
 
 	if err := uc.eventRepo.Create(ctx, evt); err != nil {

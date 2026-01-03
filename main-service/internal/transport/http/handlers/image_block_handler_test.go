@@ -38,7 +38,7 @@ func TestImageBlockHandler_Create(t *testing.T) {
 	handler := NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, addReferenceUseCase, removeReferenceUseCase, getReferencesUseCase, log)
 
 	t.Run("successful creation", func(t *testing.T) {
-		body := `{"kind": "illustration", "image_url": "https://example.com/image.jpg", "alt_text": "Test image"}`
+		body := `{"kind": "draft", "image_url": "https://example.com/image.jpg", "alt_text": "Test image"}`
 		req := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/image-blocks", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -66,7 +66,7 @@ func TestImageBlockHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing tenant_id", func(t *testing.T) {
-		body := `{"kind": "illustration", "image_url": "https://example.com/image.jpg"}`
+		body := `{"kind": "draft", "image_url": "https://example.com/image.jpg"}`
 		req := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/image-blocks", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.SetPathValue("id", chapterID)
@@ -103,7 +103,7 @@ func TestImageBlockHandler_Get(t *testing.T) {
 	handler := NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, addReferenceUseCase, removeReferenceUseCase, getReferencesUseCase, log)
 
 	// Create image block
-	imageBlockBody := `{"kind": "illustration", "image_url": "https://example.com/get-test.jpg"}`
+	imageBlockBody := `{"kind": "draft", "image_url": "https://example.com/get-test.jpg"}`
 	imageBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/image-blocks", strings.NewReader(imageBlockBody))
 	imageBlockReq.Header.Set("Content-Type", "application/json")
 	imageBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -194,7 +194,7 @@ func TestImageBlockHandler_List(t *testing.T) {
 
 	// Create multiple image blocks
 	for i := 1; i <= 3; i++ {
-		imageBlockBody := `{"kind": "illustration", "image_url": "https://example.com/image` + strconv.Itoa(i) + `.jpg"}`
+		imageBlockBody := `{"kind": "draft", "image_url": "https://example.com/image` + strconv.Itoa(i) + `.jpg"}`
 		imageBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/image-blocks", strings.NewReader(imageBlockBody))
 		imageBlockReq.Header.Set("Content-Type", "application/json")
 		imageBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -257,7 +257,7 @@ func TestImageBlockHandler_Update(t *testing.T) {
 	handler := NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, addReferenceUseCase, removeReferenceUseCase, getReferencesUseCase, log)
 
 	// Create image block
-	imageBlockBody := `{"kind": "illustration", "image_url": "https://example.com/original.jpg"}`
+	imageBlockBody := `{"kind": "draft", "image_url": "https://example.com/original.jpg"}`
 	imageBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/image-blocks", strings.NewReader(imageBlockBody))
 	imageBlockReq.Header.Set("Content-Type", "application/json")
 	imageBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -351,7 +351,7 @@ func TestImageBlockHandler_Delete(t *testing.T) {
 	handler := NewImageBlockHandler(createImageBlockUseCase, getImageBlockUseCase, listImageBlocksUseCase, updateImageBlockUseCase, deleteImageBlockUseCase, addReferenceUseCase, removeReferenceUseCase, getReferencesUseCase, log)
 
 	// Create image block
-	imageBlockBody := `{"kind": "illustration", "image_url": "https://example.com/delete.jpg"}`
+	imageBlockBody := `{"kind": "draft", "image_url": "https://example.com/delete.jpg"}`
 	imageBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/image-blocks", strings.NewReader(imageBlockBody))
 	imageBlockReq.Header.Set("Content-Type", "application/json")
 	imageBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -416,4 +416,3 @@ func TestImageBlockHandler_Delete(t *testing.T) {
 		}
 	})
 }
-

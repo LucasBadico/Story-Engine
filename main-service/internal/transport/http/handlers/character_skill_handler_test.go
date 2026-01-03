@@ -30,17 +30,21 @@ func TestCharacterSkillHandler_Learn(t *testing.T) {
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
+	traitRepo := postgres.NewTraitRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	rpgClassRepo := postgres.NewRPGClassRepository(db)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
@@ -72,7 +76,6 @@ func TestCharacterSkillHandler_Learn(t *testing.T) {
 	}
 
 	// Create RPG system and skill
-	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	tenantRepo := postgres.NewTenantRepository(db)
 	createRPGSystemUseCase := rpgsystemapp.NewCreateRPGSystemUseCase(rpgSystemRepo, tenantRepo, log)
 	getRPGSystemUseCase := rpgsystemapp.NewGetRPGSystemUseCase(rpgSystemRepo, log)
@@ -110,10 +113,10 @@ func TestCharacterSkillHandler_Learn(t *testing.T) {
 	skillRepo := postgres.NewSkillRepository(db)
 	createSkillUseCase := skillapp.NewCreateSkillUseCase(skillRepo, rpgSystemRepo, log)
 	getSkillUseCase := skillapp.NewGetSkillUseCase(skillRepo, log)
-	listSkillsUseCase := skillapp.NewListSkillsUseCase(skillRepo, log)
-	updateSkillUseCase := skillapp.NewUpdateSkillUseCase(skillRepo, log)
-	deleteSkillUseCase := skillapp.NewDeleteSkillUseCase(skillRepo, log)
-	skillHandler := NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
+	listSkillsUseCaseForHandler := skillapp.NewListSkillsUseCase(skillRepo, log)
+	updateSkillUseCaseForHandler := skillapp.NewUpdateSkillUseCase(skillRepo, log)
+	deleteSkillUseCaseForHandler := skillapp.NewDeleteSkillUseCase(skillRepo, log)
+	skillHandler := NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCaseForHandler, updateSkillUseCaseForHandler, deleteSkillUseCaseForHandler, log)
 
 	skillBody := `{"name": "Test Skill"}`
 	skillReq := httptest.NewRequest("POST", "/api/v1/rpg-systems/"+rpgSystemID+"/skills", strings.NewReader(skillBody))
@@ -144,10 +147,10 @@ func TestCharacterSkillHandler_Learn(t *testing.T) {
 
 	characterSkillRepo := postgres.NewCharacterSkillRepository(db)
 	learnSkillUseCase := characterskillapp.NewLearnSkillUseCase(characterSkillRepo, characterRepo, skillRepo, log)
-	listSkillsUseCase := characterskillapp.NewListCharacterSkillsUseCase(characterSkillRepo, log)
-	updateSkillUseCase := characterskillapp.NewUpdateCharacterSkillUseCase(characterSkillRepo, skillRepo, log)
-	deleteSkillUseCase := characterskillapp.NewDeleteCharacterSkillUseCase(characterSkillRepo, log)
-	handler := NewCharacterSkillHandler(learnSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
+	listCharacterSkillsUseCase := characterskillapp.NewListCharacterSkillsUseCase(characterSkillRepo, log)
+	updateCharacterSkillUseCase := characterskillapp.NewUpdateCharacterSkillUseCase(characterSkillRepo, skillRepo, log)
+	deleteCharacterSkillUseCase := characterskillapp.NewDeleteCharacterSkillUseCase(characterSkillRepo, log)
+	handler := NewCharacterSkillHandler(learnSkillUseCase, listCharacterSkillsUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, log)
 
 	t.Run("successful learning", func(t *testing.T) {
 		body := `{"skill_id": "` + skillID + `"}`
@@ -204,17 +207,21 @@ func TestCharacterSkillHandler_List(t *testing.T) {
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
+	traitRepo := postgres.NewTraitRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	rpgClassRepo := postgres.NewRPGClassRepository(db)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character

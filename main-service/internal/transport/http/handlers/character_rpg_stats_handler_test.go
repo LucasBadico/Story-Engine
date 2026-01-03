@@ -28,17 +28,21 @@ func TestCharacterRPGStatsHandler_Create(t *testing.T) {
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
+	traitRepo := postgres.NewTraitRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	rpgClassRepo := postgres.NewRPGClassRepository(db)
+	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
@@ -97,12 +101,12 @@ func TestCharacterRPGStatsHandler_Create(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if stats, ok := resp["character_rpg_stats"].(map[string]interface{}); ok {
+		if stats, ok := resp["stats"].(map[string]interface{}); ok {
 			if stats["character_id"] != characterID {
 				t.Errorf("expected character_id %s, got %v", characterID, stats["character_id"])
 			}
 		} else {
-			t.Error("response missing character_rpg_stats")
+			t.Error("response missing stats")
 		}
 	})
 
@@ -133,17 +137,21 @@ func TestCharacterRPGStatsHandler_GetActive(t *testing.T) {
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	log := logger.New()
 
+	traitRepo2 := postgres.NewTraitRepository(db)
+	characterTraitRepo2 := postgres.NewCharacterTraitRepository(db)
+	rpgClassRepo2 := postgres.NewRPGClassRepository(db)
+	rpgSystemRepo2 := postgres.NewRPGSystemRepository(db)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo2, worldRepo, auditLogRepo, log)
+	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo2, characterTraitRepo2, log)
+	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo2, log)
+	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo2, traitRepo2, log)
+	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo2, log)
+	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo2, log)
+	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo2, rpgSystemRepo2, log)
 	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
@@ -213,8 +221,8 @@ func TestCharacterRPGStatsHandler_GetActive(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if _, ok := resp["character_rpg_stats"]; !ok {
-			t.Error("response missing character_rpg_stats")
+		if _, ok := resp["stats"]; !ok {
+			t.Error("response missing stats")
 		}
 	})
 }

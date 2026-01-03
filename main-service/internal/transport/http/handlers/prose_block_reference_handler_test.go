@@ -10,9 +10,9 @@ import (
 	"testing"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
-	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	proseblockapp "github.com/story-engine/main-service/internal/application/story/prose_block"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
 
@@ -36,7 +36,7 @@ func TestProseBlockReferenceHandler_Create(t *testing.T) {
 	proseBlockHandler := NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
 
 	// Create prose block
-	proseBlockBody := `{"kind": "narrative", "content": "Test content"}`
+	proseBlockBody := `{"kind": "draft", "content": "Test content", "order_num": 1}`
 	proseBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(proseBlockBody))
 	proseBlockReq.Header.Set("Content-Type", "application/json")
 	proseBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -76,17 +76,21 @@ func TestProseBlockReferenceHandler_Create(t *testing.T) {
 		worldRepo := postgres.NewWorldRepository(db)
 		archetypeRepo := postgres.NewArchetypeRepository(db)
 		auditLogRepo := postgres.NewAuditLogRepository(db)
+		traitRepo := postgres.NewTraitRepository(db)
+		characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+		rpgClassRepo := postgres.NewRPGClassRepository(db)
+		rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 		createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 		getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 		listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 		updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-		deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, postgres.NewCharacterTraitRepository(db), worldRepo, auditLogRepo, log)
-		addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log)
-		removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log)
-		updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), log)
-		getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log)
-		changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, postgres.NewRPGClassRepository(db), auditLogRepo, log)
-		getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, postgres.NewRPGClassRepository(db), log)
+		deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+		addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
+		removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+		updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
+		getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+		changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
+		getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
 		characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 		characterBody := `{"name": "Test Character"}`
@@ -178,7 +182,7 @@ func TestProseBlockReferenceHandler_ListByProseBlock(t *testing.T) {
 	proseBlockHandler := NewProseBlockHandler(createProseBlockUseCase, getProseBlockUseCase, updateProseBlockUseCase, deleteProseBlockUseCase, listProseBlocksUseCase, log)
 
 	// Create prose block
-	proseBlockBody := `{"kind": "narrative", "content": "Test content"}`
+	proseBlockBody := `{"kind": "draft", "content": "Test content", "order_num": 1}`
 	proseBlockReq := httptest.NewRequest("POST", "/api/v1/chapters/"+chapterID+"/prose-blocks", strings.NewReader(proseBlockBody))
 	proseBlockReq.Header.Set("Content-Type", "application/json")
 	proseBlockReq.Header.Set("X-Tenant-ID", tenantID)
@@ -233,4 +237,3 @@ func TestProseBlockReferenceHandler_ListByProseBlock(t *testing.T) {
 		}
 	})
 }
-

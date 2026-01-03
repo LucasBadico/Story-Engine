@@ -218,10 +218,10 @@ func TestSceneHandler_List(t *testing.T) {
 	t.Run("list scenes", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/stories/"+storyID+"/scenes", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
-		req.SetPathValue("story_id", storyID)
+		req.SetPathValue("id", storyID)
 		w := httptest.NewRecorder()
 
-		withTenantMiddleware(handler.List).ServeHTTP(w, req)
+		withTenantMiddleware(handler.ListByStory).ServeHTTP(w, req)
 
 		if w.Code != http.StatusOK {
 			t.Errorf("expected status 200, got %d, body: %s", w.Code, w.Body.String())

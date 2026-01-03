@@ -81,6 +81,7 @@ func (h *RPGSystemHandler) Create(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/v1/rpg-systems/{id}
 func (h *RPGSystemHandler) Get(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(id)
 	if err != nil {
@@ -92,7 +93,8 @@ func (h *RPGSystemHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.getRPGSystemUseCase.Execute(r.Context(), rpgsystemapp.GetRPGSystemInput{
-		ID: rpgSystemID,
+		TenantID: &tenantID,
+		ID:       rpgSystemID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -125,6 +127,7 @@ func (h *RPGSystemHandler) List(w http.ResponseWriter, r *http.Request) {
 
 // Update handles PUT /api/v1/rpg-systems/{id}
 func (h *RPGSystemHandler) Update(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(id)
 	if err != nil {
@@ -152,6 +155,7 @@ func (h *RPGSystemHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateRPGSystemUseCase.Execute(r.Context(), rpgsystemapp.UpdateRPGSystemInput{
+		TenantID:          tenantID,
 		ID:                rpgSystemID,
 		Name:              req.Name,
 		Description:       req.Description,
@@ -172,6 +176,7 @@ func (h *RPGSystemHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 // Delete handles DELETE /api/v1/rpg-systems/{id}
 func (h *RPGSystemHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	rpgSystemID, err := uuid.Parse(id)
 	if err != nil {
@@ -183,7 +188,8 @@ func (h *RPGSystemHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.deleteRPGSystemUseCase.Execute(r.Context(), rpgsystemapp.DeleteRPGSystemInput{
-		ID: rpgSystemID,
+		TenantID: tenantID,
+		ID:       rpgSystemID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return

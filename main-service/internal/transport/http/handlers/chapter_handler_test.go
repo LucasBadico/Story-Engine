@@ -191,7 +191,7 @@ func TestChapterHandler_List(t *testing.T) {
 	t.Run("list chapters", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/stories/"+storyID+"/chapters", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
-		req.SetPathValue("story_id", storyID)
+		req.SetPathValue("id", storyID)
 		w := httptest.NewRecorder()
 
 		withTenantMiddleware(handler.List).ServeHTTP(w, req)

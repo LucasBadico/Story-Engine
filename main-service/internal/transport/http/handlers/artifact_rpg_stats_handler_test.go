@@ -69,7 +69,8 @@ func TestArtifactRPGStatsHandler_Create(t *testing.T) {
 	}
 
 	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(db)
-	createStatsUseCase := artifactstatsapp.NewCreateArtifactStatsUseCase(artifactStatsRepo, artifactRepo, log)
+	eventRepo := postgres.NewEventRepository(db)
+	createStatsUseCase := artifactstatsapp.NewCreateArtifactStatsUseCase(artifactStatsRepo, artifactRepo, eventRepo, log)
 	getActiveStatsUseCase := artifactstatsapp.NewGetActiveArtifactStatsUseCase(artifactStatsRepo, log)
 	listHistoryUseCase := artifactstatsapp.NewListArtifactStatsHistoryUseCase(artifactStatsRepo, log)
 	activateVersionUseCase := artifactstatsapp.NewActivateArtifactStatsVersionUseCase(artifactStatsRepo, log)
@@ -94,12 +95,12 @@ func TestArtifactRPGStatsHandler_Create(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if stats, ok := resp["artifact_rpg_stats"].(map[string]interface{}); ok {
+		if stats, ok := resp["stats"].(map[string]interface{}); ok {
 			if stats["artifact_id"] != artifactID {
 				t.Errorf("expected artifact_id %s, got %v", artifactID, stats["artifact_id"])
 			}
 		} else {
-			t.Error("response missing artifact_rpg_stats")
+			t.Error("response missing stats")
 		}
 	})
 
@@ -172,7 +173,8 @@ func TestArtifactRPGStatsHandler_GetActive(t *testing.T) {
 	}
 
 	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(db)
-	createStatsUseCase := artifactstatsapp.NewCreateArtifactStatsUseCase(artifactStatsRepo, artifactRepo, log)
+	eventRepo := postgres.NewEventRepository(db)
+	createStatsUseCase := artifactstatsapp.NewCreateArtifactStatsUseCase(artifactStatsRepo, artifactRepo, eventRepo, log)
 	getActiveStatsUseCase := artifactstatsapp.NewGetActiveArtifactStatsUseCase(artifactStatsRepo, log)
 	listHistoryUseCase := artifactstatsapp.NewListArtifactStatsHistoryUseCase(artifactStatsRepo, log)
 	activateVersionUseCase := artifactstatsapp.NewActivateArtifactStatsVersionUseCase(artifactStatsRepo, log)
@@ -208,8 +210,8 @@ func TestArtifactRPGStatsHandler_GetActive(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if _, ok := resp["artifact_rpg_stats"]; !ok {
-			t.Error("response missing artifact_rpg_stats")
+		if _, ok := resp["stats"]; !ok {
+			t.Error("response missing stats")
 		}
 	})
 }

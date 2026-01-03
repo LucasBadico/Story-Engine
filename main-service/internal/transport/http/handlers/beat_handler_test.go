@@ -86,7 +86,7 @@ func TestBeatHandler_Create(t *testing.T) {
 	handler := NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
 
 	t.Run("successful creation", func(t *testing.T) {
-		body := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "action", "intent": "Test intent", "outcome": "Test outcome"}`
+		body := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "setup", "intent": "Test intent", "outcome": "Test outcome"}`
 		req := httptest.NewRequest("POST", "/api/v1/beats", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Tenant-ID", tenantID)
@@ -113,7 +113,7 @@ func TestBeatHandler_Create(t *testing.T) {
 	})
 
 	t.Run("missing tenant_id", func(t *testing.T) {
-		body := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "action"}`
+		body := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "setup"}`
 		req := httptest.NewRequest("POST", "/api/v1/beats", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		w := httptest.NewRecorder()
@@ -146,7 +146,7 @@ func TestBeatHandler_Get(t *testing.T) {
 	handler := NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
 
 	// Create beat
-	beatBody := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "action", "intent": "Get Test Beat"}`
+	beatBody := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "setup", "intent": "Get Test Beat"}`
 	beatReq := httptest.NewRequest("POST", "/api/v1/beats", strings.NewReader(beatBody))
 	beatReq.Header.Set("Content-Type", "application/json")
 	beatReq.Header.Set("X-Tenant-ID", tenantID)
@@ -233,7 +233,7 @@ func TestBeatHandler_List(t *testing.T) {
 
 	// Create multiple beats
 	for i := 1; i <= 3; i++ {
-		beatBody := `{"scene_id": "` + sceneID + `", "order_num": ` + strconv.Itoa(i) + `, "type": "action", "intent": "Beat ` + strconv.Itoa(i) + `"}`
+		beatBody := `{"scene_id": "` + sceneID + `", "order_num": ` + strconv.Itoa(i) + `, "type": "setup", "intent": "Beat ` + strconv.Itoa(i) + `"}`
 		beatReq := httptest.NewRequest("POST", "/api/v1/beats", strings.NewReader(beatBody))
 		beatReq.Header.Set("Content-Type", "application/json")
 		beatReq.Header.Set("X-Tenant-ID", tenantID)
@@ -248,7 +248,7 @@ func TestBeatHandler_List(t *testing.T) {
 	t.Run("list beats", func(t *testing.T) {
 		req := httptest.NewRequest("GET", "/api/v1/scenes/"+sceneID+"/beats", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
-		req.SetPathValue("scene_id", sceneID)
+		req.SetPathValue("id", sceneID)
 		w := httptest.NewRecorder()
 
 		withTenantMiddleware(handler.List).ServeHTTP(w, req)
@@ -292,7 +292,7 @@ func TestBeatHandler_Update(t *testing.T) {
 	handler := NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
 
 	// Create beat
-	beatBody := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "action", "intent": "Original Beat"}`
+	beatBody := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "setup", "intent": "Original Beat"}`
 	beatReq := httptest.NewRequest("POST", "/api/v1/beats", strings.NewReader(beatBody))
 	beatReq.Header.Set("Content-Type", "application/json")
 	beatReq.Header.Set("X-Tenant-ID", tenantID)
@@ -382,7 +382,7 @@ func TestBeatHandler_Delete(t *testing.T) {
 	handler := NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
 
 	// Create beat
-	beatBody := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "action", "intent": "Beat to Delete"}`
+	beatBody := `{"scene_id": "` + sceneID + `", "order_num": 1, "type": "setup", "intent": "Beat to Delete"}`
 	beatReq := httptest.NewRequest("POST", "/api/v1/beats", strings.NewReader(beatBody))
 	beatReq.Header.Set("Content-Type", "application/json")
 	beatReq.Header.Set("X-Tenant-ID", tenantID)
@@ -446,4 +446,3 @@ func TestBeatHandler_Delete(t *testing.T) {
 		}
 	})
 }
-

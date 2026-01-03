@@ -13,7 +13,6 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	rpgclassapp "github.com/story-engine/main-service/internal/application/rpg/rpg_class"
 	rpgsystemapp "github.com/story-engine/main-service/internal/application/rpg/rpg_system"
-	skillapp "github.com/story-engine/main-service/internal/application/rpg/skill"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
 
@@ -91,12 +90,12 @@ func TestRPGClassHandler_Create(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if rpgClass, ok := resp["rpg_class"].(map[string]interface{}); ok {
+		if rpgClass, ok := resp["class"].(map[string]interface{}); ok {
 			if rpgClass["name"] != "Test Class" {
 				t.Errorf("expected name 'Test Class', got %v", rpgClass["name"])
 			}
 		} else {
-			t.Error("response missing rpg_class")
+			t.Error("response missing class")
 		}
 	})
 
@@ -188,9 +187,9 @@ func TestRPGClassHandler_Get(t *testing.T) {
 		t.Fatalf("failed to decode RPG class response: %v", err)
 	}
 
-	rpgClassObj, ok := rpgClassResp["rpg_class"].(map[string]interface{})
+	rpgClassObj, ok := rpgClassResp["class"].(map[string]interface{})
 	if !ok {
-		t.Fatalf("RPG class response missing rpg_class object: %v", rpgClassResp)
+		t.Fatalf("RPG class response missing class object: %v", rpgClassResp)
 	}
 
 	rpgClassID, ok := rpgClassObj["id"].(string)
@@ -215,12 +214,12 @@ func TestRPGClassHandler_Get(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if rpgClass, ok := resp["rpg_class"].(map[string]interface{}); ok {
+		if rpgClass, ok := resp["class"].(map[string]interface{}); ok {
 			if rpgClass["id"] != rpgClassID {
 				t.Errorf("expected ID %s, got %v", rpgClassID, rpgClass["id"])
 			}
 		} else {
-			t.Error("response missing rpg_class")
+			t.Error("response missing class")
 		}
 	})
 
@@ -325,12 +324,12 @@ func TestRPGClassHandler_List(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if rpgClasses, ok := resp["rpg_classes"].([]interface{}); ok {
+		if rpgClasses, ok := resp["classes"].([]interface{}); ok {
 			if len(rpgClasses) < 3 {
 				t.Errorf("expected at least 3 RPG classes, got %d", len(rpgClasses))
 			}
 		} else {
-			t.Error("response missing rpg_classes")
+			t.Error("response missing classes")
 		}
 	})
 }
@@ -408,9 +407,9 @@ func TestRPGClassHandler_Update(t *testing.T) {
 		t.Fatalf("failed to decode RPG class response: %v", err)
 	}
 
-	rpgClassObj, ok := rpgClassResp["rpg_class"].(map[string]interface{})
+	rpgClassObj, ok := rpgClassResp["class"].(map[string]interface{})
 	if !ok {
-		t.Fatalf("RPG class response missing rpg_class object: %v", rpgClassResp)
+		t.Fatalf("RPG class response missing class object: %v", rpgClassResp)
 	}
 
 	rpgClassID, ok := rpgClassObj["id"].(string)
@@ -437,12 +436,12 @@ func TestRPGClassHandler_Update(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if rpgClass, ok := resp["rpg_class"].(map[string]interface{}); ok {
+		if rpgClass, ok := resp["class"].(map[string]interface{}); ok {
 			if rpgClass["name"] != "Updated Class" {
 				t.Errorf("expected name 'Updated Class', got %v", rpgClass["name"])
 			}
 		} else {
-			t.Error("response missing rpg_class")
+			t.Error("response missing class")
 		}
 	})
 
@@ -535,9 +534,9 @@ func TestRPGClassHandler_Delete(t *testing.T) {
 		t.Fatalf("failed to decode RPG class response: %v", err)
 	}
 
-	rpgClassObj, ok := rpgClassResp["rpg_class"].(map[string]interface{})
+	rpgClassObj, ok := rpgClassResp["class"].(map[string]interface{})
 	if !ok {
-		t.Fatalf("RPG class response missing rpg_class object: %v", rpgClassResp)
+		t.Fatalf("RPG class response missing class object: %v", rpgClassResp)
 	}
 
 	rpgClassID, ok := rpgClassObj["id"].(string)
@@ -583,4 +582,3 @@ func TestRPGClassHandler_Delete(t *testing.T) {
 		}
 	})
 }
-
