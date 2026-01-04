@@ -1,7 +1,7 @@
 # Status da Implementação SQLite - Story Engine
 
 **Data:** 2025-01-XX  
-**Última Atualização:** Sessão de implementação de repositórios SQLite
+**Última Atualização:** Sessão de implementação de funcionalidades Offline Mode e estrutura de testes SQLite
 
 ## ✅ O QUE JÁ FOI IMPLEMENTADO
 
@@ -33,120 +33,57 @@
 - [x] `story_repository.go` - Stories com versionamento
 - [x] `chapter_repository.go` - Chapters
 - [x] `scene_repository.go` - Scenes
+- [x] `scene_reference_repository.go` - Scene References
 - [x] `beat_repository.go` - Beats
 - [x] `content_block_repository.go` - Content blocks (prose/images/video/etc)
 - [x] `content_block_reference_repository.go` - Referências de content blocks
 
 #### World Building Domain
 - [x] `world_repository.go` - Worlds
+- [x] `location_repository.go` - Locations com hierarquia (CTEs recursivos)
+- [x] `character_repository.go` - Characters
+- [x] `character_trait_repository.go` - Junction table Character-Trait
+- [x] `artifact_repository.go` - Artifacts
+- [x] `artifact_reference_repository.go` - Artifact References
+- [x] `event_repository.go` - Events
+- [x] `event_character_repository.go` - Junction table Event-Character
+- [x] `event_location_repository.go` - Junction table Event-Location
+- [x] `event_artifact_repository.go` - Junction table Event-Artifact
+- [x] `faction_repository.go` - Factions com hierarquia
+- [x] `faction_reference_repository.go` - Faction References
+- [x] `lore_repository.go` - Lores com hierarquia
+- [x] `lore_reference_repository.go` - Lore References
+- [x] `trait_repository.go` - Traits
+- [x] `archetype_repository.go` - Archetypes
+- [x] `archetype_trait_repository.go` - Junction table Archetype-Trait
 
 ## ⏳ O QUE AINDA PRECISA SER IMPLEMENTADO
 
 ### 1. Repositórios World Building - Core (PRIORIDADE ALTA)
-
-#### Location
-- [ ] `location_repository.go`
-  - Interface: `repositories.LocationRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete, GetChildren (hierarquia)
-  - Referência: `main-service/internal/adapters/db/postgres/location_repository.go`
-
-#### Character
-- [ ] `character_repository.go`
-  - Interface: `repositories.CharacterRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete, GetChildren
-  - Referência: `main-service/internal/adapters/db/postgres/character_repository.go`
-- [ ] `character_trait_repository.go` (tabela junction)
-  - Interface: `repositories.CharacterTraitRepository`
-  - Métodos: Create, Delete, ListByCharacter, ListByTrait
-  - Referência: `main-service/internal/adapters/db/postgres/character_trait_repository.go`
-
-#### Artifact
-- [ ] `artifact_repository.go`
-  - Interface: `repositories.ArtifactRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete, CountByWorld
-  - Referência: `main-service/internal/adapters/db/postgres/artifact_repository.go`
-- [ ] `artifact_reference_repository.go`
-  - Interface: `repositories.ArtifactReferenceRepository`
-  - Métodos: Create, GetByID, ListByArtifact, ListByEntity, Delete, DeleteByArtifact, DeleteByArtifactAndEntity
-  - Referência: `main-service/internal/adapters/db/postgres/artifact_reference_repository.go`
-
-#### Event
-- [ ] `event_repository.go`
-  - Interface: `repositories.EventRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete
-  - Referência: `main-service/internal/adapters/db/postgres/event_repository.go`
-- [ ] `event_character_repository.go` (tabela junction)
-  - Interface: `repositories.EventCharacterRepository`
-  - Métodos: Create, Delete, ListByEvent, ListByCharacter
-  - Referência: `main-service/internal/adapters/db/postgres/event_character_repository.go`
-- [ ] `event_location_repository.go` (tabela junction)
-  - Interface: `repositories.EventLocationRepository`
-  - Métodos: Create, Delete, ListByEvent, ListByLocation
-  - Referência: `main-service/internal/adapters/db/postgres/event_location_repository.go`
-- [ ] `event_artifact_repository.go` (tabela junction)
-  - Interface: `repositories.EventArtifactRepository`
-  - Métodos: Create, Delete, ListByEvent, ListByArtifact
-  - Referência: `main-service/internal/adapters/db/postgres/event_artifact_repository.go`
+✅ **COMPLETO** - Todos os repositórios Core foram implementados
 
 ### 2. Repositórios World Building - Extended (PRIORIDADE MÉDIA)
-
-#### Faction
-- [ ] `faction_repository.go`
-  - Interface: `repositories.FactionRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete, GetChildren
-  - Referência: `main-service/internal/adapters/db/postgres/faction_repository.go`
-- [ ] `faction_reference_repository.go`
-  - Interface: `repositories.FactionReferenceRepository`
-  - Métodos: Create, GetByID, ListByFaction, ListByEntity, Update, Delete, DeleteByFactionAndEntity, DeleteByFaction
-  - Referência: `main-service/internal/adapters/db/postgres/faction_reference_repository.go`
-
-#### Lore
-- [ ] `lore_repository.go`
-  - Interface: `repositories.LoreRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete, GetChildren
-  - Referência: `main-service/internal/adapters/db/postgres/lore_repository.go`
-- [ ] `lore_reference_repository.go`
-  - Interface: `repositories.LoreReferenceRepository`
-  - Métodos: Create, GetByID, ListByLore, ListByEntity, Update, Delete, DeleteByLoreAndEntity, DeleteByLore
-  - Referência: `main-service/internal/adapters/db/postgres/lore_reference_repository.go`
-
-#### Trait
-- [ ] `trait_repository.go`
-  - Interface: `repositories.TraitRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete
-  - Referência: `main-service/internal/adapters/db/postgres/trait_repository.go`
-
-#### Archetype
-- [ ] `archetype_repository.go`
-  - Interface: `repositories.ArchetypeRepository`
-  - Métodos: Create, GetByID, ListByWorld, Update, Delete
-  - Referência: `main-service/internal/adapters/db/postgres/archetype_repository.go`
-- [ ] `archetype_trait_repository.go` (tabela junction)
-  - Interface: `repositories.ArchetypeTraitRepository`
-  - Métodos: Create, Delete, ListByArchetype, ListByTrait
-  - Referência: `main-service/internal/adapters/db/postgres/archetype_trait_repository.go`
+✅ **COMPLETO** - Todos os repositórios Extended foram implementados
 
 ### 3. Scene References (PRIORIDADE BAIXA)
-- [ ] `scene_reference_repository.go`
-  - Interface: `repositories.SceneReferenceRepository`
-  - Métodos: Create, GetByID, ListByScene, ListByEntity, Delete, DeleteByScene
-  - Referência: `main-service/internal/adapters/db/postgres/scene_reference_repository.go`
+✅ **COMPLETO** - Scene reference repository foi implementado
 
 ### 4. Funcionalidades Offline Mode (PRIORIDADE ALTA)
+✅ **COMPLETO** - Todas as funcionalidades de Offline Mode foram implementadas
 
-#### Default Tenant Setup
-- [ ] Criar lógica para criar tenant padrão automaticamente
-  - UUID fixo para tenant offline (ex: `00000000-0000-0000-0000-000000000001`)
+#### Default Tenant Setup ✅
+- [x] Criar lógica para criar tenant padrão automaticamente
+  - UUID fixo para tenant offline: `00000000-0000-0000-0000-000000000001`
   - Auto-criação na inicialização do modo offline
-  - Localização: `main-service/internal/platform/tenant/default.go` (sugestão)
+  - Localização: `main-service/internal/platform/tenant/offline_setup.go`
 
-#### Offline Middleware
-- [ ] Criar middleware que injeta tenant padrão no context
-  - Localização: `main-service/internal/transport/http/middleware/offline_tenant.go` (sugestão)
-  - Deve injetar o tenant padrão em todas as requisições
+#### Offline Middleware ✅
+- [x] Criar middleware que injeta tenant padrão no context
+  - Localização: `main-service/internal/transport/http/middleware/offline_tenant.go`
+  - Injeta o tenant padrão em todas as requisições
 
-#### Entry Point Offline
-- [ ] Criar `cmd/api-offline/main.go`
+#### Entry Point Offline ✅
+- [x] Criar `cmd/api-offline/main.go`
   - Inicializa SQLite database
   - Cria tenant padrão se não existir
   - Configura middleware de tenant offline
@@ -154,10 +91,74 @@
   - Inicializa HTTP server (sem gRPC)
   - NÃO inicializa repositórios de User/Membership/RPG
 
-### 5. Melhorias e Ajustes (PRIORIDADE BAIXA)
+### 5. Testes de Integração SQLite (PRIORIDADE MÉDIA)
+
+#### Test Helpers ✅
+- [x] `test_helper.go` - SetupTestSQLiteDB, SetupTestDBFile, applyMigrations, TruncateTables
+
+#### Repositórios com Testes
+- [x] `tenant_repository_test.go` - TenantRepository (exemplo completo)
+- [x] `world_repository_test.go` - WorldRepository
+- [x] `location_repository_test.go` - LocationRepository (incluir testes de hierarquia)
+- [x] `character_repository_test.go` - CharacterRepository
+- [x] `character_trait_repository_test.go` - CharacterTraitRepository (junction table)
+- [x] `artifact_repository_test.go` - ArtifactRepository
+- [x] `artifact_reference_repository_test.go` - ArtifactReferenceRepository
+- [x] `event_repository_test.go` - EventRepository
+- [x] `event_character_repository_test.go` - EventCharacterRepository (junction table)
+- [x] `event_location_repository_test.go` - EventLocationRepository (junction table)
+- [x] `event_artifact_repository_test.go` - EventArtifactRepository (junction table)
+- [x] `faction_repository_test.go` - FactionRepository (incluir testes de hierarquia)
+- [x] `faction_reference_repository_test.go` - FactionReferenceRepository
+- [x] `lore_repository_test.go` - LoreRepository (incluir testes de hierarquia)
+- [x] `lore_reference_repository_test.go` - LoreReferenceRepository
+- [x] `trait_repository_test.go` - TraitRepository
+- [x] `archetype_repository_test.go` - ArchetypeRepository
+- [x] `archetype_trait_repository_test.go` - ArchetypeTraitRepository (junction table)
+- [x] `story_repository_test.go` - StoryRepository (incluir testes de versionamento)
+- [x] `chapter_repository_test.go` - ChapterRepository
+- [x] `scene_repository_test.go` - SceneRepository
+- [x] `scene_reference_repository_test.go` - SceneReferenceRepository
+- [x] `beat_repository_test.go` - BeatRepository
+- [x] `content_block_repository_test.go` - ContentBlockRepository
+- [x] `content_block_reference_repository_test.go` - ContentBlockReferenceRepository
+
+#### Instruções para Criar Testes
+
+1. **Criar arquivo de teste**: `{repository}_test.go` no mesmo diretório do repositório
+2. **Usar build tag**: Adicionar `//go:build integration` no topo do arquivo
+3. **Seguir o padrão**:
+   ```go
+   func Test{Repository}_{Method}(t *testing.T) {
+       db, cleanup := SetupTestSQLiteDB(t)
+       defer cleanup()
+       
+       ctx := context.Background()
+       repo := New{Repository}(db)
+       
+       // Testes aqui
+   }
+   ```
+4. **Testar operações CRUD básicas**:
+   - Create (sucesso e constraints)
+   - GetByID (existente e não existente)
+   - Update
+   - Delete
+   - List (quando aplicável)
+5. **Testar casos especiais**:
+   - Hierarquia (Location, Faction, Lore - GetChildren, GetAncestors, GetDescendants)
+   - Versionamento (Story - versões)
+   - Junction tables (ON CONFLICT DO NOTHING)
+   - Foreign keys e constraints
+6. **Executar testes**: `go test -tags=integration ./internal/adapters/db/sqlite -v -run Test{Repository}`
+
+**Referências**:
+- Exemplo: `main-service/internal/adapters/db/sqlite/tenant_repository_test.go`
+- Padrão Postgres: `main-service/internal/adapters/db/postgres/user_repository_test.go`
+
+### 6. Melhorias e Ajustes (PRIORIDADE BAIXA)
 - [ ] Adicionar comentários nos entry points SAAS indicando modo multi-tenant Postgres
-- [ ] Criar função helper para executar migrations SQLite (similar ao golang-migrate)
-- [ ] Testes de integração para repositórios SQLite
+- [x] Criar função helper para executar migrations SQLite (similar ao golang-migrate)
 - [ ] Documentação de uso do modo offline
 
 ## 📋 PADRÕES DE IMPLEMENTAÇÃO
@@ -234,13 +235,16 @@ func New{Repository}(db *DB) *{Repository} {
 - **Todas as migrations já foram criadas** - não precisa criar novas migrations
 - **Usar o padrão estabelecido** nos repositórios já criados
 - **Testar compilação** após cada repositório criado
-- **Priorizar repositórios Core** antes dos Extended
+- ✅ **Repositórios Core completos** - location, character, artifact, event e todas as junction tables foram implementados
+- ✅ **Repositórios Extended completos** - faction, lore, trait, archetype e todas as junction tables/references foram implementados
 
 ## 🎯 PRÓXIMOS PASSOS SUGERIDOS
 
-1. Implementar repositórios Core (location, character, artifact, event)
-2. Implementar funcionalidades de offline mode (default tenant, middleware, entry point)
-3. Testar o modo offline básico
-4. Implementar repositórios Extended (faction, lore, trait, archetype)
-5. Adicionar testes e documentação
+1. ✅ ~~Implementar repositórios Core (location, character, artifact, event)~~ **CONCLUÍDO**
+2. ✅ ~~Implementar repositórios Extended (faction, lore, trait, archetype)~~ **CONCLUÍDO**
+3. ✅ ~~Implementar funcionalidades de offline mode (default tenant, middleware, entry point)~~ **CONCLUÍDO**
+4. ✅ ~~Criar estrutura de testes SQLite (test_helper.go e exemplo)~~ **CONCLUÍDO**
+5. ✅ ~~Criar testes de integração para repositórios SQLite (seguir lista na seção 5)~~ **CONCLUÍDO** - Todos os 25 repositórios agora possuem testes de integração completos
+6. Testar o modo offline básico (testar entry point `cmd/api-offline/main.go`)
+7. Adicionar documentação de uso do modo offline
 
