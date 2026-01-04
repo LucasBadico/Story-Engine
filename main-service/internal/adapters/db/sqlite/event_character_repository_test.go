@@ -86,8 +86,18 @@ func TestEventCharacterRepository_Create(t *testing.T) {
 	})
 
 	t.Run("successful creation with role", func(t *testing.T) {
+		// Create a new character to avoid UNIQUE constraint violation
+		character2, err := world.NewCharacter(testTenant.ID, testWorld.ID, "Character With Role")
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+		err = characterRepo.Create(ctx, character2)
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+
 		role := "Protagonist"
-		ec := world.NewEventCharacter(testEvent.ID, testCharacter.ID, &role)
+		ec := world.NewEventCharacter(testEvent.ID, character2.ID, &role)
 
 		err = eventCharacterRepo.Create(ctx, ec)
 		if err != nil {

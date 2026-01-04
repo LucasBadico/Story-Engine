@@ -124,8 +124,18 @@ func TestFactionReferenceRepository_Create(t *testing.T) {
 	})
 
 	t.Run("successful creation with role", func(t *testing.T) {
+		// Create a new character to avoid UNIQUE constraint violation
+		character2, err := world.NewCharacter(testTenant.ID, testWorld.ID, "Character With Role")
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+		err = characterRepo.Create(ctx, character2)
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+
 		role := "Leader"
-		fr := world.NewFactionReference(testFaction.ID, "character", testCharacter.ID, &role)
+		fr := world.NewFactionReference(testFaction.ID, "character", character2.ID, &role)
 
 		err = factionRefRepo.Create(ctx, fr)
 		if err != nil {
@@ -147,7 +157,17 @@ func TestFactionReferenceRepository_Create(t *testing.T) {
 	})
 
 	t.Run("successful creation with notes", func(t *testing.T) {
-		fr := world.NewFactionReference(testFaction.ID, "character", testCharacter.ID, nil)
+		// Create a new character to avoid UNIQUE constraint violation
+		character3, err := world.NewCharacter(testTenant.ID, testWorld.ID, "Character With Notes")
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+		err = characterRepo.Create(ctx, character3)
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+
+		fr := world.NewFactionReference(testFaction.ID, "character", character3.ID, nil)
 		fr.UpdateNotes("Some notes")
 
 		err = factionRefRepo.Create(ctx, fr)
@@ -547,8 +567,18 @@ func TestFactionReferenceRepository_Update(t *testing.T) {
 	})
 
 	t.Run("update role to nil", func(t *testing.T) {
+		// Create a new character to avoid UNIQUE constraint violation
+		character2, err := world.NewCharacter(testTenant.ID, testWorld.ID, "Character for nil update")
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+		err = characterRepo.Create(ctx, character2)
+		if err != nil {
+			t.Fatalf("failed to create character: %v", err)
+		}
+
 		role := "Initial Role"
-		fr := world.NewFactionReference(testFaction.ID, "character", testCharacter.ID, &role)
+		fr := world.NewFactionReference(testFaction.ID, "character", character2.ID, &role)
 		err = factionRefRepo.Create(ctx, fr)
 		if err != nil {
 			t.Fatalf("failed to create faction-reference: %v", err)

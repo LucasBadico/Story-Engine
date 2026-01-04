@@ -39,7 +39,7 @@ func TestTenantRepository_Create(t *testing.T) {
 			t.Errorf("expected name to be 'test-tenant', got '%s'", retrieved.Name)
 		}
 
-		if retrieved.Status != tenant.TenantStatusActive {
+		if retrieved.Status != "active" {
 			t.Errorf("expected status to be 'active', got '%s'", retrieved.Status)
 		}
 	})

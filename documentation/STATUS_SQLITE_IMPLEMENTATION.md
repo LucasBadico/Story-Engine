@@ -246,5 +246,5 @@ func New{Repository}(db *DB) *{Repository} {
 4. ✅ ~~Criar estrutura de testes SQLite (test_helper.go e exemplo)~~ **CONCLUÍDO**
 5. ✅ ~~Criar testes de integração para repositórios SQLite (seguir lista na seção 5)~~ **CONCLUÍDO** - Todos os 25 repositórios agora possuem testes de integração completos
 6. Testar o modo offline básico (testar entry point `cmd/api-offline/main.go`)
-7. Adicionar documentação de uso do modo offline
+7. ✅ ~~Adicionar documentação de uso do modo offline~~ **CONCLUÍDO** - Documentação completa em `documentation/guides/offline-mode.md`
 

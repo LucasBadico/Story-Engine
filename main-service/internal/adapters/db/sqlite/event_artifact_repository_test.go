@@ -86,8 +86,18 @@ func TestEventArtifactRepository_Create(t *testing.T) {
 	})
 
 	t.Run("successful creation with role", func(t *testing.T) {
+		// Create a new artifact to avoid UNIQUE constraint violation
+		artifact2, err := world.NewArtifact(testTenant.ID, testWorld.ID, "Artifact With Role")
+		if err != nil {
+			t.Fatalf("failed to create artifact: %v", err)
+		}
+		err = artifactRepo.Create(ctx, artifact2)
+		if err != nil {
+			t.Fatalf("failed to create artifact: %v", err)
+		}
+
 		role := "Key Artifact"
-		ea := world.NewEventArtifact(testEvent.ID, testArtifact.ID, &role)
+		ea := world.NewEventArtifact(testEvent.ID, artifact2.ID, &role)
 
 		err = eventArtifactRepo.Create(ctx, ea)
 		if err != nil {

@@ -72,7 +72,7 @@ func (r *TenantRepository) GetByID(ctx context.Context, id uuid.UUID) (*tenant.T
 		WHERE id = ?
 	`
 	var t tenant.Tenant
-	var idStr, activeLLMProfileIDStr, createdByStr, createdAtStr, updatedAtStr string
+	var idStr, createdAtStr, updatedAtStr string
 	var activeLLMProfileID, createdBy sql.NullString
 
 	err := r.db.QueryRow(ctx, query, id.String()).Scan(

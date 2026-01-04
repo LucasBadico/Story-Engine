@@ -86,8 +86,18 @@ func TestEventLocationRepository_Create(t *testing.T) {
 	})
 
 	t.Run("successful creation with significance", func(t *testing.T) {
+		// Create a new location to avoid UNIQUE constraint violation
+		location2, err := world.NewLocation(testTenant.ID, testWorld.ID, "Location With Significance", nil)
+		if err != nil {
+			t.Fatalf("failed to create location: %v", err)
+		}
+		err = locationRepo.Create(ctx, location2)
+		if err != nil {
+			t.Fatalf("failed to create location: %v", err)
+		}
+
 		significance := "Important location for the event"
-		el := world.NewEventLocation(testEvent.ID, testLocation.ID, &significance)
+		el := world.NewEventLocation(testEvent.ID, location2.ID, &significance)
 
 		err = eventLocationRepo.Create(ctx, el)
 		if err != nil {

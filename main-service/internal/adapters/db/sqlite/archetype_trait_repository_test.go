@@ -6,10 +6,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/core/tenant"
 	"github.com/story-engine/main-service/internal/core/world"
-	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 )
 
 func TestArchetypeTraitRepository_Create(t *testing.T) {

@@ -20,6 +20,7 @@ func TestCharacterRepository_Create(t *testing.T) {
 	ctx := context.Background()
 	tenantRepo := NewTenantRepository(db)
 	worldRepo := NewWorldRepository(db)
+	archetypeRepo := NewArchetypeRepository(db)
 	characterRepo := NewCharacterRepository(db)
 
 	// Create tenant and world first
@@ -72,12 +73,21 @@ func TestCharacterRepository_Create(t *testing.T) {
 	})
 
 	t.Run("successful creation with archetype", func(t *testing.T) {
-		archetypeID := uuid.New()
+		// Create an actual archetype in the database first
+		testArchetype, err := world.NewArchetype(testTenant.ID, "Test Archetype")
+		if err != nil {
+			t.Fatalf("failed to create archetype: %v", err)
+		}
+		err = archetypeRepo.Create(ctx, testArchetype)
+		if err != nil {
+			t.Fatalf("failed to create archetype in db: %v", err)
+		}
+
 		char, err := world.NewCharacter(testTenant.ID, testWorld.ID, "Character With Archetype")
 		if err != nil {
 			t.Fatalf("failed to create character: %v", err)
 		}
-		char.SetArchetype(&archetypeID)
+		char.SetArchetype(&testArchetype.ID)
 
 		err = characterRepo.Create(ctx, char)
 		if err != nil {
@@ -93,8 +103,8 @@ func TestCharacterRepository_Create(t *testing.T) {
 			t.Fatal("expected archetype_id to be set, got nil")
 		}
 
-		if *retrieved.ArchetypeID != archetypeID {
-			t.Errorf("expected archetype_id to be %s, got %s", archetypeID, *retrieved.ArchetypeID)
+		if *retrieved.ArchetypeID != testArchetype.ID {
+			t.Errorf("expected archetype_id to be %s, got %s", testArchetype.ID, *retrieved.ArchetypeID)
 		}
 	})
 
@@ -335,6 +345,7 @@ func TestCharacterRepository_Update(t *testing.T) {
 	ctx := context.Background()
 	tenantRepo := NewTenantRepository(db)
 	worldRepo := NewWorldRepository(db)
+	archetypeRepo := NewArchetypeRepository(db)
 	characterRepo := NewCharacterRepository(db)
 
 	// Create tenant and world first
@@ -413,9 +424,18 @@ func TestCharacterRepository_Update(t *testing.T) {
 			t.Fatalf("failed to create character: %v", err)
 		}
 
+		// Create an actual archetype in the database first
+		testArchetype, err := world.NewArchetype(testTenant.ID, "Update Test Archetype")
+		if err != nil {
+			t.Fatalf("failed to create archetype: %v", err)
+		}
+		err = archetypeRepo.Create(ctx, testArchetype)
+		if err != nil {
+			t.Fatalf("failed to create archetype in db: %v", err)
+		}
+
 		// Set archetype
-		archetypeID := uuid.New()
-		char.SetArchetype(&archetypeID)
+		char.SetArchetype(&testArchetype.ID)
 		err = characterRepo.Update(ctx, char)
 		if err != nil {
 			t.Fatalf("failed to update character: %v", err)
@@ -430,8 +450,8 @@ func TestCharacterRepository_Update(t *testing.T) {
 			t.Fatal("expected archetype_id to be set, got nil")
 		}
 
-		if *retrieved.ArchetypeID != archetypeID {
-			t.Errorf("expected archetype_id to be %s, got %s", archetypeID, *retrieved.ArchetypeID)
+		if *retrieved.ArchetypeID != testArchetype.ID {
+			t.Errorf("expected archetype_id to be %s, got %s", testArchetype.ID, *retrieved.ArchetypeID)
 		}
 
 		// Clear archetype
