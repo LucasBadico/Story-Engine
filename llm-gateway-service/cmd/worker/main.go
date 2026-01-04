@@ -137,6 +137,20 @@ func main() {
 		embedder,
 		log,
 	)
+	ingestFactionUseCase := ingest.NewIngestFactionUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
+	ingestLoreUseCase := ingest.NewIngestLoreUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
 	// searchMemoryUseCase is available for future use (e.g., API endpoints)
 	_ = search.NewSearchMemoryUseCase(
 		chunkRepo,
@@ -158,6 +172,8 @@ func main() {
 		ingestLocationUseCase,
 		ingestEventUseCase,
 		ingestArtifactUseCase,
+		ingestFactionUseCase,
+		ingestLoreUseCase,
 		log,
 		cfg,
 	)

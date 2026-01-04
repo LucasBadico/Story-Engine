@@ -1,0 +1,181 @@
+syntax = "proto3";
+package lore;
+option go_package = "github.com/story-engine/main-service/proto/lore";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Lore represents a lore entity
+message Lore {
+  string id = 1;
+  string world_id = 2;
+  optional string parent_id = 3;
+  string name = 4;
+  optional string category = 5;
+  string description = 6;
+  string rules = 7;
+  string limitations = 8;
+  string requirements = 9;
+  int32 hierarchy_level = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+// LoreReference represents the relationship between a lore and another entity
+message LoreReference {
+  string id = 1;
+  string lore_id = 2;
+  string entity_type = 3;
+  string entity_id = 4;
+  optional string relationship_type = 5;
+  string notes = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// CreateLoreRequest is the request to create a new lore
+message CreateLoreRequest {
+  string world_id = 1;
+  optional string parent_id = 2;
+  string name = 3;
+  optional string category = 4;
+  optional string description = 5;
+  optional string rules = 6;
+  optional string limitations = 7;
+  optional string requirements = 8;
+}
+
+// CreateLoreResponse is the response after creating a lore
+message CreateLoreResponse {
+  Lore lore = 1;
+}
+
+// GetLoreRequest is the request to get a lore by ID
+message GetLoreRequest {
+  string id = 1;
+}
+
+// GetLoreResponse is the response containing a lore
+message GetLoreResponse {
+  Lore lore = 1;
+}
+
+// ListLoresRequest is the request to list lores for a world
+message ListLoresRequest {
+  string world_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListLoresResponse is the response containing a list of lores
+message ListLoresResponse {
+  repeated Lore lores = 1;
+  int32 total_count = 2;
+}
+
+// UpdateLoreRequest is the request to update a lore
+message UpdateLoreRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string category = 3;
+  optional string description = 4;
+  optional string rules = 5;
+  optional string limitations = 6;
+  optional string requirements = 7;
+}
+
+// UpdateLoreResponse is the response after updating a lore
+message UpdateLoreResponse {
+  Lore lore = 1;
+}
+
+// DeleteLoreRequest is the request to delete a lore
+message DeleteLoreRequest {
+  string id = 1;
+}
+
+// DeleteLoreResponse is the response after deleting a lore
+message DeleteLoreResponse {
+}
+
+// AddReferenceToLoreRequest is the request to add a reference to a lore
+message AddReferenceToLoreRequest {
+  string lore_id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+  optional string relationship_type = 4;
+  optional string notes = 5;
+}
+
+// AddReferenceToLoreResponse is the response after adding a reference
+message AddReferenceToLoreResponse {
+  LoreReference lore_reference = 1;
+}
+
+// RemoveReferenceFromLoreRequest is the request to remove a reference from a lore
+message RemoveReferenceFromLoreRequest {
+  string lore_id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+}
+
+// RemoveReferenceFromLoreResponse is the response after removing a reference
+message RemoveReferenceFromLoreResponse {
+}
+
+// GetLoreReferencesRequest is the request to get references for a lore
+message GetLoreReferencesRequest {
+  string lore_id = 1;
+}
+
+// GetLoreReferencesResponse is the response containing references for a lore
+message GetLoreReferencesResponse {
+  repeated LoreReference references = 1;
+  int32 total_count = 2;
+}
+
+// UpdateLoreReferenceRequest is the request to update a lore reference
+message UpdateLoreReferenceRequest {
+  string id = 1;
+  optional string relationship_type = 2;
+  optional string notes = 3;
+}
+
+// UpdateLoreReferenceResponse is the response after updating a lore reference
+message UpdateLoreReferenceResponse {
+  LoreReference lore_reference = 1;
+}
+
+// GetLoreChildrenRequest is the request to get children of a lore
+message GetLoreChildrenRequest {
+  string id = 1;
+}
+
+// GetLoreChildrenResponse is the response containing children of a lore
+message GetLoreChildrenResponse {
+  repeated Lore children = 1;
+  int32 total_count = 2;
+}
+
+// LoreService provides lore management operations
+service LoreService {
+  // CreateLore creates a new lore
+  rpc CreateLore(CreateLoreRequest) returns (CreateLoreResponse);
+  // GetLore retrieves a lore by ID
+  rpc GetLore(GetLoreRequest) returns (GetLoreResponse);
+  // ListLores lists lores for a world
+  rpc ListLores(ListLoresRequest) returns (ListLoresResponse);
+  // UpdateLore updates an existing lore
+  rpc UpdateLore(UpdateLoreRequest) returns (UpdateLoreResponse);
+  // DeleteLore deletes a lore
+  rpc DeleteLore(DeleteLoreRequest) returns (DeleteLoreResponse);
+  // AddReferenceToLore adds a reference to a lore
+  rpc AddReferenceToLore(AddReferenceToLoreRequest) returns (AddReferenceToLoreResponse);
+  // RemoveReferenceFromLore removes a reference from a lore
+  rpc RemoveReferenceFromLore(RemoveReferenceFromLoreRequest) returns (RemoveReferenceFromLoreResponse);
+  // GetLoreReferences lists references for a lore
+  rpc GetLoreReferences(GetLoreReferencesRequest) returns (GetLoreReferencesResponse);
+  // UpdateLoreReference updates a lore reference
+  rpc UpdateLoreReference(UpdateLoreReferenceRequest) returns (UpdateLoreReferenceResponse);
+  // GetLoreChildren lists children of a lore
+  rpc GetLoreChildren(GetLoreChildrenRequest) returns (GetLoreChildrenResponse);
+}
+

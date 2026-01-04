@@ -25,7 +25,9 @@ import (
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
+	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
+	loreapp "github.com/story-engine/main-service/internal/application/world/lore"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
@@ -68,6 +70,10 @@ func main() {
 	eventCharacterRepo := postgres.NewEventCharacterRepository(pgDB)
 	eventLocationRepo := postgres.NewEventLocationRepository(pgDB)
 	eventArtifactRepo := postgres.NewEventArtifactRepository(pgDB)
+	factionRepo := postgres.NewFactionRepository(pgDB)
+	factionReferenceRepo := postgres.NewFactionReferenceRepository(pgDB)
+	loreRepo := postgres.NewLoreRepository(pgDB)
+	loreReferenceRepo := postgres.NewLoreReferenceRepository(pgDB)
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
@@ -146,6 +152,26 @@ func main() {
 	addArtifactToEventUseCase := eventapp.NewAddArtifactToEventUseCase(eventRepo, artifactRepo, eventArtifactRepo, log)
 	removeArtifactFromEventUseCase := eventapp.NewRemoveArtifactFromEventUseCase(eventArtifactRepo, log)
 	getEventArtifactsUseCase := eventapp.NewGetEventArtifactsUseCase(eventArtifactRepo, log)
+	createFactionUseCase := factionapp.NewCreateFactionUseCase(factionRepo, worldRepo, auditLogRepo, log)
+	getFactionUseCase := factionapp.NewGetFactionUseCase(factionRepo, log)
+	listFactionsUseCase := factionapp.NewListFactionsUseCase(factionRepo, log)
+	updateFactionUseCase := factionapp.NewUpdateFactionUseCase(factionRepo, auditLogRepo, log)
+	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, factionReferenceRepo, auditLogRepo, log)
+	getFactionChildrenUseCase := factionapp.NewGetChildrenUseCase(factionRepo, log)
+	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, factionReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, loreReferenceRepo, log)
+	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(factionReferenceRepo, log)
+	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(factionReferenceRepo, log)
+	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(factionReferenceRepo, log)
+	createLoreUseCase := loreapp.NewCreateLoreUseCase(loreRepo, worldRepo, auditLogRepo, log)
+	getLoreUseCase := loreapp.NewGetLoreUseCase(loreRepo, log)
+	listLoresUseCase := loreapp.NewListLoresUseCase(loreRepo, log)
+	updateLoreUseCase := loreapp.NewUpdateLoreUseCase(loreRepo, auditLogRepo, log)
+	deleteLoreUseCase := loreapp.NewDeleteLoreUseCase(loreRepo, loreReferenceRepo, auditLogRepo, log)
+	getLoreChildrenUseCase := loreapp.NewGetChildrenUseCase(loreRepo, log)
+	addLoreReferenceUseCase := loreapp.NewAddReferenceUseCase(loreRepo, loreReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, factionRepo, factionReferenceRepo, log)
+	removeLoreReferenceUseCase := loreapp.NewRemoveReferenceUseCase(loreReferenceRepo, log)
+	getLoreReferencesUseCase := loreapp.NewGetReferencesUseCase(loreReferenceRepo, log)
+	updateLoreReferenceUseCase := loreapp.NewUpdateReferenceUseCase(loreReferenceRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
 	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
@@ -233,6 +259,8 @@ func main() {
 	characterHandler := handlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, getCharacterTraitsUseCase, addTraitToCharacterUseCase, updateCharacterTraitUseCase, removeTraitFromCharacterUseCase, log)
 	artifactHandler := handlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
 	eventHandler := handlers.NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterToEventUseCase, removeCharacterFromEventUseCase, getEventCharactersUseCase, addLocationToEventUseCase, removeLocationFromEventUseCase, getEventLocationsUseCase, addArtifactToEventUseCase, removeArtifactFromEventUseCase, getEventArtifactsUseCase, log)
+	factionHandler := handlers.NewFactionHandler(createFactionUseCase, getFactionUseCase, listFactionsUseCase, updateFactionUseCase, deleteFactionUseCase, getFactionChildrenUseCase, addFactionReferenceUseCase, removeFactionReferenceUseCase, getFactionReferencesUseCase, updateFactionReferenceUseCase, log)
+	loreHandler := handlers.NewLoreHandler(createLoreUseCase, getLoreUseCase, listLoresUseCase, updateLoreUseCase, deleteLoreUseCase, getLoreChildrenUseCase, addLoreReferenceUseCase, removeLoreReferenceUseCase, getLoreReferencesUseCase, updateLoreReferenceUseCase, log)
 	traitHandler := handlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
 	archetypeHandler := handlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
 	storyHandler := handlers.NewStoryHandler(
@@ -265,6 +293,8 @@ func main() {
 	grpcServer.RegisterCharacterService(characterHandler)
 	grpcServer.RegisterArtifactService(artifactHandler)
 	grpcServer.RegisterEventService(eventHandler)
+	grpcServer.RegisterFactionService(factionHandler)
+	grpcServer.RegisterLoreService(loreHandler)
 	grpcServer.RegisterTraitService(traitHandler)
 	grpcServer.RegisterArchetypeService(archetypeHandler)
 	grpcServer.RegisterStoryService(storyHandler)

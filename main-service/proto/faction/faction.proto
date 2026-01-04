@@ -1,0 +1,181 @@
+syntax = "proto3";
+package faction;
+option go_package = "github.com/story-engine/main-service/proto/faction";
+
+import "google/protobuf/timestamp.proto";
+import "proto/common/common.proto";
+
+// Faction represents a faction entity
+message Faction {
+  string id = 1;
+  string world_id = 2;
+  optional string parent_id = 3;
+  string name = 4;
+  optional string type = 5;
+  string description = 6;
+  string beliefs = 7;
+  string structure = 8;
+  string symbols = 9;
+  int32 hierarchy_level = 10;
+  google.protobuf.Timestamp created_at = 11;
+  google.protobuf.Timestamp updated_at = 12;
+}
+
+// FactionReference represents the relationship between a faction and another entity
+message FactionReference {
+  string id = 1;
+  string faction_id = 2;
+  string entity_type = 3;
+  string entity_id = 4;
+  optional string role = 5;
+  string notes = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// CreateFactionRequest is the request to create a new faction
+message CreateFactionRequest {
+  string world_id = 1;
+  optional string parent_id = 2;
+  string name = 3;
+  optional string type = 4;
+  optional string description = 5;
+  optional string beliefs = 6;
+  optional string structure = 7;
+  optional string symbols = 8;
+}
+
+// CreateFactionResponse is the response after creating a faction
+message CreateFactionResponse {
+  Faction faction = 1;
+}
+
+// GetFactionRequest is the request to get a faction by ID
+message GetFactionRequest {
+  string id = 1;
+}
+
+// GetFactionResponse is the response containing a faction
+message GetFactionResponse {
+  Faction faction = 1;
+}
+
+// ListFactionsRequest is the request to list factions for a world
+message ListFactionsRequest {
+  string world_id = 1;
+  common.PaginationRequest pagination = 2;
+}
+
+// ListFactionsResponse is the response containing a list of factions
+message ListFactionsResponse {
+  repeated Faction factions = 1;
+  int32 total_count = 2;
+}
+
+// UpdateFactionRequest is the request to update a faction
+message UpdateFactionRequest {
+  string id = 1;
+  optional string name = 2;
+  optional string type = 3;
+  optional string description = 4;
+  optional string beliefs = 5;
+  optional string structure = 6;
+  optional string symbols = 7;
+}
+
+// UpdateFactionResponse is the response after updating a faction
+message UpdateFactionResponse {
+  Faction faction = 1;
+}
+
+// DeleteFactionRequest is the request to delete a faction
+message DeleteFactionRequest {
+  string id = 1;
+}
+
+// DeleteFactionResponse is the response after deleting a faction
+message DeleteFactionResponse {
+}
+
+// AddReferenceToFactionRequest is the request to add a reference to a faction
+message AddReferenceToFactionRequest {
+  string faction_id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+  optional string role = 4;
+  optional string notes = 5;
+}
+
+// AddReferenceToFactionResponse is the response after adding a reference
+message AddReferenceToFactionResponse {
+  FactionReference faction_reference = 1;
+}
+
+// RemoveReferenceFromFactionRequest is the request to remove a reference from a faction
+message RemoveReferenceFromFactionRequest {
+  string faction_id = 1;
+  string entity_type = 2;
+  string entity_id = 3;
+}
+
+// RemoveReferenceFromFactionResponse is the response after removing a reference
+message RemoveReferenceFromFactionResponse {
+}
+
+// GetFactionReferencesRequest is the request to get references for a faction
+message GetFactionReferencesRequest {
+  string faction_id = 1;
+}
+
+// GetFactionReferencesResponse is the response containing references for a faction
+message GetFactionReferencesResponse {
+  repeated FactionReference references = 1;
+  int32 total_count = 2;
+}
+
+// UpdateFactionReferenceRequest is the request to update a faction reference
+message UpdateFactionReferenceRequest {
+  string id = 1;
+  optional string role = 2;
+  optional string notes = 3;
+}
+
+// UpdateFactionReferenceResponse is the response after updating a faction reference
+message UpdateFactionReferenceResponse {
+  FactionReference faction_reference = 1;
+}
+
+// GetFactionChildrenRequest is the request to get children of a faction
+message GetFactionChildrenRequest {
+  string id = 1;
+}
+
+// GetFactionChildrenResponse is the response containing children of a faction
+message GetFactionChildrenResponse {
+  repeated Faction children = 1;
+  int32 total_count = 2;
+}
+
+// FactionService provides faction management operations
+service FactionService {
+  // CreateFaction creates a new faction
+  rpc CreateFaction(CreateFactionRequest) returns (CreateFactionResponse);
+  // GetFaction retrieves a faction by ID
+  rpc GetFaction(GetFactionRequest) returns (GetFactionResponse);
+  // ListFactions lists factions for a world
+  rpc ListFactions(ListFactionsRequest) returns (ListFactionsResponse);
+  // UpdateFaction updates an existing faction
+  rpc UpdateFaction(UpdateFactionRequest) returns (UpdateFactionResponse);
+  // DeleteFaction deletes a faction
+  rpc DeleteFaction(DeleteFactionRequest) returns (DeleteFactionResponse);
+  // AddReferenceToFaction adds a reference to a faction
+  rpc AddReferenceToFaction(AddReferenceToFactionRequest) returns (AddReferenceToFactionResponse);
+  // RemoveReferenceFromFaction removes a reference from a faction
+  rpc RemoveReferenceFromFaction(RemoveReferenceFromFactionRequest) returns (RemoveReferenceFromFactionResponse);
+  // GetFactionReferences lists references for a faction
+  rpc GetFactionReferences(GetFactionReferencesRequest) returns (GetFactionReferencesResponse);
+  // UpdateFactionReference updates a faction reference
+  rpc UpdateFactionReference(UpdateFactionReferenceRequest) returns (UpdateFactionReferenceResponse);
+  // GetFactionChildren lists children of a faction
+  rpc GetFactionChildren(GetFactionChildrenRequest) returns (GetFactionChildrenResponse);
+}
+

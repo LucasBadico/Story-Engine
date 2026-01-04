@@ -35,6 +35,8 @@ type MainServiceClient interface {
 	GetLocation(ctx context.Context, locationID uuid.UUID) (*Location, error)
 	GetEvent(ctx context.Context, eventID uuid.UUID) (*Event, error)
 	GetArtifact(ctx context.Context, artifactID uuid.UUID) (*Artifact, error)
+	GetFaction(ctx context.Context, factionID uuid.UUID) (*Faction, error)
+	GetLore(ctx context.Context, loreID uuid.UUID) (*Lore, error)
 
 	// Character relations
 	GetCharacterTraits(ctx context.Context, characterID uuid.UUID) ([]*CharacterTrait, error)
@@ -223,5 +225,37 @@ type SceneReference struct {
 	EntityType string // "character", "location", "artifact"
 	EntityID   uuid.UUID
 	CreatedAt  int64
+}
+
+// Faction represents a faction from main-service
+type Faction struct {
+	ID             uuid.UUID
+	WorldID        uuid.UUID
+	ParentID       *uuid.UUID
+	Name           string
+	Type           *string
+	Description    string
+	Beliefs        string
+	Structure      string
+	Symbols        string
+	HierarchyLevel int
+	CreatedAt      int64
+	UpdatedAt      int64
+}
+
+// Lore represents a lore from main-service
+type Lore struct {
+	ID             uuid.UUID
+	WorldID        uuid.UUID
+	ParentID       *uuid.UUID
+	Name           string
+	Category       *string
+	Description    string
+	Rules          string
+	Limitations    string
+	Requirements   string
+	HierarchyLevel int
+	CreatedAt      int64
+	UpdatedAt      int64
 }
 

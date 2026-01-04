@@ -32,7 +32,9 @@ import (
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
+	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
+	loreapp "github.com/story-engine/main-service/internal/application/world/lore"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
@@ -75,6 +77,10 @@ func main() {
 	eventCharacterRepo := postgres.NewEventCharacterRepository(pgDB)
 	eventLocationRepo := postgres.NewEventLocationRepository(pgDB)
 	eventArtifactRepo := postgres.NewEventArtifactRepository(pgDB)
+	factionRepo := postgres.NewFactionRepository(pgDB)
+	factionReferenceRepo := postgres.NewFactionReferenceRepository(pgDB)
+	loreRepo := postgres.NewLoreRepository(pgDB)
+	loreReferenceRepo := postgres.NewLoreReferenceRepository(pgDB)
 	rpgSystemRepo := postgres.NewRPGSystemRepository(pgDB)
 	characterRPGStatsRepo := postgres.NewCharacterRPGStatsRepository(pgDB)
 	artifactRPGStatsRepo := postgres.NewArtifactRPGStatsRepository(pgDB)
@@ -142,6 +148,26 @@ func main() {
 	addArtifactToEventUseCase := eventapp.NewAddArtifactToEventUseCase(eventRepo, artifactRepo, eventArtifactRepo, log)
 	removeArtifactFromEventUseCase := eventapp.NewRemoveArtifactFromEventUseCase(eventArtifactRepo, log)
 	getEventArtifactsUseCase := eventapp.NewGetEventArtifactsUseCase(eventArtifactRepo, log)
+	createFactionUseCase := factionapp.NewCreateFactionUseCase(factionRepo, worldRepo, auditLogRepo, log)
+	getFactionUseCase := factionapp.NewGetFactionUseCase(factionRepo, log)
+	listFactionsUseCase := factionapp.NewListFactionsUseCase(factionRepo, log)
+	updateFactionUseCase := factionapp.NewUpdateFactionUseCase(factionRepo, auditLogRepo, log)
+	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, factionReferenceRepo, auditLogRepo, log)
+	getFactionChildrenUseCase := factionapp.NewGetChildrenUseCase(factionRepo, log)
+	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, factionReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, loreReferenceRepo, log)
+	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(factionReferenceRepo, log)
+	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(factionReferenceRepo, log)
+	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(factionReferenceRepo, log)
+	createLoreUseCase := loreapp.NewCreateLoreUseCase(loreRepo, worldRepo, auditLogRepo, log)
+	getLoreUseCase := loreapp.NewGetLoreUseCase(loreRepo, log)
+	listLoresUseCase := loreapp.NewListLoresUseCase(loreRepo, log)
+	updateLoreUseCase := loreapp.NewUpdateLoreUseCase(loreRepo, auditLogRepo, log)
+	deleteLoreUseCase := loreapp.NewDeleteLoreUseCase(loreRepo, loreReferenceRepo, auditLogRepo, log)
+	getLoreChildrenUseCase := loreapp.NewGetChildrenUseCase(loreRepo, log)
+	addLoreReferenceUseCase := loreapp.NewAddReferenceUseCase(loreRepo, loreReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, factionRepo, factionReferenceRepo, log)
+	removeLoreReferenceUseCase := loreapp.NewRemoveReferenceUseCase(loreReferenceRepo, log)
+	getLoreReferencesUseCase := loreapp.NewGetReferencesUseCase(loreReferenceRepo, log)
+	updateLoreReferenceUseCase := loreapp.NewUpdateReferenceUseCase(loreReferenceRepo, log)
 	createTraitUseCase := traitapp.NewCreateTraitUseCase(traitRepo, tenantRepo, auditLogRepo, log)
 	getTraitUseCase := traitapp.NewGetTraitUseCase(traitRepo, log)
 	listTraitsUseCase := traitapp.NewListTraitsUseCase(traitRepo, log)
@@ -254,6 +280,8 @@ func main() {
 	inventoryHandler := httphandlers.NewInventoryHandler(createInventorySlotUseCase, listInventorySlotsUseCase, createInventoryItemUseCase, getInventoryItemUseCase, listInventoryItemsUseCase, updateInventoryItemUseCase, deleteInventoryItemUseCase, addItemToInventoryUseCase, listCharacterInventoryUseCase, updateCharacterInventoryUseCase, equipItemUseCase, unequipItemUseCase, deleteCharacterInventoryUseCase, transferItemUseCase, log)
 	artifactHandler := httphandlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
 	eventHandler := httphandlers.NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addCharacterToEventUseCase, removeCharacterFromEventUseCase, getEventCharactersUseCase, addLocationToEventUseCase, removeLocationFromEventUseCase, getEventLocationsUseCase, addArtifactToEventUseCase, removeArtifactFromEventUseCase, getEventArtifactsUseCase, getEventStatChangesUseCase, log)
+	factionHandler := httphandlers.NewFactionHandler(createFactionUseCase, getFactionUseCase, listFactionsUseCase, updateFactionUseCase, deleteFactionUseCase, getFactionChildrenUseCase, addFactionReferenceUseCase, removeFactionReferenceUseCase, getFactionReferencesUseCase, updateFactionReferenceUseCase, log)
+	loreHandler := httphandlers.NewLoreHandler(createLoreUseCase, getLoreUseCase, listLoresUseCase, updateLoreUseCase, deleteLoreUseCase, getLoreChildrenUseCase, addLoreReferenceUseCase, removeLoreReferenceUseCase, getLoreReferencesUseCase, updateLoreReferenceUseCase, log)
 	rpgSystemHandler := httphandlers.NewRPGSystemHandler(createRPGSystemUseCase, getRPGSystemUseCase, listRPGSystemsUseCase, updateRPGSystemUseCase, deleteRPGSystemUseCase, log)
 	characterRPGStatsHandler := httphandlers.NewCharacterRPGStatsHandler(createCharacterStatsUseCase, getActiveCharacterStatsUseCase, listCharacterStatsHistoryUseCase, activateCharacterStatsVersionUseCase, deleteAllCharacterStatsUseCase, log)
 	artifactRPGStatsHandler := httphandlers.NewArtifactRPGStatsHandler(createArtifactStatsUseCase, getActiveArtifactStatsUseCase, listArtifactStatsHistoryUseCase, activateArtifactStatsVersionUseCase, log)
@@ -325,6 +353,28 @@ func main() {
 	mux.HandleFunc("GET /api/v1/events/{id}/artifacts", eventHandler.GetArtifacts)
 	mux.HandleFunc("DELETE /api/v1/events/{id}/artifacts/{artifact_id}", eventHandler.RemoveArtifact)
 	mux.HandleFunc("GET /api/v1/events/{id}/stat-changes", eventHandler.GetStatChanges)
+
+	mux.HandleFunc("POST /api/v1/worlds/{world_id}/factions", factionHandler.Create)
+	mux.HandleFunc("GET /api/v1/worlds/{world_id}/factions", factionHandler.List)
+	mux.HandleFunc("GET /api/v1/factions/{id}", factionHandler.Get)
+	mux.HandleFunc("PUT /api/v1/factions/{id}", factionHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/factions/{id}", factionHandler.Delete)
+	mux.HandleFunc("GET /api/v1/factions/{id}/children", factionHandler.GetChildren)
+	mux.HandleFunc("POST /api/v1/factions/{id}/references", factionHandler.AddReference)
+	mux.HandleFunc("GET /api/v1/factions/{id}/references", factionHandler.GetReferences)
+	mux.HandleFunc("PUT /api/v1/faction-references/{id}", factionHandler.UpdateReference)
+	mux.HandleFunc("DELETE /api/v1/factions/{id}/references/{entity_type}/{entity_id}", factionHandler.RemoveReference)
+
+	mux.HandleFunc("POST /api/v1/worlds/{world_id}/lores", loreHandler.Create)
+	mux.HandleFunc("GET /api/v1/worlds/{world_id}/lores", loreHandler.List)
+	mux.HandleFunc("GET /api/v1/lores/{id}", loreHandler.Get)
+	mux.HandleFunc("PUT /api/v1/lores/{id}", loreHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/lores/{id}", loreHandler.Delete)
+	mux.HandleFunc("GET /api/v1/lores/{id}/children", loreHandler.GetChildren)
+	mux.HandleFunc("POST /api/v1/lores/{id}/references", loreHandler.AddReference)
+	mux.HandleFunc("GET /api/v1/lores/{id}/references", loreHandler.GetReferences)
+	mux.HandleFunc("PUT /api/v1/lore-references/{id}", loreHandler.UpdateReference)
+	mux.HandleFunc("DELETE /api/v1/lores/{id}/references/{entity_type}/{entity_id}", loreHandler.RemoveReference)
 
 	mux.HandleFunc("POST /api/v1/traits", traitHandler.Create)
 	mux.HandleFunc("GET /api/v1/traits", traitHandler.List)

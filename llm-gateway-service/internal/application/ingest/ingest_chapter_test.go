@@ -33,15 +33,17 @@ func TestIngestChapterUseCase_Execute_Success(t *testing.T) {
 	}
 	mockClient.AddChapter(chapter)
 
-	proseBlock := &grpcclient.ProseBlock{
+	orderNum := 1
+	chapterIDPtr := &chapterID
+	contentBlock := &grpcclient.ContentBlock{
 		ID:        uuid.New(),
-		ChapterID: chapterID,
-		OrderNum:  1,
+		ChapterID: chapterIDPtr,
+		OrderNum:  &orderNum,
+		Type:      "text",
 		Kind:      "final",
 		Content:   "This is the content.",
-		WordCount: 5,
 	}
-	mockClient.AddProseBlock(proseBlock)
+	mockClient.AddContentBlock(contentBlock)
 
 	useCase := NewIngestChapterUseCase(mockClient, mockDocRepo, mockChunkRepo, mockEmbedder, log)
 
@@ -87,7 +89,7 @@ func TestIngestChapterUseCase_Execute_ChapterNotFound(t *testing.T) {
 	}
 }
 
-func TestIngestChapterUseCase_Execute_NoProseBlocks(t *testing.T) {
+func TestIngestChapterUseCase_Execute_NoContentBlocks(t *testing.T) {
 	ctx := context.Background()
 	tenantID := uuid.New()
 	chapterID := uuid.New()
@@ -120,7 +122,7 @@ func TestIngestChapterUseCase_Execute_NoProseBlocks(t *testing.T) {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
-	// Should still create document even without prose blocks
+	// Should still create document even without content blocks
 	if output.DocumentID == uuid.Nil {
 		t.Error("Expected DocumentID to be set")
 	}
@@ -138,17 +140,22 @@ func TestIngestChapterUseCase_buildChapterContent(t *testing.T) {
 		Status:  "draft",
 	}
 
-	proseBlocks := []*grpcclient.ProseBlock{
+	orderNum1 := 1
+	orderNum2 := 2
+	chapterIDPtr := &chapterID
+	contentBlocks := []*grpcclient.ContentBlock{
 		{
 			ID:        uuid.New(),
-			ChapterID: chapterID,
-			OrderNum:  1,
+			ChapterID: chapterIDPtr,
+			OrderNum:  &orderNum1,
+			Type:      "text",
 			Content:   "First paragraph.",
 		},
 		{
 			ID:        uuid.New(),
-			ChapterID: chapterID,
-			OrderNum:  2,
+			ChapterID: chapterIDPtr,
+			OrderNum:  &orderNum2,
+			Type:      "text",
 			Content:   "Second paragraph.",
 		},
 	}
@@ -161,7 +168,7 @@ func TestIngestChapterUseCase_buildChapterContent(t *testing.T) {
 
 	useCase := NewIngestChapterUseCase(mockClient, mockDocRepo, mockChunkRepo, mockEmbedder, log)
 
-	content := useCase.buildChapterContent(chapter, proseBlocks)
+	content := useCase.buildChapterContent(chapter, contentBlocks)
 
 	if content == "" {
 		t.Error("Expected non-empty content")
@@ -173,10 +180,9 @@ func TestIngestChapterUseCase_buildChapterContent(t *testing.T) {
 		t.Error("Expected content to contain chapter status")
 	}
 	if !strings.Contains(content, "First paragraph") {
-		t.Error("Expected content to contain first prose block")
+		t.Error("Expected content to contain first content block")
 	}
 	if !strings.Contains(content, "Second paragraph") {
-		t.Error("Expected content to contain second prose block")
+		t.Error("Expected content to contain second content block")
 	}
 }
-

@@ -16,7 +16,9 @@ import (
 	characterskillpb "github.com/story-engine/main-service/proto/character_skill"
 	characterrpgstatspb "github.com/story-engine/main-service/proto/character_rpg_stats"
 	eventpb "github.com/story-engine/main-service/proto/event"
+	factionpb "github.com/story-engine/main-service/proto/faction"
 	inventorypb "github.com/story-engine/main-service/proto/inventory"
+	lorepb "github.com/story-engine/main-service/proto/lore"
 	locationpb "github.com/story-engine/main-service/proto/location"
 	contentblockpb "github.com/story-engine/main-service/proto/content_block"
 	rpgclasspb "github.com/story-engine/main-service/proto/rpg_class"
@@ -122,6 +124,18 @@ func (s *Server) RegisterArtifactService(handler artifactpb.ArtifactServiceServe
 func (s *Server) RegisterEventService(handler eventpb.EventServiceServer) {
 	eventpb.RegisterEventServiceServer(s.grpcServer, handler)
 	s.logger.Info("EventService registered")
+}
+
+// RegisterFactionService registers the FactionService handler
+func (s *Server) RegisterFactionService(handler factionpb.FactionServiceServer) {
+	factionpb.RegisterFactionServiceServer(s.grpcServer, handler)
+	s.logger.Info("FactionService registered")
+}
+
+// RegisterLoreService registers the LoreService handler
+func (s *Server) RegisterLoreService(handler lorepb.LoreServiceServer) {
+	lorepb.RegisterLoreServiceServer(s.grpcServer, handler)
+	s.logger.Info("LoreService registered")
 }
 
 // RegisterChapterService registers the ChapterService handler

@@ -60,9 +60,9 @@ func (uc *IngestContentBlockUseCase) Execute(ctx context.Context, input IngestCo
 		return nil, fmt.Errorf("failed to fetch content block: %w", err)
 	}
 
-	// Only process text content blocks for embeddings
-	if contentBlock.Type != "text" {
-		uc.logger.Debug("Skipping non-text content block", "content_block_id", input.ContentBlockID, "type", contentBlock.Type)
+	// Process text and image content blocks for embeddings
+	if contentBlock.Type != "text" && contentBlock.Type != "image" {
+		uc.logger.Debug("Skipping unsupported content block type", "content_block_id", input.ContentBlockID, "type", contentBlock.Type)
 		return &IngestContentBlockOutput{
 			DocumentID: uuid.Nil,
 			ChunkCount: 0,
@@ -188,7 +188,7 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 					if err == nil {
 						metadata.POVCharacter = &char.Name
 					} else {
-						uc.logger.Warn("failed to fetch POV character", "character_id", *scene.POVCharacterID, "error", err)
+						uc.logger.Error("failed to fetch POV character", "character_id", *scene.POVCharacterID, "error", err)
 						povStr := scene.POVCharacterID.String()
 						metadata.POVCharacter = &povStr
 					}
@@ -199,9 +199,9 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 					loc, err := uc.mainServiceClient.GetLocation(ctx, *scene.LocationID)
 					if err == nil {
 						metadata.LocationName = &loc.Name
-					} else {
-						uc.logger.Warn("failed to fetch location", "location_id", *scene.LocationID, "error", err)
-					}
+			} else {
+				uc.logger.Error("failed to fetch location", "location_id", *scene.LocationID, "error", err)
+			}
 				}
 			}
 
@@ -223,7 +223,7 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 				if err == nil {
 					metadata.POVCharacter = &char.Name
 				} else {
-					uc.logger.Warn("failed to fetch POV character", "character_id", *scene.POVCharacterID, "error", err)
+					uc.logger.Error("failed to fetch POV character", "character_id", *scene.POVCharacterID, "error", err)
 					povStr := scene.POVCharacterID.String()
 					metadata.POVCharacter = &povStr
 				}
@@ -235,7 +235,7 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 				if err == nil {
 					metadata.LocationName = &loc.Name
 				} else {
-					uc.logger.Warn("failed to fetch location", "location_id", *scene.LocationID, "error", err)
+					uc.logger.Error("failed to fetch location", "location_id", *scene.LocationID, "error", err)
 				}
 			}
 
@@ -245,7 +245,7 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 			if err == nil {
 				metadata.Characters = append(metadata.Characters, char.Name)
 			} else {
-				uc.logger.Warn("failed to fetch character", "character_id", ref.EntityID, "error", err)
+				uc.logger.Error("failed to fetch character", "character_id", ref.EntityID, "error", err)
 				charID := ref.EntityID.String()
 				metadata.Characters = append(metadata.Characters, charID)
 			}
@@ -259,7 +259,7 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 			if err == nil {
 				metadata.LocationName = &loc.Name
 			} else {
-				uc.logger.Warn("failed to fetch location", "location_id", ref.EntityID, "error", err)
+				uc.logger.Error("failed to fetch location", "location_id", ref.EntityID, "error", err)
 			}
 		}
 	}
@@ -272,7 +272,21 @@ func (uc *IngestContentBlockUseCase) buildEnrichedContent(contentBlock *grpcclie
 	var parts []string
 
 	// Add content block content
-	parts = append(parts, contentBlock.Content)
+	if contentBlock.Type == "image" {
+		// For images, use URL as content with descriptive prefix
+		parts = append(parts, fmt.Sprintf("Image: %s", contentBlock.Content))
+		// Add metadata description if available
+		if contentBlock.Metadata != nil {
+			if desc, ok := contentBlock.Metadata["description"].(string); ok && desc != "" {
+				parts = append(parts, fmt.Sprintf("Description: %s", desc))
+			}
+			if alt, ok := contentBlock.Metadata["alt"].(string); ok && alt != "" {
+				parts = append(parts, fmt.Sprintf("Alt text: %s", alt))
+			}
+		}
+	} else {
+		parts = append(parts, contentBlock.Content)
+	}
 
 	// Add beat context if available
 	if metadata.BeatType != nil {

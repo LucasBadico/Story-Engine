@@ -6,37 +6,40 @@ import (
 
 	"github.com/google/uuid"
 	grpcclient "github.com/story-engine/llm-gateway-service/internal/ports/grpc"
-	storypb "github.com/story-engine/main-service/proto/story"
-	chapterpb "github.com/story-engine/main-service/proto/chapter"
-	scenepb "github.com/story-engine/main-service/proto/scene"
-	beatpb "github.com/story-engine/main-service/proto/beat"
-	contentblockpb "github.com/story-engine/main-service/proto/content_block"
-	worldpb "github.com/story-engine/main-service/proto/world"
-	characterpb "github.com/story-engine/main-service/proto/character"
-	locationpb "github.com/story-engine/main-service/proto/location"
-	eventpb "github.com/story-engine/main-service/proto/event"
 	artifactpb "github.com/story-engine/main-service/proto/artifact"
+	beatpb "github.com/story-engine/main-service/proto/beat"
+	chapterpb "github.com/story-engine/main-service/proto/chapter"
+	characterpb "github.com/story-engine/main-service/proto/character"
+	contentblockpb "github.com/story-engine/main-service/proto/content_block"
+	eventpb "github.com/story-engine/main-service/proto/event"
+	factionpb "github.com/story-engine/main-service/proto/faction"
+	locationpb "github.com/story-engine/main-service/proto/location"
+	lorepb "github.com/story-engine/main-service/proto/lore"
+	scenepb "github.com/story-engine/main-service/proto/scene"
+	storypb "github.com/story-engine/main-service/proto/story"
+	worldpb "github.com/story-engine/main-service/proto/world"
 	grpclib "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/structpb"
 )
 
 var _ grpcclient.MainServiceClient = (*MainServiceClient)(nil)
 
 // MainServiceClient implements the gRPC client interface for main-service
 type MainServiceClient struct {
-	storyClient                storypb.StoryServiceClient
-	chapterClient              chapterpb.ChapterServiceClient
-	sceneClient                scenepb.SceneServiceClient
-	beatClient                 beatpb.BeatServiceClient
-	contentBlockClient         contentblockpb.ContentBlockServiceClient
+	storyClient                 storypb.StoryServiceClient
+	chapterClient               chapterpb.ChapterServiceClient
+	sceneClient                 scenepb.SceneServiceClient
+	beatClient                  beatpb.BeatServiceClient
+	contentBlockClient          contentblockpb.ContentBlockServiceClient
 	contentBlockReferenceClient contentblockpb.ContentBlockReferenceServiceClient
-	worldClient                worldpb.WorldServiceClient
-	characterClient            characterpb.CharacterServiceClient
-	locationClient             locationpb.LocationServiceClient
-	eventClient                eventpb.EventServiceClient
-	artifactClient             artifactpb.ArtifactServiceClient
-	conn                       *grpclib.ClientConn
+	worldClient                 worldpb.WorldServiceClient
+	characterClient             characterpb.CharacterServiceClient
+	locationClient              locationpb.LocationServiceClient
+	eventClient                 eventpb.EventServiceClient
+	artifactClient              artifactpb.ArtifactServiceClient
+	factionClient               factionpb.FactionServiceClient
+	loreClient                  lorepb.LoreServiceClient
+	conn                        *grpclib.ClientConn
 }
 
 // NewMainServiceClient creates a new gRPC client for main-service
@@ -47,18 +50,20 @@ func NewMainServiceClient(addr string) (*MainServiceClient, error) {
 	}
 
 	return &MainServiceClient{
-		storyClient:                storypb.NewStoryServiceClient(conn),
-		chapterClient:              chapterpb.NewChapterServiceClient(conn),
-		sceneClient:                scenepb.NewSceneServiceClient(conn),
-		beatClient:                 beatpb.NewBeatServiceClient(conn),
-		contentBlockClient:         contentblockpb.NewContentBlockServiceClient(conn),
+		storyClient:                 storypb.NewStoryServiceClient(conn),
+		chapterClient:               chapterpb.NewChapterServiceClient(conn),
+		sceneClient:                 scenepb.NewSceneServiceClient(conn),
+		beatClient:                  beatpb.NewBeatServiceClient(conn),
+		contentBlockClient:          contentblockpb.NewContentBlockServiceClient(conn),
 		contentBlockReferenceClient: contentblockpb.NewContentBlockReferenceServiceClient(conn),
-		worldClient:                worldpb.NewWorldServiceClient(conn),
-		characterClient:            characterpb.NewCharacterServiceClient(conn),
-		locationClient:             locationpb.NewLocationServiceClient(conn),
-		eventClient:                eventpb.NewEventServiceClient(conn),
-		artifactClient:             artifactpb.NewArtifactServiceClient(conn),
-		conn:                       conn,
+		worldClient:                 worldpb.NewWorldServiceClient(conn),
+		characterClient:             characterpb.NewCharacterServiceClient(conn),
+		locationClient:              locationpb.NewLocationServiceClient(conn),
+		eventClient:                 eventpb.NewEventServiceClient(conn),
+		artifactClient:              artifactpb.NewArtifactServiceClient(conn),
+		factionClient:               factionpb.NewFactionServiceClient(conn),
+		loreClient:                  lorepb.NewLoreServiceClient(conn),
+		conn:                        conn,
 	}, nil
 }
 
@@ -214,10 +219,6 @@ func protoToScene(s *scenepb.Scene) *grpcclient.Scene {
 		povID, _ := uuid.Parse(*s.PovCharacterId)
 		scene.POVCharacterID = &povID
 	}
-	if s.LocationId != nil {
-		locID, _ := uuid.Parse(*s.LocationId)
-		scene.LocationID = &locID
-	}
 
 	return scene
 }
@@ -275,11 +276,11 @@ func protoToContentBlockReference(ref *contentblockpb.ContentBlockReference) *gr
 	entityID, _ := uuid.Parse(ref.EntityId)
 
 	return &grpcclient.ContentBlockReference{
-		ID:            refID,
+		ID:             refID,
 		ContentBlockID: contentBlockID,
-		EntityType:    ref.EntityType,
-		EntityID:      entityID,
-		CreatedAt:     ref.CreatedAt.Seconds,
+		EntityType:     ref.EntityType,
+		EntityID:       entityID,
+		CreatedAt:      ref.CreatedAt.Seconds,
 	}
 }
 
@@ -442,7 +443,7 @@ func protoToCharacter(ch *characterpb.Character) *grpcclient.Character {
 		WorldID:     worldID,
 		Name:        ch.Name,
 		Description: ch.Description,
-		CreatedAt:    ch.CreatedAt.Seconds,
+		CreatedAt:   ch.CreatedAt.Seconds,
 		UpdatedAt:   ch.UpdatedAt.Seconds,
 	}
 
@@ -606,3 +607,84 @@ func protoToSceneReference(ref *scenepb.SceneReference) *grpcclient.SceneReferen
 	}
 }
 
+// GetFaction retrieves a faction by ID
+func (c *MainServiceClient) GetFaction(ctx context.Context, factionID uuid.UUID) (*grpcclient.Faction, error) {
+	resp, err := c.factionClient.GetFaction(ctx, &factionpb.GetFactionRequest{
+		Id: factionID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return protoToFaction(resp.Faction), nil
+}
+
+// GetLore retrieves a lore by ID
+func (c *MainServiceClient) GetLore(ctx context.Context, loreID uuid.UUID) (*grpcclient.Lore, error) {
+	resp, err := c.loreClient.GetLore(ctx, &lorepb.GetLoreRequest{
+		Id: loreID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return protoToLore(resp.Lore), nil
+}
+
+func protoToFaction(f *factionpb.Faction) *grpcclient.Faction {
+	factionID, _ := uuid.Parse(f.Id)
+	worldID, _ := uuid.Parse(f.WorldId)
+
+	faction := &grpcclient.Faction{
+		ID:             factionID,
+		WorldID:        worldID,
+		Name:           f.Name,
+		Description:    f.Description,
+		Beliefs:        f.Beliefs,
+		Structure:      f.Structure,
+		Symbols:        f.Symbols,
+		HierarchyLevel: int(f.HierarchyLevel),
+		CreatedAt:      f.CreatedAt.Seconds,
+		UpdatedAt:      f.UpdatedAt.Seconds,
+	}
+
+	if f.ParentId != nil && *f.ParentId != "" {
+		parentID, _ := uuid.Parse(*f.ParentId)
+		faction.ParentID = &parentID
+	}
+
+	if f.Type != nil && *f.Type != "" {
+		faction.Type = f.Type
+	}
+
+	return faction
+}
+
+func protoToLore(l *lorepb.Lore) *grpcclient.Lore {
+	loreID, _ := uuid.Parse(l.Id)
+	worldID, _ := uuid.Parse(l.WorldId)
+
+	lore := &grpcclient.Lore{
+		ID:             loreID,
+		WorldID:        worldID,
+		Name:           l.Name,
+		Description:    l.Description,
+		Rules:          l.Rules,
+		Limitations:    l.Limitations,
+		Requirements:   l.Requirements,
+		HierarchyLevel: int(l.HierarchyLevel),
+		CreatedAt:      l.CreatedAt.Seconds,
+		UpdatedAt:      l.UpdatedAt.Seconds,
+	}
+
+	if l.ParentId != nil && *l.ParentId != "" {
+		parentID, _ := uuid.Parse(*l.ParentId)
+		lore.ParentID = &parentID
+	}
+
+	if l.Category != nil && *l.Category != "" {
+		lore.Category = l.Category
+	}
+
+	return lore
+}

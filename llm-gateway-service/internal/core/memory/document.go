@@ -20,6 +20,8 @@ const (
 	SourceTypeLocation     SourceType = "location"
 	SourceTypeEvent        SourceType = "event"
 	SourceTypeArtifact     SourceType = "artifact"
+	SourceTypeFaction      SourceType = "faction"
+	SourceTypeLore         SourceType = "lore"
 )
 
 // Document represents an embedding document

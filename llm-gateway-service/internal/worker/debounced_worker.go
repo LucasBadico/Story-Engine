@@ -24,6 +24,8 @@ type DebouncedWorker struct {
 	ingestLocation     *ingest.IngestLocationUseCase
 	ingestEvent        *ingest.IngestEventUseCase
 	ingestArtifact     *ingest.IngestArtifactUseCase
+	ingestFaction      *ingest.IngestFactionUseCase
+	ingestLore         *ingest.IngestLoreUseCase
 	logger             *logger.Logger
 	debounceInterval   time.Duration
 	pollInterval       time.Duration
@@ -41,6 +43,8 @@ func NewDebouncedWorker(
 	ingestLocation *ingest.IngestLocationUseCase,
 	ingestEvent *ingest.IngestEventUseCase,
 	ingestArtifact *ingest.IngestArtifactUseCase,
+	ingestFaction *ingest.IngestFactionUseCase,
+	ingestLore *ingest.IngestLoreUseCase,
 	logger *logger.Logger,
 	cfg *config.Config,
 ) *DebouncedWorker {
@@ -54,6 +58,8 @@ func NewDebouncedWorker(
 		ingestLocation:     ingestLocation,
 		ingestEvent:        ingestEvent,
 		ingestArtifact:     ingestArtifact,
+		ingestFaction:      ingestFaction,
+		ingestLore:         ingestLore,
 		logger:             logger,
 		debounceInterval:   time.Duration(cfg.Worker.DebounceMinutes) * time.Minute,
 		pollInterval:       time.Duration(cfg.Worker.PollSeconds) * time.Second,
@@ -228,6 +234,26 @@ func (w *DebouncedWorker) processItem(ctx context.Context, item *queue.QueueItem
 			return fmt.Errorf("failed to ingest artifact: %w", err)
 		}
 		w.logger.Info("Successfully ingested artifact", "artifact_id", item.SourceID)
+
+	case memory.SourceTypeFaction:
+		_, err := w.ingestFaction.Execute(ctx, ingest.IngestFactionInput{
+			TenantID:  item.TenantID,
+			FactionID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest faction: %w", err)
+		}
+		w.logger.Info("Successfully ingested faction", "faction_id", item.SourceID)
+
+	case memory.SourceTypeLore:
+		_, err := w.ingestLore.Execute(ctx, ingest.IngestLoreInput{
+			TenantID: item.TenantID,
+			LoreID:   item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest lore: %w", err)
+		}
+		w.logger.Info("Successfully ingested lore", "lore_id", item.SourceID)
 
 	default:
 		return fmt.Errorf("unsupported source type: %s", item.SourceType)

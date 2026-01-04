@@ -10,18 +10,22 @@ import (
 type EntityType string
 
 const (
-	EntityTypeScene         EntityType = "scene"
-	EntityTypeBeat          EntityType = "beat"
-	EntityTypeChapter       EntityType = "chapter"
-	EntityTypeCharacter     EntityType = "character"
-	EntityTypeLocation      EntityType = "location"
-	EntityTypeArtifact      EntityType = "artifact"
-	EntityTypeEvent         EntityType = "event"
-	EntityTypeWorld         EntityType = "world"
-	EntityTypeRPGSystem     EntityType = "rpg_system"
-	EntityTypeRPGSkill      EntityType = "rpg_skill"
-	EntityTypeRPGClass      EntityType = "rpg_class"
-	EntityTypeInventoryItem EntityType = "inventory_item"
+	EntityTypeScene           EntityType = "scene"
+	EntityTypeBeat            EntityType = "beat"
+	EntityTypeChapter         EntityType = "chapter"
+	EntityTypeCharacter       EntityType = "character"
+	EntityTypeLocation        EntityType = "location"
+	EntityTypeArtifact        EntityType = "artifact"
+	EntityTypeEvent           EntityType = "event"
+	EntityTypeWorld           EntityType = "world"
+	EntityTypeRPGSystem       EntityType = "rpg_system"
+	EntityTypeRPGSkill        EntityType = "rpg_skill"
+	EntityTypeRPGClass        EntityType = "rpg_class"
+	EntityTypeInventoryItem   EntityType = "inventory_item"
+	EntityTypeFaction         EntityType = "faction"
+	EntityTypeLore            EntityType = "lore"
+	EntityTypeFactionReference EntityType = "faction_reference"
+	EntityTypeLoreReference   EntityType = "lore_reference"
 )
 
 // ContentBlockReference represents a reference from an entity to a content block
@@ -68,6 +72,10 @@ func isValidEntityType(entityType EntityType) bool {
 		entityType == EntityTypeRPGSystem ||
 		entityType == EntityTypeRPGSkill ||
 		entityType == EntityTypeRPGClass ||
-		entityType == EntityTypeInventoryItem
+		entityType == EntityTypeInventoryItem ||
+		entityType == EntityTypeFaction ||
+		entityType == EntityTypeLore ||
+		entityType == EntityTypeFactionReference ||
+		entityType == EntityTypeLoreReference
 }
 
