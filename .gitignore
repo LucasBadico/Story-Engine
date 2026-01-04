@@ -1,3 +1,4 @@
 scripts/gmail-extractor/stories/*
 scripts/gmail-extractor/credentials.json
 scripts/gmail-extractor/token.json
+node_modules/
