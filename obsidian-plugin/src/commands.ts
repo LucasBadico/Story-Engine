@@ -39,7 +39,8 @@ export function registerCommands(plugin: StoryEnginePlugin) {
 		id: "sync-all-stories",
 		name: "Sync All Stories",
 		callback: async () => {
-			if (!plugin.settings.tenantId) {
+			// Only validate tenant ID in remote mode
+			if (plugin.settings.mode === "remote" && !plugin.settings.tenantId) {
 				new Notice("Please configure Tenant ID in settings", 5000);
 				return;
 			}

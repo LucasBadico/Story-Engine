@@ -10,6 +10,7 @@ export class SceneModal extends Modal {
 	chapters: Chapter[] = [];
 	existingScenes: Scene[] = [];
 	storyId: string;
+	defaultChapterId?: string | null;
 	onSubmit: (scene: Partial<Scene>) => Promise<void>;
 
 	constructor(
@@ -18,12 +19,14 @@ export class SceneModal extends Modal {
 		chapters: Chapter[],
 		onSubmit: (scene: Partial<Scene>) => Promise<void>,
 		existingScenes: Scene[] = [],
-		scene?: Scene
+		scene?: Scene,
+		defaultChapterId?: string | null
 	) {
 		super(app);
 		this.storyId = storyId;
 		this.chapters = chapters;
 		this.existingScenes = existingScenes;
+		this.defaultChapterId = defaultChapterId;
 		this.onSubmit = onSubmit;
 		if (scene) {
 			this.isEdit = true;
@@ -38,6 +41,10 @@ export class SceneModal extends Modal {
 			};
 		} else {
 			this.scene.story_id = storyId;
+			// Pre-select chapter if provided
+			if (defaultChapterId !== undefined) {
+				this.scene.chapter_id = defaultChapterId;
+			}
 		}
 	}
 

@@ -1,19 +1,34 @@
 import { App, Modal, Notice, Setting } from "obsidian";
+import StoryEnginePlugin from "../main";
+import { World } from "../types";
+import { CreateWorldModal } from "./CreateWorldModal";
 
 export class CreateStoryModal extends Modal {
+	plugin: StoryEnginePlugin;
 	title: string = "";
+	selectedWorldId: string = "";
 	shouldSync: boolean = true;
-	onSubmit: (title: string, shouldSync: boolean) => void;
+	worlds: World[] = [];
+	onSubmit: (title: string, worldId: string | undefined, shouldSync: boolean) => void;
 
-	constructor(app: App, onSubmit: (title: string, shouldSync: boolean) => void) {
+	constructor(app: App, plugin: StoryEnginePlugin, onSubmit: (title: string, worldId: string | undefined, shouldSync: boolean) => void) {
 		super(app);
+		this.plugin = plugin;
 		this.onSubmit = onSubmit;
 	}
 
-	onOpen() {
+	async onOpen() {
 		const { contentEl } = this;
 
 		contentEl.createEl("h2", { text: "Create New Story" });
+
+		// Load worlds
+		try {
+			this.worlds = await this.plugin.apiClient.getWorlds();
+		} catch (err) {
+			console.error("Failed to load worlds:", err);
+			this.worlds = [];
+		}
 
 		// Title input
 		new Setting(contentEl)
@@ -32,6 +47,46 @@ export class CreateStoryModal extends Modal {
 						}
 					})
 			);
+
+		// World selection
+		const worldOptions: Record<string, string> = {
+			"": "No World",
+		};
+		for (const world of this.worlds) {
+			worldOptions[world.id] = world.name;
+		}
+		worldOptions["__create_new__"] = "Create new world...";
+
+		new Setting(contentEl)
+			.setName("World")
+			.setDesc("Select a world for this story (optional)")
+			.addDropdown((dropdown) => {
+				for (const [value, label] of Object.entries(worldOptions)) {
+					dropdown.addOption(value, label);
+				}
+				dropdown.setValue(this.selectedWorldId || "");
+				dropdown.onChange(async (value) => {
+					if (value === "__create_new__") {
+						// Open create world modal
+						new CreateWorldModal(this.app, async (name: string, description: string, genre: string) => {
+							try {
+								const newWorld = await this.plugin.apiClient.createWorld(name, description, genre);
+								this.worlds.push(newWorld);
+								// Refresh dropdown
+								this.onClose();
+								this.onOpen();
+								// Re-select the newly created world
+								this.selectedWorldId = newWorld.id;
+							} catch (err) {
+								const errorMessage = err instanceof Error ? err.message : "Failed to create world";
+								new Notice(`Error: ${errorMessage}`, 5000);
+							}
+						}).open();
+					} else {
+						this.selectedWorldId = value;
+					}
+				});
+			});
 
 		// Sync checkbox
 		new Setting(contentEl)
@@ -75,7 +130,8 @@ export class CreateStoryModal extends Modal {
 		}
 
 		this.close();
-		this.onSubmit(trimmedTitle, this.shouldSync);
+		const worldId = this.selectedWorldId && this.selectedWorldId !== "__create_new__" ? this.selectedWorldId : undefined;
+		this.onSubmit(trimmedTitle, worldId, this.shouldSync);
 	}
 
 	onClose() {

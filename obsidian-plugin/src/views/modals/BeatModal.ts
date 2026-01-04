@@ -1,5 +1,5 @@
 import { App, Modal, Notice, Setting } from "obsidian";
-import { Beat, Scene } from "../../types";
+import { Beat, Scene, Chapter } from "../../types";
 
 export class BeatModal extends Modal {
 	beat: Partial<Beat> = {
@@ -9,8 +9,10 @@ export class BeatModal extends Modal {
 	};
 	isEdit: boolean = false;
 	scenes: Scene[] = [];
+	chapters: Chapter[] = [];
 	existingBeats: Beat[] = [];
 	storyId: string;
+	defaultSceneId?: string;
 	onSubmit: (beat: Partial<Beat>) => Promise<void>;
 
 	constructor(
@@ -19,12 +21,16 @@ export class BeatModal extends Modal {
 		scenes: Scene[],
 		onSubmit: (beat: Partial<Beat>) => Promise<void>,
 		existingBeats: Beat[] = [],
-		beat?: Beat
+		beat?: Beat,
+		chapters: Chapter[] = [],
+		defaultSceneId?: string
 	) {
 		super(app);
 		this.storyId = storyId;
 		this.scenes = scenes;
+		this.chapters = chapters;
 		this.existingBeats = existingBeats;
+		this.defaultSceneId = defaultSceneId;
 		this.onSubmit = onSubmit;
 		if (beat) {
 			this.isEdit = true;
@@ -35,6 +41,8 @@ export class BeatModal extends Modal {
 				intent: beat.intent,
 				outcome: beat.outcome,
 			};
+		} else if (defaultSceneId) {
+			this.beat.scene_id = defaultSceneId;
 		}
 	}
 
@@ -60,9 +68,16 @@ export class BeatModal extends Modal {
 					scenesByChapter.get(chapterId)!.push(scene);
 				}
 
+				// Helper to get chapter label
+				const getChapterLabel = (chapterId: string | null): string => {
+					if (!chapterId) return "No Chapter";
+					const chapter = this.chapters.find(c => c.id === chapterId);
+					return chapter ? `Chapter ${chapter.number}: ${chapter.title}` : "No Chapter";
+				};
+
 				// Add scenes grouped
 				for (const [chapterId, chapterScenes] of scenesByChapter.entries()) {
-					const label = chapterId ? `Chapter ${chapterId.substring(0, 8)}...` : "No Chapter";
+					const label = getChapterLabel(chapterId);
 					for (const scene of chapterScenes.sort((a, b) => a.order_num - b.order_num)) {
 						dropdown.addOption(
 							scene.id,

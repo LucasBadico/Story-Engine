@@ -8,6 +8,9 @@ export interface StoryEngineSettings {
 	conflictResolution: "service" | "local" | "manual";
 	unsplashAccessKey?: string;
 	unsplashSecretKey?: string;
+	mode: "local" | "remote";
+	showHelpBox: boolean;
+	localModeVideoUrl?: string;
 }
 
 export interface ErrorResponse {
@@ -185,5 +188,66 @@ export interface StoryMetadata {
 		updated_at: string;
 	};
 	content: string;
+}
+
+// World entities
+export interface Character {
+	id: string;
+	tenant_id: string;
+	world_id: string;
+	archetype_id?: string | null;
+	current_class_id?: string | null;
+	class_level: number;
+	name: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface Location {
+	id: string;
+	tenant_id: string;
+	world_id: string;
+	parent_id?: string | null;
+	name: string;
+	type: string;
+	description: string;
+	hierarchy_level: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface Artifact {
+	id: string;
+	tenant_id: string;
+	world_id: string;
+	name: string;
+	description: string;
+	rarity: string;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface WorldEvent {
+	id: string;
+	tenant_id: string;
+	world_id: string;
+	name: string;
+	type?: string | null;
+	description?: string | null;
+	timeline?: string | null;
+	importance: number;
+	created_at: string;
+	updated_at: string;
+}
+
+export interface Trait {
+	id: string;
+	tenant_id: string;
+	name: string;
+	category: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
 }
 

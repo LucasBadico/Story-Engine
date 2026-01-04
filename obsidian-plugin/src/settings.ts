@@ -16,6 +16,49 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 
 		containerEl.createEl("h2", { text: "Story Engine Settings" });
 
+		// Mode Selection
+		let tenantIdSetting: Setting | null = null;
+		let videoLinkSetting: Setting | null = null;
+		let conflictResolutionSetting: Setting | null = null;
+
+		const modeSetting = new Setting(containerEl)
+			.setName("Connection Mode")
+			.setDesc("Choose between local (offline) or remote (cloud) mode")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("local", "Local")
+					.addOption("remote", "Remote")
+					.setValue(this.plugin.settings.mode || "local")
+					.onChange(async (value) => {
+						this.plugin.settings.mode = value as "local" | "remote";
+						// Auto-set conflict resolution in local mode
+						if (value === "local") {
+							this.plugin.settings.conflictResolution = "local";
+							if (conflictResolutionSetting) {
+								conflictResolutionSetting.settingEl.style.display = "none";
+							}
+						} else {
+							if (conflictResolutionSetting) {
+								conflictResolutionSetting.settingEl.style.display = "";
+							}
+						}
+						// Show/hide tenant ID
+						if (tenantIdSetting) {
+							tenantIdSetting.settingEl.style.display = value === "remote" ? "" : "none";
+						}
+						// Show/hide video link
+						if (videoLinkSetting) {
+							videoLinkSetting.settingEl.style.display = value === "local" ? "" : "none";
+						}
+						// Update API client mode
+						if (this.plugin.apiClient) {
+							this.plugin.apiClient.setMode(value as "local" | "remote");
+						}
+						await this.plugin.saveSettings();
+					})
+			);
+
+		// API URL
 		new Setting(containerEl)
 			.setName("API URL")
 			.setDesc("The base URL of the Story Engine API")
@@ -29,22 +72,10 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
-			.setName("API Key")
-			.setDesc("API key for authentication (optional for MVP)")
-			.addText((text) => {
-				text.setPlaceholder("Enter API key")
-					.setValue(this.plugin.settings.apiKey)
-					.inputEl.type = "password";
-				text.onChange(async (value) => {
-					this.plugin.settings.apiKey = value;
-					await this.plugin.saveSettings();
-				});
-			});
-
-		new Setting(containerEl)
+		// Tenant ID (conditional - only shown in remote mode)
+		tenantIdSetting = new Setting(containerEl)
 			.setName("Tenant ID")
-			.setDesc("Your workspace tenant ID (UUID format)")
+			.setDesc("Your workspace tenant ID (UUID format) - Required in remote mode")
 			.addText((text) =>
 				text
 					.setPlaceholder("00000000-0000-0000-0000-000000000000")
@@ -58,6 +89,37 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 						await this.plugin.saveSettings();
 					})
 			);
+		if (this.plugin.settings.mode === "local") {
+			tenantIdSetting.settingEl.style.display = "none";
+		}
+
+		// Video Link Section (conditional - only shown in local mode)
+		const videoUrl = this.plugin.settings.localModeVideoUrl || "https://example.com/setup-video";
+		videoLinkSetting = new Setting(containerEl)
+			.setName("Setup Guide")
+			.setDesc(`📹 Learn how to setup local mode: ${videoUrl}`)
+			.addButton((button) => {
+				button.setButtonText("Open Video").onClick(() => {
+					window.open(videoUrl, "_blank");
+				});
+			});
+		if (this.plugin.settings.mode === "remote") {
+			videoLinkSetting.settingEl.style.display = "none";
+		}
+
+		// API Key
+		new Setting(containerEl)
+			.setName("API Key")
+			.setDesc("API key for authentication (optional for MVP)")
+			.addText((text) => {
+				text.setPlaceholder("Enter API key")
+					.setValue(this.plugin.settings.apiKey)
+					.inputEl.type = "password";
+				text.onChange(async (value) => {
+					this.plugin.settings.apiKey = value;
+					await this.plugin.saveSettings();
+				});
+			});
 
 		new Setting(containerEl)
 			.setName("Sync Folder Path")
@@ -84,7 +146,8 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
-		new Setting(containerEl)
+		// Conflict Resolution (conditional - hidden in local mode)
+		conflictResolutionSetting = new Setting(containerEl)
 			.setName("Conflict Resolution")
 			.setDesc("How to resolve conflicts when both local and service have changes")
 			.addDropdown((dropdown) =>
@@ -96,6 +159,22 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					.onChange(async (value) => {
 						this.plugin.settings.conflictResolution =
 							value as "service" | "local" | "manual";
+						await this.plugin.saveSettings();
+					})
+			);
+		if (this.plugin.settings.mode === "local") {
+			conflictResolutionSetting.settingEl.style.display = "none";
+		}
+
+		// Show Help Box in MD Files
+		new Setting(containerEl)
+			.setName("Show Help Box in MD Files")
+			.setDesc("Enable/disable info/help boxes in markdown files")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.showHelpBox ?? true)
+					.onChange(async (value) => {
+						this.plugin.settings.showHelpBox = value;
 						await this.plugin.saveSettings();
 					})
 			);

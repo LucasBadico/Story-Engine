@@ -17,6 +17,9 @@ const DEFAULT_SETTINGS: StoryEngineSettings = {
 	syncFolderPath: "Stories",
 	autoVersionSnapshots: true,
 	conflictResolution: "service",
+	mode: "local",
+	showHelpBox: true,
+	localModeVideoUrl: "https://example.com/setup-video",
 };
 
 export default class StoryEnginePlugin extends Plugin {
@@ -33,6 +36,7 @@ export default class StoryEnginePlugin extends Plugin {
 			this.settings.apiKey,
 			this.settings.tenantId || ""
 		);
+		this.apiClient.setMode(this.settings.mode || "local");
 
 		this.fileManager = new FileManager(
 			this.app.vault,
@@ -80,12 +84,14 @@ export default class StoryEnginePlugin extends Plugin {
 		// Update API client when settings change
 		if (this.apiClient) {
 			this.apiClient.setTenantId(this.settings.tenantId || "");
+			this.apiClient.setMode(this.settings.mode || "local");
 		} else {
 			this.apiClient = new StoryEngineClient(
 				this.settings.apiUrl,
 				this.settings.apiKey,
 				this.settings.tenantId || ""
 			);
+			this.apiClient.setMode(this.settings.mode || "local");
 		}
 		// Update file manager base path
 		this.fileManager = new FileManager(
@@ -102,26 +108,28 @@ export default class StoryEnginePlugin extends Plugin {
 	}
 
 	async createStoryCommand() {
-		// Validate and trim tenant ID first
-		const tenantId = this.settings.tenantId?.trim();
-		if (!tenantId) {
-			new Notice("Please configure Tenant ID in settings", 5000);
-			return;
+		// Validate tenant ID only in remote mode
+		if (this.settings.mode === "remote") {
+			const tenantId = this.settings.tenantId?.trim();
+			if (!tenantId) {
+				new Notice("Please configure Tenant ID in settings", 5000);
+				return;
+			}
+
+			// Basic UUID format validation
+			const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+			if (!uuidRegex.test(tenantId)) {
+				new Notice("Invalid Tenant ID format. Please check your settings.", 5000);
+				return;
+			}
 		}
 
-		// Basic UUID format validation
-		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-		if (!uuidRegex.test(tenantId)) {
-			new Notice("Invalid Tenant ID format. Please check your settings.", 5000);
-			return;
-		}
-
-		// Open modal to get title and sync preference
-		new CreateStoryModal(this.app, async (title: string, shouldSync: boolean) => {
+		// Open modal to get title, world, and sync preference
+		new CreateStoryModal(this.app, this, async (title: string, worldId: string | undefined, shouldSync: boolean) => {
 			try {
 				new Notice(`Creating story "${title}"...`);
 				
-				const story = await this.apiClient.createStory(title);
+				const story = await this.apiClient.createStory(title, worldId);
 				
 				new Notice(`Story "${title}" created successfully`);
 
@@ -176,6 +184,16 @@ export default class StoryEnginePlugin extends Plugin {
 		}
 
 		workspace.revealLeaf(leaf);
+	}
+
+	openSettings() {
+		const setting = (this.app as any).setting;
+		if (setting) {
+			setting.open();
+			setTimeout(() => {
+				setting.openTabById(this.manifest.id);
+			}, 100);
+		}
 	}
 }
 

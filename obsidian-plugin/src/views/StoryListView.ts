@@ -1,10 +1,12 @@
 import { ItemView, WorkspaceLeaf, Notice, Modal, setIcon } from "obsidian";
 import StoryEnginePlugin from "../main";
-import { Story, Chapter, Scene, Beat, ContentBlock, ContentBlockReference, World, RPGSystem } from "../types";
+import { Story, Chapter, Scene, Beat, ContentBlock, ContentBlockReference, World, RPGSystem, Character, Location, Artifact, WorldEvent, Trait } from "../types";
 import { ChapterModal } from "./modals/ChapterModal";
 import { SceneModal } from "./modals/SceneModal";
 import { BeatModal } from "./modals/BeatModal";
 import { ContentBlockModal } from "./modals/ContentBlockModal";
+import { CreateWorldModal } from "./CreateWorldModal";
+import { WorldDetailsModal } from "./WorldDetailsModal";
 
 export const STORY_LIST_VIEW_TYPE = "story-engine-list-view";
 
@@ -18,8 +20,10 @@ export class StoryListView extends ItemView {
 	contentEl!: HTMLElement;
 	headerEl!: HTMLElement;
 	currentStory: Story | null = null;
-	viewMode: "list" | "details" = "list";
+	currentWorld: World | null = null;
+	viewMode: "list" | "details" | "world-details" = "list";
 	currentTab: "chapters" | "scenes" | "beats" | "contents" = "chapters";
+	worldTab: "characters" | "locations" | "artifacts" | "events" | "traits" = "characters";
 	listTab: "stories" | "worlds" | "rpg-systems" = "stories";
 	expandedWorldId: string | null = null;
 	chapters: Chapter[] = [];
@@ -28,6 +32,13 @@ export class StoryListView extends ItemView {
 	contentBlocks: ContentBlock[] = [];
 	contentBlockRefs: ContentBlockReference[] = [];
 	loadingHierarchy: boolean = false;
+	// World entities
+	characters: Character[] = [];
+	locations: Location[] = [];
+	artifacts: Artifact[] = [];
+	events: WorldEvent[] = [];
+	traits: Trait[] = [];
+	loadingWorldData: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
 		super(leaf);
@@ -41,6 +52,9 @@ export class StoryListView extends ItemView {
 	getDisplayText(): string {
 		if (this.viewMode === "details" && this.currentStory) {
 			return this.currentStory.title;
+		}
+		if (this.viewMode === "world-details" && this.currentWorld) {
+			return this.currentWorld.name;
 		}
 		return "Stories";
 	}
@@ -74,6 +88,8 @@ export class StoryListView extends ItemView {
 		// Render based on current mode
 		if (this.viewMode === "details" && this.currentStory) {
 			this.renderDetails();
+		} else if (this.viewMode === "world-details" && this.currentWorld) {
+			this.renderWorldDetails();
 		} else {
 			this.renderListHeader();
 			this.renderListContent();
@@ -117,6 +133,16 @@ export class StoryListView extends ItemView {
 			this.listTab = "rpg-systems";
 			this.renderListHeader();
 			this.renderListContent();
+		};
+
+		// Settings button (gear icon) in header
+		const settingsButton = tabsContainer.createEl("button", {
+			cls: "story-engine-settings-btn story-engine-tab",
+			attr: { "aria-label": "Open Settings" }
+		});
+		setIcon(settingsButton, "gear");
+		settingsButton.onclick = () => {
+			this.plugin.openSettings();
 		};
 	}
 
@@ -198,14 +224,23 @@ export class StoryListView extends ItemView {
 
 		if (this.listTab === "worlds") {
 			createButtonText = "Create World";
-			createButtonAction = () => {
-				// TODO: Implement create world command
-				new Notice("Create World - Coming soon", 3000);
+			createButtonAction = async () => {
+				new CreateWorldModal(this.app, async (name: string, description: string, genre: string) => {
+					try {
+						new Notice(`Creating world "${name}"...`);
+						const newWorld = await this.plugin.apiClient.createWorld(name, description, genre);
+						new Notice(`World "${name}" created successfully`);
+						// Refresh worlds list
+						await this.loadStories();
+					} catch (err) {
+						const errorMessage = err instanceof Error ? err.message : "Failed to create world";
+						new Notice(`Error: ${errorMessage}`, 5000);
+					}
+				}).open();
 			};
 		} else if (this.listTab === "rpg-systems") {
 			createButtonText = "Create RPG System";
 			createButtonAction = () => {
-				// TODO: Implement create RPG system command
 				new Notice("Create RPG System - Coming soon", 3000);
 			};
 		}
@@ -218,7 +253,7 @@ export class StoryListView extends ItemView {
 	}
 
 	renderDetailsHeader() {
-		if (!this.headerEl) return;
+		if (!this.headerEl || !this.currentStory) return;
 
 		this.headerEl.empty();
 		
@@ -232,27 +267,115 @@ export class StoryListView extends ItemView {
 			this.showList();
 		};
 
-		headerLeft.createEl("h2", { text: this.currentStory?.title || "Story Details" });
+		// Title with status pill and version
+		const titleContainer = headerLeft.createDiv({ cls: "story-engine-title-container" });
+		const titleRow = titleContainer.createDiv({ cls: "story-engine-title-row" });
+		
+		const titleH2 = titleRow.createEl("h2", { 
+			text: this.currentStory.title,
+			cls: "story-engine-title-header"
+		});
+
+		// Status pill
+		const statusPill = titleRow.createSpan({ 
+			cls: `story-engine-status-pill story-engine-status-${this.currentStory.status.toLowerCase().replace(/\s+/g, '-')}`
+		});
+		statusPill.textContent = this.currentStory.status;
+
+		// Version
+		const versionSpan = titleRow.createSpan({ cls: "story-engine-version" });
+		versionSpan.textContent = `v.${this.currentStory.version_number}`;
+
+		// UUID with copy icon
+		const uuidRow = titleContainer.createDiv({ cls: "story-engine-uuid-row" });
+		const uuidSpan = uuidRow.createSpan({ cls: "story-engine-uuid" });
+		uuidSpan.textContent = this.currentStory.id;
+		
+		const copyUuidButton = uuidRow.createEl("button", {
+			cls: "story-engine-copy-uuid-btn",
+			attr: { "aria-label": "Copy UUID" }
+		});
+		setIcon(copyUuidButton, "copy");
+		copyUuidButton.onclick = () => {
+			this.copyStoryId();
+		};
 
 		const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
 		
-		if (this.currentStory) {
-			const cloneButton = headerActions.createEl("button", {
-				text: "Clone Story",
-				cls: "mod-cta story-engine-clone-btn",
-			});
-			cloneButton.onclick = async () => {
-				await this.cloneStory();
-			};
-
-			const copyIdButton = headerActions.createEl("button", {
-				text: "Copy ID",
-				cls: "story-engine-copy-id-btn",
-			});
-			copyIdButton.onclick = () => {
-				this.copyStoryId();
-			};
-		}
+		// Context menu button with actions
+		const contextButton = headerActions.createEl("button", {
+			cls: "story-engine-context-btn",
+			attr: { "aria-label": "Story Actions" }
+		});
+		setIcon(contextButton, "more-vertical");
+		
+		// Create dropdown menu
+		const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
+		dropdownMenu.style.display = "none";
+		
+		// Clone option
+		const cloneOption = dropdownMenu.createEl("button", {
+			text: "Clone Story",
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(cloneOption, "copy");
+		cloneOption.onclick = async () => {
+			dropdownMenu.style.display = "none";
+			await this.cloneStory();
+		};
+		
+		// Pull option
+		const pullOption = dropdownMenu.createEl("button", {
+			text: "Pull from Service",
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(pullOption, "download");
+		pullOption.onclick = async () => {
+			dropdownMenu.style.display = "none";
+			if (!this.currentStory) return;
+			try {
+				new Notice(`Pulling story "${this.currentStory.title}"...`);
+				await this.plugin.syncService.pullStory(this.currentStory.id);
+				await this.loadHierarchy();
+				this.renderTabContent();
+				new Notice(`Story pulled successfully!`);
+			} catch (err) {
+				const errorMessage = err instanceof Error ? err.message : "Failed to pull story";
+				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		};
+		
+		// Push option
+		const pushOption = dropdownMenu.createEl("button", {
+			text: "Push to Service",
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(pushOption, "upload");
+		pushOption.onclick = async () => {
+			dropdownMenu.style.display = "none";
+			if (!this.currentStory) return;
+			try {
+				const folderPath = this.plugin.fileManager.getStoryFolderPath(this.currentStory.title);
+				new Notice(`Pushing story "${this.currentStory.title}"...`);
+				await this.plugin.syncService.pushStory(folderPath);
+				new Notice(`Story pushed successfully!`);
+			} catch (err) {
+				const errorMessage = err instanceof Error ? err.message : "Failed to push story";
+				new Notice(`Error: ${errorMessage}`, 5000);
+			}
+		};
+		
+		// Toggle dropdown
+		contextButton.onclick = (e) => {
+			e.stopPropagation();
+			const isVisible = dropdownMenu.style.display !== "none";
+			dropdownMenu.style.display = isVisible ? "none" : "block";
+		};
+		
+		// Close dropdown when clicking outside
+		document.addEventListener("click", () => {
+			dropdownMenu.style.display = "none";
+		}, { once: true });
 	}
 
 	renderStoriesTab() {
@@ -300,12 +423,19 @@ export class StoryListView extends ItemView {
 				});
 			}
 			
+			// Click handler to show details - navigate to World View
+			worldTitle.style.cursor = "pointer";
+			worldTitle.onclick = () => {
+				this.showWorldDetails(world);
+			};
+			
 			// Accordion button
 			const accordionButton = worldHeader.createEl("button", {
 				text: worldStories.length > 0 ? `${worldStories.length} story${worldStories.length !== 1 ? 's' : ''}` : "No stories",
 				cls: `story-engine-accordion-btn ${this.expandedWorldId === world.id ? "is-expanded" : ""}`,
 			});
-			accordionButton.onclick = () => {
+			accordionButton.onclick = (e) => {
+				e.stopPropagation();
 				if (this.expandedWorldId === world.id) {
 					this.expandedWorldId = null;
 				} else {
@@ -354,7 +484,11 @@ export class StoryListView extends ItemView {
 
 	renderRPGSystemsTab() {
 		if (this.rpgSystems.length === 0) {
-			this.contentEl.createEl("p", { text: "No RPG systems found." });
+			if (this.plugin.settings.mode === "local") {
+				this.contentEl.createEl("p", { text: "RPG systems are not available in local mode." });
+			} else {
+				this.contentEl.createEl("p", { text: "No RPG systems found." });
+			}
 			return;
 		}
 
@@ -425,7 +559,8 @@ export class StoryListView extends ItemView {
 		this.loading = true;
 		this.error = null;
 		try {
-			if (!this.plugin.settings.tenantId) {
+			// Only validate tenant ID in remote mode
+			if (this.plugin.settings.mode === "remote" && !this.plugin.settings.tenantId) {
 				this.error = "Tenant ID not configured";
 				this.loading = false;
 				this.renderListContent();
@@ -436,8 +571,14 @@ export class StoryListView extends ItemView {
 			this.worlds = await this.plugin.apiClient.getWorlds();
 			// Load stories
 			this.stories = await this.plugin.apiClient.listStories();
-			// Load RPG systems
-			this.rpgSystems = await this.plugin.apiClient.getRPGSystems();
+			// Load RPG systems (optional - may not be available in local mode)
+			try {
+				this.rpgSystems = await this.plugin.apiClient.getRPGSystems();
+			} catch (rpgErr) {
+				// RPG systems not available (e.g., in local/offline mode) - not a fatal error
+				console.warn("RPG systems not available:", rpgErr);
+				this.rpgSystems = [];
+			}
 		} catch (err) {
 			this.error = err instanceof Error ? err.message : "Failed to load stories";
 			console.error("Error loading stories:", err);
@@ -525,68 +666,6 @@ export class StoryListView extends ItemView {
 
 		this.renderDetailsHeader();
 		this.contentEl.empty();
-
-		const story = this.currentStory;
-		const details = this.contentEl.createDiv({ cls: "story-engine-details" });
-
-		details.createEl("p", {
-			text: `Status: ${story.status}`,
-		});
-
-		details.createEl("p", {
-			text: `Version: ${story.version_number}`,
-		});
-
-		details.createEl("p", {
-			text: `Created: ${new Date(story.created_at).toLocaleString()}`,
-		});
-
-		details.createEl("p", {
-			text: `Updated: ${new Date(story.updated_at).toLocaleString()}`,
-		});
-
-		details.createEl("p", {
-			text: `ID: ${story.id}`,
-			cls: "story-engine-id",
-		});
-
-		// Action buttons section
-		const actionsSection = this.contentEl.createDiv({ cls: "story-engine-details-actions" });
-		
-		const syncButton = actionsSection.createEl("button", {
-			text: "Sync from Service",
-			cls: "story-engine-sync-btn",
-		});
-		syncButton.onclick = async () => {
-			try {
-				new Notice(`Syncing story "${story.title}"...`);
-				await this.plugin.syncService.pullStory(story.id);
-				await this.loadHierarchy();
-				this.renderTabContent();
-				new Notice(`Story synced successfully!`);
-			} catch (err) {
-				const errorMessage =
-					err instanceof Error ? err.message : "Failed to sync story";
-				new Notice(`Error: ${errorMessage}`, 5000);
-			}
-		};
-
-		const pushButton = actionsSection.createEl("button", {
-			text: "Push to Service",
-			cls: "story-engine-push-btn",
-		});
-		pushButton.onclick = async () => {
-			try {
-				const folderPath = this.plugin.fileManager.getStoryFolderPath(story.title);
-				new Notice(`Pushing story "${story.title}"...`);
-				await this.plugin.syncService.pushStory(folderPath);
-				new Notice(`Story pushed successfully!`);
-			} catch (err) {
-				const errorMessage =
-					err instanceof Error ? err.message : "Failed to push story";
-				new Notice(`Error: ${errorMessage}`, 5000);
-			}
-		};
 
 		// Tabs section
 		this.renderTabs();
@@ -810,7 +889,7 @@ export class StoryListView extends ItemView {
 					} catch (err) {
 						throw err;
 					}
-				}, this.scenes).open();
+				}, this.scenes, undefined, chapter.id).open();
 			};
 		}
 
@@ -844,7 +923,7 @@ export class StoryListView extends ItemView {
 					} catch (err) {
 						throw err;
 					}
-				}, this.scenes).open();
+				}, this.scenes, undefined, null).open();
 			};
 		}
 	}
@@ -980,7 +1059,7 @@ export class StoryListView extends ItemView {
 							} catch (err) {
 								throw err;
 							}
-						}, this.beats).open();
+						}, this.beats, undefined, this.chapters, scene.id).open();
 					};
 				}
 			}
@@ -1038,7 +1117,7 @@ export class StoryListView extends ItemView {
 						} catch (err) {
 							throw err;
 						}
-					}, this.beats).open();
+					}, this.beats, undefined, this.chapters, scene.id).open();
 				};
 			}
 
@@ -1086,7 +1165,7 @@ export class StoryListView extends ItemView {
 				} catch (err) {
 					throw err;
 				}
-			}, this.beats, beat).open();
+			}, this.beats, beat, this.chapters).open();
 		};
 		// Up/Down buttons
 		const siblingBeats = this.beats.filter(b => b.scene_id === beat.scene_id)
@@ -1166,33 +1245,27 @@ export class StoryListView extends ItemView {
 	copyStoryId() {
 		if (!this.currentStory) return;
 
-		const textarea = document.createElement("textarea");
-		textarea.value = this.currentStory.id;
-		textarea.style.position = "fixed";
-		textarea.style.opacity = "0";
-		textarea.style.left = "-9999px";
-		document.body.appendChild(textarea);
-		textarea.select();
-		
-		try {
-			const doc = document;
-			if (doc.execCommand) {
-				doc.execCommand("copy");
-				const copyButton = this.headerEl?.querySelector(".story-engine-copy-id-btn") as HTMLButtonElement;
-				if (copyButton) {
-					copyButton.setText("Copied!");
-					setTimeout(() => {
-						copyButton.setText("Copy ID");
-					}, 2000);
-				}
-				new Notice("Story ID copied to clipboard");
+		navigator.clipboard.writeText(this.currentStory.id).then(() => {
+			new Notice("UUID copied to clipboard");
+		}).catch(() => {
+			// Fallback for older browsers
+			const textarea = document.createElement("textarea");
+			textarea.value = this.currentStory!.id;
+			textarea.style.position = "fixed";
+			textarea.style.opacity = "0";
+			textarea.style.left = "-9999px";
+			document.body.appendChild(textarea);
+			textarea.select();
+			
+			try {
+				document.execCommand("copy");
+				new Notice("UUID copied to clipboard");
+			} catch (err) {
+				new Notice("Failed to copy UUID", 3000);
 			}
-		} catch (err) {
-			console.error("Failed to copy ID:", err);
-			new Notice("Failed to copy ID", 3000);
-		}
-		
-		document.body.removeChild(textarea);
+			
+			document.body.removeChild(textarea);
+		});
 	}
 
 	async moveChapterUp(chapter: Chapter) {
@@ -1995,6 +2068,947 @@ export class StoryListView extends ItemView {
 				throw err;
 			}
 		}, initialContentBlock as ContentBlock, this.plugin).open();
+	}
+
+	// ==================== World View Methods ====================
+
+	async showWorldDetails(world: World) {
+		this.currentWorld = world;
+		this.viewMode = "world-details";
+		this.worldTab = "characters";
+		await this.loadWorldData();
+		this.renderWorldDetails();
+	}
+
+	async loadWorldData() {
+		if (!this.currentWorld) return;
+
+		this.loadingWorldData = true;
+		try {
+			this.characters = await this.plugin.apiClient.getCharacters(this.currentWorld.id);
+			this.locations = await this.plugin.apiClient.getLocations(this.currentWorld.id);
+			this.artifacts = await this.plugin.apiClient.getArtifacts(this.currentWorld.id);
+			this.events = await this.plugin.apiClient.getEvents(this.currentWorld.id);
+			// Traits are global, not per-world
+			try {
+				this.traits = await this.plugin.apiClient.getTraits();
+			} catch (err) {
+				console.warn("Traits not available:", err);
+				this.traits = [];
+			}
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Failed to load world data";
+			new Notice(`Error: ${errorMessage}`, 5000);
+		} finally {
+			this.loadingWorldData = false;
+		}
+	}
+
+	renderWorldDetails() {
+		if (!this.contentEl || !this.currentWorld) return;
+
+		this.renderWorldDetailsHeader();
+		this.contentEl.empty();
+
+		// Tabs section
+		this.renderWorldTabs();
+		this.renderWorldTabContent();
+	}
+
+	renderWorldDetailsHeader() {
+		if (!this.headerEl || !this.currentWorld) return;
+
+		this.headerEl.empty();
+		
+		const headerLeft = this.headerEl.createDiv({ cls: "story-engine-header-left" });
+		
+		const backButton = headerLeft.createEl("button", {
+			text: "← Back",
+			cls: "story-engine-back-btn",
+		});
+		backButton.onclick = () => {
+			this.currentWorld = null;
+			this.viewMode = "list";
+			this.listTab = "worlds";
+			this.renderListHeader();
+			this.renderListContent();
+		};
+
+		// Title container
+		const titleContainer = headerLeft.createDiv({ cls: "story-engine-title-container" });
+		const titleRow = titleContainer.createDiv({ cls: "story-engine-title-row" });
+		
+		titleRow.createEl("h2", { 
+			text: this.currentWorld.name,
+			cls: "story-engine-title-header"
+		});
+
+		// Genre pill
+		if (this.currentWorld.genre) {
+			const genrePill = titleRow.createSpan({ 
+				cls: "story-engine-status-pill story-engine-status-draft"
+			});
+			genrePill.textContent = this.currentWorld.genre;
+		}
+
+		// UUID with copy icon
+		const uuidRow = titleContainer.createDiv({ cls: "story-engine-uuid-row" });
+		const uuidSpan = uuidRow.createSpan({ cls: "story-engine-uuid" });
+		uuidSpan.textContent = this.currentWorld.id;
+		
+		const copyUuidButton = uuidRow.createEl("button", {
+			cls: "story-engine-copy-uuid-btn",
+			attr: { "aria-label": "Copy UUID" }
+		});
+		setIcon(copyUuidButton, "copy");
+		copyUuidButton.onclick = () => {
+			if (!this.currentWorld) return;
+			navigator.clipboard.writeText(this.currentWorld.id).then(() => {
+				new Notice("UUID copied to clipboard");
+			}).catch(() => {
+				new Notice("Failed to copy UUID", 3000);
+			});
+		};
+
+		// Description if present
+		if (this.currentWorld.description) {
+			const descRow = titleContainer.createDiv({ cls: "story-engine-world-desc" });
+			descRow.textContent = this.currentWorld.description;
+		}
+	}
+
+	renderWorldTabs() {
+		if (!this.contentEl) return;
+
+		// Remove existing tabs if any
+		const existingTabs = this.contentEl.querySelector(".story-engine-tabs");
+		if (existingTabs) {
+			existingTabs.remove();
+		}
+
+		const tabsContainer = this.contentEl.createDiv({ cls: "story-engine-tabs" });
+
+		const tabs: { key: "characters" | "locations" | "artifacts" | "events" | "traits"; label: string }[] = [
+			{ key: "characters", label: "Characters" },
+			{ key: "locations", label: "Locations" },
+			{ key: "artifacts", label: "Artifacts" },
+			{ key: "events", label: "Events" },
+			{ key: "traits", label: "Traits" },
+		];
+
+		for (const tab of tabs) {
+			const tabButton = tabsContainer.createEl("button", {
+				text: tab.label,
+				cls: `story-engine-tab ${this.worldTab === tab.key ? "is-active" : ""}`,
+			});
+			tabButton.onclick = () => {
+				this.worldTab = tab.key;
+				this.renderWorldTabs();
+				this.renderWorldTabContent();
+			};
+		}
+	}
+
+	renderWorldTabContent() {
+		if (!this.contentEl) return;
+
+		// Remove existing content
+		const existingContent = this.contentEl.querySelector(".story-engine-tab-content");
+		if (existingContent) {
+			existingContent.remove();
+		}
+
+		const contentContainer = this.contentEl.createDiv({ cls: "story-engine-tab-content" });
+
+		if (this.loadingWorldData) {
+			contentContainer.createEl("p", { text: "Loading..." });
+			return;
+		}
+
+		switch (this.worldTab) {
+			case "characters":
+				this.renderCharactersTab(contentContainer);
+				break;
+			case "locations":
+				this.renderLocationsTab(contentContainer);
+				break;
+			case "artifacts":
+				this.renderArtifactsTab(contentContainer);
+				break;
+			case "events":
+				this.renderEventsTab(contentContainer);
+				break;
+			case "traits":
+				this.renderTraitsTab(contentContainer);
+				break;
+		}
+
+		// Actions bar
+		this.renderWorldActionsBar(contentContainer);
+	}
+
+	renderWorldActionsBar(container: HTMLElement) {
+		const actionsBar = container.createDiv({ cls: "story-engine-actions-bar" });
+		
+		let createButtonText = "Create Character";
+		let createButtonAction = () => {
+			this.showCreateCharacterModal();
+		};
+
+		switch (this.worldTab) {
+			case "locations":
+				createButtonText = "Create Location";
+				createButtonAction = () => this.showCreateLocationModal();
+				break;
+			case "artifacts":
+				createButtonText = "Create Artifact";
+				createButtonAction = () => this.showCreateArtifactModal();
+				break;
+			case "events":
+				createButtonText = "Create Event";
+				createButtonAction = () => this.showCreateEventModal();
+				break;
+			case "traits":
+				createButtonText = "Create Trait";
+				createButtonAction = () => this.showCreateTraitModal();
+				break;
+		}
+
+		const createButton = actionsBar.createEl("button", {
+			text: createButtonText,
+			cls: "mod-cta story-engine-create-btn",
+		});
+		createButton.onclick = createButtonAction;
+	}
+
+	renderCharactersTab(container: HTMLElement) {
+		if (this.characters.length === 0) {
+			container.createEl("p", { text: "No characters found. Create your first character!" });
+			return;
+		}
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+		for (const character of this.characters) {
+			const item = list.createDiv({ cls: "story-engine-item" });
+			item.createDiv({ cls: "story-engine-title", text: character.name });
+			
+			const meta = item.createDiv({ cls: "story-engine-meta" });
+			if (character.description) {
+				meta.createEl("span", { text: character.description.substring(0, 50) + (character.description.length > 50 ? "..." : "") });
+			}
+
+			const actions = item.createDiv({ cls: "story-engine-item-actions" });
+			actions.createEl("button", { text: "Edit" }).onclick = () => {
+				this.showEditCharacterModal(character);
+			};
+			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+				if (confirm(`Delete character "${character.name}"?`)) {
+					try {
+						await this.plugin.apiClient.deleteCharacter(character.id);
+						await this.loadWorldData();
+						this.renderWorldTabContent();
+						new Notice("Character deleted");
+					} catch (err) {
+						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+					}
+				}
+			};
+		}
+	}
+
+	renderLocationsTab(container: HTMLElement) {
+		if (this.locations.length === 0) {
+			container.createEl("p", { text: "No locations found. Create your first location!" });
+			return;
+		}
+
+		// Group by hierarchy level
+		const rootLocations = this.locations.filter(l => !l.parent_id);
+		const list = container.createDiv({ cls: "story-engine-list" });
+		
+		for (const location of rootLocations.sort((a, b) => a.name.localeCompare(b.name))) {
+			this.renderLocationItem(list, location, 0);
+		}
+	}
+
+	renderLocationItem(container: HTMLElement, location: Location, level: number) {
+		const item = container.createDiv({ cls: "story-engine-item" });
+		item.style.marginLeft = `${level * 1}rem`;
+		
+		const titleRow = item.createDiv({ cls: "story-engine-title" });
+		titleRow.textContent = location.name;
+		if (location.type) {
+			const typeBadge = titleRow.createSpan({ cls: "story-engine-badge" });
+			typeBadge.textContent = location.type;
+		}
+		
+		const meta = item.createDiv({ cls: "story-engine-meta" });
+		if (location.description) {
+			meta.createEl("span", { text: location.description.substring(0, 50) + (location.description.length > 50 ? "..." : "") });
+		}
+
+		const actions = item.createDiv({ cls: "story-engine-item-actions" });
+		actions.createEl("button", { text: "Edit" }).onclick = () => {
+			this.showEditLocationModal(location);
+		};
+		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			if (confirm(`Delete location "${location.name}"?`)) {
+				try {
+					await this.plugin.apiClient.deleteLocation(location.id);
+					await this.loadWorldData();
+					this.renderWorldTabContent();
+					new Notice("Location deleted");
+				} catch (err) {
+					new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+				}
+			}
+		};
+
+		// Render children
+		const children = this.locations.filter(l => l.parent_id === location.id);
+		for (const child of children.sort((a, b) => a.name.localeCompare(b.name))) {
+			this.renderLocationItem(container, child, level + 1);
+		}
+	}
+
+	renderArtifactsTab(container: HTMLElement) {
+		if (this.artifacts.length === 0) {
+			container.createEl("p", { text: "No artifacts found. Create your first artifact!" });
+			return;
+		}
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+		for (const artifact of this.artifacts) {
+			const item = list.createDiv({ cls: "story-engine-item" });
+			
+			const titleRow = item.createDiv({ cls: "story-engine-title" });
+			titleRow.textContent = artifact.name;
+			if (artifact.rarity) {
+				const rarityBadge = titleRow.createSpan({ cls: `story-engine-badge story-engine-rarity-${artifact.rarity.toLowerCase()}` });
+				rarityBadge.textContent = artifact.rarity;
+			}
+			
+			const meta = item.createDiv({ cls: "story-engine-meta" });
+			if (artifact.description) {
+				meta.createEl("span", { text: artifact.description.substring(0, 50) + (artifact.description.length > 50 ? "..." : "") });
+			}
+
+			const actions = item.createDiv({ cls: "story-engine-item-actions" });
+			actions.createEl("button", { text: "Edit" }).onclick = () => {
+				this.showEditArtifactModal(artifact);
+			};
+			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+				if (confirm(`Delete artifact "${artifact.name}"?`)) {
+					try {
+						await this.plugin.apiClient.deleteArtifact(artifact.id);
+						await this.loadWorldData();
+						this.renderWorldTabContent();
+						new Notice("Artifact deleted");
+					} catch (err) {
+						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+					}
+				}
+			};
+		}
+	}
+
+	renderEventsTab(container: HTMLElement) {
+		if (this.events.length === 0) {
+			container.createEl("p", { text: "No events found. Create your first event!" });
+			return;
+		}
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+		for (const event of this.events.sort((a, b) => b.importance - a.importance)) {
+			const item = list.createDiv({ cls: "story-engine-item" });
+			
+			const titleRow = item.createDiv({ cls: "story-engine-title" });
+			titleRow.textContent = event.name;
+			
+			// Importance indicator
+			const importanceBadge = titleRow.createSpan({ cls: "story-engine-badge" });
+			importanceBadge.textContent = `★${event.importance}`;
+			
+			if (event.type) {
+				const typeBadge = titleRow.createSpan({ cls: "story-engine-badge" });
+				typeBadge.textContent = event.type;
+			}
+			
+			const meta = item.createDiv({ cls: "story-engine-meta" });
+			if (event.timeline) {
+				meta.createEl("span", { text: `Timeline: ${event.timeline}` });
+			}
+			if (event.description) {
+				meta.createEl("span", { text: event.description.substring(0, 50) + (event.description.length > 50 ? "..." : "") });
+			}
+
+			const actions = item.createDiv({ cls: "story-engine-item-actions" });
+			actions.createEl("button", { text: "Edit" }).onclick = () => {
+				this.showEditEventModal(event);
+			};
+			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+				if (confirm(`Delete event "${event.name}"?`)) {
+					try {
+						await this.plugin.apiClient.deleteEvent(event.id);
+						await this.loadWorldData();
+						this.renderWorldTabContent();
+						new Notice("Event deleted");
+					} catch (err) {
+						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+					}
+				}
+			};
+		}
+	}
+
+	renderTraitsTab(container: HTMLElement) {
+		if (this.traits.length === 0) {
+			container.createEl("p", { text: "No traits found. Create your first trait!" });
+			return;
+		}
+
+		// Group by category
+		const traitsByCategory = new Map<string, Trait[]>();
+		for (const trait of this.traits) {
+			const category = trait.category || "Uncategorized";
+			if (!traitsByCategory.has(category)) {
+				traitsByCategory.set(category, []);
+			}
+			traitsByCategory.get(category)!.push(trait);
+		}
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+		for (const [category, categoryTraits] of traitsByCategory.entries()) {
+			const group = list.createDiv({ cls: "story-engine-group" });
+			const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
+			groupHeader.createEl("h3", { text: category });
+
+			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+			for (const trait of categoryTraits.sort((a, b) => a.name.localeCompare(b.name))) {
+				const item = groupItems.createDiv({ cls: "story-engine-item" });
+				item.createDiv({ cls: "story-engine-title", text: trait.name });
+				
+				const meta = item.createDiv({ cls: "story-engine-meta" });
+				if (trait.description) {
+					meta.createEl("span", { text: trait.description.substring(0, 50) + (trait.description.length > 50 ? "..." : "") });
+				}
+
+				const actions = item.createDiv({ cls: "story-engine-item-actions" });
+				actions.createEl("button", { text: "Edit" }).onclick = () => {
+					this.showEditTraitModal(trait);
+				};
+				actions.createEl("button", { text: "Delete" }).onclick = async () => {
+					if (confirm(`Delete trait "${trait.name}"?`)) {
+						try {
+							await this.plugin.apiClient.deleteTrait(trait.id);
+							await this.loadWorldData();
+							this.renderWorldTabContent();
+							new Notice("Trait deleted");
+						} catch (err) {
+							new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+						}
+					}
+				};
+			}
+		}
+	}
+
+	// Modal methods for World entities
+	showCreateCharacterModal() {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Character");
+		
+		const content = modal.contentEl;
+		let name = "";
+		let description = "";
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createCharacter(this.currentWorld!.id, { name: name.trim(), description: description.trim() });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Character created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditCharacterModal(character: Character) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Character");
+		
+		const content = modal.contentEl;
+		let name = character.name;
+		let description = character.description;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateCharacter(character.id, { name: name.trim(), description: description.trim() });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Character updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+	}
+
+	showCreateLocationModal() {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Location");
+		
+		const content = modal.contentEl;
+		let name = "";
+		let type = "";
+		let description = "";
+		let parentId: string | null = null;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Type" });
+		const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., City, Forest, Building" });
+		typeInput.oninput = () => { type = typeInput.value; };
+
+		content.createEl("label", { text: "Parent Location" });
+		const parentSelect = content.createEl("select", { cls: "story-engine-select" });
+		parentSelect.createEl("option", { value: "", text: "None (Root Location)" });
+		for (const loc of this.locations.sort((a, b) => a.name.localeCompare(b.name))) {
+			parentSelect.createEl("option", { value: loc.id, text: loc.name });
+		}
+		parentSelect.onchange = () => { parentId = parentSelect.value || null; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createLocation(this.currentWorld!.id, { 
+					name: name.trim(), 
+					type: type.trim(),
+					description: description.trim(),
+					parent_id: parentId
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Location created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditLocationModal(location: Location) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Location");
+		
+		const content = modal.contentEl;
+		let name = location.name;
+		let type = location.type;
+		let description = location.description;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Type" });
+		const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: type });
+		typeInput.oninput = () => { type = typeInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateLocation(location.id, { name: name.trim(), type: type.trim(), description: description.trim() });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Location updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+	}
+
+	showCreateArtifactModal() {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Artifact");
+		
+		const content = modal.contentEl;
+		let name = "";
+		let description = "";
+		let rarity = "";
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Rarity" });
+		const raritySelect = content.createEl("select", { cls: "story-engine-select" });
+		raritySelect.createEl("option", { value: "", text: "Select Rarity" });
+		["Common", "Uncommon", "Rare", "Epic", "Legendary", "Unique"].forEach(r => {
+			raritySelect.createEl("option", { value: r.toLowerCase(), text: r });
+		});
+		raritySelect.onchange = () => { rarity = raritySelect.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createArtifact(this.currentWorld!.id, { 
+					name: name.trim(), 
+					description: description.trim(),
+					rarity: rarity
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Artifact created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditArtifactModal(artifact: Artifact) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Artifact");
+		
+		const content = modal.contentEl;
+		let name = artifact.name;
+		let description = artifact.description;
+		let rarity = artifact.rarity;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Rarity" });
+		const raritySelect = content.createEl("select", { cls: "story-engine-select" });
+		raritySelect.createEl("option", { value: "", text: "Select Rarity" });
+		["Common", "Uncommon", "Rare", "Epic", "Legendary", "Unique"].forEach(r => {
+			const opt = raritySelect.createEl("option", { value: r.toLowerCase(), text: r });
+			if (rarity.toLowerCase() === r.toLowerCase()) opt.selected = true;
+		});
+		raritySelect.onchange = () => { rarity = raritySelect.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateArtifact(artifact.id, { name: name.trim(), description: description.trim(), rarity: rarity });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Artifact updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+	}
+
+	showCreateEventModal() {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Event");
+		
+		const content = modal.contentEl;
+		let name = "";
+		let type = "";
+		let description = "";
+		let timeline = "";
+		let importance = 5;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Type" });
+		const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., Battle, Discovery, Treaty" });
+		typeInput.oninput = () => { type = typeInput.value; };
+
+		content.createEl("label", { text: "Timeline" });
+		const timelineInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., Year 100, Before the War" });
+		timelineInput.oninput = () => { timeline = timelineInput.value; };
+
+		content.createEl("label", { text: "Importance (1-10)" });
+		const importanceInput = content.createEl("input", { type: "number", cls: "story-engine-input", value: "5", attr: { min: "1", max: "10" } });
+		importanceInput.oninput = () => { importance = parseInt(importanceInput.value) || 5; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createEvent(this.currentWorld!.id, { 
+					name: name.trim(), 
+					type: type.trim() || undefined,
+					description: description.trim() || undefined,
+					timeline: timeline.trim() || undefined,
+					importance: Math.max(1, Math.min(10, importance))
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Event created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditEventModal(event: WorldEvent) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Event");
+		
+		const content = modal.contentEl;
+		let name = event.name;
+		let type = event.type || "";
+		let description = event.description || "";
+		let timeline = event.timeline || "";
+		let importance = event.importance;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Type" });
+		const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: type });
+		typeInput.oninput = () => { type = typeInput.value; };
+
+		content.createEl("label", { text: "Timeline" });
+		const timelineInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: timeline });
+		timelineInput.oninput = () => { timeline = timelineInput.value; };
+
+		content.createEl("label", { text: "Importance (1-10)" });
+		const importanceInput = content.createEl("input", { type: "number", cls: "story-engine-input", value: importance.toString(), attr: { min: "1", max: "10" } });
+		importanceInput.oninput = () => { importance = parseInt(importanceInput.value) || 5; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateEvent(event.id, { 
+					name: name.trim(), 
+					type: type.trim() || undefined,
+					description: description.trim() || undefined,
+					timeline: timeline.trim() || undefined,
+					importance: Math.max(1, Math.min(10, importance))
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Event updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+	}
+
+	showCreateTraitModal() {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Trait");
+		
+		const content = modal.contentEl;
+		let name = "";
+		let category = "";
+		let description = "";
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Category" });
+		const categoryInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., Personality, Physical, Background" });
+		categoryInput.oninput = () => { category = categoryInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createTrait({ 
+					name: name.trim(), 
+					category: category.trim(),
+					description: description.trim()
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Trait created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditTraitModal(trait: Trait) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Trait");
+		
+		const content = modal.contentEl;
+		let name = trait.name;
+		let category = trait.category;
+		let description = trait.description;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Category" });
+		const categoryInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: category });
+		categoryInput.oninput = () => { category = categoryInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateTrait(trait.id, { name: name.trim(), category: category.trim(), description: description.trim() });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Trait updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
 	}
 }
 

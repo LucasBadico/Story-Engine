@@ -12,9 +12,16 @@ import {
 	ContentBlockReference,
 	World,
 	RPGSystem,
+	Character,
+	Location,
+	Artifact,
+	WorldEvent,
+	Trait,
 } from "../types";
 
 export class StoryEngineClient {
+	private mode: "local" | "remote" = "remote";
+
 	constructor(
 		private apiUrl: string,
 		private apiKey: string,
@@ -23,6 +30,10 @@ export class StoryEngineClient {
 
 	setTenantId(tenantId: string): void {
 		this.tenantId = tenantId.trim();
+	}
+
+	setMode(mode: "local" | "remote"): void {
+		this.mode = mode;
 	}
 
 	private async request<T>(
@@ -79,7 +90,7 @@ export class StoryEngineClient {
 	}
 
 	async listStories(): Promise<Story[]> {
-		if (!this.tenantId || !this.tenantId.trim()) {
+		if (this.mode === "remote" && (!this.tenantId || !this.tenantId.trim())) {
 			throw new Error("Tenant ID is required");
 		}
 
@@ -98,17 +109,20 @@ export class StoryEngineClient {
 		return response.story;
 	}
 
-	async createStory(title: string): Promise<Story> {
-		if (!this.tenantId || !this.tenantId.trim()) {
+	async createStory(title: string, worldId?: string): Promise<Story> {
+		if (this.mode === "remote" && (!this.tenantId || !this.tenantId.trim())) {
 			throw new Error("Tenant ID is required");
+		}
+
+		const body: Record<string, string> = { title: title.trim() };
+		if (worldId) {
+			body.world_id = worldId;
 		}
 
 		const response = await this.request<{ story: Story }>(
 			"POST",
 			"/api/v1/stories",
-			{
-				title: title.trim(),
-			}
+			body
 		);
 		return response.story;
 	}
@@ -441,6 +455,19 @@ export class StoryEngineClient {
 		return response.world;
 	}
 
+	async createWorld(name: string, description: string, genre: string): Promise<World> {
+		const response = await this.request<{ world: World }>(
+			"POST",
+			"/api/v1/worlds",
+			{
+				name: name.trim(),
+				description: description.trim(),
+				genre: genre.trim(),
+			}
+		);
+		return response.world;
+	}
+
 	async getRPGSystems(): Promise<RPGSystem[]> {
 		const response = await this.request<{ rpg_systems: RPGSystem[] }>(
 			"GET",
@@ -455,6 +482,201 @@ export class StoryEngineClient {
 			`/api/v1/rpg-systems/${id}`
 		);
 		return response.rpg_system;
+	}
+
+	// Character methods
+	async getCharacters(worldId: string): Promise<Character[]> {
+		const response = await this.request<{ characters: Character[] }>(
+			"GET",
+			`/api/v1/worlds/${worldId}/characters`
+		);
+		return response.characters || [];
+	}
+
+	async getCharacter(id: string): Promise<Character> {
+		const response = await this.request<{ character: Character }>(
+			"GET",
+			`/api/v1/characters/${id}`
+		);
+		return response.character;
+	}
+
+	async createCharacter(worldId: string, data: Partial<Character>): Promise<Character> {
+		const response = await this.request<{ character: Character }>(
+			"POST",
+			`/api/v1/worlds/${worldId}/characters`,
+			data
+		);
+		return response.character;
+	}
+
+	async updateCharacter(id: string, data: Partial<Character>): Promise<Character> {
+		const response = await this.request<{ character: Character }>(
+			"PUT",
+			`/api/v1/characters/${id}`,
+			data
+		);
+		return response.character;
+	}
+
+	async deleteCharacter(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/characters/${id}`);
+	}
+
+	// Location methods
+	async getLocations(worldId: string): Promise<Location[]> {
+		const response = await this.request<{ locations: Location[] }>(
+			"GET",
+			`/api/v1/worlds/${worldId}/locations`
+		);
+		return response.locations || [];
+	}
+
+	async getLocation(id: string): Promise<Location> {
+		const response = await this.request<{ location: Location }>(
+			"GET",
+			`/api/v1/locations/${id}`
+		);
+		return response.location;
+	}
+
+	async createLocation(worldId: string, data: Partial<Location>): Promise<Location> {
+		const response = await this.request<{ location: Location }>(
+			"POST",
+			`/api/v1/worlds/${worldId}/locations`,
+			data
+		);
+		return response.location;
+	}
+
+	async updateLocation(id: string, data: Partial<Location>): Promise<Location> {
+		const response = await this.request<{ location: Location }>(
+			"PUT",
+			`/api/v1/locations/${id}`,
+			data
+		);
+		return response.location;
+	}
+
+	async deleteLocation(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/locations/${id}`);
+	}
+
+	// Artifact methods
+	async getArtifacts(worldId: string): Promise<Artifact[]> {
+		const response = await this.request<{ artifacts: Artifact[] }>(
+			"GET",
+			`/api/v1/worlds/${worldId}/artifacts`
+		);
+		return response.artifacts || [];
+	}
+
+	async getArtifact(id: string): Promise<Artifact> {
+		const response = await this.request<{ artifact: Artifact }>(
+			"GET",
+			`/api/v1/artifacts/${id}`
+		);
+		return response.artifact;
+	}
+
+	async createArtifact(worldId: string, data: Partial<Artifact>): Promise<Artifact> {
+		const response = await this.request<{ artifact: Artifact }>(
+			"POST",
+			`/api/v1/worlds/${worldId}/artifacts`,
+			data
+		);
+		return response.artifact;
+	}
+
+	async updateArtifact(id: string, data: Partial<Artifact>): Promise<Artifact> {
+		const response = await this.request<{ artifact: Artifact }>(
+			"PUT",
+			`/api/v1/artifacts/${id}`,
+			data
+		);
+		return response.artifact;
+	}
+
+	async deleteArtifact(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/artifacts/${id}`);
+	}
+
+	// Event methods
+	async getEvents(worldId: string): Promise<WorldEvent[]> {
+		const response = await this.request<{ events: WorldEvent[] }>(
+			"GET",
+			`/api/v1/worlds/${worldId}/events`
+		);
+		return response.events || [];
+	}
+
+	async getEvent(id: string): Promise<WorldEvent> {
+		const response = await this.request<{ event: WorldEvent }>(
+			"GET",
+			`/api/v1/events/${id}`
+		);
+		return response.event;
+	}
+
+	async createEvent(worldId: string, data: Partial<WorldEvent>): Promise<WorldEvent> {
+		const response = await this.request<{ event: WorldEvent }>(
+			"POST",
+			`/api/v1/worlds/${worldId}/events`,
+			data
+		);
+		return response.event;
+	}
+
+	async updateEvent(id: string, data: Partial<WorldEvent>): Promise<WorldEvent> {
+		const response = await this.request<{ event: WorldEvent }>(
+			"PUT",
+			`/api/v1/events/${id}`,
+			data
+		);
+		return response.event;
+	}
+
+	async deleteEvent(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/events/${id}`);
+	}
+
+	// Trait methods
+	async getTraits(): Promise<Trait[]> {
+		const response = await this.request<{ traits: Trait[] }>(
+			"GET",
+			"/api/v1/traits"
+		);
+		return response.traits || [];
+	}
+
+	async getTrait(id: string): Promise<Trait> {
+		const response = await this.request<{ trait: Trait }>(
+			"GET",
+			`/api/v1/traits/${id}`
+		);
+		return response.trait;
+	}
+
+	async createTrait(data: Partial<Trait>): Promise<Trait> {
+		const response = await this.request<{ trait: Trait }>(
+			"POST",
+			"/api/v1/traits",
+			data
+		);
+		return response.trait;
+	}
+
+	async updateTrait(id: string, data: Partial<Trait>): Promise<Trait> {
+		const response = await this.request<{ trait: Trait }>(
+			"PUT",
+			`/api/v1/traits/${id}`,
+			data
+		);
+		return response.trait;
+	}
+
+	async deleteTrait(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/traits/${id}`);
 	}
 }
 

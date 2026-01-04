@@ -351,8 +351,17 @@ export class SyncService {
 
 	// Pull all stories
 	async pullAllStories(): Promise<void> {
-		if (!this.settings.tenantId) {
+		// Only validate tenant ID in remote mode
+		if (this.settings.mode === "remote" && !this.settings.tenantId) {
 			throw new Error("Tenant ID is required");
+		}
+
+		// Pull worlds (for display/metadata)
+		try {
+			await this.apiClient.getWorlds();
+		} catch (err) {
+			console.error("Failed to load worlds:", err);
+			// Don't fail the entire sync if worlds fail
 		}
 
 		const stories = await this.apiClient.listStories();
@@ -2659,11 +2668,17 @@ export class SyncService {
 		return null;
 	}
 
-	// Resolve conflict using modal
+	// Resolve conflict using modal or auto-resolve based on mode
 	private async resolveConflict(
 		localContentBlock: ContentBlock,
 		remoteContentBlock: ContentBlock
 	): Promise<ConflictResolutionResult> {
+		// In local mode, automatically resolve to "local wins"
+		if (this.settings.mode === "local") {
+			return { resolution: "local" };
+		}
+
+		// In remote mode, show modal for user to choose
 		return new Promise((resolve) => {
 			const modal = new ConflictModal(
 				this.app,
