@@ -14,12 +14,14 @@ type Config struct {
 
 // DatabaseConfig holds database connection settings
 type DatabaseConfig struct {
+	Driver   string // "postgres" or "sqlite"
 	Host     string
 	Port     int
 	User     string
 	Password string
 	Database string
 	SSLMode  string
+	Path     string // SQLite database file path
 }
 
 // GRPCConfig holds gRPC server settings
@@ -35,8 +37,12 @@ type HTTPConfig struct {
 	Port int
 }
 
-// DSN returns the PostgreSQL connection string
+// DSN returns the database connection string based on the driver
 func (c DatabaseConfig) DSN() string {
+	if c.Driver == "sqlite" {
+		return c.Path
+	}
+	// Default to PostgreSQL
 	return fmt.Sprintf(
 		"postgres://%s:%s@%s:%d/%s?sslmode=%s",
 		c.User,
@@ -52,12 +58,14 @@ func (c DatabaseConfig) DSN() string {
 func Load() *Config {
 	return &Config{
 		Database: DatabaseConfig{
+			Driver:   getEnv("DB_DRIVER", "postgres"),
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnvInt("DB_PORT", 5432),
 			User:     getEnv("DB_USER", "postgres"),
 			Password: getEnv("DB_PASSWORD", "postgres"),
 			Database: getEnv("DB_NAME", "storyengine"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
+			Path:     getEnv("DB_PATH", "./story-engine.db"),
 		},
 		GRPC: GRPCConfig{
 			Port:             getEnvInt("GRPC_PORT", 9090),

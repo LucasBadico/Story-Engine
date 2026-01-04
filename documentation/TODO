@@ -9,7 +9,14 @@
 - [x] revisar handlers q usam repo direto, provavelmente ta havendo duplicacao pq tem 2 tipos de handlers
 # Easy wins
 - [x] add tag date
-- [ ] mesclar dinamic relations from prose and image. Entities references to prose and image blocks.
+- [x] mesclar dinamic relations from prose and image. Entities references to prose and image blocks.
+- atualizar postman collections
+- atualizar gateway ingestion
+- [x] add content to view  com  image from url, busca naquele servico aberto de imagem free, e em breve upload.
+- [ ] world entities -  view e md
+- [ ] rpg entities -  view e md
+- [x] ingestao das novas entidades
+- [x] add lore and faction
 
 Economia vale a pena? Sim! É:
 Baixo custo (~2-3h de implementação)
@@ -17,3 +24,27 @@ Complementa naturalmente o inventário
 Essencial para compra/venda/trade
 Base para futuras features (shops, quests com rewards)
 
+Próximos passos
+Instalar dependências: pnpm install na raiz
+Build dos packages: pnpm build
+Testar Storybook: pnpm --filter ui-package storybook
+Rodar web-app: pnpm --filter web-app dev
+Build do plugin: pnpm --filter obsidian-plugin-v2 build
+A estrutura está pronta para desenvolvimento. Os imports usam os nomes dos pacotes (@story-engine/ui-package, @story-engine/shared-ts, @story-engine/tokens) que funcionarão após a instalação das dependências com pnpm.
+
+
+SQLLITE IMPLEMENTATION
+Estado atual
+Completo:
+Infraestrutura base (interfaces, config, database abstraction)
+6 migrations SQLite
+10 repositórios SQLite (tenant, world, story, chapter, scene, beat, content_block, content_block_reference, audit_log, transaction)
+Próximos passos:
+Repositórios World Building Core (location, character, artifact, event)
+Funcionalidades Offline Mode (default tenant, middleware, entry point)
+Como retomar
+Ler documentation/STATUS_SQLITE_IMPLEMENTATION.md
+Escolher um repositório da lista "O QUE AINDA PRECISA SER IMPLEMENTADO"
+Seguir o padrão dos repositórios já criados (ex: story_repository.go)
+Atualizar o documento de status ao completar cada repositório
+Os documentos estão salvos e podem ser consultados na próxima sessão. O trabalho está organizado e documentado para continuidade.

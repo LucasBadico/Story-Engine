@@ -1,31 +1,31 @@
-package postgres
+package sqlite
 
 import (
 	"context"
+	"database/sql"
 
-	"github.com/jackc/pgx/v5"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 var _ repositories.TransactionRepository = (*TransactionRepository)(nil)
 var _ repositories.Tx = (*txWrapper)(nil)
 
-// txWrapper wraps pgx.Tx to implement the generic Tx interface
+// txWrapper wraps sql.Tx to implement the generic Tx interface
 type txWrapper struct {
-	tx pgx.Tx
+	tx *sql.Tx
 }
 
 // Commit commits the transaction
 func (w *txWrapper) Commit(ctx context.Context) error {
-	return w.tx.Commit(ctx)
+	return w.tx.Commit()
 }
 
 // Rollback rolls back the transaction
 func (w *txWrapper) Rollback(ctx context.Context) error {
-	return w.tx.Rollback(ctx)
+	return w.tx.Rollback()
 }
 
-// TransactionRepository implements transaction management
+// TransactionRepository implements transaction management for SQLite
 type TransactionRepository struct {
 	db *DB
 }
