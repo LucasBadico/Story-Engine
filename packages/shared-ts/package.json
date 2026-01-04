@@ -1,0 +1,16 @@
+{
+  "name": "@story-engine/shared-ts",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types and interfaces for Story Engine",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "type-check": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "keywords": ["types", "interfaces", "story-engine"],
+  "license": "MIT"
+}
+

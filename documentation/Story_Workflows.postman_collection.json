@@ -1,0 +1,3587 @@
+{
+	"info": {
+		"_postman_id": "09e14355-4eb9-44fe-811a-4f0bc4898728",
+		"name": "Story Workflows",
+		"description": "Complete API collection for Story Engine with automatic variable extraction",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "4044489"
+	},
+	"item": [
+		{
+			"name": "1. Basic (Story Only)",
+			"item": [
+				{
+					"name": "01. Create Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const d = pm.response.json();",
+									"    pm.collectionVariables.set('workflow_tenant_id', d.tenant.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Basic Story Tenant\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "02. Create Story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const d = pm.response.json();",
+									"    pm.collectionVariables.set('workflow_story_id', d.story.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Uma Jornada Simples\",\n  \"description\": \"Uma história curta sobre descoberta e crescimento pessoal. Maria, uma jovem escritora, descobre que as melhores histórias vêm das experiências mais simples da vida.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "03. Create Chapter 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const d = pm.response.json();",
+									"    pm.collectionVariables.set('workflow_chapter_id', d.chapter.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 1,\n  \"title\": \"O Despertar\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "04. Create Scene 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const d = pm.response.json();",
+									"    pm.collectionVariables.set('workflow_scene_id', d.scene.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"chapter_id\": \"{{workflow_chapter_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"Apresentar Maria em seu ambiente cotidiano e estabelecer sua rotina como escritora\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"scenes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "05. Create Beat 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const d = pm.response.json();",
+									"    pm.collectionVariables.set('workflow_beat_id', d.beat.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"scene_id\": \"{{workflow_scene_id}}\",\n  \"order_num\": 1,\n  \"type\": \"setup\",\n  \"intent\": \"Estabelecer o mundo ordinário da protagonista\",\n  \"outcome\": \"Leitor conhece Maria e sua luta criativa\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/beats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"beats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "06. Create Content Block 1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const d = pm.response.json();",
+									"    pm.collectionVariables.set('workflow_content_block_id', d.content_block.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"O sol nasceu como em qualquer outro dia, mas algo no ar parecia diferente. Maria olhou pela janela de seu pequeno apartamento, observando as ruas ainda desertas da cidade que nunca dormia.\\n\\nSeu caderno de anotações estava aberto na mesa, páginas em branco esperando por palavras que insistiam em não vir. Fazia três meses desde que ela havia escrito algo de verdade - não as resenhas para o jornal local, não os e-mails de trabalho, mas algo que viesse do coração.\\n\\n— Talvez hoje seja diferente — murmurou para si mesma, pegando a caneta.\\n\\nMas a página continuou em branco, e Maria suspirou, perguntando-se se ainda tinha histórias para contar.\",\n  \"metadata\": {\n    \"word_count\": 115\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "07. Create Content Block 2",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 2,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"O café esfriou enquanto Maria observava a chuva que começara a cair. Gotas grossas batiam contra o vidro, criando melodias aleatórias que, de alguma forma, pareciam mais interessantes que qualquer coisa que ela pudesse escrever.\\n\\nFoi então que ouviu a batida na porta.\\n\\nEra sua vizinha, dona Conceição, uma senhora de oitenta e três anos que ainda subia os três lances de escada todo dia.\\n\\n— Trouxe bolo de milho, minha filha. Parece que você precisa de companhia.\\n\\nMaria sorriu. Dona Conceição sempre sabia.\\n\\n— Entre, por favor. Conte-me uma história.\\n\\nE ali, naquela tarde chuvosa, ouvindo as memórias de uma vida inteira, Maria finalmente encontrou suas palavras.\",\n  \"metadata\": {\n    \"word_count\": 120\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "08. Get Story Complete",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{workflow_story_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories",
+								"{{workflow_story_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "09. List Chapters",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{workflow_story_id}}/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories",
+								"{{workflow_story_id}}",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "10. List Content Blocks",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Workflow básico: cria apenas a estrutura de história sem world building ou RPG. Uma história simples para testar o fluxo básico."
+		},
+		{
+			"name": "2. World Building (O Pequeno Príncipe)",
+			"item": [
+				{
+					"name": "01. Create Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_tenant_id', pm.response.json().tenant.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"O Pequeno Príncipe - Editora\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "02. Create World",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_world_id', pm.response.json().world.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Universo do Pequeno Príncipe\",\n  \"description\": \"Um universo poético onde asteroides são pequenos mundos habitados, cada um com sua própria história. As estrelas riem, as rosas são vaidosas, e as raposas ensinam sobre amizade. É um lugar onde o essencial é invisível aos olhos, onde um desenho de chapéu pode ser uma jiboia digerindo um elefante, e onde quarenta e quatro pores do sol podem ser vistos em um único dia.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "03. Create Trait: Pureza de Coração",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_trait_pureza_id', pm.response.json().trait.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Pureza de Coração\",\n  \"description\": \"A capacidade de ver o mundo com olhos de criança, sem os véus da idade adulta. Quem possui este traço consegue enxergar elefantes dentro de jiboias e reconhecer que o essencial é invisível aos olhos.\",\n  \"category\": \"virtue\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "04. Create Trait: Vaidade",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Vaidade\",\n  \"description\": \"A necessidade constante de admiração e reconhecimento. Como a Rosa do Pequeno Príncipe, aqueles com este traço exigem atenção e cuidado, mas sob a superfície escondem grande fragilidade e amor.\",\n  \"category\": \"flaw\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "05. Create Trait: Sabedoria Natural",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_trait_sabedoria_id', pm.response.json().trait.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Sabedoria Natural\",\n  \"description\": \"O conhecimento que vem da experiência e da conexão com a natureza. A Raposa possui este traço, entendendo verdades profundas sobre amizade, responsabilidade e amor que os humanos esqueceram.\",\n  \"category\": \"virtue\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "06. Create Archetype: O Viajante Inocente",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_archetype_viajante_id', pm.response.json().archetype.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"O Viajante Inocente\",\n  \"description\": \"Aquele que percorre mundos buscando respostas para perguntas que os adultos esqueceram como fazer. Carrega consigo a curiosidade infinita e a capacidade de transformar encontros casuais em lições eternas.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/archetypes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archetypes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "07. Create Archetype: O Mentor Selvagem",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_archetype_mentor_id', pm.response.json().archetype.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"O Mentor Selvagem\",\n  \"description\": \"Um ser da natureza que guarda segredos antigos sobre os laços que unem os seres. Ensina através de rituais simples e palavras que parecem enigmas, mas revelam verdades profundas sobre cativar e ser responsável.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/archetypes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archetypes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "08. Create Location: Asteroide B-612",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_location_b612_id', pm.response.json().location.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Asteroide B-612\",\n  \"description\": \"Um minúsculo asteroide, pouco maior que uma casa, onde nascem baobás perigosos e uma única rosa delicada. Tem três vulcões (dois ativos e um extinto) e oferece a possibilidade de ver quarenta e quatro pores do sol em um único dia, bastando arrastar a cadeira alguns passos.\",\n  \"type\": \"celestial_body\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/locations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"locations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "09. Create Location: Deserto do Saara",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_location_deserto_id', pm.response.json().location.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Deserto do Saara\",\n  \"description\": \"Uma imensidão de areia dourada onde o silêncio fala mais alto que qualquer palavra. É aqui que um aviador perdido encontra um pequeno príncipe, e onde poços escondidos guardam água que é doce por causa de todo o caminho percorrido para encontrá-la.\",\n  \"type\": \"region\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/locations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"locations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "10. Create Character: O Pequeno Príncipe",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_char_principe_id', pm.response.json().character.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"O Pequeno Príncipe\",\n  \"description\": \"Um menino de cabelos dourados como o trigo, vindo de um asteroide distante. Faz perguntas que parecem simples mas revelam verdades profundas. Ama uma rosa vaidosa e busca entender os estranhos costumes dos adultos. Seu riso soa como guizos, e sua partida deixa as estrelas diferentes para sempre.\",\n  \"role\": \"protagonist\",\n  \"archetype_id\": \"{{workflow_archetype_viajante_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "11. Create Character: A Raposa",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_char_raposa_id', pm.response.json().character.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"A Raposa\",\n  \"description\": \"Uma sábia raposa que ensina o segredo mais importante: só se vê bem com o coração, o essencial é invisível aos olhos. Deseja ser cativada para que o trigo dourado a faça lembrar dos cabelos do príncipe. Conhece os ritos que tornam um dia diferente dos outros.\",\n  \"role\": \"mentor\",\n  \"archetype_id\": \"{{workflow_archetype_mentor_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "12. Create Character: A Rosa",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"A Rosa\",\n  \"description\": \"Uma flor única e vaidosa que nasceu no asteroide B-612. Exige cuidados constantes e faz dramas por correntes de ar, mas esconde um amor profundo sob suas quatro pobres espinhos. É ela quem perfuma e ilumina a vida do príncipe, mesmo quando ele não percebe.\",\n  \"role\": \"supporting\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "13. Create Character: O Aviador",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"O Aviador (Narrador)\",\n  \"description\": \"Um piloto que caiu no deserto do Saara e encontrou o Pequeno Príncipe. Quando criança, desenhou uma jiboia digerindo um elefante, mas os adultos viram apenas um chapéu. Nunca encontrou alguém que entendesse até conhecer o príncipe. Agora, quando olha para as estrelas, ouve o riso do seu amigo.\",\n  \"role\": \"narrator\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "14. Add Trait to Príncipe",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trait_id\": \"{{workflow_trait_pureza_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_principe_id}}/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_principe_id}}",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "15. Add Trait to Raposa",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trait_id\": \"{{workflow_trait_sabedoria_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_raposa_id}}/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_raposa_id}}",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "16. Create Story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_story_id', pm.response.json().story.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"O Pequeno Príncipe\",\n  \"description\": \"A história de um aviador que, perdido no deserto do Saara, encontra um pequeno príncipe vindo de outro planeta. Através de suas conversas, descobrimos a jornada do príncipe por diferentes asteroides e os ensinamentos que recolheu sobre amor, amizade e o que realmente importa na vida.\",\n  \"world_id\": \"{{workflow_world_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "17. Create Chapter 1: O Encontro",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_chapter1_id', pm.response.json().chapter.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 1,\n  \"title\": \"O Encontro no Deserto\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "18. Create Scene 1.1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_scene_id', pm.response.json().scene.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"chapter_id\": \"{{workflow_chapter1_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"O aviador cai no deserto e encontra o Pequeno Príncipe pela primeira vez\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"scenes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "19. Create Content: Abertura",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"Quando eu tinha seis anos, vi uma vez uma imagem magnífica num livro sobre a floresta virgem chamado 'Histórias Vividas'. Representava uma jiboia engolindo uma fera.\\n\\nFiz então meu primeiro desenho. Mostrei minha obra-prima aos adultos e perguntei se meu desenho lhes dava medo.\\n\\nResponderam: 'Por que um chapéu daria medo?'\\n\\nMeu desenho não representava um chapéu. Representava uma jiboia digerindo um elefante. Desenhei então o interior da jiboia, para que os adultos pudessem entender. Eles sempre precisam de explicações.\\n\\nOs adultos nunca entendem nada sozinhos, e é cansativo para as crianças estar sempre explicando.\",\n  \"metadata\": {\"word_count\": 105}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter1_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter1_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "20. Create Content: O Encontro",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 2,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"Assim vivi só, sem ter com quem conversar de verdade, até uma pane no deserto do Saara, há seis anos. Alguma coisa se quebrara no meu motor. E como não tinha comigo mecânico nem passageiro, preparei-me para tentar sozinho um conserto difícil. Era uma questão de vida ou morte. Tinha água apenas para oito dias.\\n\\nNa primeira noite, dormi na areia, a milhas de qualquer habitação humana. Estava mais isolado que um náufrago numa jangada no meio do oceano.\\n\\nImaginem então minha surpresa quando, ao nascer do sol, uma vozinha estranha me acordou:\\n\\n— Por favor... desenha-me um carneiro!\",\n  \"metadata\": {\"word_count\": 112}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter1_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter1_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "21. Create Chapter 2: A Raposa",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_chapter2_id', pm.response.json().chapter.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 2,\n  \"title\": \"O Segredo da Raposa\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "22. Create Content: A Raposa Aparece",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"Foi então que apareceu a raposa.\\n\\n— Bom dia — disse a raposa.\\n\\n— Bom dia — respondeu polidamente o pequeno príncipe, que se voltou mas não viu nada.\\n\\n— Estou aqui — disse a voz — debaixo da macieira...\\n\\n— Quem és tu? — perguntou o pequeno príncipe. — Tu és bem bonita...\\n\\n— Sou uma raposa — disse a raposa.\\n\\n— Vem brincar comigo — propôs o pequeno príncipe. — Estou tão triste...\\n\\n— Não posso brincar contigo — disse a raposa. — Não me cativaram ainda.\\n\\n— Ah! Desculpa — disse o pequeno príncipe.\\n\\nMas, após refletir, acrescentou:\\n\\n— Que quer dizer 'cativar'?\",\n  \"metadata\": {\"word_count\": 115}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter2_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter2_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "23. Create Content: O Segredo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 2,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"— Adeus — disse a raposa. — Eis o meu segredo. É muito simples: só se vê bem com o coração. O essencial é invisível aos olhos.\\n\\n— O essencial é invisível aos olhos — repetiu o pequeno príncipe, para se lembrar.\\n\\n— Foi o tempo que perdeste com tua rosa que fez tua rosa tão importante.\\n\\n— Foi o tempo que perdi com minha rosa... — repetiu o pequeno príncipe, para se lembrar.\\n\\n— Os homens esqueceram essa verdade — disse a raposa. — Mas tu não deves esquecer. Tu te tornas eternamente responsável por aquilo que cativaste. Tu és responsável pela tua rosa...\\n\\n— Eu sou responsável pela minha rosa... — repetiu o pequeno príncipe, para se lembrar.\",\n  \"metadata\": {\"word_count\": 133}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter2_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter2_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "24. Create Event: Partida do Príncipe",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"A Partida do Príncipe\",\n  \"description\": \"O momento em que o Pequeno Príncipe deixa seu asteroide e sua rosa para explorar o universo. Uma despedida silenciosa ao amanhecer, com a rosa tentando esconder suas lágrimas sob a desculpa do orvalho.\",\n  \"type\": \"story_event\",\n  \"importance\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/events",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "25. Create Event: Ensinamento da Raposa",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"O Ensinamento da Raposa\",\n  \"description\": \"O encontro transformador onde a Raposa ensina ao príncipe o verdadeiro significado de cativar e ser responsável por aqueles que amamos. O momento em que aprende que o essencial é invisível aos olhos.\",\n  \"type\": \"story_event\",\n  \"importance\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/events",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "26. Get World Complete",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds/{{workflow_world_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds",
+								"{{workflow_world_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "27. List Characters",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds/{{workflow_world_id}}/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds",
+								"{{workflow_world_id}}",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "28. List Locations",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds/{{workflow_world_id}}/locations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds",
+								"{{workflow_world_id}}",
+								"locations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "29. Get Story Complete",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{workflow_story_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories",
+								"{{workflow_story_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "30. Get Chapter 1 Content",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter1_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter1_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "31. Get Chapter 2 Content",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter2_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter2_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Workflow com World Building: cria o mundo, traits, archetypes, locations, personagens e depois a história baseada em O Pequeno Príncipe de Antoine de Saint-Exupéry"
+		},
+		{
+			"name": "3. Complete RPG (Caverna do Dragão)",
+			"item": [
+				{
+					"name": "01. Create Tenant",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_tenant_id', pm.response.json().tenant.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Caverna do Dragão - RPG Adventures\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/tenants",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "02. Create World: O Reino",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_world_id', pm.response.json().world.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"O Reino\",\n  \"description\": \"Um mundo medieval fantástico cheio de magia, criaturas míticas e perigos inimagináveis. Governado em parte pelo maligno Vingador e protegido pelo misterioso Mestre dos Magos. Portais dimensionais conectam este reino ao mundo real, trazendo heróis improváveis para batalhas épicas contra as forças das trevas.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "03. Create RPG System",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_rpg_system_id', pm.response.json().rpg_system.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Caverna do Dragão RPG\",\n  \"description\": \"Sistema RPG baseado na série animada, com classes únicas e armas mágicas lendárias concedidas pelo Mestre dos Magos\",\n  \"version\": \"1.0\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/rpg-systems",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"rpg-systems"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "04. Create Class: Cavaleiro",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_class_cavaleiro_id', pm.response.json().class.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Cavaleiro\",\n  \"description\": \"Guerreiro nobre que empunha um escudo mágico capaz de gerar campos de força protetores. Lidera o grupo com coragem e responsabilidade.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/classes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"classes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "05. Create Class: Mago",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_class_mago_id', pm.response.json().class.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Mago\",\n  \"description\": \"Conjurador que porta um chapéu mágico capaz de invocar criaturas e criar ilusões. Jovem mas poderoso quando supera seu medo e dúvidas.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/classes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"classes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "06. Create Class: Bárbaro",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_class_barbaro_id', pm.response.json().class.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Bárbaro\",\n  \"description\": \"Guerreiro selvagem que empunha um poderoso tacape mágico capaz de causar terremotos. Força bruta combinada com um coração gentil.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/classes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"classes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "07. Create Class: Acrobata",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_class_acrobata_id', pm.response.json().class.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Acrobata\",\n  \"description\": \"Combatente ágil que porta um bastão mágico extensível. Combina agilidade sobre-humana com técnicas acrobáticas impressionantes.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/classes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"classes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "08. Create Class: Ladina",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_class_ladina_id', pm.response.json().class.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Ladina\",\n  \"description\": \"Especialista em furtividade que porta uma capa mágica de invisibilidade. Mestre em infiltração e reconhecimento.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/classes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"classes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "09. Create Class: Arqueira",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_class_arqueira_id', pm.response.json().class.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Arqueira\",\n  \"description\": \"Caçadora precisa que porta um arco mágico com flechas de energia infinitas. Atiradora infalível e protetora feroz.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/classes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"classes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "10. Create Skill: Escudo de Força",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_skill_escudo_id', pm.response.json().skill.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Escudo de Força\",\n  \"description\": \"Cria uma barreira mágica impenetrável que protege aliados de qualquer ataque\",\n  \"type\": \"active\",\n  \"cost\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"skills"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "11. Create Skill: Invocação Mágica",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_skill_invocacao_id', pm.response.json().skill.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Invocação Mágica\",\n  \"description\": \"Invoca criaturas ou objetos do chapéu mágico - resultado imprevisível mas poderoso\",\n  \"type\": \"active\",\n  \"cost\": 15\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"skills"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "12. Create Skill: Golpe Sísmico",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Golpe Sísmico\",\n  \"description\": \"Ataque devastador com o tacape que causa um terremoto localizado\",\n  \"type\": \"active\",\n  \"cost\": 12\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"skills"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "13. Create Skill: Flecha de Energia",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Flecha de Energia\",\n  \"description\": \"Dispara flechas de energia pura que nunca erram o alvo\",\n  \"type\": \"active\",\n  \"cost\": 8\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"skills"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "14. Create Skill: Invisibilidade",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"name\": \"Manto da Invisibilidade\",\n  \"description\": \"Torna-se completamente invisível por um período de tempo\",\n  \"type\": \"active\",\n  \"cost\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"skills"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "15. Create Trait: Liderança",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_trait_lideranca_id', pm.response.json().trait.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Liderança Natural\",\n  \"description\": \"A capacidade inata de guiar e inspirar outros em momentos de crise, mantendo o grupo unido\",\n  \"category\": \"virtue\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "16. Create Trait: Coragem",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_trait_coragem_id', pm.response.json().trait.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Coragem Inabalável\",\n  \"description\": \"Determinação para enfrentar perigos mesmo quando o medo é avassalador\",\n  \"category\": \"virtue\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "17. Create Archetype: Herói Relutante",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_archetype_heroi_id', pm.response.json().archetype.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Herói Relutante\",\n  \"description\": \"Jovens arrancados de seu mundo comum e forçados a se tornarem heróis. Querem voltar para casa mas não abandonam seus amigos nem os inocentes.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/archetypes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archetypes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "18. Create Archetype: Vilão Supremo",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_archetype_vilao_id', pm.response.json().archetype.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Vilão Supremo\",\n  \"description\": \"Entidade maligna de poder imenso que busca dominar todos os reinos. Implacável, astuto e aparentemente invencível.\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/archetypes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"archetypes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "19. Create Location: Fortaleza do Vingador",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Fortaleza do Vingador\",\n  \"description\": \"Um castelo sombrio cercado por rios de lava e guardado por demônios. O centro do poder maligno no Reino, de onde o Vingador comanda seus exércitos.\",\n  \"type\": \"dungeon\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/locations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"locations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "20. Create Location: Vale dos Unicórnios",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Vale dos Unicórnios\",\n  \"description\": \"Um vale encantado e protegido onde unicórnios mágicos vivem em paz. Uni, o filhote de unicórnio, veio deste lugar sagrado.\",\n  \"type\": \"region\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/locations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"locations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "21. Create Location: Cemitério dos Dragões",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Cemitério dos Dragões\",\n  \"description\": \"Um lugar desolado onde os ossos de dragões antigos formam arcos e torres. O ar está carregado de magia antiga e perigo.\",\n  \"type\": \"dungeon\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/locations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"locations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "22. Create Character: Hank",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_char_hank_id', pm.response.json().character.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Hank, o Cavaleiro\",\n  \"description\": \"Líder do grupo, 15 anos. Responsável e corajoso, sempre coloca a segurança dos amigos em primeiro lugar. Seu escudo mágico pode criar campos de força e refletir ataques. Carrega o peso da liderança com maturidade além de sua idade.\",\n  \"role\": \"protagonist\",\n  \"archetype_id\": \"{{workflow_archetype_heroi_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "23. Create Character: Presto",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_char_presto_id', pm.response.json().character.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Presto, o Mago\",\n  \"description\": \"O mago desastrado do grupo, 14 anos. Seu chapéu mágico raramente produz o que ele deseja, mas nos momentos cruciais, realiza feitos incríveis. Inseguro mas com coração de ouro, seu verdadeiro poder vem da crença em si mesmo.\",\n  \"role\": \"protagonist\",\n  \"archetype_id\": \"{{workflow_archetype_heroi_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "24. Create Character: Diana",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Diana, a Acrobata\",\n  \"description\": \"A acrobata atlética, 14 anos. Porta um bastão mágico que pode se estender e encolher. Corajosa e decidida, nunca foge de uma luta e frequentemente é a primeira a entrar em ação.\",\n  \"role\": \"protagonist\",\n  \"archetype_id\": \"{{workflow_archetype_heroi_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "25. Create Character: Eric",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Eric, o Cavaleiro\",\n  \"description\": \"O cavaleiro covarde, 15 anos. Apesar de seu escudo ser poderoso, Eric prefere reclamar a lutar. Porém, quando seus amigos estão em perigo real, supera seu medo e se mostra um verdadeiro herói.\",\n  \"role\": \"protagonist\",\n  \"archetype_id\": \"{{workflow_archetype_heroi_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "26. Create Character: Sheila",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Sheila, a Ladina\",\n  \"description\": \"A ladina invisível, 13 anos. Sua capa mágica a torna invisível. Irmã mais velha de Bobby, é protetora, astuta e frequentemente usa sua invisibilidade para reconhecimento e resgates.\",\n  \"role\": \"protagonist\",\n  \"archetype_id\": \"{{workflow_archetype_heroi_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "27. Create Character: Bobby",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_char_bobby_id', pm.response.json().character.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Bobby, o Bárbaro\",\n  \"description\": \"O pequeno bárbaro, 8 anos. O mais novo do grupo, porta um tacape que causa terremotos. Corajoso além de sua idade, tem Uni como seu melhor amigo e nunca hesita em proteger os outros.\",\n  \"role\": \"protagonist\",\n  \"archetype_id\": \"{{workflow_archetype_heroi_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "28. Create Character: Mestre dos Magos",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Mestre dos Magos\",\n  \"description\": \"O misterioso guia que aparece nos momentos cruciais com enigmas e conselhos. Conhece o caminho para casa mas nunca o revela diretamente. Poderoso e sábio, tem uma conexão misteriosa com o Vingador.\",\n  \"role\": \"mentor\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "29. Create Character: Vingador",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_char_vingador_id', pm.response.json().character.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Vingador\",\n  \"description\": \"O senhor das trevas, um demônio de poder imenso com um único chifre. Busca destruir os jovens heróis e dominar todos os reinos. Seu ódio pelos heróis é apenas superado por seu desejo de poder absoluto.\",\n  \"role\": \"antagonist\",\n  \"archetype_id\": \"{{workflow_archetype_vilao_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "30. Create Character: Uni",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Uni\",\n  \"description\": \"Um adorável filhote de unicórnio que se juntou ao grupo. Fiel companheiro de Bobby, possui poderes mágicos de teletransporte que ainda estão despertando.\",\n  \"role\": \"supporting\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "31. Assign RPG Stats to Hank",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"class_id\": \"{{workflow_class_cavaleiro_id}}\",\n  \"level\": 5,\n  \"stats\": {\n    \"strength\": 16,\n    \"dexterity\": 14,\n    \"constitution\": 15,\n    \"intelligence\": 12,\n    \"wisdom\": 14,\n    \"charisma\": 16\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_hank_id}}/rpg-stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_hank_id}}",
+								"rpg-stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "32. Assign RPG Stats to Presto",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"class_id\": \"{{workflow_class_mago_id}}\",\n  \"level\": 5,\n  \"stats\": {\n    \"strength\": 8,\n    \"dexterity\": 12,\n    \"constitution\": 10,\n    \"intelligence\": 16,\n    \"wisdom\": 14,\n    \"charisma\": 10\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_presto_id}}/rpg-stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_presto_id}}",
+								"rpg-stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "33. Assign RPG Stats to Bobby",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"class_id\": \"{{workflow_class_barbaro_id}}\",\n  \"level\": 4,\n  \"stats\": {\n    \"strength\": 18,\n    \"dexterity\": 12,\n    \"constitution\": 16,\n    \"intelligence\": 8,\n    \"wisdom\": 10,\n    \"charisma\": 14\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_bobby_id}}/rpg-stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_bobby_id}}",
+								"rpg-stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "34. Add Skill to Hank",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"character_id\": \"{{workflow_char_hank_id}}\",\n  \"skill_id\": \"{{workflow_skill_escudo_id}}\",\n  \"level\": 3\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/character-skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"character-skills"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "35. Add Skill to Presto",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"character_id\": \"{{workflow_char_presto_id}}\",\n  \"skill_id\": \"{{workflow_skill_invocacao_id}}\",\n  \"level\": 2\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/character-skills",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"character-skills"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "36. Add Trait to Hank",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trait_id\": \"{{workflow_trait_lideranca_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_hank_id}}/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_hank_id}}",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "37. Add Trait to Bobby",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"trait_id\": \"{{workflow_trait_coragem_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_bobby_id}}/traits",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_bobby_id}}",
+								"traits"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "38. Create Story",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_story_id', pm.response.json().story.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Caverna do Dragão: A Jornada dos Heróis\",\n  \"description\": \"Seis jovens são transportados para um mundo de fantasia medieval ao entrarem em uma atração de parque de diversões. Guiados pelo misterioso Mestre dos Magos e perseguidos pelo terrível Vingador, eles devem encontrar o caminho de volta para casa enquanto protegem os inocentes deste novo mundo.\",\n  \"world_id\": \"{{workflow_world_id}}\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "39. Create Artifact: Escudo do Cavaleiro",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_artifact_escudo_id', pm.response.json().artifact.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"name\": \"Escudo do Cavaleiro\",\n  \"description\": \"Um escudo mágico dourado capaz de gerar campos de força impenetráveis e refletir qualquer ataque. Concedido pelo Mestre dos Magos a Hank.\",\n  \"type\": \"weapon\",\n  \"rarity\": \"legendary\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/artifacts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"artifacts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "40. Create Artifact: Chapéu de Presto",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"name\": \"Chapéu Mágico de Presto\",\n  \"description\": \"Um chapéu verde pontudo que pode invocar praticamente qualquer coisa - quando funciona. Seus poderes são imprevisíveis mas nos momentos mais críticos, realiza milagres.\",\n  \"type\": \"magic_item\",\n  \"rarity\": \"legendary\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/artifacts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"artifacts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "41. Create Artifact: Tacape de Bobby",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"name\": \"Tacape do Bárbaro\",\n  \"description\": \"Uma clava mágica que causa terremotos ao atingir o chão. Apesar de seu tamanho, o pequeno Bobby a maneja com maestria surpreendente.\",\n  \"type\": \"weapon\",\n  \"rarity\": \"legendary\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/artifacts",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"artifacts"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "42. Add RPG Stats to Escudo",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"rpg_system_id\": \"{{workflow_rpg_system_id}}\",\n  \"stats\": {\n    \"defense_bonus\": 10,\n    \"magic_resistance\": 8,\n    \"force_field_power\": 15\n  }\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/artifacts/{{workflow_artifact_escudo_id}}/rpg-stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"artifacts",
+								"{{workflow_artifact_escudo_id}}",
+								"rpg-stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "43. Create Chapter 1: A Noite Sem Amanhã",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_chapter1_id', pm.response.json().chapter.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 1,\n  \"title\": \"A Noite Sem Amanhã\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "44. Create Scene 1.1",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_scene1_id', pm.response.json().scene.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"chapter_id\": \"{{workflow_chapter1_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"Apresentar o grupo em ação, salvando uma aldeia do ataque dos orcs do Vingador\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/scenes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"scenes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "45. Create Content 1.1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"O céu do Reino estava tingido de vermelho sangue quando Hank avistou as torres negras da fortaleza do Vingador no horizonte. Fazia três meses desde que ele e seus amigos haviam entrado naquela maldita montanha-russa no parque de diversões. Três meses presos em um mundo de dragões, magia e perigos inimagináveis.\\n\\n— Hank, olha! — Bobby apontou para uma aldeia em chamas no vale abaixo. Uni relinchou nervosamente ao seu lado.\\n\\n— Orcs do Vingador — Diana reconheceu os estandartes negros. — Estão atacando os aldeões.\\n\\nEric resmungou algo sobre 'não ser problema deles', mas já estava sacando seu escudo. Todos sabiam que não podiam ignorar pessoas em perigo, mesmo que isso significasse mais um confronto com as forças das trevas.\",\n  \"metadata\": {\"word_count\": 128}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter1_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter1_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "46. Create Content 1.2",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 2,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"A batalha foi intensa. O escudo de Hank brilhava como um sol dourado, repelindo flechas e golpes de espada. Sheila desaparecia e reaparecia, confundindo os inimigos. Bobby, apesar de ter apenas oito anos, fazia a terra tremer com cada golpe de seu tacape.\\n\\nPresto remexeu em seu chapéu mágico, nervoso.\\n\\n— Preciso de algo útil, por favor, só dessa vez...\\n\\nEle enfiou a mão no chapéu e puxou... um buquê de flores.\\n\\n— Sério?! — gritou Eric enquanto derrubava dois orcs com um único golpe.\\n\\nMas então as flores explodiram em uma nuvem de pólen brilhante, cegando temporariamente os atacantes. Presto olhou para suas mãos, tão surpreso quanto todos.\\n\\n— Eu... eu queria fazer isso!\",\n  \"metadata\": {\"word_count\": 133}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter1_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter1_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "47. Create Chapter 2: O Olho do Observador",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_chapter2_id', pm.response.json().chapter.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 2,\n  \"title\": \"O Olho do Observador\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "48. Create Content 2.1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"O Mestre dos Magos apareceu como sempre fazia — do nada, com aquele sorriso enigmático sob o capuz.\\n\\n— Jovens heróis — sua voz era ao mesmo tempo suave e poderosa. — Vocês buscam o caminho para casa.\\n\\n— Sim! — todos responderam em uníssono.\\n\\n— O portal que buscam existe. Mas para alcançá-lo, devem primeiro encontrar o Olho do Observador, escondido nas Cavernas de Cristal.\\n\\nEric cruzou os braços.\\n\\n— Por que sempre tem que ter uma missão? Por que você não pode simplesmente nos dizer onde fica o portal?\\n\\nO velho mago riu suavemente.\\n\\n— Porque o caminho para casa, jovem Eric, não é apenas um lugar. É uma jornada. E vocês ainda não completaram a sua.\\n\\nE com isso, desapareceu em uma nuvem de fumaça azul.\",\n  \"metadata\": {\"word_count\": 139}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter2_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter2_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "49. Create Content 2.2",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 2,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"As Cavernas de Cristal eram mais perigosas do que qualquer um esperava. Formações de cristal refletiam e distorciam a luz, criando um labirinto de espelhos naturais.\\n\\n— Fiquem juntos — Hank ordenou, seu escudo brilhando para iluminar o caminho.\\n\\nFoi Diana quem viu primeiro — um cristal imenso, pulsando com luz interior. E dentro dele, algo se movia.\\n\\n— O Olho — Sheila sussurrou.\\n\\nMas guardiões antigos despertaram. Golems de cristal, dormindo há milênios, ergueram-se para proteger o artefato.\\n\\nBobby bateu o tacape no chão, criando uma fenda que engoliu dois golems. Diana saltou entre as criaturas com graça impossível, seu bastão girando como hélice. Presto, concentrando-se como nunca, tirou do chapéu um martelo que estilhaçou o maior golem em mil pedaços.\\n\\n— Sim! Eu consegui! — ele gritou, quase não acreditando.\",\n  \"metadata\": {\"word_count\": 148}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter2_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter2_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "50. Create Chapter 3: O Cemitério dos Dragões",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) { pm.collectionVariables.set('workflow_chapter3_id', pm.response.json().chapter.id); }"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 3,\n  \"title\": \"O Cemitério dos Dragões\",\n  \"status\": \"draft\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "51. Create Content 3.1",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"O Cemitério dos Dragões era um lugar onde até o vento tinha medo de entrar. Ossos de dragões antigos formavam arcos e torres, e o próprio ar parecia carregado de magia antiga.\\n\\nE lá, esperando por eles, estava o Vingador.\\n\\n— Crianças tolas — sua voz trovejou. — Acham que podem me desafiar em meu próprio domínio?\\n\\nHank levantou seu escudo.\\n\\n— Não somos mais crianças, Vingador. Não depois de tudo que passamos.\\n\\nO demônio riu, e o som fez os ossos ao redor tremerem.\\n\\n— Então morram como heróis.\\n\\nA batalha que se seguiu seria contada por gerações. Seis jovens contra o senhor das trevas, suas armas mágicas brilhando contra o poder sombrio do Vingador.\",\n  \"metadata\": {\"word_count\": 130}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter3_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter3_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "52. Create Content 3.2",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 2,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"Foi Presto quem virou a maré. No momento mais desesperador, quando o Vingador estava prestes a destruir Hank, o jovem mago mergulhou a mão no chapéu com toda sua determinação.\\n\\n— Eu ACREDITO! — gritou.\\n\\nE do chapéu surgiu uma luz tão intensa que até o Vingador teve que recuar. Era magia pura, alimentada não por feitiços, mas por coragem, amizade e esperança.\\n\\nCombinada com o escudo de Hank, o tacape de Bobby, o bastão de Diana, a capa de Sheila e o escudo de Eric — todas as armas brilhando em uníssono — a luz se transformou em uma explosão que banhou todo o cemitério.\\n\\nQuando a luz diminuiu, o Vingador havia desaparecido, banido temporariamente de volta para as sombras.\\n\\nE lá, onde ele estivera, um portal brilhava suavemente. O caminho para casa.\",\n  \"metadata\": {\"word_count\": 145}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter3_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter3_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "53. Create Content 3.3 (Epilogue)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"order_num\": 3,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"Os seis amigos pararam diante do portal, olhando para o mundo que haviam aprendido a amar e proteger.\\n\\n— Nós voltamos? — Bobby perguntou, segurando Uni com força.\\n\\nHank olhou para seus amigos — sua família, depois de tudo que passaram juntos.\\n\\n— O Mestre dos Magos disse que o caminho para casa é uma jornada — ele disse lentamente. — Talvez... nossa jornada aqui ainda não acabou.\\n\\nEric abriu a boca para protestar, mas parou. Olhou para a aldeia que haviam salvado, para as pessoas que dependiam deles.\\n\\n— Ah, droga — ele murmurou. — Vocês sabem que eu odeio quando Hank está certo.\\n\\nO portal brilhou uma última vez e se fechou. Mas nenhum deles estava triste.\\n\\nPorque lar, como descobriram, não é apenas um lugar. É onde estão as pessoas que você ama.\\n\\n— FIM DO EPISÓDIO —\",\n  \"metadata\": {\"word_count\": 155}\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter3_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter3_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "54. Create Event: Chegada ao Reino",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"A Chegada ao Reino\",\n  \"description\": \"O momento em que seis jovens atravessaram a montanha-russa 'Caverna do Dragão' e foram transportados para outro mundo, recebendo suas armas mágicas do Mestre dos Magos.\",\n  \"type\": \"story_event\",\n  \"importance\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/events",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "55. Create Event: Batalha Final",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{workflow_world_id}}\",\n  \"name\": \"Batalha do Cemitério dos Dragões\",\n  \"description\": \"O confronto épico entre os jovens heróis e o Vingador, onde o verdadeiro poder de Presto despertou e o grupo conseguiu abrir um portal para casa.\",\n  \"type\": \"story_event\",\n  \"importance\": 5\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/events",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"events"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "56. Get World Complete",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds/{{workflow_world_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds",
+								"{{workflow_world_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "57. List All Characters",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds/{{workflow_world_id}}/characters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds",
+								"{{workflow_world_id}}",
+								"characters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "58. Get RPG System",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/rpg-systems/{{workflow_rpg_system_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"rpg-systems",
+								"{{workflow_rpg_system_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "59. List Classes",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/rpg-systems/{{workflow_rpg_system_id}}/classes",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"rpg-systems",
+								"{{workflow_rpg_system_id}}",
+								"classes"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "60. Get Story Complete",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{workflow_tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{workflow_story_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories",
+								"{{workflow_story_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "61. List Chapters",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/stories/{{workflow_story_id}}/chapters",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"stories",
+								"{{workflow_story_id}}",
+								"chapters"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "62. Get Chapter 1 Content",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter1_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter1_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "63. Get Chapter 2 Content",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter2_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter2_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "64. Get Chapter 3 Content",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/chapters/{{workflow_chapter3_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{workflow_chapter3_id}}",
+								"content-blocks"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "65. Get Hank RPG Stats",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/v1/characters/{{workflow_char_hank_id}}/rpg-stats",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"characters",
+								"{{workflow_char_hank_id}}",
+								"rpg-stats"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "Workflow completo: World + RPG System + Classes + Skills + Characters com Stats + Story com 3 capítulos baseado na série animada Caverna do Dragão (Dungeons & Dragons)"
+		}
+	],
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8080",
+			"type": "string"
+		},
+		{
+			"key": "tenant_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "story_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "chapter_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "scene_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "beat_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "content_block_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "content_block_reference_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "world_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "trait_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "archetype_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "location_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "character_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "character_trait_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "artifact_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "event_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "rpg_system_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "character_rpg_stats_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "artifact_rpg_stats_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "skill_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "character_skill_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "rpg_class_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "inventory_item_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "character_inventory_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "artifact_reference_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "scene_reference_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "rpg_class_skill_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "inventory_slot_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "target_character_id",
+			"value": "",
+			"type": "string"
+		}
+	]
+}

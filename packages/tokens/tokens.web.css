@@ -1,0 +1,7 @@
+/* Story Engine Design Tokens - Web App Overrides */
+
+.se-web {
+  /* Web app uses base tokens, but can override if needed */
+  /* For now, base tokens are already web-optimized */
+}
+

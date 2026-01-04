@@ -1,0 +1,9 @@
+/* Import design tokens */
+@import '@story-engine/tokens/tokens.css';
+@import '@story-engine/tokens/tokens.obsidian.css';
+
+/* Obsidian-specific styles */
+.se-root.se-obsidian {
+  /* Additional Obsidian-specific overrides if needed */
+}
+

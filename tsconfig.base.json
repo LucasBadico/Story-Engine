@@ -1,0 +1,26 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": ["node", "react", "react-dom"],
+    "paths": {
+      "@ui-package/*": ["./packages/ui-package/src/*"],
+      "@shared-ts/*": ["./packages/shared-ts/src/*"],
+      "@tokens/*": ["./packages/tokens/*"]
+    }
+  },
+  "exclude": ["node_modules", "dist", "build", ".next"]
+}
+

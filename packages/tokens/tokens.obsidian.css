@@ -1,0 +1,18 @@
+/* Story Engine Design Tokens - Obsidian Overrides */
+
+.se-obsidian {
+  /* Override base tokens to use Obsidian theme variables */
+  --se-bg: var(--background-primary, #1e1e1e);
+  --se-surface: var(--background-secondary, #252525);
+  --se-surface-hover: var(--background-modifier-hover, #2a2a2a);
+  --se-text: var(--text-normal, #dcddde);
+  --se-text-muted: var(--text-muted, #999);
+  --se-text-disabled: var(--text-faint, #666);
+  
+  --se-border: var(--background-modifier-border, #3a3a3a);
+  --se-border-hover: var(--background-modifier-border-hover, #4a4a4a);
+  
+  /* Keep spacing and radius consistent */
+  /* Spacing and radius tokens remain the same */
+}
+

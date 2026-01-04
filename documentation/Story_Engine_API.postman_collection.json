@@ -1,9 +1,10 @@
 {
 	"info": {
-		"_postman_id": "story-engine-api",
+		"_postman_id": "987e19fd-275d-41df-9200-b29645c6e67d",
 		"name": "Story Engine API",
 		"description": "Complete API collection for Story Engine with automatic variable extraction",
-		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "4044489"
 	},
 	"item": [
 		{
@@ -16,8 +17,12 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/health",
-							"host": ["{{base_url}}"],
-							"path": ["health"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"health"
+							]
 						}
 					},
 					"response": []
@@ -59,8 +64,14 @@
 						},
 						"url": {
 							"raw": "{{base_url}}/api/v1/tenants",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "tenants"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants"
+							]
 						}
 					},
 					"response": []
@@ -72,8 +83,15 @@
 						"header": [],
 						"url": {
 							"raw": "{{base_url}}/api/v1/tenants/{{tenant_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "tenants", "{{tenant_id}}"]
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"tenants",
+								"{{tenant_id}}"
+							]
 						}
 					},
 					"response": []
@@ -81,182 +99,31 @@
 			]
 		},
 		{
-			"name": "Stories",
+			"name": "Content Blocks",
 			"item": [
 				{
-					"name": "Create Story",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"story_id\", jsonData.story.id);",
-									"    pm.collectionVariables.set(\"story_title\", jsonData.story.title);",
-									"    pm.collectionVariables.set(\"root_story_id\", jsonData.story.root_story_id);",
-									"    console.log(\"Story ID saved:\", jsonData.story.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "X-Tenant-ID",
-								"value": "{{tenant_id}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"My First Story\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Story",
+					"name": "List Content Blocks by Chapter",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{story_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{story_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Stories",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "X-Tenant-ID",
-								"value": "{{tenant_id}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories?limit=50&offset=0",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories"],
-							"query": [
-								{
-									"key": "limit",
-									"value": "50"
-								},
-								{
-									"key": "offset",
-									"value": "0"
-								}
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{chapter_id}}",
+								"content-blocks"
 							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "Update Story",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Updated Story Title\",\n  \"status\": \"published\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{story_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{story_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Clone Story",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 200) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"cloned_story_id\", jsonData.story.id);",
-									"    pm.collectionVariables.set(\"story_version\", jsonData.version_number);",
-									"    console.log(\"Cloned Story ID saved:\", jsonData.story.id);",
-									"    console.log(\"Version:\", jsonData.version_number);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "X-Tenant-ID",
-								"value": "{{tenant_id}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/clone",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{story_id}}", "clone"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Story Versions",
-					"request": {
-						"method": "GET",
-						"header": [
-							{
-								"key": "X-Tenant-ID",
-								"value": "{{tenant_id}}"
-							}
-						],
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/versions",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{story_id}}", "versions"]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Chapters",
-			"item": [
-				{
-					"name": "Create Chapter",
+					"name": "Create Content Block (Text)",
 					"event": [
 						{
 							"listen": "test",
@@ -264,9 +131,8 @@
 								"exec": [
 									"if (pm.response.code === 201) {",
 									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"chapter_id\", jsonData.chapter.id);",
-									"    pm.collectionVariables.set(\"chapter_number\", jsonData.chapter.number);",
-									"    console.log(\"Chapter ID saved:\", jsonData.chapter.id);",
+									"    pm.collectionVariables.set(\"content_block_id\", jsonData.content_block.id);",
+									"    console.log(\"Content Block ID saved:\", jsonData.content_block.id);",
 									"}"
 								],
 								"type": "text/javascript"
@@ -283,278 +149,26 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"story_id\": \"{{story_id}}\",\n  \"number\": 1,\n  \"title\": \"Chapter 1\",\n  \"status\": \"draft\"\n}"
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"text\",\n  \"kind\": \"final\",\n  \"content\": \"O cavaleiro entrou na taverna com passos pesados, olhando ao redor com cautela.\",\n  \"metadata\": {\n    \"word_count\": 12\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/chapters",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Chapter",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters", "{{chapter_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Chapters",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/chapters",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{story_id}}", "chapters"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Update Chapter",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Updated Chapter Title\",\n  \"status\": \"published\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters", "{{chapter_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Chapter",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters", "{{chapter_id}}"]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Scenes",
-			"item": [
-				{
-					"name": "Create Scene",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"scene_id\", jsonData.scene.id);",
-									"    pm.collectionVariables.set(\"scene_order\", jsonData.scene.order_num);",
-									"    console.log(\"Scene ID saved:\", jsonData.scene.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"story_id\": \"{{story_id}}\",\n  \"chapter_id\": \"{{chapter_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"Introduce the protagonist\",\n  \"time_ref\": \"Morning\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Scene",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Scenes",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/scenes",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters", "{{chapter_id}}", "scenes"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Update Scene",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"goal\": \"Updated goal\",\n  \"time_ref\": \"Evening\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Scene",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Scenes by Story",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/scenes",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{story_id}}", "scenes"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Move Scene",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"chapter_id\": \"{{chapter_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/move",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}", "move"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Scene References",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}", "references"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Add Scene Reference",
-					"event": [{
-						"listen": "test",
-						"script": {
-							"exec": [
-								"if (pm.response.code === 201) {",
-								"    const jsonData = pm.response.json();",
-								"    pm.collectionVariables.set(\"scene_reference_id\", jsonData.reference.id);",
-								"}"
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
 							],
-							"type": "text/javascript"
-						}
-					}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}", "references"]
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{chapter_id}}",
+								"content-blocks"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "Remove Scene Reference",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references/{{scene_reference_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}", "references", "{{scene_reference_id}}"]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Beats",
-			"item": [
-				{
-					"name": "Create Beat",
+					"name": "Create Content Block (Image)",
 					"event": [
 						{
 							"listen": "test",
@@ -562,9 +176,8 @@
 								"exec": [
 									"if (pm.response.code === 201) {",
 									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"beat_id\", jsonData.beat.id);",
-									"    pm.collectionVariables.set(\"beat_order\", jsonData.beat.order_num);",
-									"    console.log(\"Beat ID saved:\", jsonData.beat.id);",
+									"    pm.collectionVariables.set(\"content_block_id\", jsonData.content_block.id);",
+									"    console.log(\"Content Block ID saved:\", jsonData.content_block.id);",
 									"}"
 								],
 								"type": "text/javascript"
@@ -581,44 +194,46 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"scene_id\": \"{{scene_id}}\",\n  \"order_num\": 1,\n  \"type\": \"setup\",\n  \"intent\": \"Introduce the protagonist\",\n  \"outcome\": \"Character is established\"\n}"
+							"raw": "{\n  \"order_num\": 1,\n  \"type\": \"image\",\n  \"kind\": \"final\",\n  \"content\": \"https://example.com/image.jpg\",\n  \"metadata\": {\n    \"alt_text\": \"Example image\",\n    \"caption\": \"A beautiful landscape\"\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/beats",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "beats"]
+							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"chapters",
+								"{{chapter_id}}",
+								"content-blocks"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "Get Beat",
+					"name": "Get Content Block",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "beats", "{{beat_id}}"]
+							"raw": "{{base_url}}/api/v1/content-blocks/{{content_block_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"content-blocks",
+								"{{content_block_id}}"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "List Beats",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/beats",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}", "beats"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Update Beat",
+					"name": "Update Content Block",
 					"request": {
 						"method": "PUT",
 						"header": [
@@ -629,84 +244,66 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"type\": \"conflict\",\n  \"intent\": \"Create tension\",\n  \"outcome\": \"Protagonist faces obstacle\"\n}"
+							"raw": "{\n  \"content\": \"O cavaleiro entrou na taverna com passos pesados, olhando ao redor com cautela. O ambiente estava escuro e cheio de fumaça.\",\n  \"kind\": \"final\",\n  \"metadata\": {\n    \"word_count\": 20\n  }\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "beats", "{{beat_id}}"]
+							"raw": "{{base_url}}/api/v1/content-blocks/{{content_block_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"content-blocks",
+								"{{content_block_id}}"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "Delete Beat",
+					"name": "Delete Content Block",
 					"request": {
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "beats", "{{beat_id}}"]
+							"raw": "{{base_url}}/api/v1/content-blocks/{{content_block_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"content-blocks",
+								"{{content_block_id}}"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "List Beats by Story",
+					"name": "List Content Block References",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{story_id}}/beats",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{story_id}}", "beats"]
+							"raw": "{{base_url}}/api/v1/content-blocks/{{content_block_id}}/references",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"content-blocks",
+								"{{content_block_id}}",
+								"references"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "Move Beat",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"scene_id\": \"{{scene_id}}\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}/move",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "beats", "{{beat_id}}", "move"]
-						}
-					},
-					"response": []
-				}
-			]
-		},
-		{
-			"name": "Prose Blocks",
-			"item": [
-				{
-					"name": "List Prose Blocks by Chapter",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/prose-blocks",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters", "{{chapter_id}}", "prose-blocks"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Create Prose Block",
+					"name": "Create Content Block Reference",
 					"event": [
 						{
 							"listen": "test",
@@ -714,106 +311,8 @@
 								"exec": [
 									"if (pm.response.code === 201) {",
 									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"prose_block_id\", jsonData.prose_block.id);",
-									"    console.log(\"Prose Block ID saved:\", jsonData.prose_block.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"order_num\": 1,\n  \"kind\": \"final\",\n  \"content\": \"O cavaleiro entrou na taverna com passos pesados, olhando ao redor com cautela.\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/prose-blocks",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters", "{{chapter_id}}", "prose-blocks"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Prose Block",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Update Prose Block",
-					"request": {
-						"method": "PUT",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"content\": \"O cavaleiro entrou na taverna com passos pesados, olhando ao redor com cautela. O ambiente estava escuro e cheio de fumaça.\",\n  \"kind\": \"final\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Prose Block",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Prose Block References",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}/references",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}", "references"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Create Prose Block Reference",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"prose_block_reference_id\", jsonData.reference.id);",
-									"    console.log(\"Prose Block Reference ID saved:\", jsonData.reference.id);",
+									"    pm.collectionVariables.set(\"content_block_reference_id\", jsonData.reference.id);",
+									"    console.log(\"Content Block Reference ID saved:\", jsonData.reference.id);",
 									"}"
 								],
 								"type": "text/javascript"
@@ -833,64 +332,78 @@
 							"raw": "{\n  \"entity_type\": \"scene\",\n  \"entity_id\": \"{{scene_id}}\"\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/prose-blocks/{{prose_block_id}}/references",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "prose-blocks", "{{prose_block_id}}", "references"]
+							"raw": "{{base_url}}/api/v1/content-blocks/{{content_block_id}}/references",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"content-blocks",
+								"{{content_block_id}}",
+								"references"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "Delete Prose Block Reference",
+					"name": "Delete Content Block Reference",
 					"request": {
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/prose-block-references/{{prose_block_reference_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "prose-block-references", "{{prose_block_reference_id}}"]
+							"raw": "{{base_url}}/api/v1/content-block-references/{{content_block_reference_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"content-block-references",
+								"{{content_block_reference_id}}"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "List Prose Blocks by Scene",
+					"name": "List Content Blocks by Scene",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/prose-blocks",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes", "{{scene_id}}", "prose-blocks"]
+							"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"scenes",
+								"{{scene_id}}",
+								"content-blocks"
+							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "List Prose Blocks by Beat",
+					"name": "List Content Blocks by Beat",
 					"request": {
 						"method": "GET",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}/prose-blocks",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "beats", "{{beat_id}}", "prose-blocks"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Prose Blocks by Entity",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/prose-blocks/by-entity?entity_type=character&entity_id={{character_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "prose-blocks", "by-entity"],
-							"query": [
-								{"key": "entity_type", "value": "character"},
-								{"key": "entity_id", "value": "{{character_id}}"}
+							"raw": "{{base_url}}/api/v1/beats/{{beat_id}}/content-blocks",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"beats",
+								"{{beat_id}}",
+								"content-blocks"
 							]
 						}
 					},
@@ -899,145 +412,1437 @@
 			]
 		},
 		{
-			"name": "Image Blocks",
+			"name": "Story",
 			"item": [
 				{
-					"name": "Create Image Block",
-					"event": [{
-						"listen": "test",
-						"script": {
-							"exec": [
-								"if (pm.response.code === 201) {",
-								"    const jsonData = pm.response.json();",
-								"    pm.collectionVariables.set(\"image_block_id\", jsonData.image_block.id);",
-								"    console.log(\"Image Block ID saved:\", jsonData.image_block.id);",
-								"}"
+					"name": "Stories",
+					"item": [
+						{
+							"name": "Create Story",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"story_id\", jsonData.story.id);",
+											"    pm.collectionVariables.set(\"story_title\", jsonData.story.title);",
+											"    pm.collectionVariables.set(\"root_story_id\", jsonData.story.root_story_id);",
+											"    console.log(\"Story ID saved:\", jsonData.story.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
 							],
-							"type": "text/javascript"
-						}
-					}],
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"chapter_id\": \"{{chapter_id}}\",\n  \"kind\": \"final\",\n  \"image_url\": \"https://example.com/image.jpg\",\n  \"alt_text\": \"Example image\",\n  \"order_num\": 1\n}"
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"My First Story\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories"
+									]
+								}
+							},
+							"response": []
 						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/image-blocks",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "image-blocks"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Image Block",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "image-blocks", "{{image_block_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Update Image Block",
-					"request": {
-						"method": "PUT",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"image_url\": \"https://example.com/updated-image.jpg\",\n  \"alt_text\": \"Updated alt text\",\n  \"caption\": \"Updated caption\"\n}"
+						{
+							"name": "Get Story",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories/{{story_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories",
+										"{{story_id}}"
+									]
+								}
+							},
+							"response": []
 						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "image-blocks", "{{image_block_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "List Image Blocks",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/image-blocks?limit=50&offset=0",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters", "{{chapter_id}}", "image-blocks"],
-							"query": [
-								{"key": "limit", "value": "50"},
-								{"key": "offset", "value": "0"}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Delete Image Block",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "image-blocks", "{{image_block_id}}"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Get Image Block References",
-					"request": {
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}/references",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "image-blocks", "{{image_block_id}}", "references"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Add Image Block Reference",
-					"request": {
-						"method": "POST",
-						"header": [{"key": "Content-Type", "value": "application/json"}],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
+						{
+							"name": "List Stories",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories?limit=50&offset=0",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories"
+									],
+									"query": [
+										{
+											"key": "limit",
+											"value": "50"
+										},
+										{
+											"key": "offset",
+											"value": "0"
+										}
+									]
+								}
+							},
+							"response": []
 						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}/references",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "image-blocks", "{{image_block_id}}", "references"]
+						{
+							"name": "Update Story",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Updated Story Title\",\n  \"status\": \"published\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories/{{story_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories",
+										"{{story_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Clone Story",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 200) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"cloned_story_id\", jsonData.story.id);",
+											"    pm.collectionVariables.set(\"story_version\", jsonData.version_number);",
+											"    console.log(\"Cloned Story ID saved:\", jsonData.story.id);",
+											"    console.log(\"Version:\", jsonData.version_number);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories/{{story_id}}/clone",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories",
+										"{{story_id}}",
+										"clone"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Story Versions",
+							"request": {
+								"method": "GET",
+								"header": [
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
+								],
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories/{{story_id}}/versions",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories",
+										"{{story_id}}",
+										"versions"
+									]
+								}
+							},
+							"response": []
 						}
-					},
-					"response": []
+					]
 				},
 				{
-					"name": "Remove Image Block Reference",
-					"request": {
-						"method": "DELETE",
-						"header": [],
-						"url": {
-							"raw": "{{base_url}}/api/v1/image-blocks/{{image_block_id}}/references/character/{{character_id}}",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "image-blocks", "{{image_block_id}}", "references", "character", "{{character_id}}"]
+					"name": "Chapters",
+					"item": [
+						{
+							"name": "Create Chapter",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"chapter_id\", jsonData.chapter.id);",
+											"    pm.collectionVariables.set(\"chapter_number\", jsonData.chapter.number);",
+											"    console.log(\"Chapter ID saved:\", jsonData.chapter.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"story_id\": \"{{story_id}}\",\n  \"number\": 1,\n  \"title\": \"Chapter 1\",\n  \"status\": \"draft\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/chapters",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"chapters"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Chapter",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"chapters",
+										"{{chapter_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Chapters",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories/{{story_id}}/chapters",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories",
+										"{{story_id}}",
+										"chapters"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Chapter",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"title\": \"Updated Chapter Title\",\n  \"status\": \"published\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"chapters",
+										"{{chapter_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Chapter",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"chapters",
+										"{{chapter_id}}"
+									]
+								}
+							},
+							"response": []
 						}
-					},
-					"response": []
+					]
+				},
+				{
+					"name": "Scenes",
+					"item": [
+						{
+							"name": "Create Scene",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"scene_id\", jsonData.scene.id);",
+											"    pm.collectionVariables.set(\"scene_order\", jsonData.scene.order_num);",
+											"    console.log(\"Scene ID saved:\", jsonData.scene.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"story_id\": \"{{story_id}}\",\n  \"chapter_id\": \"{{chapter_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"Introduce the protagonist\",\n  \"time_ref\": \"Morning\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Scene",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Scenes",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/chapters/{{chapter_id}}/scenes",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"chapters",
+										"{{chapter_id}}",
+										"scenes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Scene",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"goal\": \"Updated goal\",\n  \"time_ref\": \"Evening\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Scene",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Scenes by Story",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories/{{story_id}}/scenes",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories",
+										"{{story_id}}",
+										"scenes"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Move Scene",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"chapter_id\": \"{{chapter_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/move",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}",
+										"move"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Scene References",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}",
+										"references"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Scene Reference",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"scene_reference_id\", jsonData.reference.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}",
+										"references"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Scene Reference",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/references/{{scene_reference_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}",
+										"references",
+										"{{scene_reference_id}}"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Beats",
+					"item": [
+						{
+							"name": "Create Beat",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"beat_id\", jsonData.beat.id);",
+											"    pm.collectionVariables.set(\"beat_order\", jsonData.beat.order_num);",
+											"    console.log(\"Beat ID saved:\", jsonData.beat.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"scene_id\": \"{{scene_id}}\",\n  \"order_num\": 1,\n  \"type\": \"setup\",\n  \"intent\": \"Introduce the protagonist\",\n  \"outcome\": \"Character is established\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/beats",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"beats"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Beat",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"beats",
+										"{{beat_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Beats",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/scenes/{{scene_id}}/beats",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"scenes",
+										"{{scene_id}}",
+										"beats"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Beat",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"type\": \"conflict\",\n  \"intent\": \"Create tension\",\n  \"outcome\": \"Protagonist faces obstacle\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"beats",
+										"{{beat_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Beat",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/beats/{{beat_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"beats",
+										"{{beat_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Beats by Story",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/stories/{{story_id}}/beats",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"stories",
+										"{{story_id}}",
+										"beats"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Move Beat",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"scene_id\": \"{{scene_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/beats/{{beat_id}}/move",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"beats",
+										"{{beat_id}}",
+										"move"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Artifacts",
+					"item": [
+						{
+							"name": "Create Artifact",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"artifact_id\", jsonData.artifact.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"O Um Anel\",\n  \"type\": \"jewelry\",\n  \"properties\": \"invisibilidade\",\n  \"origin\": \"Forjado em Mordor\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/artifacts",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"artifacts"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Artifacts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/artifacts",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"artifacts"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Artifact",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Artifact",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"O Um Anel Atualizado\",\n  \"type\": \"jewelry\",\n  \"properties\": \"invisibilidade e poder\",\n  \"origin\": \"Forjado em Mordor por Sauron\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Artifact",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Artifact References",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}",
+										"references"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Artifact Reference",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"artifact_reference_id\", jsonData.reference.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}",
+										"references"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Artifact Reference",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references/{{artifact_reference_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}",
+										"references",
+										"{{artifact_reference_id}}"
+									]
+								}
+							},
+							"response": []
+						}
+					]
+				},
+				{
+					"name": "Events",
+					"item": [
+						{
+							"name": "Create Event",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"event_id\", jsonData.event.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Batalha de Pelennor\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 9\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/events",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "List Events",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/events",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"events"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Event",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"name\": \"Batalha de Pelennor Atualizada\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 10\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Character to Event",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"character_id\": \"{{character_id}}\",\n  \"role\": \"protagonist\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"characters"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Character from Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters/{{character_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"characters",
+										"{{character_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Characters",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"characters"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Location to Event",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"location_id\": \"{{location_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"locations"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Location from Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations/{{location_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"locations",
+										"{{location_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Locations",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"locations"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Add Artifact to Event",
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"artifact_id\": \"{{artifact_id}}\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"artifacts"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Artifact from Event",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts/{{artifact_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"artifacts",
+										"{{artifact_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Artifacts",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"artifacts"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Event Stat Changes",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/rpg-stat-changes",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"rpg-stat-changes"
+									]
+								}
+							},
+							"response": []
+						}
+					]
 				}
 			]
 		},
 		{
-			"name": "World Building",
+			"name": "World",
 			"item": [
 				{
 					"name": "Worlds",
@@ -1077,8 +1882,14 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds"
+									]
 								}
 							},
 							"response": []
@@ -1095,8 +1906,14 @@
 								],
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds"
+									]
 								}
 							},
 							"response": []
@@ -1108,8 +1925,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1130,8 +1954,15 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1143,8 +1974,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1156,24 +1994,32 @@
 					"item": [
 						{
 							"name": "Create Trait",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"trait_id\", jsonData.trait.id);",
-										"    console.log(\"Trait ID saved:\", jsonData.trait.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"trait_id\", jsonData.trait.id);",
+											"    console.log(\"Trait ID saved:\", jsonData.trait.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
 								"header": [
-									{"key": "Content-Type", "value": "application/json"},
-									{"key": "X-Tenant-ID", "value": "{{tenant_id}}"}
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
 								],
 								"body": {
 									"mode": "raw",
@@ -1181,8 +2027,14 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/traits",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "traits"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"traits"
+									]
 								}
 							},
 							"response": []
@@ -1191,11 +2043,22 @@
 							"name": "List Traits",
 							"request": {
 								"method": "GET",
-								"header": [{"key": "X-Tenant-ID", "value": "{{tenant_id}}"}],
+								"header": [
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/api/v1/traits",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "traits"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"traits"
+									]
 								}
 							},
 							"response": []
@@ -1207,8 +2070,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/traits/{{trait_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "traits", "{{trait_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"traits",
+										"{{trait_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1217,15 +2087,27 @@
 							"name": "Update Trait",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"corajoso\",\n  \"category\": \"personality\",\n  \"description\": \"descrição atualizada\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/traits/{{trait_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "traits", "{{trait_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"traits",
+										"{{trait_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1237,8 +2119,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/traits/{{trait_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "traits", "{{trait_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"traits",
+										"{{trait_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1250,23 +2139,31 @@
 					"item": [
 						{
 							"name": "Create Archetype",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"archetype_id\", jsonData.archetype.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"archetype_id\", jsonData.archetype.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
 								"header": [
-									{"key": "Content-Type", "value": "application/json"},
-									{"key": "X-Tenant-ID", "value": "{{tenant_id}}"}
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
 								],
 								"body": {
 									"mode": "raw",
@@ -1274,8 +2171,14 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/archetypes",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "archetypes"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"archetypes"
+									]
 								}
 							},
 							"response": []
@@ -1284,11 +2187,22 @@
 							"name": "List Archetypes",
 							"request": {
 								"method": "GET",
-								"header": [{"key": "X-Tenant-ID", "value": "{{tenant_id}}"}],
+								"header": [
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/api/v1/archetypes",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "archetypes"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"archetypes"
+									]
 								}
 							},
 							"response": []
@@ -1300,8 +2214,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/archetypes/{{archetype_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "archetypes", "{{archetype_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"archetypes",
+										"{{archetype_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1310,15 +2231,27 @@
 							"name": "Update Archetype",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Herói Relutante\",\n  \"description\": \"descrição atualizada\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/archetypes/{{archetype_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "archetypes", "{{archetype_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"archetypes",
+										"{{archetype_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1330,8 +2263,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/archetypes/{{archetype_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "archetypes", "{{archetype_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"archetypes",
+										"{{archetype_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1340,15 +2280,28 @@
 							"name": "Add Trait to Archetype",
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"trait_id\": \"{{trait_id}}\",\n  \"default_value\": \"alto\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/archetypes/{{archetype_id}}/traits",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "archetypes", "{{archetype_id}}", "traits"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"archetypes",
+										"{{archetype_id}}",
+										"traits"
+									]
 								}
 							},
 							"response": []
@@ -1360,8 +2313,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/archetypes/{{archetype_id}}/traits/{{trait_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "archetypes", "{{archetype_id}}", "traits", "{{trait_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"archetypes",
+										"{{archetype_id}}",
+										"traits",
+										"{{trait_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1373,29 +2335,44 @@
 					"item": [
 						{
 							"name": "Create Location",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"location_id\", jsonData.location.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"location_id\", jsonData.location.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Mordor\",\n  \"type\": \"continent\",\n  \"parent_id\": null,\n  \"description\": \"Terra das trevas\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/locations",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "locations"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"locations"
+									]
 								}
 							},
 							"response": []
@@ -1407,8 +2384,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/locations",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "locations"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"locations"
+									]
 								}
 							},
 							"response": []
@@ -1420,8 +2405,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/locations/{{location_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "locations", "{{location_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"locations",
+										"{{location_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1433,8 +2425,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/locations/{{location_id}}/ancestors",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "locations", "{{location_id}}", "ancestors"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"locations",
+										"{{location_id}}",
+										"ancestors"
+									]
 								}
 							},
 							"response": []
@@ -1443,15 +2443,27 @@
 							"name": "Update Location",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Mordor Atualizado\",\n  \"type\": \"continent\",\n  \"description\": \"Descrição atualizada\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/locations/{{location_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "locations", "{{location_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"locations",
+										"{{location_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1463,8 +2475,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/locations/{{location_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "locations", "{{location_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"locations",
+										"{{location_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1476,8 +2495,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/locations/{{location_id}}/children",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "locations", "{{location_id}}", "children"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"locations",
+										"{{location_id}}",
+										"children"
+									]
 								}
 							},
 							"response": []
@@ -1489,8 +2516,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/locations/{{location_id}}/descendants",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "locations", "{{location_id}}", "descendants"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"locations",
+										"{{location_id}}",
+										"descendants"
+									]
 								}
 							},
 							"response": []
@@ -1499,15 +2534,28 @@
 							"name": "Move Location",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"parent_id\": \"new-parent-uuid\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/locations/{{location_id}}/move",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "locations", "{{location_id}}", "move"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"locations",
+										"{{location_id}}",
+										"move"
+									]
 								}
 							},
 							"response": []
@@ -1519,29 +2567,44 @@
 					"item": [
 						{
 							"name": "Create Character",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"character_id\", jsonData.character.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"character_id\", jsonData.character.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Gandalf\",\n  \"role\": \"supporting\",\n  \"archetype_id\": null,\n  \"description\": \"Um mago poderoso\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/characters",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "characters"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"characters"
+									]
 								}
 							},
 							"response": []
@@ -1553,8 +2616,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/characters",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "characters"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"worlds",
+										"{{world_id}}",
+										"characters"
+									]
 								}
 							},
 							"response": []
@@ -1566,8 +2637,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1576,15 +2654,28 @@
 							"name": "Add Trait from Template",
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"trait_id\": \"{{trait_id}}\",\n  \"value\": \"alto\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/traits",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "traits"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"traits"
+									]
 								}
 							},
 							"response": []
@@ -1593,15 +2684,27 @@
 							"name": "Update Character",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Gandalf Atualizado\",\n  \"role\": \"protagonist\",\n  \"description\": \"Descrição atualizada\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1613,8 +2716,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1626,8 +2736,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/traits",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "traits"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"traits"
+									]
 								}
 							},
 							"response": []
@@ -1636,15 +2754,29 @@
 							"name": "Update Character Trait",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"value\": \"muito alto\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/traits/{{trait_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "traits", "{{trait_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"traits",
+										"{{trait_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1656,8 +2788,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/traits/{{trait_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "traits", "{{trait_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"traits",
+										"{{trait_id}}"
+									]
 								}
 							},
 							"response": []
@@ -1666,15 +2807,28 @@
 							"name": "Apply Archetype",
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"archetype_id\": \"{{archetype_id}}\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/apply-archetype",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "apply-archetype"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"apply-archetype"
+									]
 								}
 							},
 							"response": []
@@ -1686,385 +2840,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/available-classes",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "available-classes"]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Artifacts",
-					"item": [
-						{
-							"name": "Create Artifact",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"artifact_id\", jsonData.artifact.id);",
-										"}"
+									"host": [
+										"{{base_url}}"
 									],
-									"type": "text/javascript"
-								}
-							}],
-							"request": {
-								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"O Um Anel\",\n  \"type\": \"jewelry\",\n  \"properties\": \"invisibilidade\",\n  \"origin\": \"Forjado em Mordor\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/artifacts",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "artifacts"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "List Artifacts",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/artifacts",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "artifacts"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Artifact",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Artifact",
-							"request": {
-								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"O Um Anel Atualizado\",\n  \"type\": \"jewelry\",\n  \"properties\": \"invisibilidade e poder\",\n  \"origin\": \"Forjado em Mordor por Sauron\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Delete Artifact",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Artifact References",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "references"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Add Artifact Reference",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"artifact_reference_id\", jsonData.reference.id);",
-										"}"
-									],
-									"type": "text/javascript"
-								}
-							}],
-							"request": {
-								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "references"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Remove Artifact Reference",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/references/{{artifact_reference_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "references", "{{artifact_reference_id}}"]
-								}
-							},
-							"response": []
-						}
-					]
-				},
-				{
-					"name": "Events",
-					"item": [
-						{
-							"name": "Create Event",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"event_id\", jsonData.event.id);",
-										"}"
-									],
-									"type": "text/javascript"
-								}
-							}],
-							"request": {
-								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"Batalha de Pelennor\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 9\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/events",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "events"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "List Events",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/events",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "worlds", "{{world_id}}", "events"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Event",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Update Event",
-							"request": {
-								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"Batalha de Pelennor Atualizada\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 10\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Delete Event",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Add Character to Event",
-							"request": {
-								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"character_id\": \"{{character_id}}\",\n  \"role\": \"protagonist\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "characters"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Remove Character from Event",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters/{{character_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "characters", "{{character_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Event Characters",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "characters"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Add Location to Event",
-							"request": {
-								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"location_id\": \"{{location_id}}\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "locations"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Remove Location from Event",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations/{{location_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "locations", "{{location_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Event Locations",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "locations"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Add Artifact to Event",
-							"request": {
-								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"artifact_id\": \"{{artifact_id}}\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "artifacts"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Remove Artifact from Event",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts/{{artifact_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "artifacts", "{{artifact_id}}"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Event Artifacts",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "artifacts"]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Event Stat Changes",
-							"request": {
-								"method": "GET",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/rpg-stat-changes",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "events", "{{event_id}}", "rpg-stat-changes"]
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"available-classes"
+									]
 								}
 							},
 							"response": []
@@ -2074,7 +2859,7 @@
 			]
 		},
 		{
-			"name": "RPG Module",
+			"name": "RPGSystem",
 			"item": [
 				{
 					"name": "RPG Systems",
@@ -2083,11 +2868,22 @@
 							"name": "List RPG Systems",
 							"request": {
 								"method": "GET",
-								"header": [{"key": "X-Tenant-ID", "value": "{{tenant_id}}"}],
+								"header": [
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
+								],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems"
+									]
 								}
 							},
 							"response": []
@@ -2099,32 +2895,47 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}"
+									]
 								}
 							},
 							"response": []
 						},
 						{
 							"name": "Create Custom System",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"rpg_system_id\", jsonData.rpg_system.id);",
-										"    console.log(\"RPG System ID saved:\", jsonData.rpg_system.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"rpg_system_id\", jsonData.rpg_system.id);",
+											"    console.log(\"RPG System ID saved:\", jsonData.rpg_system.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
 								"header": [
-									{"key": "Content-Type", "value": "application/json"},
-									{"key": "X-Tenant-ID", "value": "{{tenant_id}}"}
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-Tenant-ID",
+										"value": "{{tenant_id}}"
+									}
 								],
 								"body": {
 									"mode": "raw",
@@ -2132,8 +2943,14 @@
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems"
+									]
 								}
 							},
 							"response": []
@@ -2142,15 +2959,27 @@
 							"name": "Update Custom System",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Meu Sistema v2\",\n  \"description\": \"atualizado\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2162,8 +2991,15 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2175,29 +3011,44 @@
 					"item": [
 						{
 							"name": "Create Initial Stats",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"character_rpg_stats_id\", jsonData.stats.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"character_rpg_stats_id\", jsonData.stats.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"base_stats\": {\"strength\": 14, \"dexterity\": 16},\n  \"reason\": \"Stats iniciais\",\n  \"timeline\": \"Início\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/rpg-stats",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "rpg-stats"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"rpg-stats"
+									]
 								}
 							},
 							"response": []
@@ -2209,8 +3060,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/rpg-stats",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "rpg-stats"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"rpg-stats"
+									]
 								}
 							},
 							"response": []
@@ -2222,8 +3081,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/rpg-stats/history",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "rpg-stats", "history"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"rpg-stats",
+										"history"
+									]
 								}
 							},
 							"response": []
@@ -2232,15 +3100,29 @@
 							"name": "Activate Stats Version",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"version_id\": \"{{character_rpg_stats_id}}\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/rpg-stats/activate",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "rpg-stats", "activate"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"rpg-stats",
+										"activate"
+									]
 								}
 							},
 							"response": []
@@ -2252,8 +3134,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/rpg-stats",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "rpg-stats"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"rpg-stats"
+									]
 								}
 							},
 							"response": []
@@ -2265,29 +3155,44 @@
 					"item": [
 						{
 							"name": "Create Initial Stats",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"artifact_rpg_stats_id\", jsonData.stats.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"artifact_rpg_stats_id\", jsonData.stats.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"stats\": {\"rarity\": \"legendary\", \"damage_dice\": \"2d6\"},\n  \"reason\": \"Criação\",\n  \"timeline\": \"Era inicial\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/rpg-stats",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "rpg-stats"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}",
+										"rpg-stats"
+									]
 								}
 							},
 							"response": []
@@ -2299,8 +3204,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/rpg-stats",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "rpg-stats"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}",
+										"rpg-stats"
+									]
 								}
 							},
 							"response": []
@@ -2312,8 +3225,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/rpg-stats/history",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "rpg-stats", "history"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}",
+										"rpg-stats",
+										"history"
+									]
 								}
 							},
 							"response": []
@@ -2322,15 +3244,29 @@
 							"name": "Activate Stats Version",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"version_id\": \"{{artifact_rpg_stats_id}}\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/artifacts/{{artifact_id}}/rpg-stats/activate",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "artifacts", "{{artifact_id}}", "rpg-stats", "activate"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"artifacts",
+										"{{artifact_id}}",
+										"rpg-stats",
+										"activate"
+									]
 								}
 							},
 							"response": []
@@ -2347,37 +3283,60 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"skills"
+									]
 								}
 							},
 							"response": []
 						},
 						{
 							"name": "Create Skill",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"skill_id\", jsonData.skill.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"skill_id\", jsonData.skill.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Espada Longa\",\n  \"category\": \"combat\",\n  \"type\": \"weapon\",\n  \"description\": \"Habilidade com espadas longas\",\n  \"max_rank\": 10\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"skills"
+									]
 								}
 							},
 							"response": []
@@ -2389,8 +3348,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills/{{skill_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills", "{{skill_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"skills",
+										"{{skill_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2399,15 +3367,29 @@
 							"name": "Update Skill",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Espada Longa Atualizada\",\n  \"category\": \"combat\",\n  \"description\": \"Descrição atualizada\",\n  \"max_rank\": 15\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills/{{skill_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills", "{{skill_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"skills",
+										"{{skill_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2419,8 +3401,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/skills/{{skill_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "skills", "{{skill_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"skills",
+										"{{skill_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2432,29 +3423,44 @@
 					"item": [
 						{
 							"name": "Learn Skill",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"character_skill_id\", jsonData.character_skill.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"character_skill_id\", jsonData.character_skill.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"skill_id\": \"{{skill_id}}\",\n  \"rank\": 1\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/skills",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "skills"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"skills"
+									]
 								}
 							},
 							"response": []
@@ -2466,8 +3472,16 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/skills",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "skills"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"skills"
+									]
 								}
 							},
 							"response": []
@@ -2476,15 +3490,29 @@
 							"name": "Update Character Skill",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"rank\": 5\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/skills/{{skill_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "skills", "{{skill_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"skills",
+										"{{skill_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2496,8 +3524,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/skills/{{skill_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "skills", "{{skill_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"skills",
+										"{{skill_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2514,37 +3551,60 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes"
+									]
 								}
 							},
 							"response": []
 						},
 						{
 							"name": "Create Class",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"rpg_class_id\", jsonData.class.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"rpg_class_id\", jsonData.class.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Guerreiro\",\n  \"tier\": 1,\n  \"description\": \"Classe de combate corpo a corpo\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes"
+									]
 								}
 							},
 							"response": []
@@ -2556,8 +3616,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes",
+										"{{rpg_class_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2566,15 +3635,29 @@
 							"name": "Update RPG Class",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Guerreiro Atualizado\",\n  \"tier\": 1,\n  \"description\": \"Descrição atualizada\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes",
+										"{{rpg_class_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2586,37 +3669,63 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes",
+										"{{rpg_class_id}}"
+									]
 								}
 							},
 							"response": []
 						},
 						{
 							"name": "Add Skill to Class",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"rpg_class_skill_id\", jsonData.class_skill.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"rpg_class_skill_id\", jsonData.class_skill.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"skill_id\": \"{{skill_id}}\",\n  \"unlock_level\": 1\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}/skills",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}", "skills"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes",
+										"{{rpg_class_id}}",
+										"skills"
+									]
 								}
 							},
 							"response": []
@@ -2628,8 +3737,19 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}/skills/{{skill_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}", "skills", "{{skill_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes",
+										"{{rpg_class_id}}",
+										"skills",
+										"{{skill_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2641,8 +3761,18 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/classes/{{rpg_class_id}}/skills",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "classes", "{{rpg_class_id}}", "skills"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"classes",
+										"{{rpg_class_id}}",
+										"skills"
+									]
 								}
 							},
 							"response": []
@@ -2651,15 +3781,28 @@
 							"name": "Change Character Class",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"class_id\": \"{{rpg_class_id}}\",\n  \"class_level\": 1\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/class",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "class"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"class"
+									]
 								}
 							},
 							"response": []
@@ -2676,37 +3819,60 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"inventory-items"
+									]
 								}
 							},
 							"response": []
 						},
 						{
 							"name": "Create Inventory Item",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"inventory_item_id\", jsonData.item.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"inventory_item_id\", jsonData.item.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Espada Longa\",\n  \"category\": \"weapon\",\n  \"slots_required\": 1,\n  \"max_stack\": 1\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"inventory-items"
+									]
 								}
 							},
 							"response": []
@@ -2718,37 +3884,60 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "inventory"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"inventory"
+									]
 								}
 							},
 							"response": []
 						},
 						{
 							"name": "Add Item to Inventory",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"character_inventory_id\", jsonData.inventory.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"character_inventory_id\", jsonData.inventory.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"item_id\": \"{{inventory_item_id}}\",\n  \"quantity\": 1\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "inventory"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"inventory"
+									]
 								}
 							},
 							"response": []
@@ -2757,15 +3946,29 @@
 							"name": "Update Inventory Item",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"quantity\": 5\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"inventory",
+										"{{inventory_item_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2777,8 +3980,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"inventory",
+										"{{inventory_item_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2787,15 +3999,30 @@
 							"name": "Equip Item",
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"slot_id\": \"{{inventory_slot_id}}\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}/equip",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}", "equip"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"inventory",
+										"{{inventory_item_id}}",
+										"equip"
+									]
 								}
 							},
 							"response": []
@@ -2807,8 +4034,18 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/{{inventory_item_id}}/unequip",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "{{inventory_item_id}}", "unequip"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"inventory",
+										"{{inventory_item_id}}",
+										"unequip"
+									]
 								}
 							},
 							"response": []
@@ -2817,15 +4054,29 @@
 							"name": "Transfer Item",
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"target_character_id\": \"{{target_character_id}}\",\n  \"item_id\": \"{{inventory_item_id}}\",\n  \"quantity\": 1\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/inventory/transfer",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "characters", "{{character_id}}", "inventory", "transfer"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"inventory",
+										"transfer"
+									]
 								}
 							},
 							"response": []
@@ -2837,8 +4088,17 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items/{{inventory_item_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items", "{{inventory_item_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"inventory-items",
+										"{{inventory_item_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2847,15 +4107,29 @@
 							"name": "Update Inventory Item Definition",
 							"request": {
 								"method": "PUT",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Espada Longa +1\",\n  \"description\": \"Descrição atualizada\"\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items/{{inventory_item_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items", "{{inventory_item_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"inventory-items",
+										"{{inventory_item_id}}"
+									]
 								}
 							},
 							"response": []
@@ -2867,37 +4141,61 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-items/{{inventory_item_id}}",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-items", "{{inventory_item_id}}"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"inventory-items",
+										"{{inventory_item_id}}"
+									]
 								}
 							},
 							"response": []
 						},
 						{
 							"name": "Create Inventory Slot",
-							"event": [{
-								"listen": "test",
-								"script": {
-									"exec": [
-										"if (pm.response.code === 201) {",
-										"    const jsonData = pm.response.json();",
-										"    pm.collectionVariables.set(\"inventory_slot_id\", jsonData.slot.id);",
-										"}"
-									],
-									"type": "text/javascript"
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"inventory_slot_id\", jsonData.slot.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
 								}
-							}],
+							],
 							"request": {
 								"method": "POST",
-								"header": [{"key": "Content-Type", "value": "application/json"}],
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
 								"body": {
 									"mode": "raw",
 									"raw": "{\n  \"name\": \"Mão Principal\",\n  \"slot_type\": \"weapon\",\n  \"capacity\": 1\n}"
 								},
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-slots",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-slots"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"inventory-slots"
+									]
 								}
 							},
 							"response": []
@@ -2909,249 +4207,21 @@
 								"header": [],
 								"url": {
 									"raw": "{{base_url}}/api/v1/rpg-systems/{{rpg_system_id}}/inventory-slots",
-									"host": ["{{base_url}}"],
-									"path": ["api", "v1", "rpg-systems", "{{rpg_system_id}}", "inventory-slots"]
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"rpg-systems",
+										"{{rpg_system_id}}",
+										"inventory-slots"
+									]
 								}
 							},
 							"response": []
 						}
 					]
-				}
-			]
-		},
-		{
-			"name": "Complete Workflow",
-			"item": [
-				{
-					"name": "1. Create Tenant",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"workflow_tenant_id\", jsonData.tenant.id);",
-									"    console.log(\"Workflow Tenant ID:\", jsonData.tenant.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"name\": \"Workflow Test Tenant\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/tenants",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "tenants"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "2. Create Story",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"workflow_story_id\", jsonData.story.id);",
-									"    console.log(\"Workflow Story ID:\", jsonData.story.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "X-Tenant-ID",
-								"value": "{{workflow_tenant_id}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"title\": \"Complete Workflow Story\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "3. Create Chapter",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"workflow_chapter_id\", jsonData.chapter.id);",
-									"    console.log(\"Workflow Chapter ID:\", jsonData.chapter.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"number\": 1,\n  \"title\": \"Chapter 1\",\n  \"status\": \"draft\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/chapters",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "chapters"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "4. Create Scene",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"workflow_scene_id\", jsonData.scene.id);",
-									"    console.log(\"Workflow Scene ID:\", jsonData.scene.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"story_id\": \"{{workflow_story_id}}\",\n  \"chapter_id\": \"{{workflow_chapter_id}}\",\n  \"order_num\": 1,\n  \"goal\": \"Introduce protagonist\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/scenes",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "scenes"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "5. Create Beat",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 201) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"workflow_beat_id\", jsonData.beat.id);",
-									"    console.log(\"Workflow Beat ID:\", jsonData.beat.id);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\n  \"scene_id\": \"{{workflow_scene_id}}\",\n  \"order_num\": 1,\n  \"type\": \"setup\",\n  \"intent\": \"Introduce character\",\n  \"outcome\": \"Character established\"\n}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/beats",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "beats"]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "6. Clone Story",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"if (pm.response.code === 200) {",
-									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"workflow_cloned_story_id\", jsonData.story.id);",
-									"    console.log(\"Workflow Cloned Story ID:\", jsonData.story.id);",
-									"    console.log(\"Version:\", jsonData.version_number);",
-									"}"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							},
-							{
-								"key": "X-Tenant-ID",
-								"value": "{{workflow_tenant_id}}"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{}"
-						},
-						"url": {
-							"raw": "{{base_url}}/api/v1/stories/{{workflow_story_id}}/clone",
-							"host": ["{{base_url}}"],
-							"path": ["api", "v1", "stories", "{{workflow_story_id}}", "clone"]
-						}
-					},
-					"response": []
 				}
 			]
 		}
@@ -3188,12 +4258,12 @@
 			"type": "string"
 		},
 		{
-			"key": "prose_block_id",
+			"key": "content_block_id",
 			"value": "",
 			"type": "string"
 		},
 		{
-			"key": "prose_block_reference_id",
+			"key": "content_block_reference_id",
 			"value": "",
 			"type": "string"
 		},
@@ -3278,11 +4348,6 @@
 			"type": "string"
 		},
 		{
-			"key": "image_block_id",
-			"value": "",
-			"type": "string"
-		},
-		{
 			"key": "artifact_reference_id",
 			"value": "",
 			"type": "string"
@@ -3309,5 +4374,3 @@
 		}
 	]
 }
-
-

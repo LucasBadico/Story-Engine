@@ -1,0 +1,16 @@
+{
+  "name": "@story-engine/tokens",
+  "version": "1.0.0",
+  "description": "Design tokens for Story Engine UI",
+  "main": "tokens.css",
+  "files": [
+    "tokens.css",
+    "tokens.obsidian.css",
+    "tokens.web.css",
+    "index.ts"
+  ],
+  "scripts": {},
+  "keywords": ["design-tokens", "css-variables"],
+  "license": "MIT"
+}
+

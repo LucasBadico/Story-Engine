@@ -1,0 +1,33 @@
+{
+  "name": "obsidian-story-engine-v2",
+  "version": "2.0.0",
+  "description": "Story Engine plugin for Obsidian v2 (React + HeroUI)",
+  "main": "main.js",
+  "scripts": {
+    "dev": "node esbuild.config.mjs",
+    "build": "tsc -noEmit && node esbuild.config.mjs production",
+    "type-check": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@heroui/react": "^2.4.0",
+    "@story-engine/shared-ts": "workspace:*",
+    "@story-engine/ui-package": "workspace:*",
+    "@story-engine/tokens": "workspace:*",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "framer-motion": "^10.16.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "esbuild": "^0.19.0",
+    "obsidian": "latest",
+    "tslib": "^2.4.0",
+    "typescript": "^5.0.0"
+  }
+}
+
