@@ -348,6 +348,13 @@ func setupTestServerWithEvent(t *testing.T) (*grpc.ClientConn, func()) {
 	worldRepo := postgres.NewWorldRepository(db)
 	eventRepo := postgres.NewEventRepository(db)
 	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	characterRepo := postgres.NewCharacterRepository(db)
+	locationRepo := postgres.NewLocationRepository(db)
+	artifactRepo := postgres.NewArtifactRepository(db)
+	factionRepo := postgres.NewFactionRepository(db)
+	loreRepo := postgres.NewLoreRepository(db)
+	factionReferenceRepo := postgres.NewFactionReferenceRepository(db)
+	loreReferenceRepo := postgres.NewLoreReferenceRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 
 	log := logger.New()
@@ -362,7 +369,7 @@ func setupTestServerWithEvent(t *testing.T) (*grpc.ClientConn, func()) {
 	listEventsUseCase := eventapp.NewListEventsUseCase(eventRepo, log)
 	updateEventUseCase := eventapp.NewUpdateEventUseCase(eventRepo, auditLogRepo, log)
 	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, eventReferenceRepo, auditLogRepo, log)
-	addReferenceUseCase := eventapp.NewAddReferenceUseCase(eventRepo, eventReferenceRepo, log)
+	addReferenceUseCase := eventapp.NewAddReferenceUseCase(eventRepo, eventReferenceRepo, characterRepo, locationRepo, artifactRepo, factionRepo, loreRepo, factionReferenceRepo, loreReferenceRepo, log)
 	removeReferenceUseCase := eventapp.NewRemoveReferenceUseCase(eventReferenceRepo, log)
 	getReferencesUseCase := eventapp.NewGetReferencesUseCase(eventReferenceRepo, log)
 	updateReferenceUseCase := eventapp.NewUpdateReferenceUseCase(eventReferenceRepo, log)
@@ -376,7 +383,7 @@ func setupTestServerWithEvent(t *testing.T) (*grpc.ClientConn, func()) {
 
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
-	eventHandler := NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addReferenceUseCase, removeReferenceUseCase, getReferencesUseCase, updateReferenceUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveEventUseCase, setEpochUseCase, getEpochUseCase, getTimelineUseCase, nil, log)
+	eventHandler := NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addReferenceUseCase, removeReferenceUseCase, getReferencesUseCase, updateReferenceUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveEventUseCase, setEpochUseCase, getEpochUseCase, getTimelineUseCase, log)
 
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
 		TenantHandler: tenantHandler,
