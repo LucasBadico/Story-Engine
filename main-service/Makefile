@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-reset-volume db-truncate migrate-up migrate-down migrate-create test test-integration test-http clean
+.PHONY: db-up db-down db-reset-volume db-truncate migrate-up migrate-down migrate-create test test-integration test-http clean run-offline
 
 # Database management
 db-up:
@@ -85,6 +85,10 @@ run-grpc:
 # Run HTTP server
 run-http:
 	go run cmd/api-http/main.go
+
+# Run HTTP/SQLite server
+run-offline:
+	go run cmd/api-offline/main.go
 
 # Test HTTP handlers
 test-http: db-up

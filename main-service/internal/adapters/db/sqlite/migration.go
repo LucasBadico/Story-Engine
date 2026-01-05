@@ -47,12 +47,12 @@ func ApplyMigrations(db *sql.DB) error {
 	return nil
 }
 
-// findMigrationsPath attempts to locate the migrations directory
+// findMigrationsPath attempts to locate the SQLite migrations directory
 // It tries various paths relative to the current working directory
+// Note: SQLite migrations are in internal/adapters/db/sqlite/migrations, NOT in main-service/migrations
 func findMigrationsPath() string {
-	// Try common paths relative to execution
+	// Try SQLite-specific paths first (NOT "." which would find PostgreSQL migrations)
 	paths := []string{
-		".",
 		"internal/adapters/db/sqlite",
 		"../internal/adapters/db/sqlite",
 		"../../internal/adapters/db/sqlite",

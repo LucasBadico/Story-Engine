@@ -41,3 +41,5 @@ Thumbs.db
 scripts/gmail-extractor/stories/*
 scripts/gmail-extractor/credentials.json
 scripts/gmail-extractor/token.json
+
+story-engine.db

@@ -48,3 +48,44 @@ Escolher um repositório da lista "O QUE AINDA PRECISA SER IMPLEMENTADO"
 Seguir o padrão dos repositórios já criados (ex: story_repository.go)
 Atualizar o documento de status ao completar cada repositório
 Os documentos estão salvos e podem ser consultados na próxima sessão. O trabalho está organizado e documentado para continuidade.
+
+- [ ] pattern to import
+- story {title}
+- world {title}* dont duplicate the word world in the title
+- rpg {title}* dont duplicate the word rpg in the title
+
+- [x] main hub  - plugin
+  - create story need choose an world or create one for this story
+  - sync all should pull worlds and rpg
+  - create RPG world 
+  - create RPG system
+  - view world details
+  - view RPG system details
+
+- [x] config - plugin
+- local or remote mode - Local not require an tenant id, remote require an tenant id
+- conflict resolution - in localmode local wins, in remote it opens options.
+- in local shows link to video how to setup.
+- both modes suggest endpoint, but allow edition.
+- flag to enable/disable info/help box in the md files
+
+
+World documents with lists of entities
+ - locations
+ - characters
+ - artifacts
+ - events (character, location, artifact)
+ - factions
+ - lores
+ - traits
+ - archetypes
+
+
+ - Pattern of md files
+  - list with entities related to the current entity - editable
+  - Description 
+  - how to use it - will show up if help is turned on.
+  - fields to edit - maybe in a table with editable fields
+
+
+  - criar um modo de importar historia de um tenant para outro tenant.
