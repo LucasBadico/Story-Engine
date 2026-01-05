@@ -840,6 +840,10 @@
 	flex-shrink: 0;
 }
 
+.story-engine-dropdown-item span {
+	flex: 1;
+}
+
 /* Fix hover buttons position - move below action buttons */
 .story-engine-group-footer {
 	position: absolute;

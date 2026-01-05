@@ -414,6 +414,18 @@ var StoryEngineClient = class {
     );
     return response.world;
   }
+  async updateWorld(id, name, description, genre) {
+    const response = await this.request(
+      "PUT",
+      `/api/v1/worlds/${id}`,
+      {
+        name: name.trim(),
+        description: description.trim(),
+        genre: genre.trim()
+      }
+    );
+    return response.world;
+  }
   async getRPGSystems() {
     const response = await this.request(
       "GET",
@@ -6224,20 +6236,29 @@ var StoryListView = class extends import_obsidian13.ItemView {
     (0, import_obsidian13.setIcon)(contextButton, "more-vertical");
     const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
     dropdownMenu.style.display = "none";
+    const editOption = dropdownMenu.createEl("button", {
+      cls: "story-engine-dropdown-item"
+    });
+    (0, import_obsidian13.setIcon)(editOption, "pencil");
+    editOption.createSpan({ text: "Edit Story Name" });
+    editOption.onclick = () => {
+      dropdownMenu.style.display = "none";
+      this.showEditStoryNameModal();
+    };
     const cloneOption = dropdownMenu.createEl("button", {
-      text: "Clone Story",
       cls: "story-engine-dropdown-item"
     });
     (0, import_obsidian13.setIcon)(cloneOption, "copy");
+    cloneOption.createSpan({ text: "Clone Story" });
     cloneOption.onclick = async () => {
       dropdownMenu.style.display = "none";
       await this.cloneStory();
     };
     const pullOption = dropdownMenu.createEl("button", {
-      text: "Pull from Service",
       cls: "story-engine-dropdown-item"
     });
     (0, import_obsidian13.setIcon)(pullOption, "download");
+    pullOption.createSpan({ text: "Pull from Service" });
     pullOption.onclick = async () => {
       dropdownMenu.style.display = "none";
       if (!this.currentStory)
@@ -6254,10 +6275,10 @@ var StoryListView = class extends import_obsidian13.ItemView {
       }
     };
     const pushOption = dropdownMenu.createEl("button", {
-      text: "Push to Service",
       cls: "story-engine-dropdown-item"
     });
     (0, import_obsidian13.setIcon)(pushOption, "upload");
+    pushOption.createSpan({ text: "Push to Service" });
     pushOption.onclick = async () => {
       dropdownMenu.style.display = "none";
       if (!this.currentStory)
@@ -6990,6 +7011,41 @@ var StoryListView = class extends import_obsidian13.ItemView {
       }
     };
   }
+  showEditStoryNameModal() {
+    if (!this.currentStory)
+      return;
+    const modal = new import_obsidian13.Modal(this.app);
+    modal.titleEl.setText("Edit Story Name");
+    const content = modal.contentEl;
+    let title = this.currentStory.title;
+    content.createEl("label", { text: "Story Name *" });
+    const titleInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: title });
+    titleInput.oninput = () => {
+      title = titleInput.value;
+    };
+    const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+    const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+    saveBtn.onclick = async () => {
+      if (!title.trim()) {
+        new import_obsidian13.Notice("Story name is required", 3e3);
+        return;
+      }
+      try {
+        const updatedStory = await this.plugin.apiClient.updateStory(this.currentStory.id, title.trim());
+        this.currentStory = updatedStory;
+        await this.loadStories();
+        this.renderDetailsHeader();
+        modal.close();
+        new import_obsidian13.Notice("Story name updated");
+      } catch (err) {
+        new import_obsidian13.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      }
+    };
+    buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+    modal.open();
+    titleInput.focus();
+    titleInput.select();
+  }
   async cloneStory() {
     var _a;
     if (!this.currentStory)
@@ -7017,6 +7073,63 @@ var StoryListView = class extends import_obsidian13.ItemView {
         cloneButton.disabled = false;
       }
     }
+  }
+  showEditWorldModal() {
+    if (!this.currentWorld)
+      return;
+    const modal = new import_obsidian13.Modal(this.app);
+    modal.titleEl.setText("Edit World");
+    const content = modal.contentEl;
+    let name = this.currentWorld.name;
+    let description = this.currentWorld.description;
+    let genre = this.currentWorld.genre;
+    content.createEl("label", { text: "World Name *" });
+    const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+    nameInput.oninput = () => {
+      name = nameInput.value;
+    };
+    content.createEl("label", { text: "Genre *" });
+    const genreInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: genre });
+    genreInput.oninput = () => {
+      genre = genreInput.value;
+    };
+    content.createEl("label", { text: "Description" });
+    const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+    descInput.value = description;
+    descInput.oninput = () => {
+      description = descInput.value;
+    };
+    const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+    const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+    saveBtn.onclick = async () => {
+      if (!name.trim()) {
+        new import_obsidian13.Notice("World name is required", 3e3);
+        return;
+      }
+      if (!genre.trim()) {
+        new import_obsidian13.Notice("Genre is required", 3e3);
+        return;
+      }
+      try {
+        const updatedWorld = await this.plugin.apiClient.updateWorld(
+          this.currentWorld.id,
+          name.trim(),
+          description.trim(),
+          genre.trim()
+        );
+        this.currentWorld = updatedWorld;
+        await this.loadStories();
+        this.renderWorldDetails();
+        modal.close();
+        new import_obsidian13.Notice("World updated");
+      } catch (err) {
+        new import_obsidian13.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      }
+    };
+    buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+    modal.open();
+    nameInput.focus();
+    nameInput.select();
   }
   copyStoryId() {
     if (!this.currentStory)
@@ -7769,6 +7882,31 @@ var StoryListView = class extends import_obsidian13.ItemView {
       const descRow = titleContainer.createDiv({ cls: "story-engine-world-desc" });
       descRow.textContent = this.currentWorld.description;
     }
+    const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
+    const contextButton = headerActions.createEl("button", {
+      cls: "story-engine-context-btn",
+      attr: { "aria-label": "World Actions" }
+    });
+    (0, import_obsidian13.setIcon)(contextButton, "more-vertical");
+    const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
+    dropdownMenu.style.display = "none";
+    const editOption = dropdownMenu.createEl("button", {
+      cls: "story-engine-dropdown-item"
+    });
+    (0, import_obsidian13.setIcon)(editOption, "pencil");
+    editOption.createSpan({ text: "Edit World" });
+    editOption.onclick = () => {
+      dropdownMenu.style.display = "none";
+      this.showEditWorldModal();
+    };
+    contextButton.onclick = (e) => {
+      e.stopPropagation();
+      const isVisible = dropdownMenu.style.display !== "none";
+      dropdownMenu.style.display = isVisible ? "none" : "block";
+    };
+    document.addEventListener("click", () => {
+      dropdownMenu.style.display = "none";
+    }, { once: true });
   }
   renderWorldTabs() {
     if (!this.contentEl)

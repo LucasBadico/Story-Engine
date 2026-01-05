@@ -313,12 +313,23 @@ export class StoryListView extends ItemView {
 		const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
 		dropdownMenu.style.display = "none";
 		
+		// Edit title option
+		const editOption = dropdownMenu.createEl("button", {
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(editOption, "pencil");
+		editOption.createSpan({ text: "Edit Story Name" });
+		editOption.onclick = () => {
+			dropdownMenu.style.display = "none";
+			this.showEditStoryNameModal();
+		};
+		
 		// Clone option
 		const cloneOption = dropdownMenu.createEl("button", {
-			text: "Clone Story",
 			cls: "story-engine-dropdown-item",
 		});
 		setIcon(cloneOption, "copy");
+		cloneOption.createSpan({ text: "Clone Story" });
 		cloneOption.onclick = async () => {
 			dropdownMenu.style.display = "none";
 			await this.cloneStory();
@@ -326,10 +337,10 @@ export class StoryListView extends ItemView {
 		
 		// Pull option
 		const pullOption = dropdownMenu.createEl("button", {
-			text: "Pull from Service",
 			cls: "story-engine-dropdown-item",
 		});
 		setIcon(pullOption, "download");
+		pullOption.createSpan({ text: "Pull from Service" });
 		pullOption.onclick = async () => {
 			dropdownMenu.style.display = "none";
 			if (!this.currentStory) return;
@@ -347,10 +358,10 @@ export class StoryListView extends ItemView {
 		
 		// Push option
 		const pushOption = dropdownMenu.createEl("button", {
-			text: "Push to Service",
 			cls: "story-engine-dropdown-item",
 		});
 		setIcon(pushOption, "upload");
+		pushOption.createSpan({ text: "Push to Service" });
 		pushOption.onclick = async () => {
 			dropdownMenu.style.display = "none";
 			if (!this.currentStory) return;
@@ -1209,6 +1220,44 @@ export class StoryListView extends ItemView {
 		};
 	}
 
+	showEditStoryNameModal() {
+		if (!this.currentStory) return;
+		
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Story Name");
+		
+		const content = modal.contentEl;
+		let title = this.currentStory.title;
+
+		content.createEl("label", { text: "Story Name *" });
+		const titleInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: title });
+		titleInput.oninput = () => { title = titleInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!title.trim()) {
+				new Notice("Story name is required", 3000);
+				return;
+			}
+			try {
+				const updatedStory = await this.plugin.apiClient.updateStory(this.currentStory!.id, title.trim());
+				this.currentStory = updatedStory;
+				await this.loadStories();
+				this.renderDetailsHeader();
+				modal.close();
+				new Notice("Story name updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+		titleInput.focus();
+		titleInput.select();
+	}
+
 	async cloneStory() {
 		if (!this.currentStory) return;
 
@@ -1240,6 +1289,66 @@ export class StoryListView extends ItemView {
 				cloneButton.disabled = false;
 			}
 		}
+	}
+
+	showEditWorldModal() {
+		if (!this.currentWorld) return;
+		
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit World");
+		
+		const content = modal.contentEl;
+		let name = this.currentWorld.name;
+		let description = this.currentWorld.description;
+		let genre = this.currentWorld.genre;
+
+		content.createEl("label", { text: "World Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Genre *" });
+		const genreInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: genre });
+		genreInput.oninput = () => { genre = genreInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("World name is required", 3000);
+				return;
+			}
+			if (!genre.trim()) {
+				new Notice("Genre is required", 3000);
+				return;
+			}
+			try {
+				const updatedWorld = await this.plugin.apiClient.updateWorld(
+					this.currentWorld!.id,
+					name.trim(),
+					description.trim(),
+					genre.trim()
+				);
+				this.currentWorld = updatedWorld;
+				// Refresh world list to update it everywhere
+				await this.loadStories();
+				// Re-render the world details view
+				this.renderWorldDetails();
+				modal.close();
+				new Notice("World updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+		nameInput.focus();
+		nameInput.select();
 	}
 
 	copyStoryId() {
@@ -2175,6 +2284,42 @@ export class StoryListView extends ItemView {
 			const descRow = titleContainer.createDiv({ cls: "story-engine-world-desc" });
 			descRow.textContent = this.currentWorld.description;
 		}
+
+		const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
+		
+		// Context menu button with actions
+		const contextButton = headerActions.createEl("button", {
+			cls: "story-engine-context-btn",
+			attr: { "aria-label": "World Actions" }
+		});
+		setIcon(contextButton, "more-vertical");
+		
+		// Create dropdown menu
+		const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
+		dropdownMenu.style.display = "none";
+		
+		// Edit option
+		const editOption = dropdownMenu.createEl("button", {
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(editOption, "pencil");
+		editOption.createSpan({ text: "Edit World" });
+		editOption.onclick = () => {
+			dropdownMenu.style.display = "none";
+			this.showEditWorldModal();
+		};
+		
+		// Toggle dropdown
+		contextButton.onclick = (e) => {
+			e.stopPropagation();
+			const isVisible = dropdownMenu.style.display !== "none";
+			dropdownMenu.style.display = isVisible ? "none" : "block";
+		};
+		
+		// Close dropdown when clicking outside
+		document.addEventListener("click", () => {
+			dropdownMenu.style.display = "none";
+		}, { once: true });
 	}
 
 	renderWorldTabs() {

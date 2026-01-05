@@ -468,6 +468,19 @@ export class StoryEngineClient {
 		return response.world;
 	}
 
+	async updateWorld(id: string, name: string, description: string, genre: string): Promise<World> {
+		const response = await this.request<{ world: World }>(
+			"PUT",
+			`/api/v1/worlds/${id}`,
+			{
+				name: name.trim(),
+				description: description.trim(),
+				genre: genre.trim(),
+			}
+		);
+		return response.world;
+	}
+
 	async getRPGSystems(): Promise<RPGSystem[]> {
 		const response = await this.request<{ rpg_systems: RPGSystem[] }>(
 			"GET",
