@@ -19,20 +19,22 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	EventService_CreateEvent_FullMethodName              = "/event.EventService/CreateEvent"
-	EventService_GetEvent_FullMethodName                 = "/event.EventService/GetEvent"
-	EventService_ListEvents_FullMethodName               = "/event.EventService/ListEvents"
-	EventService_UpdateEvent_FullMethodName              = "/event.EventService/UpdateEvent"
-	EventService_DeleteEvent_FullMethodName              = "/event.EventService/DeleteEvent"
-	EventService_AddCharacterToEvent_FullMethodName      = "/event.EventService/AddCharacterToEvent"
-	EventService_RemoveCharacterFromEvent_FullMethodName = "/event.EventService/RemoveCharacterFromEvent"
-	EventService_GetEventCharacters_FullMethodName       = "/event.EventService/GetEventCharacters"
-	EventService_AddLocationToEvent_FullMethodName       = "/event.EventService/AddLocationToEvent"
-	EventService_RemoveLocationFromEvent_FullMethodName  = "/event.EventService/RemoveLocationFromEvent"
-	EventService_GetEventLocations_FullMethodName        = "/event.EventService/GetEventLocations"
-	EventService_AddArtifactToEvent_FullMethodName       = "/event.EventService/AddArtifactToEvent"
-	EventService_RemoveArtifactFromEvent_FullMethodName  = "/event.EventService/RemoveArtifactFromEvent"
-	EventService_GetEventArtifacts_FullMethodName        = "/event.EventService/GetEventArtifacts"
+	EventService_CreateEvent_FullMethodName          = "/event.EventService/CreateEvent"
+	EventService_GetEvent_FullMethodName             = "/event.EventService/GetEvent"
+	EventService_ListEvents_FullMethodName           = "/event.EventService/ListEvents"
+	EventService_UpdateEvent_FullMethodName          = "/event.EventService/UpdateEvent"
+	EventService_DeleteEvent_FullMethodName          = "/event.EventService/DeleteEvent"
+	EventService_AddEventReference_FullMethodName    = "/event.EventService/AddEventReference"
+	EventService_RemoveEventReference_FullMethodName = "/event.EventService/RemoveEventReference"
+	EventService_GetEventReferences_FullMethodName   = "/event.EventService/GetEventReferences"
+	EventService_UpdateEventReference_FullMethodName = "/event.EventService/UpdateEventReference"
+	EventService_GetEventChildren_FullMethodName     = "/event.EventService/GetEventChildren"
+	EventService_GetEventAncestors_FullMethodName    = "/event.EventService/GetEventAncestors"
+	EventService_GetEventDescendants_FullMethodName  = "/event.EventService/GetEventDescendants"
+	EventService_MoveEvent_FullMethodName            = "/event.EventService/MoveEvent"
+	EventService_SetEventEpoch_FullMethodName        = "/event.EventService/SetEventEpoch"
+	EventService_GetEventEpoch_FullMethodName        = "/event.EventService/GetEventEpoch"
+	EventService_GetTimeline_FullMethodName          = "/event.EventService/GetTimeline"
 )
 
 // EventServiceClient is the client API for EventService service.
@@ -49,24 +51,28 @@ type EventServiceClient interface {
 	UpdateEvent(ctx context.Context, in *UpdateEventRequest, opts ...grpc.CallOption) (*UpdateEventResponse, error)
 	// DeleteEvent deletes an event
 	DeleteEvent(ctx context.Context, in *DeleteEventRequest, opts ...grpc.CallOption) (*DeleteEventResponse, error)
-	// AddCharacterToEvent adds a character to an event
-	AddCharacterToEvent(ctx context.Context, in *AddCharacterToEventRequest, opts ...grpc.CallOption) (*AddCharacterToEventResponse, error)
-	// RemoveCharacterFromEvent removes a character from an event
-	RemoveCharacterFromEvent(ctx context.Context, in *RemoveCharacterFromEventRequest, opts ...grpc.CallOption) (*RemoveCharacterFromEventResponse, error)
-	// GetEventCharacters lists characters for an event
-	GetEventCharacters(ctx context.Context, in *GetEventCharactersRequest, opts ...grpc.CallOption) (*GetEventCharactersResponse, error)
-	// AddLocationToEvent adds a location to an event
-	AddLocationToEvent(ctx context.Context, in *AddLocationToEventRequest, opts ...grpc.CallOption) (*AddLocationToEventResponse, error)
-	// RemoveLocationFromEvent removes a location from an event
-	RemoveLocationFromEvent(ctx context.Context, in *RemoveLocationFromEventRequest, opts ...grpc.CallOption) (*RemoveLocationFromEventResponse, error)
-	// GetEventLocations lists locations for an event
-	GetEventLocations(ctx context.Context, in *GetEventLocationsRequest, opts ...grpc.CallOption) (*GetEventLocationsResponse, error)
-	// AddArtifactToEvent adds an artifact to an event
-	AddArtifactToEvent(ctx context.Context, in *AddArtifactToEventRequest, opts ...grpc.CallOption) (*AddArtifactToEventResponse, error)
-	// RemoveArtifactFromEvent removes an artifact from an event
-	RemoveArtifactFromEvent(ctx context.Context, in *RemoveArtifactFromEventRequest, opts ...grpc.CallOption) (*RemoveArtifactFromEventResponse, error)
-	// GetEventArtifacts lists artifacts for an event
-	GetEventArtifacts(ctx context.Context, in *GetEventArtifactsRequest, opts ...grpc.CallOption) (*GetEventArtifactsResponse, error)
+	// AddEventReference adds a reference to an event
+	AddEventReference(ctx context.Context, in *AddEventReferenceRequest, opts ...grpc.CallOption) (*AddEventReferenceResponse, error)
+	// RemoveEventReference removes a reference from an event
+	RemoveEventReference(ctx context.Context, in *RemoveEventReferenceRequest, opts ...grpc.CallOption) (*RemoveEventReferenceResponse, error)
+	// GetEventReferences lists references for an event
+	GetEventReferences(ctx context.Context, in *GetEventReferencesRequest, opts ...grpc.CallOption) (*GetEventReferencesResponse, error)
+	// UpdateEventReference updates an event reference
+	UpdateEventReference(ctx context.Context, in *UpdateEventReferenceRequest, opts ...grpc.CallOption) (*UpdateEventReferenceResponse, error)
+	// GetEventChildren retrieves direct children of an event
+	GetEventChildren(ctx context.Context, in *GetEventChildrenRequest, opts ...grpc.CallOption) (*GetEventChildrenResponse, error)
+	// GetEventAncestors retrieves ancestors of an event
+	GetEventAncestors(ctx context.Context, in *GetEventAncestorsRequest, opts ...grpc.CallOption) (*GetEventAncestorsResponse, error)
+	// GetEventDescendants retrieves descendants of an event
+	GetEventDescendants(ctx context.Context, in *GetEventDescendantsRequest, opts ...grpc.CallOption) (*GetEventDescendantsResponse, error)
+	// MoveEvent moves an event to another parent
+	MoveEvent(ctx context.Context, in *MoveEventRequest, opts ...grpc.CallOption) (*MoveEventResponse, error)
+	// SetEventEpoch sets an event as epoch
+	SetEventEpoch(ctx context.Context, in *SetEventEpochRequest, opts ...grpc.CallOption) (*SetEventEpochResponse, error)
+	// GetEventEpoch retrieves the epoch event for a world
+	GetEventEpoch(ctx context.Context, in *GetEventEpochRequest, opts ...grpc.CallOption) (*GetEventEpochResponse, error)
+	// GetTimeline retrieves events ordered by timeline position
+	GetTimeline(ctx context.Context, in *GetTimelineRequest, opts ...grpc.CallOption) (*GetTimelineResponse, error)
 }
 
 type eventServiceClient struct {
@@ -122,81 +128,99 @@ func (c *eventServiceClient) DeleteEvent(ctx context.Context, in *DeleteEventReq
 	return out, nil
 }
 
-func (c *eventServiceClient) AddCharacterToEvent(ctx context.Context, in *AddCharacterToEventRequest, opts ...grpc.CallOption) (*AddCharacterToEventResponse, error) {
-	out := new(AddCharacterToEventResponse)
-	err := c.cc.Invoke(ctx, EventService_AddCharacterToEvent_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) AddEventReference(ctx context.Context, in *AddEventReferenceRequest, opts ...grpc.CallOption) (*AddEventReferenceResponse, error) {
+	out := new(AddEventReferenceResponse)
+	err := c.cc.Invoke(ctx, EventService_AddEventReference_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) RemoveCharacterFromEvent(ctx context.Context, in *RemoveCharacterFromEventRequest, opts ...grpc.CallOption) (*RemoveCharacterFromEventResponse, error) {
-	out := new(RemoveCharacterFromEventResponse)
-	err := c.cc.Invoke(ctx, EventService_RemoveCharacterFromEvent_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) RemoveEventReference(ctx context.Context, in *RemoveEventReferenceRequest, opts ...grpc.CallOption) (*RemoveEventReferenceResponse, error) {
+	out := new(RemoveEventReferenceResponse)
+	err := c.cc.Invoke(ctx, EventService_RemoveEventReference_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) GetEventCharacters(ctx context.Context, in *GetEventCharactersRequest, opts ...grpc.CallOption) (*GetEventCharactersResponse, error) {
-	out := new(GetEventCharactersResponse)
-	err := c.cc.Invoke(ctx, EventService_GetEventCharacters_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) GetEventReferences(ctx context.Context, in *GetEventReferencesRequest, opts ...grpc.CallOption) (*GetEventReferencesResponse, error) {
+	out := new(GetEventReferencesResponse)
+	err := c.cc.Invoke(ctx, EventService_GetEventReferences_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) AddLocationToEvent(ctx context.Context, in *AddLocationToEventRequest, opts ...grpc.CallOption) (*AddLocationToEventResponse, error) {
-	out := new(AddLocationToEventResponse)
-	err := c.cc.Invoke(ctx, EventService_AddLocationToEvent_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) UpdateEventReference(ctx context.Context, in *UpdateEventReferenceRequest, opts ...grpc.CallOption) (*UpdateEventReferenceResponse, error) {
+	out := new(UpdateEventReferenceResponse)
+	err := c.cc.Invoke(ctx, EventService_UpdateEventReference_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) RemoveLocationFromEvent(ctx context.Context, in *RemoveLocationFromEventRequest, opts ...grpc.CallOption) (*RemoveLocationFromEventResponse, error) {
-	out := new(RemoveLocationFromEventResponse)
-	err := c.cc.Invoke(ctx, EventService_RemoveLocationFromEvent_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) GetEventChildren(ctx context.Context, in *GetEventChildrenRequest, opts ...grpc.CallOption) (*GetEventChildrenResponse, error) {
+	out := new(GetEventChildrenResponse)
+	err := c.cc.Invoke(ctx, EventService_GetEventChildren_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) GetEventLocations(ctx context.Context, in *GetEventLocationsRequest, opts ...grpc.CallOption) (*GetEventLocationsResponse, error) {
-	out := new(GetEventLocationsResponse)
-	err := c.cc.Invoke(ctx, EventService_GetEventLocations_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) GetEventAncestors(ctx context.Context, in *GetEventAncestorsRequest, opts ...grpc.CallOption) (*GetEventAncestorsResponse, error) {
+	out := new(GetEventAncestorsResponse)
+	err := c.cc.Invoke(ctx, EventService_GetEventAncestors_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) AddArtifactToEvent(ctx context.Context, in *AddArtifactToEventRequest, opts ...grpc.CallOption) (*AddArtifactToEventResponse, error) {
-	out := new(AddArtifactToEventResponse)
-	err := c.cc.Invoke(ctx, EventService_AddArtifactToEvent_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) GetEventDescendants(ctx context.Context, in *GetEventDescendantsRequest, opts ...grpc.CallOption) (*GetEventDescendantsResponse, error) {
+	out := new(GetEventDescendantsResponse)
+	err := c.cc.Invoke(ctx, EventService_GetEventDescendants_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) RemoveArtifactFromEvent(ctx context.Context, in *RemoveArtifactFromEventRequest, opts ...grpc.CallOption) (*RemoveArtifactFromEventResponse, error) {
-	out := new(RemoveArtifactFromEventResponse)
-	err := c.cc.Invoke(ctx, EventService_RemoveArtifactFromEvent_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) MoveEvent(ctx context.Context, in *MoveEventRequest, opts ...grpc.CallOption) (*MoveEventResponse, error) {
+	out := new(MoveEventResponse)
+	err := c.cc.Invoke(ctx, EventService_MoveEvent_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *eventServiceClient) GetEventArtifacts(ctx context.Context, in *GetEventArtifactsRequest, opts ...grpc.CallOption) (*GetEventArtifactsResponse, error) {
-	out := new(GetEventArtifactsResponse)
-	err := c.cc.Invoke(ctx, EventService_GetEventArtifacts_FullMethodName, in, out, opts...)
+func (c *eventServiceClient) SetEventEpoch(ctx context.Context, in *SetEventEpochRequest, opts ...grpc.CallOption) (*SetEventEpochResponse, error) {
+	out := new(SetEventEpochResponse)
+	err := c.cc.Invoke(ctx, EventService_SetEventEpoch_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) GetEventEpoch(ctx context.Context, in *GetEventEpochRequest, opts ...grpc.CallOption) (*GetEventEpochResponse, error) {
+	out := new(GetEventEpochResponse)
+	err := c.cc.Invoke(ctx, EventService_GetEventEpoch_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *eventServiceClient) GetTimeline(ctx context.Context, in *GetTimelineRequest, opts ...grpc.CallOption) (*GetTimelineResponse, error) {
+	out := new(GetTimelineResponse)
+	err := c.cc.Invoke(ctx, EventService_GetTimeline_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -217,24 +241,28 @@ type EventServiceServer interface {
 	UpdateEvent(context.Context, *UpdateEventRequest) (*UpdateEventResponse, error)
 	// DeleteEvent deletes an event
 	DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error)
-	// AddCharacterToEvent adds a character to an event
-	AddCharacterToEvent(context.Context, *AddCharacterToEventRequest) (*AddCharacterToEventResponse, error)
-	// RemoveCharacterFromEvent removes a character from an event
-	RemoveCharacterFromEvent(context.Context, *RemoveCharacterFromEventRequest) (*RemoveCharacterFromEventResponse, error)
-	// GetEventCharacters lists characters for an event
-	GetEventCharacters(context.Context, *GetEventCharactersRequest) (*GetEventCharactersResponse, error)
-	// AddLocationToEvent adds a location to an event
-	AddLocationToEvent(context.Context, *AddLocationToEventRequest) (*AddLocationToEventResponse, error)
-	// RemoveLocationFromEvent removes a location from an event
-	RemoveLocationFromEvent(context.Context, *RemoveLocationFromEventRequest) (*RemoveLocationFromEventResponse, error)
-	// GetEventLocations lists locations for an event
-	GetEventLocations(context.Context, *GetEventLocationsRequest) (*GetEventLocationsResponse, error)
-	// AddArtifactToEvent adds an artifact to an event
-	AddArtifactToEvent(context.Context, *AddArtifactToEventRequest) (*AddArtifactToEventResponse, error)
-	// RemoveArtifactFromEvent removes an artifact from an event
-	RemoveArtifactFromEvent(context.Context, *RemoveArtifactFromEventRequest) (*RemoveArtifactFromEventResponse, error)
-	// GetEventArtifacts lists artifacts for an event
-	GetEventArtifacts(context.Context, *GetEventArtifactsRequest) (*GetEventArtifactsResponse, error)
+	// AddEventReference adds a reference to an event
+	AddEventReference(context.Context, *AddEventReferenceRequest) (*AddEventReferenceResponse, error)
+	// RemoveEventReference removes a reference from an event
+	RemoveEventReference(context.Context, *RemoveEventReferenceRequest) (*RemoveEventReferenceResponse, error)
+	// GetEventReferences lists references for an event
+	GetEventReferences(context.Context, *GetEventReferencesRequest) (*GetEventReferencesResponse, error)
+	// UpdateEventReference updates an event reference
+	UpdateEventReference(context.Context, *UpdateEventReferenceRequest) (*UpdateEventReferenceResponse, error)
+	// GetEventChildren retrieves direct children of an event
+	GetEventChildren(context.Context, *GetEventChildrenRequest) (*GetEventChildrenResponse, error)
+	// GetEventAncestors retrieves ancestors of an event
+	GetEventAncestors(context.Context, *GetEventAncestorsRequest) (*GetEventAncestorsResponse, error)
+	// GetEventDescendants retrieves descendants of an event
+	GetEventDescendants(context.Context, *GetEventDescendantsRequest) (*GetEventDescendantsResponse, error)
+	// MoveEvent moves an event to another parent
+	MoveEvent(context.Context, *MoveEventRequest) (*MoveEventResponse, error)
+	// SetEventEpoch sets an event as epoch
+	SetEventEpoch(context.Context, *SetEventEpochRequest) (*SetEventEpochResponse, error)
+	// GetEventEpoch retrieves the epoch event for a world
+	GetEventEpoch(context.Context, *GetEventEpochRequest) (*GetEventEpochResponse, error)
+	// GetTimeline retrieves events ordered by timeline position
+	GetTimeline(context.Context, *GetTimelineRequest) (*GetTimelineResponse, error)
 	mustEmbedUnimplementedEventServiceServer()
 }
 
@@ -257,32 +285,38 @@ func (UnimplementedEventServiceServer) UpdateEvent(context.Context, *UpdateEvent
 func (UnimplementedEventServiceServer) DeleteEvent(context.Context, *DeleteEventRequest) (*DeleteEventResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteEvent not implemented")
 }
-func (UnimplementedEventServiceServer) AddCharacterToEvent(context.Context, *AddCharacterToEventRequest) (*AddCharacterToEventResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddCharacterToEvent not implemented")
+func (UnimplementedEventServiceServer) AddEventReference(context.Context, *AddEventReferenceRequest) (*AddEventReferenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method AddEventReference not implemented")
 }
-func (UnimplementedEventServiceServer) RemoveCharacterFromEvent(context.Context, *RemoveCharacterFromEventRequest) (*RemoveCharacterFromEventResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveCharacterFromEvent not implemented")
+func (UnimplementedEventServiceServer) RemoveEventReference(context.Context, *RemoveEventReferenceRequest) (*RemoveEventReferenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method RemoveEventReference not implemented")
 }
-func (UnimplementedEventServiceServer) GetEventCharacters(context.Context, *GetEventCharactersRequest) (*GetEventCharactersResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetEventCharacters not implemented")
+func (UnimplementedEventServiceServer) GetEventReferences(context.Context, *GetEventReferencesRequest) (*GetEventReferencesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventReferences not implemented")
 }
-func (UnimplementedEventServiceServer) AddLocationToEvent(context.Context, *AddLocationToEventRequest) (*AddLocationToEventResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddLocationToEvent not implemented")
+func (UnimplementedEventServiceServer) UpdateEventReference(context.Context, *UpdateEventReferenceRequest) (*UpdateEventReferenceResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateEventReference not implemented")
 }
-func (UnimplementedEventServiceServer) RemoveLocationFromEvent(context.Context, *RemoveLocationFromEventRequest) (*RemoveLocationFromEventResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveLocationFromEvent not implemented")
+func (UnimplementedEventServiceServer) GetEventChildren(context.Context, *GetEventChildrenRequest) (*GetEventChildrenResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventChildren not implemented")
 }
-func (UnimplementedEventServiceServer) GetEventLocations(context.Context, *GetEventLocationsRequest) (*GetEventLocationsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetEventLocations not implemented")
+func (UnimplementedEventServiceServer) GetEventAncestors(context.Context, *GetEventAncestorsRequest) (*GetEventAncestorsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventAncestors not implemented")
 }
-func (UnimplementedEventServiceServer) AddArtifactToEvent(context.Context, *AddArtifactToEventRequest) (*AddArtifactToEventResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method AddArtifactToEvent not implemented")
+func (UnimplementedEventServiceServer) GetEventDescendants(context.Context, *GetEventDescendantsRequest) (*GetEventDescendantsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventDescendants not implemented")
 }
-func (UnimplementedEventServiceServer) RemoveArtifactFromEvent(context.Context, *RemoveArtifactFromEventRequest) (*RemoveArtifactFromEventResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method RemoveArtifactFromEvent not implemented")
+func (UnimplementedEventServiceServer) MoveEvent(context.Context, *MoveEventRequest) (*MoveEventResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method MoveEvent not implemented")
 }
-func (UnimplementedEventServiceServer) GetEventArtifacts(context.Context, *GetEventArtifactsRequest) (*GetEventArtifactsResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method GetEventArtifacts not implemented")
+func (UnimplementedEventServiceServer) SetEventEpoch(context.Context, *SetEventEpochRequest) (*SetEventEpochResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method SetEventEpoch not implemented")
+}
+func (UnimplementedEventServiceServer) GetEventEpoch(context.Context, *GetEventEpochRequest) (*GetEventEpochResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEventEpoch not implemented")
+}
+func (UnimplementedEventServiceServer) GetTimeline(context.Context, *GetTimelineRequest) (*GetTimelineResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetTimeline not implemented")
 }
 func (UnimplementedEventServiceServer) mustEmbedUnimplementedEventServiceServer() {}
 
@@ -387,164 +421,200 @@ func _EventService_DeleteEvent_Handler(srv interface{}, ctx context.Context, dec
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_AddCharacterToEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddCharacterToEventRequest)
+func _EventService_AddEventReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddEventReferenceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).AddCharacterToEvent(ctx, in)
+		return srv.(EventServiceServer).AddEventReference(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_AddCharacterToEvent_FullMethodName,
+		FullMethod: EventService_AddEventReference_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).AddCharacterToEvent(ctx, req.(*AddCharacterToEventRequest))
+		return srv.(EventServiceServer).AddEventReference(ctx, req.(*AddEventReferenceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_RemoveCharacterFromEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveCharacterFromEventRequest)
+func _EventService_RemoveEventReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(RemoveEventReferenceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).RemoveCharacterFromEvent(ctx, in)
+		return srv.(EventServiceServer).RemoveEventReference(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_RemoveCharacterFromEvent_FullMethodName,
+		FullMethod: EventService_RemoveEventReference_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).RemoveCharacterFromEvent(ctx, req.(*RemoveCharacterFromEventRequest))
+		return srv.(EventServiceServer).RemoveEventReference(ctx, req.(*RemoveEventReferenceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_GetEventCharacters_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetEventCharactersRequest)
+func _EventService_GetEventReferences_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventReferencesRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).GetEventCharacters(ctx, in)
+		return srv.(EventServiceServer).GetEventReferences(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_GetEventCharacters_FullMethodName,
+		FullMethod: EventService_GetEventReferences_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).GetEventCharacters(ctx, req.(*GetEventCharactersRequest))
+		return srv.(EventServiceServer).GetEventReferences(ctx, req.(*GetEventReferencesRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_AddLocationToEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddLocationToEventRequest)
+func _EventService_UpdateEventReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateEventReferenceRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).AddLocationToEvent(ctx, in)
+		return srv.(EventServiceServer).UpdateEventReference(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_AddLocationToEvent_FullMethodName,
+		FullMethod: EventService_UpdateEventReference_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).AddLocationToEvent(ctx, req.(*AddLocationToEventRequest))
+		return srv.(EventServiceServer).UpdateEventReference(ctx, req.(*UpdateEventReferenceRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_RemoveLocationFromEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveLocationFromEventRequest)
+func _EventService_GetEventChildren_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventChildrenRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).RemoveLocationFromEvent(ctx, in)
+		return srv.(EventServiceServer).GetEventChildren(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_RemoveLocationFromEvent_FullMethodName,
+		FullMethod: EventService_GetEventChildren_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).RemoveLocationFromEvent(ctx, req.(*RemoveLocationFromEventRequest))
+		return srv.(EventServiceServer).GetEventChildren(ctx, req.(*GetEventChildrenRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_GetEventLocations_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetEventLocationsRequest)
+func _EventService_GetEventAncestors_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventAncestorsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).GetEventLocations(ctx, in)
+		return srv.(EventServiceServer).GetEventAncestors(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_GetEventLocations_FullMethodName,
+		FullMethod: EventService_GetEventAncestors_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).GetEventLocations(ctx, req.(*GetEventLocationsRequest))
+		return srv.(EventServiceServer).GetEventAncestors(ctx, req.(*GetEventAncestorsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_AddArtifactToEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(AddArtifactToEventRequest)
+func _EventService_GetEventDescendants_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventDescendantsRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).AddArtifactToEvent(ctx, in)
+		return srv.(EventServiceServer).GetEventDescendants(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_AddArtifactToEvent_FullMethodName,
+		FullMethod: EventService_GetEventDescendants_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).AddArtifactToEvent(ctx, req.(*AddArtifactToEventRequest))
+		return srv.(EventServiceServer).GetEventDescendants(ctx, req.(*GetEventDescendantsRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_RemoveArtifactFromEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(RemoveArtifactFromEventRequest)
+func _EventService_MoveEvent_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(MoveEventRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).RemoveArtifactFromEvent(ctx, in)
+		return srv.(EventServiceServer).MoveEvent(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_RemoveArtifactFromEvent_FullMethodName,
+		FullMethod: EventService_MoveEvent_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).RemoveArtifactFromEvent(ctx, req.(*RemoveArtifactFromEventRequest))
+		return srv.(EventServiceServer).MoveEvent(ctx, req.(*MoveEventRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _EventService_GetEventArtifacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(GetEventArtifactsRequest)
+func _EventService_SetEventEpoch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetEventEpochRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(EventServiceServer).GetEventArtifacts(ctx, in)
+		return srv.(EventServiceServer).SetEventEpoch(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: EventService_GetEventArtifacts_FullMethodName,
+		FullMethod: EventService_SetEventEpoch_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(EventServiceServer).GetEventArtifacts(ctx, req.(*GetEventArtifactsRequest))
+		return srv.(EventServiceServer).SetEventEpoch(ctx, req.(*SetEventEpochRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_GetEventEpoch_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEventEpochRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetEventEpoch(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetEventEpoch_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetEventEpoch(ctx, req.(*GetEventEpochRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _EventService_GetTimeline_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetTimelineRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(EventServiceServer).GetTimeline(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: EventService_GetTimeline_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(EventServiceServer).GetTimeline(ctx, req.(*GetTimelineRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -577,40 +647,48 @@ var EventService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _EventService_DeleteEvent_Handler,
 		},
 		{
-			MethodName: "AddCharacterToEvent",
-			Handler:    _EventService_AddCharacterToEvent_Handler,
+			MethodName: "AddEventReference",
+			Handler:    _EventService_AddEventReference_Handler,
 		},
 		{
-			MethodName: "RemoveCharacterFromEvent",
-			Handler:    _EventService_RemoveCharacterFromEvent_Handler,
+			MethodName: "RemoveEventReference",
+			Handler:    _EventService_RemoveEventReference_Handler,
 		},
 		{
-			MethodName: "GetEventCharacters",
-			Handler:    _EventService_GetEventCharacters_Handler,
+			MethodName: "GetEventReferences",
+			Handler:    _EventService_GetEventReferences_Handler,
 		},
 		{
-			MethodName: "AddLocationToEvent",
-			Handler:    _EventService_AddLocationToEvent_Handler,
+			MethodName: "UpdateEventReference",
+			Handler:    _EventService_UpdateEventReference_Handler,
 		},
 		{
-			MethodName: "RemoveLocationFromEvent",
-			Handler:    _EventService_RemoveLocationFromEvent_Handler,
+			MethodName: "GetEventChildren",
+			Handler:    _EventService_GetEventChildren_Handler,
 		},
 		{
-			MethodName: "GetEventLocations",
-			Handler:    _EventService_GetEventLocations_Handler,
+			MethodName: "GetEventAncestors",
+			Handler:    _EventService_GetEventAncestors_Handler,
 		},
 		{
-			MethodName: "AddArtifactToEvent",
-			Handler:    _EventService_AddArtifactToEvent_Handler,
+			MethodName: "GetEventDescendants",
+			Handler:    _EventService_GetEventDescendants_Handler,
 		},
 		{
-			MethodName: "RemoveArtifactFromEvent",
-			Handler:    _EventService_RemoveArtifactFromEvent_Handler,
+			MethodName: "MoveEvent",
+			Handler:    _EventService_MoveEvent_Handler,
 		},
 		{
-			MethodName: "GetEventArtifacts",
-			Handler:    _EventService_GetEventArtifacts_Handler,
+			MethodName: "SetEventEpoch",
+			Handler:    _EventService_SetEventEpoch_Handler,
+		},
+		{
+			MethodName: "GetEventEpoch",
+			Handler:    _EventService_GetEventEpoch_Handler,
+		},
+		{
+			MethodName: "GetTimeline",
+			Handler:    _EventService_GetTimeline_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

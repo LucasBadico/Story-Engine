@@ -14,38 +14,24 @@ type EventRepository interface {
 	ListByWorld(ctx context.Context, tenantID, worldID uuid.UUID) ([]*world.Event, error)
 	Update(ctx context.Context, e *world.Event) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
+	// Hierarquia (causalidade)
+	GetChildren(ctx context.Context, tenantID, parentID uuid.UUID) ([]*world.Event, error)
+	GetAncestors(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.Event, error)
+	GetDescendants(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.Event, error)
+	// Timeline
+	GetEpoch(ctx context.Context, tenantID, worldID uuid.UUID) (*world.Event, error)
+	ListByTimeline(ctx context.Context, tenantID, worldID uuid.UUID, fromPos, toPos *float64) ([]*world.Event, error)
 }
 
-// EventCharacterRepository defines the interface for event-character relationships
-type EventCharacterRepository interface {
-	Create(ctx context.Context, ec *world.EventCharacter) error
-	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.EventCharacter, error)
-	ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.EventCharacter, error)
-	ListByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) ([]*world.EventCharacter, error)
+// EventReferenceRepository defines the interface for event-reference relationships
+type EventReferenceRepository interface {
+	Create(ctx context.Context, er *world.EventReference) error
+	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.EventReference, error)
+	ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.EventReference, error)
+	ListByEntity(ctx context.Context, tenantID uuid.UUID, entityType string, entityID uuid.UUID) ([]*world.EventReference, error)
+	Update(ctx context.Context, er *world.EventReference) error
 	Delete(ctx context.Context, tenantID, id uuid.UUID) error
-	DeleteByEventAndCharacter(ctx context.Context, tenantID, eventID, characterID uuid.UUID) error
-	DeleteByEvent(ctx context.Context, tenantID, eventID uuid.UUID) error
-}
-
-// EventLocationRepository defines the interface for event-location relationships
-type EventLocationRepository interface {
-	Create(ctx context.Context, el *world.EventLocation) error
-	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.EventLocation, error)
-	ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.EventLocation, error)
-	ListByLocation(ctx context.Context, tenantID, locationID uuid.UUID) ([]*world.EventLocation, error)
-	Delete(ctx context.Context, tenantID, id uuid.UUID) error
-	DeleteByEventAndLocation(ctx context.Context, tenantID, eventID, locationID uuid.UUID) error
-	DeleteByEvent(ctx context.Context, tenantID, eventID uuid.UUID) error
-}
-
-// EventArtifactRepository defines the interface for event-artifact relationships
-type EventArtifactRepository interface {
-	Create(ctx context.Context, ea *world.EventArtifact) error
-	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.EventArtifact, error)
-	ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.EventArtifact, error)
-	ListByArtifact(ctx context.Context, tenantID, artifactID uuid.UUID) ([]*world.EventArtifact, error)
-	Delete(ctx context.Context, tenantID, id uuid.UUID) error
-	DeleteByEventAndArtifact(ctx context.Context, tenantID, eventID, artifactID uuid.UUID) error
+	DeleteByEventAndEntity(ctx context.Context, tenantID, eventID uuid.UUID, entityType string, entityID uuid.UUID) error
 	DeleteByEvent(ctx context.Context, tenantID, eventID uuid.UUID) error
 }
 

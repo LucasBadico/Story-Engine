@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -14,22 +15,24 @@ import (
 
 // EventHandler handles HTTP requests for events
 type EventHandler struct {
-	createEventUseCase         *eventapp.CreateEventUseCase
-	getEventUseCase            *eventapp.GetEventUseCase
-	listEventsUseCase          *eventapp.ListEventsUseCase
-	updateEventUseCase         *eventapp.UpdateEventUseCase
-	deleteEventUseCase         *eventapp.DeleteEventUseCase
-	addCharacterUseCase        *eventapp.AddCharacterToEventUseCase
-	removeCharacterUseCase     *eventapp.RemoveCharacterFromEventUseCase
-	getCharactersUseCase       *eventapp.GetEventCharactersUseCase
-	addLocationUseCase         *eventapp.AddLocationToEventUseCase
-	removeLocationUseCase      *eventapp.RemoveLocationFromEventUseCase
-	getLocationsUseCase        *eventapp.GetEventLocationsUseCase
-	addArtifactUseCase         *eventapp.AddArtifactToEventUseCase
-	removeArtifactUseCase      *eventapp.RemoveArtifactFromEventUseCase
-	getArtifactsUseCase        *eventapp.GetEventArtifactsUseCase
-	getStatChangesUseCase      *rpgeventapp.GetEventStatChangesUseCase
-	logger                     logger.Logger
+	createEventUseCase      *eventapp.CreateEventUseCase
+	getEventUseCase         *eventapp.GetEventUseCase
+	listEventsUseCase       *eventapp.ListEventsUseCase
+	updateEventUseCase      *eventapp.UpdateEventUseCase
+	deleteEventUseCase      *eventapp.DeleteEventUseCase
+	addReferenceUseCase     *eventapp.AddReferenceUseCase
+	removeReferenceUseCase  *eventapp.RemoveReferenceUseCase
+	getReferencesUseCase    *eventapp.GetReferencesUseCase
+	updateReferenceUseCase  *eventapp.UpdateReferenceUseCase
+	getChildrenUseCase      *eventapp.GetChildrenUseCase
+	getAncestorsUseCase     *eventapp.GetAncestorsUseCase
+	getDescendantsUseCase   *eventapp.GetDescendantsUseCase
+	moveEventUseCase        *eventapp.MoveEventUseCase
+	setEpochUseCase         *eventapp.SetEpochUseCase
+	getEpochUseCase         *eventapp.GetEpochUseCase
+	getTimelineUseCase      *eventapp.GetTimelineUseCase
+	getStatChangesUseCase   *rpgeventapp.GetEventStatChangesUseCase
+	logger                  logger.Logger
 }
 
 // NewEventHandler creates a new EventHandler
@@ -39,35 +42,39 @@ func NewEventHandler(
 	listEventsUseCase *eventapp.ListEventsUseCase,
 	updateEventUseCase *eventapp.UpdateEventUseCase,
 	deleteEventUseCase *eventapp.DeleteEventUseCase,
-	addCharacterUseCase *eventapp.AddCharacterToEventUseCase,
-	removeCharacterUseCase *eventapp.RemoveCharacterFromEventUseCase,
-	getCharactersUseCase *eventapp.GetEventCharactersUseCase,
-	addLocationUseCase *eventapp.AddLocationToEventUseCase,
-	removeLocationUseCase *eventapp.RemoveLocationFromEventUseCase,
-	getLocationsUseCase *eventapp.GetEventLocationsUseCase,
-	addArtifactUseCase *eventapp.AddArtifactToEventUseCase,
-	removeArtifactUseCase *eventapp.RemoveArtifactFromEventUseCase,
-	getArtifactsUseCase *eventapp.GetEventArtifactsUseCase,
+	addReferenceUseCase *eventapp.AddReferenceUseCase,
+	removeReferenceUseCase *eventapp.RemoveReferenceUseCase,
+	getReferencesUseCase *eventapp.GetReferencesUseCase,
+	updateReferenceUseCase *eventapp.UpdateReferenceUseCase,
+	getChildrenUseCase *eventapp.GetChildrenUseCase,
+	getAncestorsUseCase *eventapp.GetAncestorsUseCase,
+	getDescendantsUseCase *eventapp.GetDescendantsUseCase,
+	moveEventUseCase *eventapp.MoveEventUseCase,
+	setEpochUseCase *eventapp.SetEpochUseCase,
+	getEpochUseCase *eventapp.GetEpochUseCase,
+	getTimelineUseCase *eventapp.GetTimelineUseCase,
 	getStatChangesUseCase *rpgeventapp.GetEventStatChangesUseCase,
 	logger logger.Logger,
 ) *EventHandler {
 	return &EventHandler{
-		createEventUseCase:    createEventUseCase,
-		getEventUseCase:       getEventUseCase,
-		listEventsUseCase:     listEventsUseCase,
-		updateEventUseCase:    updateEventUseCase,
-		deleteEventUseCase:    deleteEventUseCase,
-		addCharacterUseCase:   addCharacterUseCase,
-		removeCharacterUseCase: removeCharacterUseCase,
-		getCharactersUseCase:  getCharactersUseCase,
-		addLocationUseCase:    addLocationUseCase,
-		removeLocationUseCase: removeLocationUseCase,
-		getLocationsUseCase:   getLocationsUseCase,
-		addArtifactUseCase:    addArtifactUseCase,
-		removeArtifactUseCase: removeArtifactUseCase,
-		getArtifactsUseCase:   getArtifactsUseCase,
-		getStatChangesUseCase: getStatChangesUseCase,
-		logger:                logger,
+		createEventUseCase:     createEventUseCase,
+		getEventUseCase:        getEventUseCase,
+		listEventsUseCase:      listEventsUseCase,
+		updateEventUseCase:     updateEventUseCase,
+		deleteEventUseCase:     deleteEventUseCase,
+		addReferenceUseCase:    addReferenceUseCase,
+		removeReferenceUseCase: removeReferenceUseCase,
+		getReferencesUseCase:   getReferencesUseCase,
+		updateReferenceUseCase: updateReferenceUseCase,
+		getChildrenUseCase:    getChildrenUseCase,
+		getAncestorsUseCase:   getAncestorsUseCase,
+		getDescendantsUseCase:  getDescendantsUseCase,
+		moveEventUseCase:       moveEventUseCase,
+		setEpochUseCase:        setEpochUseCase,
+		getEpochUseCase:        getEpochUseCase,
+		getTimelineUseCase:     getTimelineUseCase,
+		getStatChangesUseCase:  getStatChangesUseCase,
+		logger:                 logger,
 	}
 }
 
@@ -85,11 +92,14 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name        string  `json:"name"`
-		Type        *string `json:"type,omitempty"`
-		Description *string `json:"description,omitempty"`
-		Timeline    *string `json:"timeline,omitempty"`
-		Importance  int     `json:"importance"`
+		Name            string   `json:"name"`
+		Type            *string  `json:"type,omitempty"`
+		Description     *string  `json:"description,omitempty"`
+		Timeline        *string  `json:"timeline,omitempty"`
+		Importance      int      `json:"importance"`
+		ParentID        *string  `json:"parent_id,omitempty"`
+		TimelinePosition float64 `json:"timeline_position"`
+		IsEpoch         bool     `json:"is_epoch"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -100,14 +110,30 @@ func (h *EventHandler) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var parentID *uuid.UUID
+	if req.ParentID != nil && *req.ParentID != "" {
+		parsedParentID, err := uuid.Parse(*req.ParentID)
+		if err != nil {
+			WriteError(w, &platformerrors.ValidationError{
+				Field:   "parent_id",
+				Message: "invalid UUID format",
+			}, http.StatusBadRequest)
+			return
+		}
+		parentID = &parsedParentID
+	}
+
 	output, err := h.createEventUseCase.Execute(r.Context(), eventapp.CreateEventInput{
-		TenantID:    tenantID,
-		WorldID:     worldID,
-		Name:        req.Name,
-		Type:        req.Type,
-		Description: req.Description,
-		Timeline:    req.Timeline,
-		Importance:  req.Importance,
+		TenantID:        tenantID,
+		WorldID:         worldID,
+		Name:            req.Name,
+		Type:            req.Type,
+		Description:     req.Description,
+		Timeline:        req.Timeline,
+		Importance:      req.Importance,
+		ParentID:        parentID,
+		TimelinePosition: req.TimelinePosition,
+		IsEpoch:         req.IsEpoch,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -192,11 +218,12 @@ func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name        *string `json:"name,omitempty"`
-		Type        *string `json:"type,omitempty"`
-		Description *string `json:"description,omitempty"`
-		Timeline    *string `json:"timeline,omitempty"`
-		Importance  *int    `json:"importance,omitempty"`
+		Name            *string  `json:"name,omitempty"`
+		Type            *string  `json:"type,omitempty"`
+		Description     *string  `json:"description,omitempty"`
+		Timeline        *string  `json:"timeline,omitempty"`
+		Importance      *int     `json:"importance,omitempty"`
+		TimelinePosition *float64 `json:"timeline_position,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -208,13 +235,14 @@ func (h *EventHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	output, err := h.updateEventUseCase.Execute(r.Context(), eventapp.UpdateEventInput{
-		TenantID:    tenantID,
-		ID:          eventID,
-		Name:        req.Name,
-		Type:        req.Type,
-		Description: req.Description,
-		Timeline:    req.Timeline,
-		Importance:  req.Importance,
+		TenantID:        tenantID,
+		ID:              eventID,
+		Name:            req.Name,
+		Type:            req.Type,
+		Description:     req.Description,
+		Timeline:        req.Timeline,
+		Importance:      req.Importance,
+		TimelinePosition: req.TimelinePosition,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -251,8 +279,8 @@ func (h *EventHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// AddCharacter handles POST /api/v1/events/{id}/characters
-func (h *EventHandler) AddCharacter(w http.ResponseWriter, r *http.Request) {
+// AddReference handles POST /api/v1/events/{id}/references
+func (h *EventHandler) AddReference(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
@@ -265,8 +293,10 @@ func (h *EventHandler) AddCharacter(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		CharacterID string  `json:"character_id"`
-		Role        *string `json:"role,omitempty"`
+		EntityType       string  `json:"entity_type"`
+		EntityID         string  `json:"entity_id"`
+		RelationshipType *string `json:"relationship_type,omitempty"`
+		Notes            string  `json:"notes,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -277,20 +307,22 @@ func (h *EventHandler) AddCharacter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	characterID, err := uuid.Parse(req.CharacterID)
+	entityID, err := uuid.Parse(req.EntityID)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
-			Field:   "character_id",
+			Field:   "entity_id",
 			Message: "invalid UUID format",
 		}, http.StatusBadRequest)
 		return
 	}
 
-	if err := h.addCharacterUseCase.Execute(r.Context(), eventapp.AddCharacterToEventInput{
-		TenantID:    tenantID,
-		EventID:     eventID,
-		CharacterID: characterID,
-		Role:        req.Role,
+	if err := h.addReferenceUseCase.Execute(r.Context(), eventapp.AddReferenceInput{
+		TenantID:         tenantID,
+		EventID:          eventID,
+		EntityType:       req.EntityType,
+		EntityID:         entityID,
+		RelationshipType: req.RelationshipType,
+		Notes:            req.Notes,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -299,11 +331,12 @@ func (h *EventHandler) AddCharacter(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 }
 
-// RemoveCharacter handles DELETE /api/v1/events/{id}/characters/{character_id}
-func (h *EventHandler) RemoveCharacter(w http.ResponseWriter, r *http.Request) {
+// RemoveReference handles DELETE /api/v1/events/{id}/references/{entity_type}/{entity_id}
+func (h *EventHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
-	characterIDStr := r.PathValue("character_id")
+	entityType := r.PathValue("entity_type")
+	entityIDStr := r.PathValue("entity_id")
 
 	eventID, err := uuid.Parse(id)
 	if err != nil {
@@ -314,19 +347,20 @@ func (h *EventHandler) RemoveCharacter(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	characterID, err := uuid.Parse(characterIDStr)
+	entityID, err := uuid.Parse(entityIDStr)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
-			Field:   "character_id",
+			Field:   "entity_id",
 			Message: "invalid UUID format",
 		}, http.StatusBadRequest)
 		return
 	}
 
-	if err := h.removeCharacterUseCase.Execute(r.Context(), eventapp.RemoveCharacterFromEventInput{
-		TenantID:    tenantID,
-		EventID:     eventID,
-		CharacterID: characterID,
+	if err := h.removeReferenceUseCase.Execute(r.Context(), eventapp.RemoveReferenceInput{
+		TenantID:   tenantID,
+		EventID:    eventID,
+		EntityType: entityType,
+		EntityID:   entityID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -335,8 +369,8 @@ func (h *EventHandler) RemoveCharacter(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetCharacters handles GET /api/v1/events/{id}/characters
-func (h *EventHandler) GetCharacters(w http.ResponseWriter, r *http.Request) {
+// GetReferences handles GET /api/v1/events/{id}/references
+func (h *EventHandler) GetReferences(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
@@ -348,7 +382,7 @@ func (h *EventHandler) GetCharacters(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output, err := h.getCharactersUseCase.Execute(r.Context(), eventapp.GetEventCharactersInput{
+	output, err := h.getReferencesUseCase.Execute(r.Context(), eventapp.GetReferencesInput{
 		TenantID: tenantID,
 		EventID:  eventID,
 	})
@@ -359,13 +393,139 @@ func (h *EventHandler) GetCharacters(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"characters": output.Characters,
-		"total":       len(output.Characters),
+		"references": output.References,
+		"total":       len(output.References),
 	})
 }
 
-// AddLocation handles POST /api/v1/events/{id}/locations
-func (h *EventHandler) AddLocation(w http.ResponseWriter, r *http.Request) {
+// UpdateReference handles PUT /api/v1/event-references/{id}
+func (h *EventHandler) UpdateReference(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	id := r.PathValue("id")
+	referenceID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	var req struct {
+		RelationshipType *string `json:"relationship_type,omitempty"`
+		Notes            *string `json:"notes,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "body",
+			Message: "invalid JSON",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	if err := h.updateReferenceUseCase.Execute(r.Context(), eventapp.UpdateReferenceInput{
+		TenantID:         tenantID,
+		ID:               referenceID,
+		RelationshipType: req.RelationshipType,
+		Notes:            req.Notes,
+	}); err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// GetChildren handles GET /api/v1/events/{id}/children
+func (h *EventHandler) GetChildren(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	id := r.PathValue("id")
+	parentID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getChildrenUseCase.Execute(r.Context(), eventapp.GetChildrenInput{
+		TenantID: tenantID,
+		ParentID: parentID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"events": output.Events,
+		"total":   len(output.Events),
+	})
+}
+
+// GetAncestors handles GET /api/v1/events/{id}/ancestors
+func (h *EventHandler) GetAncestors(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	id := r.PathValue("id")
+	eventID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getAncestorsUseCase.Execute(r.Context(), eventapp.GetAncestorsInput{
+		TenantID: tenantID,
+		EventID:  eventID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"events": output.Events,
+		"total":   len(output.Events),
+	})
+}
+
+// GetDescendants handles GET /api/v1/events/{id}/descendants
+func (h *EventHandler) GetDescendants(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	id := r.PathValue("id")
+	eventID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getDescendantsUseCase.Execute(r.Context(), eventapp.GetDescendantsInput{
+		TenantID: tenantID,
+		EventID:  eventID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"events": output.Events,
+		"total":   len(output.Events),
+	})
+}
+
+// MoveEvent handles PUT /api/v1/events/{id}/move
+func (h *EventHandler) MoveEvent(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
@@ -378,8 +538,7 @@ func (h *EventHandler) AddLocation(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		LocationID   string  `json:"location_id"`
-		Significance *string `json:"significance,omitempty"`
+		ParentID *string `json:"parent_id,omitempty"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -390,56 +549,23 @@ func (h *EventHandler) AddLocation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	locationID, err := uuid.Parse(req.LocationID)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "location_id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
+	var parentID *uuid.UUID
+	if req.ParentID != nil && *req.ParentID != "" {
+		parsedParentID, err := uuid.Parse(*req.ParentID)
+		if err != nil {
+			WriteError(w, &platformerrors.ValidationError{
+				Field:   "parent_id",
+				Message: "invalid UUID format",
+			}, http.StatusBadRequest)
+			return
+		}
+		parentID = &parsedParentID
 	}
 
-	if err := h.addLocationUseCase.Execute(r.Context(), eventapp.AddLocationToEventInput{
-		TenantID:     tenantID,
-		EventID:      eventID,
-		LocationID:   locationID,
-		Significance: req.Significance,
-	}); err != nil {
-		WriteError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-}
-
-// RemoveLocation handles DELETE /api/v1/events/{id}/locations/{location_id}
-func (h *EventHandler) RemoveLocation(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
-	id := r.PathValue("id")
-	locationIDStr := r.PathValue("location_id")
-
-	eventID, err := uuid.Parse(id)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	locationID, err := uuid.Parse(locationIDStr)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "location_id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.removeLocationUseCase.Execute(r.Context(), eventapp.RemoveLocationFromEventInput{
-		TenantID:   tenantID,
-		EventID:    eventID,
-		LocationID: locationID,
+	if err := h.moveEventUseCase.Execute(r.Context(), eventapp.MoveEventInput{
+		TenantID: tenantID,
+		EventID:  eventID,
+		ParentID: parentID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -448,8 +574,8 @@ func (h *EventHandler) RemoveLocation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetLocations handles GET /api/v1/events/{id}/locations
-func (h *EventHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
+// SetEpoch handles PUT /api/v1/events/{id}/epoch
+func (h *EventHandler) SetEpoch(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 	eventID, err := uuid.Parse(id)
@@ -461,98 +587,9 @@ func (h *EventHandler) GetLocations(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	output, err := h.getLocationsUseCase.Execute(r.Context(), eventapp.GetEventLocationsInput{
+	if err := h.setEpochUseCase.Execute(r.Context(), eventapp.SetEpochInput{
 		TenantID: tenantID,
 		EventID:  eventID,
-	})
-	if err != nil {
-		WriteError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"locations": output.Locations,
-		"total":      len(output.Locations),
-	})
-}
-
-// AddArtifact handles POST /api/v1/events/{id}/artifacts
-func (h *EventHandler) AddArtifact(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
-	id := r.PathValue("id")
-	eventID, err := uuid.Parse(id)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	var req struct {
-		ArtifactID string  `json:"artifact_id"`
-		Role       *string `json:"role,omitempty"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "body",
-			Message: "invalid JSON",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	artifactID, err := uuid.Parse(req.ArtifactID)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "artifact_id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.addArtifactUseCase.Execute(r.Context(), eventapp.AddArtifactToEventInput{
-		TenantID:   tenantID,
-		EventID:    eventID,
-		ArtifactID: artifactID,
-		Role:       req.Role,
-	}); err != nil {
-		WriteError(w, err, http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-}
-
-// RemoveArtifact handles DELETE /api/v1/events/{id}/artifacts/{artifact_id}
-func (h *EventHandler) RemoveArtifact(w http.ResponseWriter, r *http.Request) {
-	tenantID := middleware.GetTenantID(r.Context())
-	id := r.PathValue("id")
-	artifactIDStr := r.PathValue("artifact_id")
-
-	eventID, err := uuid.Parse(id)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	artifactID, err := uuid.Parse(artifactIDStr)
-	if err != nil {
-		WriteError(w, &platformerrors.ValidationError{
-			Field:   "artifact_id",
-			Message: "invalid UUID format",
-		}, http.StatusBadRequest)
-		return
-	}
-
-	if err := h.removeArtifactUseCase.Execute(r.Context(), eventapp.RemoveArtifactFromEventInput{
-		TenantID:   tenantID,
-		EventID:    eventID,
-		ArtifactID: artifactID,
 	}); err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
 		return
@@ -561,22 +598,22 @@ func (h *EventHandler) RemoveArtifact(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// GetArtifacts handles GET /api/v1/events/{id}/artifacts
-func (h *EventHandler) GetArtifacts(w http.ResponseWriter, r *http.Request) {
+// GetEpoch handles GET /api/v1/worlds/{world_id}/epoch
+func (h *EventHandler) GetEpoch(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
-	id := r.PathValue("id")
-	eventID, err := uuid.Parse(id)
+	worldIDStr := r.PathValue("world_id")
+	worldID, err := uuid.Parse(worldIDStr)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
-			Field:   "id",
+			Field:   "world_id",
 			Message: "invalid UUID format",
 		}, http.StatusBadRequest)
 		return
 	}
 
-	output, err := h.getArtifactsUseCase.Execute(r.Context(), eventapp.GetEventArtifactsInput{
+	output, err := h.getEpochUseCase.Execute(r.Context(), eventapp.GetEpochInput{
 		TenantID: tenantID,
-		EventID:  eventID,
+		WorldID:  worldID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -585,8 +622,53 @@ func (h *EventHandler) GetArtifacts(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"artifacts": output.Artifacts,
-		"total":      len(output.Artifacts),
+		"event": output.Event,
+	})
+}
+
+// GetTimeline handles GET /api/v1/worlds/{world_id}/timeline
+func (h *EventHandler) GetTimeline(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+	worldIDStr := r.PathValue("world_id")
+	worldID, err := uuid.Parse(worldIDStr)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "world_id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Parse query parameters for filtering
+	var fromPos, toPos *float64
+	if fromStr := r.URL.Query().Get("from"); fromStr != "" {
+		var f float64
+		if _, err := fmt.Sscanf(fromStr, "%f", &f); err == nil {
+			fromPos = &f
+		}
+	}
+	if toStr := r.URL.Query().Get("to"); toStr != "" {
+		var t float64
+		if _, err := fmt.Sscanf(toStr, "%f", &t); err == nil {
+			toPos = &t
+		}
+	}
+
+	output, err := h.getTimelineUseCase.Execute(r.Context(), eventapp.GetTimelineInput{
+		TenantID: tenantID,
+		WorldID:  worldID,
+		FromPos:  fromPos,
+		ToPos:    toPos,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"events": output.Events,
+		"total":   len(output.Events),
 	})
 }
 

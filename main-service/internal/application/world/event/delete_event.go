@@ -11,28 +11,22 @@ import (
 
 // DeleteEventUseCase handles event deletion
 type DeleteEventUseCase struct {
-	eventRepo            repositories.EventRepository
-	eventCharacterRepo   repositories.EventCharacterRepository
-	eventLocationRepo    repositories.EventLocationRepository
-	eventArtifactRepo    repositories.EventArtifactRepository
-	auditLogRepo         repositories.AuditLogRepository
-	logger               logger.Logger
+	eventRepo          repositories.EventRepository
+	eventReferenceRepo repositories.EventReferenceRepository
+	auditLogRepo       repositories.AuditLogRepository
+	logger             logger.Logger
 }
 
 // NewDeleteEventUseCase creates a new DeleteEventUseCase
 func NewDeleteEventUseCase(
 	eventRepo repositories.EventRepository,
-	eventCharacterRepo repositories.EventCharacterRepository,
-	eventLocationRepo repositories.EventLocationRepository,
-	eventArtifactRepo repositories.EventArtifactRepository,
+	eventReferenceRepo repositories.EventReferenceRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *DeleteEventUseCase {
 	return &DeleteEventUseCase{
 		eventRepo:          eventRepo,
-		eventCharacterRepo: eventCharacterRepo,
-		eventLocationRepo:  eventLocationRepo,
-		eventArtifactRepo:  eventArtifactRepo,
+		eventReferenceRepo: eventReferenceRepo,
 		auditLogRepo:       auditLogRepo,
 		logger:             logger,
 	}
@@ -52,17 +46,9 @@ func (uc *DeleteEventUseCase) Execute(ctx context.Context, input DeleteEventInpu
 		return err
 	}
 
-	// Delete junction table entries (will be handled by CASCADE, but explicit for clarity)
-	if err := uc.eventCharacterRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
-		uc.logger.Error("failed to delete event characters", "error", err)
-		// Continue anyway
-	}
-	if err := uc.eventLocationRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
-		uc.logger.Error("failed to delete event locations", "error", err)
-		// Continue anyway
-	}
-	if err := uc.eventArtifactRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
-		uc.logger.Error("failed to delete event artifacts", "error", err)
+	// Delete event references (will be handled by CASCADE, but explicit for clarity)
+	if err := uc.eventReferenceRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
+		uc.logger.Error("failed to delete event references", "error", err)
 		// Continue anyway
 	}
 

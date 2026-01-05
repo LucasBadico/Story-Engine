@@ -32,13 +32,16 @@ func NewUpdateEventUseCase(
 
 // UpdateEventInput represents the input for updating an event
 type UpdateEventInput struct {
-	TenantID    uuid.UUID
-	ID          uuid.UUID
-	Name        *string
-	Type        *string
-	Description *string
-	Timeline    *string
-	Importance  *int
+	TenantID        uuid.UUID
+	ID              uuid.UUID
+	Name            *string
+	Type            *string
+	Description     *string
+	Timeline        *string
+	Importance      *int
+	TimelinePosition *float64
+	// Note: parent_id changes should use move_event.go
+	// Note: is_epoch changes should use set_epoch.go
 }
 
 // UpdateEventOutput represents the output of updating an event
@@ -73,6 +76,9 @@ func (uc *UpdateEventUseCase) Execute(ctx context.Context, input UpdateEventInpu
 		if err := event.UpdateImportance(*input.Importance); err != nil {
 			return nil, err
 		}
+	}
+	if input.TimelinePosition != nil {
+		event.SetTimelinePosition(*input.TimelinePosition)
 	}
 
 	if err := event.Validate(); err != nil {

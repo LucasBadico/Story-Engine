@@ -1487,10 +1487,10 @@
 										"value": "application/json"
 									}
 								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"Batalha de Pelennor\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 9\n}"
-								},
+							"body": {
+								"mode": "raw",
+								"raw": "{\n  \"name\": \"Batalha de Pelennor\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 9,\n  \"timeline_position\": 0.0,\n  \"is_epoch\": false\n}"
+							},
 								"url": {
 									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/events",
 									"host": [
@@ -1558,10 +1558,10 @@
 										"value": "application/json"
 									}
 								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"name\": \"Batalha de Pelennor Atualizada\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 10\n}"
-								},
+							"body": {
+								"mode": "raw",
+								"raw": "{\n  \"name\": \"Batalha de Pelennor Atualizada\",\n  \"type\": \"war\",\n  \"timeline\": \"Terceira Era, 3019\",\n  \"importance\": 10,\n  \"timeline_position\": 0.5\n}"
+							},
 								"url": {
 									"raw": "{{base_url}}/api/v1/events/{{event_id}}",
 									"host": [
@@ -1598,7 +1598,23 @@
 							"response": []
 						},
 						{
-							"name": "Add Character to Event",
+							"name": "Add Reference",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    if (jsonData.reference && jsonData.reference.id) {",
+											"        pm.collectionVariables.set(\"event_reference_id\", jsonData.reference.id);",
+											"    }",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
 							"request": {
 								"method": "POST",
 								"header": [
@@ -1609,10 +1625,10 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"character_id\": \"{{character_id}}\",\n  \"role\": \"protagonist\"\n}"
+									"raw": "{\n  \"entity_type\": \"character\",\n  \"entity_id\": \"{{character_id}}\",\n  \"relationship_type\": \"protagonist\",\n  \"notes\": \"Main character in this event\"\n}"
 								},
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/references",
 									"host": [
 										"{{base_url}}"
 									],
@@ -1621,19 +1637,19 @@
 										"v1",
 										"events",
 										"{{event_id}}",
-										"characters"
+										"references"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "Remove Character from Event",
+							"name": "Get References",
 							"request": {
-								"method": "DELETE",
+								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters/{{character_id}}",
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/references",
 									"host": [
 										"{{base_url}}"
 									],
@@ -1642,7 +1658,58 @@
 										"v1",
 										"events",
 										"{{event_id}}",
-										"characters",
+										"references"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Reference",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"relationship_type\": \"antagonist\",\n  \"notes\": \"Updated notes\"\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/event-references/{{event_reference_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"event-references",
+										"{{event_reference_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Reference",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/references/character/{{character_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"references",
+										"character",
 										"{{character_id}}"
 									]
 								}
@@ -1650,12 +1717,12 @@
 							"response": []
 						},
 						{
-							"name": "Get Event Characters",
+							"name": "Get Children",
 							"request": {
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/characters",
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/children",
 									"host": [
 										"{{base_url}}"
 									],
@@ -1664,16 +1731,58 @@
 										"v1",
 										"events",
 										"{{event_id}}",
-										"characters"
+										"children"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "Add Location to Event",
+							"name": "Get Ancestors",
 							"request": {
-								"method": "POST",
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/ancestors",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"ancestors"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Get Descendants",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/descendants",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"events",
+										"{{event_id}}",
+										"descendants"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Move Event",
+							"request": {
+								"method": "PUT",
 								"header": [
 									{
 										"key": "Content-Type",
@@ -1682,10 +1791,10 @@
 								],
 								"body": {
 									"mode": "raw",
-									"raw": "{\n  \"location_id\": \"{{location_id}}\"\n}"
+									"raw": "{\n  \"parent_id\": \"{{parent_event_id}}\"\n}"
 								},
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/move",
 									"host": [
 										"{{base_url}}"
 									],
@@ -1694,19 +1803,19 @@
 										"v1",
 										"events",
 										"{{event_id}}",
-										"locations"
+										"move"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "Remove Location from Event",
+							"name": "Set Epoch",
 							"request": {
-								"method": "DELETE",
+								"method": "PUT",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations/{{location_id}}",
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/epoch",
 									"host": [
 										"{{base_url}}"
 									],
@@ -1715,102 +1824,59 @@
 										"v1",
 										"events",
 										"{{event_id}}",
-										"locations",
-										"{{location_id}}"
+										"epoch"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "Get Event Locations",
+							"name": "Get Epoch",
 							"request": {
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/locations",
+									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/epoch",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
 										"api",
 										"v1",
-										"events",
-										"{{event_id}}",
-										"locations"
+										"worlds",
+										"{{world_id}}",
+										"epoch"
 									]
 								}
 							},
 							"response": []
 						},
 						{
-							"name": "Add Artifact to Event",
-							"request": {
-								"method": "POST",
-								"header": [
-									{
-										"key": "Content-Type",
-										"value": "application/json"
-									}
-								],
-								"body": {
-									"mode": "raw",
-									"raw": "{\n  \"artifact_id\": \"{{artifact_id}}\"\n}"
-								},
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"events",
-										"{{event_id}}",
-										"artifacts"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Remove Artifact from Event",
-							"request": {
-								"method": "DELETE",
-								"header": [],
-								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts/{{artifact_id}}",
-									"host": [
-										"{{base_url}}"
-									],
-									"path": [
-										"api",
-										"v1",
-										"events",
-										"{{event_id}}",
-										"artifacts",
-										"{{artifact_id}}"
-									]
-								}
-							},
-							"response": []
-						},
-						{
-							"name": "Get Event Artifacts",
+							"name": "Get Timeline",
 							"request": {
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/artifacts",
+									"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/timeline?from=0&to=100",
 									"host": [
 										"{{base_url}}"
 									],
 									"path": [
 										"api",
 										"v1",
-										"events",
-										"{{event_id}}",
-										"artifacts"
+										"worlds",
+										"{{world_id}}",
+										"timeline"
+									],
+									"query": [
+										{
+											"key": "from",
+											"value": "0"
+										},
+										{
+											"key": "to",
+											"value": "100"
+										}
 									]
 								}
 							},
@@ -1822,7 +1888,7 @@
 								"method": "GET",
 								"header": [],
 								"url": {
-									"raw": "{{base_url}}/api/v1/events/{{event_id}}/rpg-stat-changes",
+									"raw": "{{base_url}}/api/v1/events/{{event_id}}/stat-changes",
 									"host": [
 										"{{base_url}}"
 									],
@@ -1831,7 +1897,7 @@
 										"v1",
 										"events",
 										"{{event_id}}",
-										"rpg-stat-changes"
+										"stat-changes"
 									]
 								}
 							},

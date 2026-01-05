@@ -37,13 +37,16 @@ func NewCreateEventUseCase(
 
 // CreateEventInput represents the input for creating an event
 type CreateEventInput struct {
-	TenantID    uuid.UUID
-	WorldID     uuid.UUID
-	Name        string
-	Type        *string
-	Description *string
-	Timeline    *string
-	Importance  int
+	TenantID        uuid.UUID
+	WorldID         uuid.UUID
+	Name            string
+	Type            *string
+	Description     *string
+	Timeline        *string
+	Importance      int
+	ParentID        *uuid.UUID
+	TimelinePosition float64
+	IsEpoch         bool
 }
 
 // CreateEventOutput represents the output of creating an event
@@ -87,6 +90,43 @@ func (uc *CreateEventUseCase) Execute(ctx context.Context, input CreateEventInpu
 				Message: err.Error(),
 			}
 		}
+	}
+
+	// Set hierarchy fields
+	if input.ParentID != nil {
+		parent, err := uc.eventRepo.GetByID(ctx, input.TenantID, *input.ParentID)
+		if err != nil {
+			return nil, &platformerrors.ValidationError{
+				Field:   "parent_id",
+				Message: "parent event not found",
+			}
+		}
+		if parent.WorldID != evt.WorldID {
+			return nil, &platformerrors.ValidationError{
+				Field:   "parent_id",
+				Message: "parent event must belong to the same world",
+			}
+		}
+		evt.SetParent(input.ParentID, parent.HierarchyLevel)
+	}
+
+	// Set timeline position
+	if input.TimelinePosition != 0 {
+		evt.SetTimelinePosition(input.TimelinePosition)
+	}
+
+	// Set epoch
+	if input.IsEpoch {
+		// Validate that there's no existing epoch
+		existingEpoch, err := uc.eventRepo.GetEpoch(ctx, input.TenantID, input.WorldID)
+		if err == nil {
+			// Remove epoch from existing event
+			existingEpoch.SetAsEpoch(false)
+			if err := uc.eventRepo.Update(ctx, existingEpoch); err != nil {
+				uc.logger.Error("failed to remove epoch from existing event", "error", err)
+			}
+		}
+		evt.SetAsEpoch(true)
 	}
 
 	if err := evt.Validate(); err != nil {

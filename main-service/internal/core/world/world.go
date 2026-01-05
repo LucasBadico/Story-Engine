@@ -13,15 +13,16 @@ var (
 
 // World represents a world entity
 type World struct {
-	ID          uuid.UUID  `json:"id"`
-	TenantID    uuid.UUID  `json:"tenant_id"`
-	Name        string     `json:"name"`
-	Description string     `json:"description"`
-	Genre       string     `json:"genre"`
-	IsImplicit  bool       `json:"is_implicit"`
-	RPGSystemID *uuid.UUID `json:"rpg_system_id,omitempty"`
-	CreatedAt   time.Time  `json:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"`
+	ID          uuid.UUID   `json:"id"`
+	TenantID    uuid.UUID   `json:"tenant_id"`
+	Name        string      `json:"name"`
+	Description string      `json:"description"`
+	Genre       string      `json:"genre"`
+	IsImplicit  bool        `json:"is_implicit"`
+	RPGSystemID *uuid.UUID  `json:"rpg_system_id,omitempty"`
+	TimeConfig  *TimeConfig  `json:"time_config,omitempty"`
+	CreatedAt   time.Time   `json:"created_at"`
+	UpdatedAt   time.Time   `json:"updated_at"`
 }
 
 // NewWorld creates a new world
@@ -81,5 +82,19 @@ func (w *World) SetImplicit(isImplicit bool) {
 func (w *World) SetRPGSystem(rpgSystemID *uuid.UUID) {
 	w.RPGSystemID = rpgSystemID
 	w.UpdatedAt = time.Now()
+}
+
+// SetTimeConfig sets the time configuration for this world
+func (w *World) SetTimeConfig(timeConfig *TimeConfig) {
+	w.TimeConfig = timeConfig
+	w.UpdatedAt = time.Now()
+}
+
+// GetTimeConfig returns the time configuration, or default if nil
+func (w *World) GetTimeConfig() *TimeConfig {
+	if w.TimeConfig == nil {
+		return DefaultTimeConfig()
+	}
+	return w.TimeConfig
 }
 

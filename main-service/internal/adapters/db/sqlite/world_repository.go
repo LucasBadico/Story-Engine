@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -27,13 +28,22 @@ func NewWorldRepository(db *DB) *WorldRepository {
 // Create creates a new world
 func (r *WorldRepository) Create(ctx context.Context, w *world.World) error {
 	query := `
-		INSERT INTO worlds (id, tenant_id, name, description, genre, is_implicit, rpg_system_id, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO worlds (id, tenant_id, name, description, genre, is_implicit, rpg_system_id, time_config, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	var rpgSystemID sql.NullString
 	if w.RPGSystemID != nil {
 		rpgSystemID = sql.NullString{String: w.RPGSystemID.String(), Valid: true}
+	}
+
+	var timeConfigJSON sql.NullString
+	if w.TimeConfig != nil {
+		jsonBytes, err := json.Marshal(w.TimeConfig)
+		if err != nil {
+			return err
+		}
+		timeConfigJSON = sql.NullString{String: string(jsonBytes), Valid: true}
 	}
 
 	isImplicit := 0
@@ -49,6 +59,7 @@ func (r *WorldRepository) Create(ctx context.Context, w *world.World) error {
 		w.Genre,
 		isImplicit,
 		rpgSystemID,
+		timeConfigJSON,
 		w.CreatedAt.Format(time.RFC3339),
 		w.UpdatedAt.Format(time.RFC3339),
 	)
@@ -58,17 +69,17 @@ func (r *WorldRepository) Create(ctx context.Context, w *world.World) error {
 // GetByID retrieves a world by ID
 func (r *WorldRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.World, error) {
 	query := `
-		SELECT id, tenant_id, name, description, genre, is_implicit, rpg_system_id, created_at, updated_at
+		SELECT id, tenant_id, name, description, genre, is_implicit, rpg_system_id, time_config, created_at, updated_at
 		FROM worlds
 		WHERE tenant_id = ? AND id = ?
 	`
 	var w world.World
 	var idStr, tenantIDStr, createdAtStr, updatedAtStr string
-	var rpgSystemID sql.NullString
+	var rpgSystemID, timeConfigJSON sql.NullString
 	var isImplicitInt int
 
 	err := r.db.QueryRow(ctx, query, tenantID.String(), id.String()).Scan(
-		&idStr, &tenantIDStr, &w.Name, &w.Description, &w.Genre, &isImplicitInt, &rpgSystemID, &createdAtStr, &updatedAtStr)
+		&idStr, &tenantIDStr, &w.Name, &w.Description, &w.Genre, &isImplicitInt, &rpgSystemID, &timeConfigJSON, &createdAtStr, &updatedAtStr)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, &platformerrors.NotFoundError{
@@ -112,13 +123,21 @@ func (r *WorldRepository) GetByID(ctx context.Context, tenantID, id uuid.UUID) (
 		}
 	}
 
+	// Parse time_config
+	if timeConfigJSON.Valid && timeConfigJSON.String != "" {
+		var timeConfig world.TimeConfig
+		if err := json.Unmarshal([]byte(timeConfigJSON.String), &timeConfig); err == nil {
+			w.TimeConfig = &timeConfig
+		}
+	}
+
 	return &w, nil
 }
 
 // ListByTenant lists worlds for a tenant
 func (r *WorldRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*world.World, error) {
 	query := `
-		SELECT id, tenant_id, name, description, genre, is_implicit, rpg_system_id, created_at, updated_at
+		SELECT id, tenant_id, name, description, genre, is_implicit, rpg_system_id, time_config, created_at, updated_at
 		FROM worlds
 		WHERE tenant_id = ?
 		ORDER BY created_at DESC
@@ -137,13 +156,22 @@ func (r *WorldRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, 
 func (r *WorldRepository) Update(ctx context.Context, w *world.World) error {
 	query := `
 		UPDATE worlds
-		SET name = ?, description = ?, genre = ?, is_implicit = ?, rpg_system_id = ?, updated_at = ?
+		SET name = ?, description = ?, genre = ?, is_implicit = ?, rpg_system_id = ?, time_config = ?, updated_at = ?
 		WHERE tenant_id = ? AND id = ?
 	`
 
 	var rpgSystemID sql.NullString
 	if w.RPGSystemID != nil {
 		rpgSystemID = sql.NullString{String: w.RPGSystemID.String(), Valid: true}
+	}
+
+	var timeConfigJSON sql.NullString
+	if w.TimeConfig != nil {
+		jsonBytes, err := json.Marshal(w.TimeConfig)
+		if err != nil {
+			return err
+		}
+		timeConfigJSON = sql.NullString{String: string(jsonBytes), Valid: true}
 	}
 
 	isImplicit := 0
@@ -157,6 +185,7 @@ func (r *WorldRepository) Update(ctx context.Context, w *world.World) error {
 		w.Genre,
 		isImplicit,
 		rpgSystemID,
+		timeConfigJSON,
 		w.UpdatedAt.Format(time.RFC3339),
 		w.TenantID.String(),
 		w.ID.String(),
@@ -184,11 +213,11 @@ func (r *WorldRepository) scanWorlds(rows *sql.Rows) ([]*world.World, error) {
 	for rows.Next() {
 		var w world.World
 		var idStr, tenantIDStr, createdAtStr, updatedAtStr string
-		var rpgSystemID sql.NullString
+		var rpgSystemID, timeConfigJSON sql.NullString
 		var isImplicitInt int
 
 		err := rows.Scan(
-			&idStr, &tenantIDStr, &w.Name, &w.Description, &w.Genre, &isImplicitInt, &rpgSystemID, &createdAtStr, &updatedAtStr)
+			&idStr, &tenantIDStr, &w.Name, &w.Description, &w.Genre, &isImplicitInt, &rpgSystemID, &timeConfigJSON, &createdAtStr, &updatedAtStr)
 		if err != nil {
 			return nil, err
 		}
@@ -223,6 +252,14 @@ func (r *WorldRepository) scanWorlds(rows *sql.Rows) ([]*world.World, error) {
 		if rpgSystemID.Valid {
 			if parsedRPGSystemID, err := uuid.Parse(rpgSystemID.String); err == nil {
 				w.RPGSystemID = &parsedRPGSystemID
+			}
+		}
+
+		// Parse time_config
+		if timeConfigJSON.Valid && timeConfigJSON.String != "" {
+			var timeConfig world.TimeConfig
+			if err := json.Unmarshal([]byte(timeConfigJSON.String), &timeConfig); err == nil {
+				w.TimeConfig = &timeConfig
 			}
 		}
 

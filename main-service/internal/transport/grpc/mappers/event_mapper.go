@@ -13,12 +13,15 @@ func EventToProto(e *world.Event) *eventpb.Event {
 	}
 
 	pb := &eventpb.Event{
-		Id:         e.ID.String(),
-		WorldId:    e.WorldID.String(),
-		Name:       e.Name,
-		Importance: int32(e.Importance),
-		CreatedAt:  timestamppb.New(e.CreatedAt),
-		UpdatedAt:  timestamppb.New(e.UpdatedAt),
+		Id:               e.ID.String(),
+		WorldId:          e.WorldID.String(),
+		Name:             e.Name,
+		Importance:       int32(e.Importance),
+		HierarchyLevel:   int32(e.HierarchyLevel),
+		TimelinePosition: e.TimelinePosition,
+		IsEpoch:          e.IsEpoch,
+		CreatedAt:        timestamppb.New(e.CreatedAt),
+		UpdatedAt:        timestamppb.New(e.UpdatedAt),
 	}
 
 	if e.Type != nil {
@@ -30,65 +33,31 @@ func EventToProto(e *world.Event) *eventpb.Event {
 	if e.Timeline != nil {
 		pb.Timeline = e.Timeline
 	}
-
-	return pb
-}
-
-// EventCharacterToProto converts an event-character relationship to a protobuf message
-func EventCharacterToProto(ec *world.EventCharacter) *eventpb.EventCharacter {
-	if ec == nil {
-		return nil
-	}
-
-	pb := &eventpb.EventCharacter{
-		Id:          ec.ID.String(),
-		EventId:     ec.EventID.String(),
-		CharacterId: ec.CharacterID.String(),
-		CreatedAt:   timestamppb.New(ec.CreatedAt),
-	}
-
-	if ec.Role != nil {
-		pb.Role = ec.Role
+	if e.ParentID != nil {
+		parentIDStr := e.ParentID.String()
+		pb.ParentId = &parentIDStr
 	}
 
 	return pb
 }
 
-// EventLocationToProto converts an event-location relationship to a protobuf message
-func EventLocationToProto(el *world.EventLocation) *eventpb.EventLocation {
-	if el == nil {
+// EventReferenceToProto converts an event-reference relationship to a protobuf message
+func EventReferenceToProto(er *world.EventReference) *eventpb.EventReference {
+	if er == nil {
 		return nil
 	}
 
-	pb := &eventpb.EventLocation{
-		Id:         el.ID.String(),
-		EventId:    el.EventID.String(),
-		LocationId: el.LocationID.String(),
-		CreatedAt:  timestamppb.New(el.CreatedAt),
+	pb := &eventpb.EventReference{
+		Id:         er.ID.String(),
+		EventId:    er.EventID.String(),
+		EntityType: er.EntityType,
+		EntityId:   er.EntityID.String(),
+		Notes:      er.Notes,
+		CreatedAt:  timestamppb.New(er.CreatedAt),
 	}
 
-	if el.Significance != nil {
-		pb.Significance = el.Significance
-	}
-
-	return pb
-}
-
-// EventArtifactToProto converts an event-artifact relationship to a protobuf message
-func EventArtifactToProto(ea *world.EventArtifact) *eventpb.EventArtifact {
-	if ea == nil {
-		return nil
-	}
-
-	pb := &eventpb.EventArtifact{
-		Id:         ea.ID.String(),
-		EventId:    ea.EventID.String(),
-		ArtifactId: ea.ArtifactID.String(),
-		CreatedAt:  timestamppb.New(ea.CreatedAt),
-	}
-
-	if ea.Role != nil {
-		pb.Role = ea.Role
+	if er.RelationshipType != nil {
+		pb.RelationshipType = er.RelationshipType
 	}
 
 	return pb

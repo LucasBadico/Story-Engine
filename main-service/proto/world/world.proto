@@ -5,6 +5,20 @@ option go_package = "github.com/story-engine/main-service/proto/world";
 import "google/protobuf/timestamp.proto";
 import "proto/common/common.proto";
 
+// TimeConfig represents the calendar/time configuration for a world
+message TimeConfig {
+  string base_unit = 1; // "year", "day", "hour", "custom"
+  double hours_per_day = 2; // Default: 24
+  int32 days_per_week = 3; // Default: 7
+  int32 days_per_year = 4; // Default: 365
+  int32 months_per_year = 5; // Default: 12
+  repeated int32 month_lengths = 6; // [31, 28, 31, 30, ...]
+  repeated string month_names = 7; // ["Janeiro", "Fevereiro", ...]
+  repeated string day_names = 8; // ["Domingo", "Segunda", ...]
+  string era_name = 9; // "Era Comum", "Terceira Era"
+  int32 year_zero = 10; // Ano inicial da timeline
+}
+
 // World represents a world entity
 message World {
   string id = 1;
@@ -13,8 +27,9 @@ message World {
   string description = 4;
   string genre = 5;
   bool is_implicit = 6;
-  google.protobuf.Timestamp created_at = 7;
-  google.protobuf.Timestamp updated_at = 8;
+  optional TimeConfig time_config = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
 }
 
 // CreateWorldRequest is the request to create a new world
@@ -60,6 +75,7 @@ message UpdateWorldRequest {
   optional string description = 3;
   optional string genre = 4;
   optional bool is_implicit = 5;
+  optional TimeConfig time_config = 6;
 }
 
 // UpdateWorldResponse is the response after updating a world

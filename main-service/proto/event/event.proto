@@ -14,35 +14,23 @@ message Event {
   optional string description = 5;
   optional string timeline = 6;
   int32 importance = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
+  optional string parent_id = 8; // evento causador
+  int32 hierarchy_level = 9; // nível na árvore de causalidade
+  double timeline_position = 10; // posição absoluta na timeline (anos desde epoch)
+  bool is_epoch = 11; // marca evento como "tempo zero"
+  google.protobuf.Timestamp created_at = 12;
+  google.protobuf.Timestamp updated_at = 13;
 }
 
-// EventCharacter represents the relationship between an event and a character
-message EventCharacter {
+// EventReference represents the relationship between an event and another entity
+message EventReference {
   string id = 1;
   string event_id = 2;
-  string character_id = 3;
-  optional string role = 4;
-  google.protobuf.Timestamp created_at = 5;
-}
-
-// EventLocation represents the relationship between an event and a location
-message EventLocation {
-  string id = 1;
-  string event_id = 2;
-  string location_id = 3;
-  optional string significance = 4;
-  google.protobuf.Timestamp created_at = 5;
-}
-
-// EventArtifact represents the relationship between an event and an artifact
-message EventArtifact {
-  string id = 1;
-  string event_id = 2;
-  string artifact_id = 3;
-  optional string role = 4;
-  google.protobuf.Timestamp created_at = 5;
+  string entity_type = 3;
+  string entity_id = 4;
+  optional string relationship_type = 5; // "role" para character/artifact, "significance" para location
+  string notes = 6;
+  google.protobuf.Timestamp created_at = 7;
 }
 
 // CreateEventRequest is the request to create a new event
@@ -53,6 +41,9 @@ message CreateEventRequest {
   optional string description = 4;
   optional string timeline = 5;
   int32 importance = 6;
+  optional string parent_id = 7;
+  double timeline_position = 8;
+  bool is_epoch = 9;
 }
 
 // CreateEventResponse is the response after creating an event
@@ -90,6 +81,9 @@ message UpdateEventRequest {
   optional string description = 4;
   optional string timeline = 5;
   optional int32 importance = 6;
+  optional double timeline_position = 7;
+  // Note: parent_id changes should use MoveEvent
+  // Note: is_epoch changes should use SetEventEpoch
 }
 
 // UpdateEventResponse is the response after updating an event
@@ -106,103 +100,125 @@ message DeleteEventRequest {
 message DeleteEventResponse {
 }
 
-// AddCharacterToEventRequest is the request to add a character to an event
-message AddCharacterToEventRequest {
+// AddEventReferenceRequest is the request to add a reference to an event
+message AddEventReferenceRequest {
   string event_id = 1;
-  string character_id = 2;
-  optional string role = 3;
+  string entity_type = 2;
+  string entity_id = 3;
+  optional string relationship_type = 4;
+  string notes = 5;
 }
 
-// AddCharacterToEventResponse is the response after adding a character to an event
-message AddCharacterToEventResponse {
-  EventCharacter event_character = 1;
+// AddEventReferenceResponse is the response after adding a reference
+message AddEventReferenceResponse {
+  EventReference reference = 1;
 }
 
-// RemoveCharacterFromEventRequest is the request to remove a character from an event
-message RemoveCharacterFromEventRequest {
+// RemoveEventReferenceRequest is the request to remove a reference from an event
+message RemoveEventReferenceRequest {
   string event_id = 1;
-  string character_id = 2;
+  string entity_type = 2;
+  string entity_id = 3;
 }
 
-// RemoveCharacterFromEventResponse is the response after removing a character from an event
-message RemoveCharacterFromEventResponse {
+// RemoveEventReferenceResponse is the response after removing a reference
+message RemoveEventReferenceResponse {
 }
 
-// GetEventCharactersRequest is the request to get characters for an event
-message GetEventCharactersRequest {
+// GetEventReferencesRequest is the request to get references for an event
+message GetEventReferencesRequest {
   string event_id = 1;
 }
 
-// GetEventCharactersResponse is the response containing characters for an event
-message GetEventCharactersResponse {
-  repeated EventCharacter characters = 1;
+// GetEventReferencesResponse is the response containing references for an event
+message GetEventReferencesResponse {
+  repeated EventReference references = 1;
   int32 total_count = 2;
 }
 
-// AddLocationToEventRequest is the request to add a location to an event
-message AddLocationToEventRequest {
-  string event_id = 1;
-  string location_id = 2;
-  optional string significance = 3;
+// UpdateEventReferenceRequest is the request to update an event reference
+message UpdateEventReferenceRequest {
+  string id = 1;
+  optional string relationship_type = 2;
+  optional string notes = 3;
 }
 
-// AddLocationToEventResponse is the response after adding a location to an event
-message AddLocationToEventResponse {
-  EventLocation event_location = 1;
+// UpdateEventReferenceResponse is the response after updating a reference
+message UpdateEventReferenceResponse {
+  EventReference reference = 1;
 }
 
-// RemoveLocationFromEventRequest is the request to remove a location from an event
-message RemoveLocationFromEventRequest {
-  string event_id = 1;
-  string location_id = 2;
+// GetEventChildrenRequest is the request to get children of an event
+message GetEventChildrenRequest {
+  string parent_id = 1;
 }
 
-// RemoveLocationFromEventResponse is the response after removing a location from an event
-message RemoveLocationFromEventResponse {
+// GetEventChildrenResponse is the response containing children
+message GetEventChildrenResponse {
+  repeated Event events = 1;
 }
 
-// GetEventLocationsRequest is the request to get locations for an event
-message GetEventLocationsRequest {
-  string event_id = 1;
-}
-
-// GetEventLocationsResponse is the response containing locations for an event
-message GetEventLocationsResponse {
-  repeated EventLocation locations = 1;
-  int32 total_count = 2;
-}
-
-// AddArtifactToEventRequest is the request to add an artifact to an event
-message AddArtifactToEventRequest {
-  string event_id = 1;
-  string artifact_id = 2;
-  optional string role = 3;
-}
-
-// AddArtifactToEventResponse is the response after adding an artifact to an event
-message AddArtifactToEventResponse {
-  EventArtifact event_artifact = 1;
-}
-
-// RemoveArtifactFromEventRequest is the request to remove an artifact from an event
-message RemoveArtifactFromEventRequest {
-  string event_id = 1;
-  string artifact_id = 2;
-}
-
-// RemoveArtifactFromEventResponse is the response after removing an artifact from an event
-message RemoveArtifactFromEventResponse {
-}
-
-// GetEventArtifactsRequest is the request to get artifacts for an event
-message GetEventArtifactsRequest {
+// GetEventAncestorsRequest is the request to get ancestors of an event
+message GetEventAncestorsRequest {
   string event_id = 1;
 }
 
-// GetEventArtifactsResponse is the response containing artifacts for an event
-message GetEventArtifactsResponse {
-  repeated EventArtifact artifacts = 1;
-  int32 total_count = 2;
+// GetEventAncestorsResponse is the response containing ancestors
+message GetEventAncestorsResponse {
+  repeated Event events = 1;
+}
+
+// GetEventDescendantsRequest is the request to get descendants of an event
+message GetEventDescendantsRequest {
+  string event_id = 1;
+}
+
+// GetEventDescendantsResponse is the response containing descendants
+message GetEventDescendantsResponse {
+  repeated Event events = 1;
+}
+
+// MoveEventRequest is the request to move an event to another parent
+message MoveEventRequest {
+  string event_id = 1;
+  optional string parent_id = 2; // nil to make it a root event
+}
+
+// MoveEventResponse is the response after moving an event
+message MoveEventResponse {
+  Event event = 1;
+}
+
+// SetEventEpochRequest is the request to set an event as epoch
+message SetEventEpochRequest {
+  string event_id = 1;
+}
+
+// SetEventEpochResponse is the response after setting epoch
+message SetEventEpochResponse {
+  Event event = 1;
+}
+
+// GetEventEpochRequest is the request to get the epoch event for a world
+message GetEventEpochRequest {
+  string world_id = 1;
+}
+
+// GetEventEpochResponse is the response containing the epoch event
+message GetEventEpochResponse {
+  Event event = 1;
+}
+
+// GetTimelineRequest is the request to get events ordered by timeline position
+message GetTimelineRequest {
+  string world_id = 1;
+  optional double from_pos = 2;
+  optional double to_pos = 3;
+}
+
+// GetTimelineResponse is the response containing events ordered by timeline
+message GetTimelineResponse {
+  repeated Event events = 1;
 }
 
 // EventService provides event management operations
@@ -217,24 +233,28 @@ service EventService {
   rpc UpdateEvent(UpdateEventRequest) returns (UpdateEventResponse);
   // DeleteEvent deletes an event
   rpc DeleteEvent(DeleteEventRequest) returns (DeleteEventResponse);
-  // AddCharacterToEvent adds a character to an event
-  rpc AddCharacterToEvent(AddCharacterToEventRequest) returns (AddCharacterToEventResponse);
-  // RemoveCharacterFromEvent removes a character from an event
-  rpc RemoveCharacterFromEvent(RemoveCharacterFromEventRequest) returns (RemoveCharacterFromEventResponse);
-  // GetEventCharacters lists characters for an event
-  rpc GetEventCharacters(GetEventCharactersRequest) returns (GetEventCharactersResponse);
-  // AddLocationToEvent adds a location to an event
-  rpc AddLocationToEvent(AddLocationToEventRequest) returns (AddLocationToEventResponse);
-  // RemoveLocationFromEvent removes a location from an event
-  rpc RemoveLocationFromEvent(RemoveLocationFromEventRequest) returns (RemoveLocationFromEventResponse);
-  // GetEventLocations lists locations for an event
-  rpc GetEventLocations(GetEventLocationsRequest) returns (GetEventLocationsResponse);
-  // AddArtifactToEvent adds an artifact to an event
-  rpc AddArtifactToEvent(AddArtifactToEventRequest) returns (AddArtifactToEventResponse);
-  // RemoveArtifactFromEvent removes an artifact from an event
-  rpc RemoveArtifactFromEvent(RemoveArtifactFromEventRequest) returns (RemoveArtifactFromEventResponse);
-  // GetEventArtifacts lists artifacts for an event
-  rpc GetEventArtifacts(GetEventArtifactsRequest) returns (GetEventArtifactsResponse);
+  // AddEventReference adds a reference to an event
+  rpc AddEventReference(AddEventReferenceRequest) returns (AddEventReferenceResponse);
+  // RemoveEventReference removes a reference from an event
+  rpc RemoveEventReference(RemoveEventReferenceRequest) returns (RemoveEventReferenceResponse);
+  // GetEventReferences lists references for an event
+  rpc GetEventReferences(GetEventReferencesRequest) returns (GetEventReferencesResponse);
+  // UpdateEventReference updates an event reference
+  rpc UpdateEventReference(UpdateEventReferenceRequest) returns (UpdateEventReferenceResponse);
+  // GetEventChildren retrieves direct children of an event
+  rpc GetEventChildren(GetEventChildrenRequest) returns (GetEventChildrenResponse);
+  // GetEventAncestors retrieves ancestors of an event
+  rpc GetEventAncestors(GetEventAncestorsRequest) returns (GetEventAncestorsResponse);
+  // GetEventDescendants retrieves descendants of an event
+  rpc GetEventDescendants(GetEventDescendantsRequest) returns (GetEventDescendantsResponse);
+  // MoveEvent moves an event to another parent
+  rpc MoveEvent(MoveEventRequest) returns (MoveEventResponse);
+  // SetEventEpoch sets an event as epoch
+  rpc SetEventEpoch(SetEventEpochRequest) returns (SetEventEpochResponse);
+  // GetEventEpoch retrieves the epoch event for a world
+  rpc GetEventEpoch(GetEventEpochRequest) returns (GetEventEpochResponse);
+  // GetTimeline retrieves events ordered by timeline position
+  rpc GetTimeline(GetTimelineRequest) returns (GetTimelineResponse);
 }
 
 

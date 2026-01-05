@@ -1,0 +1,2 @@
+ALTER TABLE worlds DROP COLUMN IF EXISTS time_config;
+
