@@ -61,7 +61,7 @@ func TestSearchMemoryUseCase_Execute_WithFilters(t *testing.T) {
 	log := logger.New()
 
 	// Create a document
-	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	doc := memory.NewDocument(tenantID, memory.SourceTypeContentBlock, uuid.New(), "Test", "Content")
 	doc.ID = documentID
 	mockDocRepo.Create(ctx, doc)
 

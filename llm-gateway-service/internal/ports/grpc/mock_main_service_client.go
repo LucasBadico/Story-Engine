@@ -13,9 +13,6 @@ type MockMainServiceClient struct {
 	chapters          map[uuid.UUID]*Chapter
 	scenes            map[uuid.UUID]*Scene
 	beats             map[uuid.UUID]*Beat
-	proseBlocks       map[uuid.UUID]*ProseBlock
-	proseBlockRefs    map[uuid.UUID][]*ProseBlockReference
-	proseBlocksByChapter map[uuid.UUID][]*ProseBlock
 	worlds           map[uuid.UUID]*World
 	factions         map[uuid.UUID]*Faction
 	lores            map[uuid.UUID]*Lore
@@ -28,9 +25,6 @@ type MockMainServiceClient struct {
 	getChapterErr            func(uuid.UUID) error
 	getSceneErr              func(uuid.UUID) error
 	getBeatErr               func(uuid.UUID) error
-	getProseBlockErr         func(uuid.UUID) error
-	listProseBlocksErr       func(uuid.UUID) error
-	listProseBlockRefsErr    func(uuid.UUID) error
 }
 
 // NewMockMainServiceClient creates a new mock main service client
@@ -40,9 +34,6 @@ func NewMockMainServiceClient() *MockMainServiceClient {
 		chapters:               make(map[uuid.UUID]*Chapter),
 		scenes:                  make(map[uuid.UUID]*Scene),
 		beats:                   make(map[uuid.UUID]*Beat),
-		proseBlocks:             make(map[uuid.UUID]*ProseBlock),
-		proseBlockRefs:          make(map[uuid.UUID][]*ProseBlockReference),
-		proseBlocksByChapter:    make(map[uuid.UUID][]*ProseBlock),
 		worlds:                  make(map[uuid.UUID]*World),
 		factions:                make(map[uuid.UUID]*Faction),
 		lores:                   make(map[uuid.UUID]*Lore),
@@ -72,23 +63,6 @@ func (m *MockMainServiceClient) AddBeat(beat *Beat) {
 	m.beats[beat.ID] = beat
 }
 
-// AddProseBlock adds a prose block to the mock
-func (m *MockMainServiceClient) AddProseBlock(proseBlock *ProseBlock) {
-	m.proseBlocks[proseBlock.ID] = proseBlock
-	if m.proseBlocksByChapter[proseBlock.ChapterID] == nil {
-		m.proseBlocksByChapter[proseBlock.ChapterID] = []*ProseBlock{}
-	}
-	m.proseBlocksByChapter[proseBlock.ChapterID] = append(m.proseBlocksByChapter[proseBlock.ChapterID], proseBlock)
-}
-
-// AddProseBlockReference adds a reference to the mock
-func (m *MockMainServiceClient) AddProseBlockReference(ref *ProseBlockReference) {
-	if m.proseBlockRefs[ref.ProseBlockID] == nil {
-		m.proseBlockRefs[ref.ProseBlockID] = []*ProseBlockReference{}
-	}
-	m.proseBlockRefs[ref.ProseBlockID] = append(m.proseBlockRefs[ref.ProseBlockID], ref)
-}
-
 // SetGetStoryError sets an error function for GetStory
 func (m *MockMainServiceClient) SetGetStoryError(fn func(uuid.UUID) error) {
 	m.getStoryErr = fn
@@ -107,21 +81,6 @@ func (m *MockMainServiceClient) SetGetSceneError(fn func(uuid.UUID) error) {
 // SetGetBeatError sets an error function for GetBeat
 func (m *MockMainServiceClient) SetGetBeatError(fn func(uuid.UUID) error) {
 	m.getBeatErr = fn
-}
-
-// SetGetProseBlockError sets an error function for GetProseBlock
-func (m *MockMainServiceClient) SetGetProseBlockError(fn func(uuid.UUID) error) {
-	m.getProseBlockErr = fn
-}
-
-// SetListProseBlocksError sets an error function for ListProseBlocksByChapter
-func (m *MockMainServiceClient) SetListProseBlocksError(fn func(uuid.UUID) error) {
-	m.listProseBlocksErr = fn
-}
-
-// SetListProseBlockRefsError sets an error function for ListProseBlockReferences
-func (m *MockMainServiceClient) SetListProseBlockRefsError(fn func(uuid.UUID) error) {
-	m.listProseBlockRefsErr = fn
 }
 
 // GetStory retrieves a story by ID
@@ -178,48 +137,6 @@ func (m *MockMainServiceClient) GetBeat(ctx context.Context, beatID uuid.UUID) (
 		return nil, fmt.Errorf("beat not found: %s", beatID)
 	}
 	return beat, nil
-}
-
-// GetProseBlock retrieves a prose block by ID
-func (m *MockMainServiceClient) GetProseBlock(ctx context.Context, proseBlockID uuid.UUID) (*ProseBlock, error) {
-	if m.getProseBlockErr != nil {
-		if err := m.getProseBlockErr(proseBlockID); err != nil {
-			return nil, err
-		}
-	}
-	proseBlock, ok := m.proseBlocks[proseBlockID]
-	if !ok {
-		return nil, fmt.Errorf("prose block not found: %s", proseBlockID)
-	}
-	return proseBlock, nil
-}
-
-// ListProseBlocksByChapter lists prose blocks for a chapter
-func (m *MockMainServiceClient) ListProseBlocksByChapter(ctx context.Context, chapterID uuid.UUID) ([]*ProseBlock, error) {
-	if m.listProseBlocksErr != nil {
-		if err := m.listProseBlocksErr(chapterID); err != nil {
-			return nil, err
-		}
-	}
-	blocks, ok := m.proseBlocksByChapter[chapterID]
-	if !ok {
-		return []*ProseBlock{}, nil
-	}
-	return blocks, nil
-}
-
-// ListProseBlockReferences lists references for a prose block
-func (m *MockMainServiceClient) ListProseBlockReferences(ctx context.Context, proseBlockID uuid.UUID) ([]*ProseBlockReference, error) {
-	if m.listProseBlockRefsErr != nil {
-		if err := m.listProseBlockRefsErr(proseBlockID); err != nil {
-			return nil, err
-		}
-	}
-	refs, ok := m.proseBlockRefs[proseBlockID]
-	if !ok {
-		return []*ProseBlockReference{}, nil
-	}
-	return refs, nil
 }
 
 // AddWorld adds a world to the mock
@@ -349,5 +266,4 @@ func (m *MockMainServiceClient) GetEventArtifacts(ctx context.Context, eventID u
 func (m *MockMainServiceClient) ListSceneReferences(ctx context.Context, sceneID uuid.UUID) ([]*SceneReference, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-
 

@@ -27,8 +27,12 @@ func (l *Logger) Error(msg string, args ...interface{}) {
 	l.logger.Printf("[ERROR] "+msg, args...)
 }
 
+// Warn logs a warning message
+func (l *Logger) Warn(msg string, args ...interface{}) {
+	l.logger.Printf("[WARN] "+msg, args...)
+}
+
 // Debug logs a debug message
 func (l *Logger) Debug(msg string, args ...interface{}) {
 	l.logger.Printf("[DEBUG] "+msg, args...)
 }
-

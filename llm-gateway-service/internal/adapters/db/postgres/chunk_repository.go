@@ -31,7 +31,7 @@ func (r *ChunkRepository) Create(ctx context.Context, chunk *memory.Chunk) error
 		INSERT INTO embedding_chunks (
 			id, document_id, chunk_index, content, embedding, token_count, created_at,
 			scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-			timeline, pov_character, prose_kind
+			timeline, pov_character, content_kind
 		)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
@@ -46,7 +46,7 @@ func (r *ChunkRepository) Create(ctx context.Context, chunk *memory.Chunk) error
 	_, err = r.db.Exec(ctx, query,
 		chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt,
 		chunk.SceneID, chunk.BeatID, chunk.BeatType, chunk.BeatIntent, string(charactersJSON), chunk.LocationID, chunk.LocationName,
-		chunk.Timeline, chunk.POVCharacter, chunk.ProseKind)
+		chunk.Timeline, chunk.POVCharacter, chunk.ContentKind)
 	return err
 }
 
@@ -66,7 +66,7 @@ func (r *ChunkRepository) CreateBatch(ctx context.Context, chunks []*memory.Chun
 		INSERT INTO embedding_chunks (
 			id, document_id, chunk_index, content, embedding, token_count, created_at,
 			scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-			timeline, pov_character, prose_kind
+			timeline, pov_character, content_kind
 		)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
 	`
@@ -83,7 +83,7 @@ func (r *ChunkRepository) CreateBatch(ctx context.Context, chunks []*memory.Chun
 		_, err = tx.Exec(ctx, query,
 			chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt,
 			chunk.SceneID, chunk.BeatID, chunk.BeatType, chunk.BeatIntent, string(charactersJSON), chunk.LocationID, chunk.LocationName,
-			chunk.Timeline, chunk.POVCharacter, chunk.ProseKind)
+			chunk.Timeline, chunk.POVCharacter, chunk.ContentKind)
 		if err != nil {
 			return err
 		}
@@ -97,7 +97,7 @@ func (r *ChunkRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory.Ch
 	query := `
 		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at,
 		       scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-		       timeline, pov_character, prose_kind
+		       timeline, pov_character, content_kind
 		FROM embedding_chunks
 		WHERE id = $1
 	`
@@ -108,7 +108,7 @@ func (r *ChunkRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory.Ch
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
 		&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
-		&chunk.Timeline, &chunk.POVCharacter, &chunk.ProseKind)
+		&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("chunk not found")
@@ -130,7 +130,7 @@ func (r *ChunkRepository) ListByDocument(ctx context.Context, documentID uuid.UU
 	query := `
 		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at,
 		       scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-		       timeline, pov_character, prose_kind
+		       timeline, pov_character, content_kind
 		FROM embedding_chunks
 		WHERE document_id = $1
 		ORDER BY chunk_index ASC
@@ -148,7 +148,7 @@ func (r *ChunkRepository) ListByDocument(ctx context.Context, documentID uuid.UU
 		var charactersJSON string
 		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
 			&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
-			&chunk.Timeline, &chunk.POVCharacter, &chunk.ProseKind); err != nil {
+			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind); err != nil {
 			return nil, err
 		}
 		chunk.Embedding = parseVector(embeddingStr)
@@ -180,7 +180,7 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 	query := `
 		SELECT c.id, c.document_id, c.chunk_index, c.content, c.embedding, c.token_count, c.created_at,
 		       c.scene_id, c.beat_id, c.beat_type, c.beat_intent, c.characters, c.location_id, c.location_name,
-		       c.timeline, c.pov_character, c.prose_kind
+		       c.timeline, c.pov_character, c.content_kind
 		FROM embedding_chunks c
 		INNER JOIN embedding_documents d ON c.document_id = d.id
 		WHERE d.tenant_id = $1
@@ -272,7 +272,7 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 		var charactersJSON string
 		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
 			&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
-			&chunk.Timeline, &chunk.POVCharacter, &chunk.ProseKind); err != nil {
+			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind); err != nil {
 			return nil, err
 		}
 		chunk.Embedding = parseVector(embeddingStr)
@@ -318,4 +318,3 @@ func parseVector(s string) []float32 {
 	}
 	return vec
 }
-

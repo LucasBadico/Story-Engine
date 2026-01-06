@@ -358,47 +358,29 @@ func (c *MainServiceClient) GetCharacterTraits(ctx context.Context, characterID 
 
 // GetEventCharacters retrieves characters for an event
 func (c *MainServiceClient) GetEventCharacters(ctx context.Context, eventID uuid.UUID) ([]*grpcclient.EventCharacter, error) {
-	resp, err := c.eventClient.GetEventCharacters(ctx, &eventpb.GetEventCharactersRequest{
-		EventId: eventID.String(),
-	})
+	refs, err := c.getEventReferences(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
-	eventChars := make([]*grpcclient.EventCharacter, len(resp.Characters))
-	for i, ec := range resp.Characters {
-		eventChars[i] = protoToEventCharacter(ec)
-	}
-	return eventChars, nil
+	return mapEventCharacters(eventID, refs), nil
 }
 
 // GetEventLocations retrieves locations for an event
 func (c *MainServiceClient) GetEventLocations(ctx context.Context, eventID uuid.UUID) ([]*grpcclient.EventLocation, error) {
-	resp, err := c.eventClient.GetEventLocations(ctx, &eventpb.GetEventLocationsRequest{
-		EventId: eventID.String(),
-	})
+	refs, err := c.getEventReferences(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
-	eventLocs := make([]*grpcclient.EventLocation, len(resp.Locations))
-	for i, el := range resp.Locations {
-		eventLocs[i] = protoToEventLocation(el)
-	}
-	return eventLocs, nil
+	return mapEventLocations(eventID, refs), nil
 }
 
 // GetEventArtifacts retrieves artifacts for an event
 func (c *MainServiceClient) GetEventArtifacts(ctx context.Context, eventID uuid.UUID) ([]*grpcclient.EventArtifact, error) {
-	resp, err := c.eventClient.GetEventArtifacts(ctx, &eventpb.GetEventArtifactsRequest{
-		EventId: eventID.String(),
-	})
+	refs, err := c.getEventReferences(ctx, eventID)
 	if err != nil {
 		return nil, err
 	}
-	eventArts := make([]*grpcclient.EventArtifact, len(resp.Artifacts))
-	for i, ea := range resp.Artifacts {
-		eventArts[i] = protoToEventArtifact(ea)
-	}
-	return eventArts, nil
+	return mapEventArtifacts(eventID, refs), nil
 }
 
 // ListSceneReferences lists references for a scene
@@ -521,61 +503,101 @@ func protoToEvent(e *eventpb.Event) *grpcclient.Event {
 	return event
 }
 
-func protoToEventCharacter(ec *eventpb.EventCharacter) *grpcclient.EventCharacter {
-	ecID, _ := uuid.Parse(ec.Id)
-	eventID, _ := uuid.Parse(ec.EventId)
-	charID, _ := uuid.Parse(ec.CharacterId)
-
-	eventChar := &grpcclient.EventCharacter{
-		ID:          ecID,
-		EventID:     eventID,
-		CharacterID: charID,
-		CreatedAt:   ec.CreatedAt.Seconds,
+func (c *MainServiceClient) getEventReferences(ctx context.Context, eventID uuid.UUID) ([]*eventpb.EventReference, error) {
+	resp, err := c.eventClient.GetEventReferences(ctx, &eventpb.GetEventReferencesRequest{
+		EventId: eventID.String(),
+	})
+	if err != nil {
+		return nil, err
 	}
-
-	if ec.Role != nil {
-		eventChar.Role = ec.Role
-	}
-
-	return eventChar
+	return resp.References, nil
 }
 
-func protoToEventLocation(el *eventpb.EventLocation) *grpcclient.EventLocation {
-	elID, _ := uuid.Parse(el.Id)
-	eventID, _ := uuid.Parse(el.EventId)
-	locID, _ := uuid.Parse(el.LocationId)
-
-	eventLoc := &grpcclient.EventLocation{
-		ID:         elID,
-		EventID:    eventID,
-		LocationID: locID,
-		CreatedAt:  el.CreatedAt.Seconds,
+func mapEventCharacters(eventID uuid.UUID, refs []*eventpb.EventReference) []*grpcclient.EventCharacter {
+	eventChars := make([]*grpcclient.EventCharacter, 0)
+	for _, ref := range refs {
+		if ref.EntityType != "character" {
+			continue
+		}
+		charID, err := uuid.Parse(ref.EntityId)
+		if err != nil {
+			continue
+		}
+		refID, err := uuid.Parse(ref.Id)
+		if err != nil {
+			continue
+		}
+		createdAt := int64(0)
+		if ref.CreatedAt != nil {
+			createdAt = ref.CreatedAt.Seconds
+		}
+		eventChars = append(eventChars, &grpcclient.EventCharacter{
+			ID:          refID,
+			EventID:     eventID,
+			CharacterID: charID,
+			Role:        ref.RelationshipType,
+			CreatedAt:   createdAt,
+		})
 	}
-
-	if el.Significance != nil {
-		eventLoc.Significance = el.Significance
-	}
-
-	return eventLoc
+	return eventChars
 }
 
-func protoToEventArtifact(ea *eventpb.EventArtifact) *grpcclient.EventArtifact {
-	eaID, _ := uuid.Parse(ea.Id)
-	eventID, _ := uuid.Parse(ea.EventId)
-	artifactID, _ := uuid.Parse(ea.ArtifactId)
-
-	eventArt := &grpcclient.EventArtifact{
-		ID:         eaID,
-		EventID:    eventID,
-		ArtifactID: artifactID,
-		CreatedAt:  ea.CreatedAt.Seconds,
+func mapEventLocations(eventID uuid.UUID, refs []*eventpb.EventReference) []*grpcclient.EventLocation {
+	eventLocs := make([]*grpcclient.EventLocation, 0)
+	for _, ref := range refs {
+		if ref.EntityType != "location" {
+			continue
+		}
+		locID, err := uuid.Parse(ref.EntityId)
+		if err != nil {
+			continue
+		}
+		refID, err := uuid.Parse(ref.Id)
+		if err != nil {
+			continue
+		}
+		createdAt := int64(0)
+		if ref.CreatedAt != nil {
+			createdAt = ref.CreatedAt.Seconds
+		}
+		eventLocs = append(eventLocs, &grpcclient.EventLocation{
+			ID:           refID,
+			EventID:      eventID,
+			LocationID:   locID,
+			Significance: ref.RelationshipType,
+			CreatedAt:    createdAt,
+		})
 	}
+	return eventLocs
+}
 
-	if ea.Role != nil {
-		eventArt.Role = ea.Role
+func mapEventArtifacts(eventID uuid.UUID, refs []*eventpb.EventReference) []*grpcclient.EventArtifact {
+	eventArts := make([]*grpcclient.EventArtifact, 0)
+	for _, ref := range refs {
+		if ref.EntityType != "artifact" {
+			continue
+		}
+		artifactID, err := uuid.Parse(ref.EntityId)
+		if err != nil {
+			continue
+		}
+		refID, err := uuid.Parse(ref.Id)
+		if err != nil {
+			continue
+		}
+		createdAt := int64(0)
+		if ref.CreatedAt != nil {
+			createdAt = ref.CreatedAt.Seconds
+		}
+		eventArts = append(eventArts, &grpcclient.EventArtifact{
+			ID:         refID,
+			EventID:    eventID,
+			ArtifactID: artifactID,
+			Role:       ref.RelationshipType,
+			CreatedAt:  createdAt,
+		})
 	}
-
-	return eventArt
+	return eventArts
 }
 
 func protoToArtifact(a *artifactpb.Artifact) *grpcclient.Artifact {

@@ -80,7 +80,7 @@ func TestChunk_WithMetadata(t *testing.T) {
 	locationName := "Library"
 	timeline := "Morning"
 	povCharacter := "John"
-	proseKind := "final"
+	contentKind := "final"
 
 	chunk := NewChunk(documentID, 0, "Test content", []float32{0.1}, 10)
 	chunk.SceneID = &sceneID
@@ -92,7 +92,7 @@ func TestChunk_WithMetadata(t *testing.T) {
 	chunk.LocationName = &locationName
 	chunk.Timeline = &timeline
 	chunk.POVCharacter = &povCharacter
-	chunk.ProseKind = &proseKind
+	chunk.ContentKind = &contentKind
 
 	if chunk.SceneID == nil || *chunk.SceneID != sceneID {
 		t.Error("SceneID not set correctly")
@@ -121,9 +121,8 @@ func TestChunk_WithMetadata(t *testing.T) {
 	if chunk.POVCharacter == nil || *chunk.POVCharacter != povCharacter {
 		t.Error("POVCharacter not set correctly")
 	}
-	if chunk.ProseKind == nil || *chunk.ProseKind != proseKind {
-		t.Error("ProseKind not set correctly")
+	if chunk.ContentKind == nil || *chunk.ContentKind != contentKind {
+		t.Error("ContentKind not set correctly")
 	}
 }
-
 

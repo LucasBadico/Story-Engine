@@ -7,9 +7,10 @@ import (
 	"github.com/google/uuid"
 	beatpb "github.com/story-engine/main-service/proto/beat"
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
-	prosepb "github.com/story-engine/main-service/proto/prose"
+	contentblockpb "github.com/story-engine/main-service/proto/content_block"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	storypb "github.com/story-engine/main-service/proto/story"
+	"google.golang.org/protobuf/types/known/structpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -79,7 +80,6 @@ func TestProtoToScene(t *testing.T) {
 	storyID := uuid.New()
 	chapterID := uuid.New()
 	povID := uuid.New()
-	locationID := uuid.New()
 	now := time.Now()
 
 	pbScene := &scenepb.Scene{
@@ -90,7 +90,6 @@ func TestProtoToScene(t *testing.T) {
 		Goal:          "Test goal",
 		TimeRef:       "Morning",
 		PovCharacterId: stringPtr(povID.String()),
-		LocationId:    stringPtr(locationID.String()),
 		CreatedAt:     timestamppb.New(now),
 		UpdatedAt:     timestamppb.New(now),
 	}
@@ -108,9 +107,6 @@ func TestProtoToScene(t *testing.T) {
 	}
 	if result.POVCharacterID == nil || *result.POVCharacterID != povID {
 		t.Errorf("Expected POVCharacterID %s, got %v", povID, result.POVCharacterID)
-	}
-	if result.LocationID == nil || *result.LocationID != locationID {
-		t.Errorf("Expected LocationID %s, got %v", locationID, result.LocationID)
 	}
 	if result.Goal != "Test goal" {
 		t.Errorf("Expected Goal 'Test goal', got %s", result.Goal)
@@ -177,29 +173,44 @@ func TestProtoToBeat(t *testing.T) {
 	}
 }
 
-func TestProtoToProseBlock(t *testing.T) {
-	proseID := uuid.New()
+func TestProtoToContentBlock(t *testing.T) {
+	contentBlockID := uuid.New()
 	chapterID := uuid.New()
+	orderNum := int32(1)
 	now := time.Now()
 
-	pbProse := &prosepb.ProseBlock{
-		Id:        proseID.String(),
-		ChapterId: chapterID.String(),
-		OrderNum:  1,
+	metadata, err := structpb.NewStruct(map[string]interface{}{
+		"language": "en",
+	})
+	if err != nil {
+		t.Fatalf("failed to build metadata: %v", err)
+	}
+
+	pbContentBlock := &contentblockpb.ContentBlock{
+		Id:        contentBlockID.String(),
+		ChapterId: stringPtr(chapterID.String()),
+		OrderNum:  &orderNum,
+		Type:      "text",
 		Kind:      "final",
 		Content:   "Test content",
-		WordCount: 10,
+		Metadata:  metadata,
 		CreatedAt: timestamppb.New(now),
 		UpdatedAt: timestamppb.New(now),
 	}
 
-	result := protoToProseBlock(pbProse)
+	result := protoToContentBlock(pbContentBlock)
 
-	if result.ID != proseID {
-		t.Errorf("Expected ID %s, got %s", proseID, result.ID)
+	if result.ID != contentBlockID {
+		t.Errorf("Expected ID %s, got %s", contentBlockID, result.ID)
 	}
-	if result.ChapterID != chapterID {
-		t.Errorf("Expected ChapterID %s, got %s", chapterID, result.ChapterID)
+	if result.ChapterID == nil || *result.ChapterID != chapterID {
+		t.Errorf("Expected ChapterID %s, got %v", chapterID, result.ChapterID)
+	}
+	if result.OrderNum == nil || *result.OrderNum != int(orderNum) {
+		t.Errorf("Expected OrderNum %d, got %v", orderNum, result.OrderNum)
+	}
+	if result.Type != "text" {
+		t.Errorf("Expected Type 'text', got %s", result.Type)
 	}
 	if result.Kind != "final" {
 		t.Errorf("Expected Kind 'final', got %s", result.Kind)
@@ -207,32 +218,32 @@ func TestProtoToProseBlock(t *testing.T) {
 	if result.Content != "Test content" {
 		t.Errorf("Expected Content 'Test content', got %s", result.Content)
 	}
-	if result.WordCount != 10 {
-		t.Errorf("Expected WordCount 10, got %d", result.WordCount)
+	if result.Metadata["language"] != "en" {
+		t.Errorf("Expected metadata language 'en', got %v", result.Metadata["language"])
 	}
 }
 
-func TestProtoToProseBlockReference(t *testing.T) {
+func TestProtoToContentBlockReference(t *testing.T) {
 	refID := uuid.New()
-	proseBlockID := uuid.New()
+	contentBlockID := uuid.New()
 	entityID := uuid.New()
 	now := time.Now()
 
-	pbRef := &prosepb.ProseBlockReference{
-		Id:           refID.String(),
-		ProseBlockId: proseBlockID.String(),
-		EntityType:   "character",
-		EntityId:     entityID.String(),
-		CreatedAt:    timestamppb.New(now),
+	pbRef := &contentblockpb.ContentBlockReference{
+		Id:             refID.String(),
+		ContentBlockId: contentBlockID.String(),
+		EntityType:     "character",
+		EntityId:       entityID.String(),
+		CreatedAt:      timestamppb.New(now),
 	}
 
-	result := protoToProseBlockReference(pbRef)
+	result := protoToContentBlockReference(pbRef)
 
 	if result.ID != refID {
 		t.Errorf("Expected ID %s, got %s", refID, result.ID)
 	}
-	if result.ProseBlockID != proseBlockID {
-		t.Errorf("Expected ProseBlockID %s, got %s", proseBlockID, result.ProseBlockID)
+	if result.ContentBlockID != contentBlockID {
+		t.Errorf("Expected ContentBlockID %s, got %s", contentBlockID, result.ContentBlockID)
 	}
 	if result.EntityType != "character" {
 		t.Errorf("Expected EntityType 'character', got %s", result.EntityType)
@@ -260,4 +271,3 @@ func TestMainServiceClient_Close(t *testing.T) {
 func stringPtr(s string) *string {
 	return &s
 }
-

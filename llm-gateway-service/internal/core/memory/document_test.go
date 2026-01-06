@@ -81,7 +81,7 @@ func TestDocument_SourceTypes(t *testing.T) {
 		SourceTypeChapter,
 		SourceTypeScene,
 		SourceTypeBeat,
-		SourceTypeProseBlock,
+		SourceTypeContentBlock,
 	}
 
 	for _, st := range sourceTypes {

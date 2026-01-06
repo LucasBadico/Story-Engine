@@ -22,7 +22,7 @@ func TestChunkRepository_Create(t *testing.T) {
 
 	// Create document first (FK constraint)
 	docRepo := NewDocumentRepository(db)
-	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	doc := memory.NewDocument(tenantID, memory.SourceTypeContentBlock, uuid.New(), "Test", "Content")
 	if err := docRepo.Create(ctx, doc); err != nil {
 		t.Fatalf("Failed to create document: %v", err)
 	}
@@ -70,7 +70,7 @@ func TestChunkRepository_CreateBatch(t *testing.T) {
 
 	// Create document first (FK constraint)
 	docRepo := NewDocumentRepository(db)
-	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	doc := memory.NewDocument(tenantID, memory.SourceTypeContentBlock, uuid.New(), "Test", "Content")
 	if err := docRepo.Create(ctx, doc); err != nil {
 		t.Fatalf("Failed to create document: %v", err)
 	}
@@ -110,7 +110,7 @@ func TestChunkRepository_SearchSimilar(t *testing.T) {
 
 	// Create a document first
 	docRepo := NewDocumentRepository(db)
-	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	doc := memory.NewDocument(tenantID, memory.SourceTypeContentBlock, uuid.New(), "Test", "Content")
 	doc.ID = uuid.New()
 	if err := docRepo.Create(ctx, doc); err != nil {
 		t.Fatalf("Failed to create document: %v", err)
@@ -169,7 +169,7 @@ func TestChunkRepository_SearchSimilar_WithBeatTypeFilter(t *testing.T) {
 
 	// Create document
 	docRepo := NewDocumentRepository(db)
-	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	doc := memory.NewDocument(tenantID, memory.SourceTypeContentBlock, uuid.New(), "Test", "Content")
 	doc.ID = uuid.New()
 	if err := docRepo.Create(ctx, doc); err != nil {
 		t.Fatalf("Failed to create document: %v", err)
@@ -222,7 +222,7 @@ func TestChunkRepository_MetadataPersistence(t *testing.T) {
 
 	// Create document first (FK constraint)
 	docRepo := NewDocumentRepository(db)
-	doc := memory.NewDocument(tenantID, memory.SourceTypeProseBlock, uuid.New(), "Test", "Content")
+	doc := memory.NewDocument(tenantID, memory.SourceTypeContentBlock, uuid.New(), "Test", "Content")
 	if err := docRepo.Create(ctx, doc); err != nil {
 		t.Fatalf("Failed to create document: %v", err)
 	}
@@ -235,7 +235,7 @@ func TestChunkRepository_MetadataPersistence(t *testing.T) {
 	locationName := "Library"
 	timeline := "Morning"
 	povCharacter := "John"
-	proseKind := "final"
+	contentKind := "final"
 	characters := []string{"John", "Mary"}
 
 	embedding := make([]float32, 1536)
@@ -253,7 +253,7 @@ func TestChunkRepository_MetadataPersistence(t *testing.T) {
 	chunk.LocationName = &locationName
 	chunk.Timeline = &timeline
 	chunk.POVCharacter = &povCharacter
-	chunk.ProseKind = &proseKind
+	chunk.ContentKind = &contentKind
 
 	err := repo.Create(ctx, chunk)
 	if err != nil {
@@ -299,12 +299,11 @@ func TestChunkRepository_MetadataPersistence(t *testing.T) {
 	if retrieved.POVCharacter == nil || *retrieved.POVCharacter != povCharacter {
 		t.Error("POVCharacter not persisted correctly")
 	}
-	if retrieved.ProseKind == nil || *retrieved.ProseKind != proseKind {
-		t.Error("ProseKind not persisted correctly")
+	if retrieved.ContentKind == nil || *retrieved.ContentKind != contentKind {
+		t.Error("ContentKind not persisted correctly")
 	}
 }
 
 func uuidPtr(u uuid.UUID) *uuid.UUID {
 	return &u
 }
-

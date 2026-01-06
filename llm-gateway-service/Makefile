@@ -89,7 +89,7 @@ db-truncate:
 		(echo "ERROR: Failed to truncate tables"; exit 1)
 
 # Migration management
-MIGRATE_CMD = migrate -path ./migrations -database "postgres://postgres:postgres@localhost:5432/storyengine?sslmode=disable"
+MIGRATE_CMD = migrate -path ./migrations -database "postgres://postgres:postgres@localhost:5432/storyengine_llm?sslmode=disable"
 
 migrate-up:
 	$(MIGRATE_CMD) up
@@ -108,11 +108,11 @@ test:
 test-fmt:
 	go test -json -v ./... 2>&1 | tee /tmp/gotest.log | gotestfmt
 
-test-integration: db-up
+test-integration:
 	@echo "Running integration tests..."
 	go test -v -tags=integration ./... 2>&1 | tee /tmp/gotest-integration.log
 
-test-integration-fmt: db-up
+test-integration-fmt:
 	@echo "Running integration tests with formatting..."
 	go test -json -v -tags=integration ./... 2>&1 | tee /tmp/gotest-integration.log | gotestfmt
 
@@ -134,4 +134,3 @@ deps:
 # Run worker
 run-worker:
 	go run cmd/worker/main.go
-

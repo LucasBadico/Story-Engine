@@ -46,7 +46,7 @@ type SearchResult struct {
 	LocationName *string   `json:"location_name,omitempty"`
 	Timeline     *string   `json:"timeline,omitempty"`
 	POVCharacter *string   `json:"pov_character,omitempty"`
-	ProseKind    *string   `json:"prose_kind,omitempty"`
+	ContentKind  *string   `json:"content_kind,omitempty"`
 }
 
 // SearchMemoryUseCase handles semantic memory search
@@ -127,7 +127,7 @@ func (uc *SearchMemoryUseCase) Execute(ctx context.Context, input SearchMemoryIn
 			LocationName: chunk.LocationName,
 			Timeline:     chunk.Timeline,
 			POVCharacter: chunk.POVCharacter,
-			ProseKind:    chunk.ProseKind,
+			ContentKind:  chunk.ContentKind,
 		})
 	}
 
@@ -156,4 +156,3 @@ func (uc *SearchMemoryUseCase) calculateSimilarity(a, b []float32) float64 {
 	// Cosine similarity: dot product / (sqrt(normA) * sqrt(normB))
 	return dotProduct / (math.Sqrt(normA) * math.Sqrt(normB))
 }
-

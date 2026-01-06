@@ -253,7 +253,7 @@ func TestIngestionQueue_ListTenantsWithItems(t *testing.T) {
 	// Push items for different tenants
 	queue.Push(ctx, tenantID1, string(memory.SourceTypeStory), uuid.New())
 	queue.Push(ctx, tenantID2, string(memory.SourceTypeChapter), uuid.New())
-	queue.Push(ctx, tenantID2, string(memory.SourceTypeProseBlock), uuid.New())
+	queue.Push(ctx, tenantID2, string(memory.SourceTypeContentBlock), uuid.New())
 	// tenantID3 has no items
 
 	// List tenants with items
