@@ -260,12 +260,45 @@
 }
 
 /* Tabs */
+.story-engine-tabs-container {
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+	margin-top: 1rem;
+}
+
 .story-engine-tabs {
 	display: flex;
 	gap: 0.5rem;
-	margin-top: 1.5rem;
 	padding-bottom: 0.5rem;
 	border-bottom: 1px solid var(--background-modifier-border);
+	flex-wrap: wrap;
+}
+
+.story-engine-tabs-container .story-engine-tabs:first-child {
+	margin-top: 0.5rem;
+}
+
+.story-engine-tabs-container .story-engine-tabs:last-child {
+	margin-bottom: 0.5rem;
+}
+
+/* Checkbox container */
+.story-engine-checkbox-container {
+	display: flex;
+	align-items: center;
+	gap: 0.5rem;
+	margin: 0.5rem 0 1rem 0;
+}
+
+.story-engine-checkbox-container label {
+	margin: 0;
+	font-weight: normal;
+	cursor: pointer;
+}
+
+.story-engine-checkbox {
+	cursor: pointer;
 }
 
 .story-engine-actions-bar {
@@ -847,7 +880,7 @@
 /* Fix hover buttons position - move below action buttons */
 .story-engine-group-footer {
 	position: absolute;
-	bottom: -0.5rem;
+	bottom: 0.375rem;
 	right: 0.5rem;
 	padding: 0;
 	display: none;

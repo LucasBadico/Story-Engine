@@ -665,6 +665,15 @@ export class StoryEngineClient {
 		await this.request("DELETE", `/api/v1/events/${id}`);
 	}
 
+	async moveEvent(id: string, parentId: string | null): Promise<WorldEvent> {
+		const response = await this.request<{ event: WorldEvent }>(
+			"PUT",
+			`/api/v1/events/${id}/move`,
+			{ parent_id: parentId }
+		);
+		return response.event;
+	}
+
 	// Trait methods
 	async getTraits(): Promise<Trait[]> {
 		const response = await this.request<{ traits: Trait[] }>(

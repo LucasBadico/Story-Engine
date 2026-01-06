@@ -576,6 +576,14 @@ var StoryEngineClient = class {
   async deleteEvent(id2) {
     await this.request("DELETE", `/api/v1/events/${id2}`);
   }
+  async moveEvent(id2, parentId) {
+    const response = await this.request(
+      "PUT",
+      `/api/v1/events/${id2}/move`,
+      { parent_id: parentId }
+    );
+    return response.event;
+  }
   // Trait methods
   async getTraits() {
     const response = await this.request(
@@ -3624,6 +3632,7 @@ var SyncService = class {
       const folderPath = this.fileManager.getStoryFolderPath(
         storyData.story.title
       );
+      const existingMetadata = await this.fileManager.readStoryMetadata(folderPath).catch(() => null);
       const allScenes = await this.apiClient.getScenesByStory(storyId);
       const orphanScenes = [];
       for (const scene of allScenes) {
@@ -3748,7 +3757,6 @@ var SyncService = class {
         const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
         await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
       }
-      const existingMetadata = await this.fileManager.readStoryMetadata(folderPath).catch(() => null);
       if (existingMetadata && existingMetadata.frontmatter.version !== void 0 && existingMetadata.frontmatter.version !== storyData.story.version_number) {
         await this.fileManager.createVersionSnapshot(
           folderPath,
@@ -4067,8 +4075,10 @@ var SyncService = class {
         let localContentBlock = null;
         let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+          if (contentBlockFilePath) {
+            localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          }
           if (!localContentBlock) {
             localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
@@ -4105,8 +4115,7 @@ var SyncService = class {
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             if (currentScene) {
               await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
@@ -4114,23 +4123,21 @@ var SyncService = class {
             if (currentBeat) {
               await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
             }
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "unchanged": {
             if (!localContentBlock && remoteContentBlock) {
               finalContentBlock = remoteContentBlock;
-              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-              const filePath = `${contentsFolderPath}/${fileName}`;
+              const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
               await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             } else if (localContentBlock) {
               if (localContentBlock.order_num !== proseOrderNum) {
                 finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
                   order_num: proseOrderNum++
                 });
-                const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-                const filePath = `${contentsFolderPath}/${fileName}`;
+                const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
                 await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
               } else {
                 finalContentBlock = localContentBlock;
@@ -4154,8 +4161,7 @@ var SyncService = class {
             if (paragraph.linkName) {
               updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
             } else {
-              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-              const linkName = fileName.replace(/\.md$/, "");
+              const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
               updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             }
             break;
@@ -4165,9 +4171,8 @@ var SyncService = class {
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
-            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            const filePathLocalMod = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePathLocalMod, void 0);
             if (finalContentBlock) {
               const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
               const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
@@ -4179,15 +4184,14 @@ var SyncService = class {
                 await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
               }
             }
-            const linkName = fileName.replace(/\.md$/, "");
-            updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+            const linkNameLocalMod = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
+            updatedSections.push(`[[${linkNameLocalMod}|${paragraph.content}]]`);
             break;
           }
           case "remote_modified": {
             finalContentBlock = remoteContentBlock;
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
-            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            const filePathRemoteMod = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePathRemoteMod, void 0);
             if (finalContentBlock) {
               const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
               const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
@@ -4199,9 +4203,9 @@ var SyncService = class {
                 await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
               }
             }
-            const linkName = fileName.replace(/\.md$/, "");
-            updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
-            new import_obsidian8.Notice(`Prose block updated from remote: ${linkName}`, 3e3);
+            const linkNameRemoteMod = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
+            updatedSections.push(`[[${linkNameRemoteMod}|${finalContentBlock.content}]]`);
+            new import_obsidian8.Notice(`Prose block updated from remote: ${linkNameRemoteMod}`, 3e3);
             proseOrderNum++;
             break;
           }
@@ -4219,9 +4223,8 @@ var SyncService = class {
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
-            await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
+            const filePathConflict = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
+            await this.fileManager.writeContentBlockFile(finalContentBlock, filePathConflict, void 0);
             if (finalContentBlock) {
               const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
               const hasSceneRef = existingRefs.some((r) => r.entity_type === "scene" && r.entity_id === (currentScene == null ? void 0 : currentScene.id));
@@ -4233,8 +4236,8 @@ var SyncService = class {
                 await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
               }
             }
-            const linkName = fileName.replace(/\.md$/, "");
-            updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
+            const linkNameConflict = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
+            updatedSections.push(`[[${linkNameConflict}|${resolvedContent}]]`);
             break;
           }
         }
@@ -4616,6 +4619,18 @@ ${updatedBody}`;
     let proseOrderNum = 1;
     const sceneMap = /* @__PURE__ */ new Map();
     const beatMap = /* @__PURE__ */ new Map();
+    const remoteContentBlocksCache = /* @__PURE__ */ new Map();
+    const getRemoteContentBlocksMap = async (chapterId) => {
+      if (!remoteContentBlocksCache.has(chapterId)) {
+        const blocks = await this.apiClient.getContentBlocks(chapterId);
+        const map2 = /* @__PURE__ */ new Map();
+        for (const pb of blocks) {
+          map2.set(pb.id, pb);
+        }
+        remoteContentBlocksCache.set(chapterId, map2);
+      }
+      return remoteContentBlocksCache.get(chapterId);
+    };
     for (const section of storyProse.sections) {
       if (section.type === "scene" && section.scene) {
         const { scene: parsedScene } = section;
@@ -4696,16 +4711,14 @@ ${updatedBody}`;
             chapterByTitle.set("story prose", currentChapter);
           }
         }
-        const remoteContentBlocks = await this.apiClient.getContentBlocks(currentChapter.id);
-        const remoteContentBlocksMap = /* @__PURE__ */ new Map();
-        for (const pb of remoteContentBlocks) {
-          remoteContentBlocksMap.set(pb.id, pb);
-        }
+        const remoteContentBlocksMap = await getRemoteContentBlocksMap(currentChapter.id);
         let localContentBlock = null;
         let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+          if (contentBlockFilePath) {
+            localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          }
           if (!localContentBlock) {
             localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
@@ -4742,8 +4755,7 @@ ${updatedBody}`;
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             if (currentScene) {
               await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
@@ -4756,8 +4768,7 @@ ${updatedBody}`;
           case "unchanged": {
             if (!localContentBlock && remoteContentBlock) {
               finalContentBlock = remoteContentBlock;
-              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-              const filePath = `${contentsFolderPath}/${fileName}`;
+              const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
               await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             } else if (localContentBlock) {
               finalContentBlock = localContentBlock;
@@ -4773,15 +4784,13 @@ ${updatedBody}`;
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             break;
           }
           case "remote_modified": {
             finalContentBlock = remoteContentBlock;
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             proseOrderNum++;
             break;
@@ -4793,8 +4802,7 @@ ${updatedBody}`;
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             break;
           }
@@ -4867,8 +4875,10 @@ ${updatedBody}`;
         let localContentBlock = null;
         let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+          if (contentBlockFilePath) {
+            localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          }
           if (!localContentBlock) {
             localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
@@ -4905,30 +4915,27 @@ ${updatedBody}`;
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
             if (currentBeat) {
               await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
             }
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "unchanged": {
             if (!localContentBlock && remoteContentBlock) {
               finalContentBlock = remoteContentBlock;
-              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-              const filePath = `${contentsFolderPath}/${fileName}`;
+              const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
               await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             } else if (localContentBlock) {
               if (localContentBlock.order_num !== proseOrderNum) {
                 finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
                   order_num: proseOrderNum++
                 });
-                const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-                const filePath = `${contentsFolderPath}/${fileName}`;
+                const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
                 await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
               } else {
                 finalContentBlock = localContentBlock;
@@ -4941,8 +4948,7 @@ ${updatedBody}`;
             if (paragraph.linkName) {
               updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
             } else {
-              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-              const linkName = fileName.replace(/\.md$/, "");
+              const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
               updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             }
             break;
@@ -4952,19 +4958,17 @@ ${updatedBody}`;
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "remote_modified": {
             finalContentBlock = remoteContentBlock;
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
             new import_obsidian8.Notice(`Scene prose block updated from remote: ${linkName}`, 3e3);
             proseOrderNum++;
@@ -4984,10 +4988,9 @@ ${updatedBody}`;
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
             break;
           }
@@ -5062,8 +5065,10 @@ ${afterProse}`;
         let localContentBlock = null;
         let remoteContentBlock = null;
         if (paragraph.linkName) {
-          const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-          localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+          if (contentBlockFilePath) {
+            localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+          }
           if (!localContentBlock) {
             localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
           }
@@ -5100,27 +5105,24 @@ ${afterProse}`;
               kind: "final",
               content: paragraph.content
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
             await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", beatId);
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "unchanged": {
             if (!localContentBlock && remoteContentBlock) {
               finalContentBlock = remoteContentBlock;
-              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-              const filePath = `${contentsFolderPath}/${fileName}`;
+              const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
               await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
-              const linkName = fileName.replace(/\.md$/, "");
+              const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
               updatedSections.push(`[[${linkName}|${remoteContentBlock.content}]]`);
             } else if (localContentBlock) {
               finalContentBlock = localContentBlock;
-              const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-              const linkName = fileName.replace(/\.md$/, "");
+              const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
               updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
               proseOrderNum++;
             } else {
@@ -5134,20 +5136,18 @@ ${afterProse}`;
               content: paragraph.content,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
             break;
           }
           case "remote_modified": {
             finalContentBlock = remoteContentBlock;
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             proseOrderNum++;
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${remoteContentBlock.content}]]`);
             break;
           }
@@ -5165,10 +5165,9 @@ ${afterProse}`;
               content: resolvedContent,
               order_num: proseOrderNum++
             });
-            const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-            const filePath = `${contentsFolderPath}/${fileName}`;
+            const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
-            const linkName = fileName.replace(/\.md$/, "");
+            const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
             break;
           }
@@ -5531,7 +5530,26 @@ ${updatedSections.join("\n\n")}
       }
     }
   }
-  // Find prose block by content when file name doesn't match
+  // Find content block file by link name (searches recursively in all type subfolders)
+  async findContentBlockFileByLinkName(contentsRoot, linkName) {
+    const root2 = this.fileManager.getVault().getAbstractFileByPath(contentsRoot);
+    if (!(root2 instanceof import_obsidian8.TFolder))
+      return null;
+    const target = `${linkName}.md`;
+    const stack = [root2];
+    while (stack.length) {
+      const folder = stack.pop();
+      for (const child of folder.children) {
+        if (child instanceof import_obsidian8.TFolder) {
+          stack.push(child);
+        } else if (child instanceof import_obsidian8.TFile && child.name === target) {
+          return child.path;
+        }
+      }
+    }
+    return null;
+  }
+  // Find prose block by content when file name doesn't match (searches recursively in all type subfolders)
   async findContentBlockByContent(contentsFolderPath, content) {
     try {
       const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
@@ -5539,11 +5557,17 @@ ${updatedSections.join("\n\n")}
         return null;
       }
       const normalizedContent = content.trim();
-      for (const child of folder.children) {
-        if (child instanceof import_obsidian8.TFile && child.extension === "md") {
-          const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
-          if (contentBlock && contentBlock.content.trim() === normalizedContent) {
-            return contentBlock;
+      const stack = [folder];
+      while (stack.length) {
+        const currentFolder = stack.pop();
+        for (const child of currentFolder.children) {
+          if (child instanceof import_obsidian8.TFolder) {
+            stack.push(child);
+          } else if (child instanceof import_obsidian8.TFile && child.extension === "md") {
+            const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+            if (contentBlock && contentBlock.content.trim() === normalizedContent) {
+              return contentBlock;
+            }
           }
         }
       }
@@ -5552,18 +5576,24 @@ ${updatedSections.join("\n\n")}
     }
     return null;
   }
-  // Find prose block by ID when we have remote ID but need local file
+  // Find prose block by ID when we have remote ID but need local file (searches recursively in all type subfolders)
   async findContentBlockById(contentsFolderPath, id2) {
     try {
       const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
       if (!(folder instanceof import_obsidian8.TFolder)) {
         return null;
       }
-      for (const child of folder.children) {
-        if (child instanceof import_obsidian8.TFile && child.extension === "md") {
-          const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
-          if (contentBlock && contentBlock.id === id2) {
-            return contentBlock;
+      const stack = [folder];
+      while (stack.length) {
+        const currentFolder = stack.pop();
+        for (const child of currentFolder.children) {
+          if (child instanceof import_obsidian8.TFolder) {
+            stack.push(child);
+          } else if (child instanceof import_obsidian8.TFile && child.extension === "md") {
+            const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+            if (contentBlock && contentBlock.id === id2) {
+              return contentBlock;
+            }
           }
         }
       }
@@ -5571,6 +5601,20 @@ ${updatedSections.join("\n\n")}
       console.error("Error searching for prose block by ID:", err);
     }
     return null;
+  }
+  // Get the correct file path for a content block (always uses type subfolders)
+  getContentBlockFilePath(storyFolderPath, contentBlock) {
+    const fileName = this.fileManager.generateContentBlockFileName(contentBlock);
+    const typeFolderPath = this.fileManager.getContentBlockFolderPath(storyFolderPath, contentBlock.type || "text");
+    return `${typeFolderPath}/${fileName}`;
+  }
+  // Get content block file path from contents folder path (03-contents)
+  async getContentBlockFilePathFromContents(contentsFolderPath, contentBlock) {
+    const typeFolder = this.fileManager.getContentTypeFolder(contentBlock.type || "text");
+    const typeFolderPath = `${contentsFolderPath}/${typeFolder}`;
+    await this.fileManager.ensureFolderExists(typeFolderPath);
+    const fileName = this.fileManager.generateContentBlockFileName(contentBlock);
+    return `${typeFolderPath}/${fileName}`;
   }
   // Resolve conflict using modal or auto-resolve based on mode
   async resolveConflict(localContentBlock, remoteContentBlock) {
@@ -10245,14 +10289,14 @@ var CharacterDetailsView = class {
     content.createEl("p", { text: `Editing: ${charTrait.trait_name}` });
     const valueInput = content.createEl("input", {
       cls: "story-engine-input",
-      attr: { type: "text", placeholder: "Value" },
-      value: charTrait.value || ""
+      attr: { type: "text", placeholder: "Value" }
     });
+    valueInput.value = charTrait.value || "";
     const notesInput = content.createEl("textarea", {
       cls: "story-engine-textarea",
-      attr: { rows: "3", placeholder: "Notes" },
-      text: charTrait.notes || ""
+      attr: { rows: "3", placeholder: "Notes" }
     });
+    notesInput.value = charTrait.notes || "";
     const buttonContainer = content.createDiv({ cls: "modal-button-container" });
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
@@ -10480,6 +10524,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     this.currentWorld = null;
     this.viewMode = "list";
     this.currentTab = "chapters";
+    this.storyCharacters = [];
     this.worldTab = "characters";
     this.listTab = "stories";
     this.expandedWorldId = null;
@@ -10712,6 +10757,20 @@ var StoryListView = class extends import_obsidian15.ItemView {
       this.copyStoryId();
     };
     const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
+    if (this.currentStory.world_id) {
+      const world = this.worlds.find((w) => w.id === this.currentStory.world_id);
+      if (world) {
+        const worldButton = headerActions.createEl("button", {
+          cls: "story-engine-world-btn",
+          attr: { "aria-label": `Go to World: ${world.name}` }
+        });
+        (0, import_obsidian15.setIcon)(worldButton, "globe");
+        worldButton.createSpan({ text: "World" });
+        worldButton.onclick = () => {
+          this.showWorldDetails(world);
+        };
+      }
+    }
     const contextButton = headerActions.createEl("button", {
       cls: "story-engine-context-btn",
       attr: { "aria-label": "Story Actions" }
@@ -11068,6 +11127,16 @@ var StoryListView = class extends import_obsidian15.ItemView {
       this.renderTabs();
       this.renderTabContent();
     };
+    const charactersTab = tabsContainer.createEl("button", {
+      text: "Characters",
+      cls: `story-engine-tab ${this.currentTab === "characters" ? "is-active" : ""}`
+    });
+    charactersTab.onclick = async () => {
+      this.currentTab = "characters";
+      this.renderTabs();
+      await this.loadStoryCharacters();
+      this.renderTabContent();
+    };
   }
   renderTabContent() {
     if (!this.contentEl)
@@ -11093,6 +11162,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         break;
       case "contents":
         this.renderContentsTab(tabContent);
+        break;
+      case "characters":
+        this.renderStoryCharactersTab(tabContent);
         break;
     }
   }
@@ -11221,7 +11293,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     if (orphanScenes.length > 0 || scenesByChapter.size === 0) {
       const group = list.createDiv({ cls: "story-engine-group" });
       const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
-      groupHeader.createEl("h3", { text: "Sem Chapter" });
+      groupHeader.createEl("h3", { text: "Without Chapter" });
       const groupItems = group.createDiv({ cls: "story-engine-group-items" });
       for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
         this.renderSceneItem(groupItems, scene);
@@ -11371,10 +11443,10 @@ var StoryListView = class extends import_obsidian15.ItemView {
       const scene = this.scenes.find((s) => s.id === b.scene_id);
       return !scene || !scene.chapter_id;
     });
-    if (orphanBeats.length > 0 || this.scenes.some((s) => !s.chapter_id)) {
+    if (this.chapters.length === 0 || orphanBeats.length > 0 || this.scenes.some((s) => !s.chapter_id)) {
       const orphanGroup = list.createDiv({ cls: "story-engine-chapter-group" });
       const orphanHeader = orphanGroup.createDiv({ cls: "story-engine-chapter-group-header" });
-      orphanHeader.createEl("h2", { text: "Sem Chapter" });
+      orphanHeader.createEl("h2", { text: "Without Chapter" });
       const orphanContent = orphanGroup.createDiv({ cls: "story-engine-chapter-group-content" });
       const orphanScenes = this.scenes.filter((s) => !s.chapter_id).sort((a, b) => a.order_num - b.order_num);
       for (const scene of orphanScenes) {
@@ -11417,13 +11489,17 @@ var StoryListView = class extends import_obsidian15.ItemView {
         const scene = this.scenes.find((s) => s.id === b.scene_id);
         return !scene;
       });
-      if (beatsWithoutScene.length > 0) {
+      if (beatsWithoutScene.length > 0 || orphanScenes.length === 0 && this.beats.length > 0 && this.scenes.length === 0) {
         const sceneGroup = orphanContent.createDiv({ cls: "story-engine-group" });
         const sceneHeader = sceneGroup.createDiv({ cls: "story-engine-group-header" });
-        sceneHeader.createEl("h3", { text: "Sem Scene" });
+        sceneHeader.createEl("h3", { text: "Without Scene" });
         const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
-        for (const beat of beatsWithoutScene.sort((a, b) => a.order_num - b.order_num)) {
-          this.renderBeatItem(sceneItems, beat);
+        if (beatsWithoutScene.length > 0) {
+          for (const beat of beatsWithoutScene.sort((a, b) => a.order_num - b.order_num)) {
+            this.renderBeatItem(sceneItems, beat);
+          }
+        } else {
+          sceneItems.createEl("p", { text: "No beats without scene." });
         }
       }
     }
@@ -11996,10 +12072,10 @@ var StoryListView = class extends import_obsidian15.ItemView {
         }
       }
     }
-    if (orphanContents.length > 0 || this.scenes.some((s) => !s.chapter_id)) {
+    if (this.chapters.length === 0 || orphanContents.length > 0 || this.scenes.some((s) => !s.chapter_id)) {
       const orphanGroup = list.createDiv({ cls: "story-engine-chapter-group" });
       const orphanHeader = orphanGroup.createDiv({ cls: "story-engine-chapter-group-header" });
-      orphanHeader.createEl("h2", { text: "Sem Chapter" });
+      orphanHeader.createEl("h2", { text: "Without Chapter" });
       const orphanContent = orphanGroup.createDiv({ cls: "story-engine-chapter-group-content" });
       const orphanScenes = this.scenes.filter((s) => !s.chapter_id).sort((a, b) => a.order_num - b.order_num);
       for (const scene of orphanScenes) {
@@ -12059,13 +12135,113 @@ var StoryListView = class extends import_obsidian15.ItemView {
       if (orphanContents.length > 0) {
         const orphanContentsGroup = orphanContent.createDiv({ cls: "story-engine-group" });
         const orphanContentsHeader = orphanContentsGroup.createDiv({ cls: "story-engine-group-header" });
-        orphanContentsHeader.createEl("h3", { text: "Sem Refer\xEAncia" });
+        orphanContentsHeader.createEl("h3", { text: "Without Reference" });
         const orphanContentsItems = orphanContentsGroup.createDiv({ cls: "story-engine-group-items" });
         for (const block of orphanContents) {
           this.renderContentItem(orphanContentsItems, block, null, null);
         }
       }
     }
+  }
+  async loadStoryCharacters() {
+    if (!this.currentStory || !this.currentStory.world_id) {
+      this.storyCharacters = [];
+      return;
+    }
+    try {
+      this.storyCharacters = await this.plugin.apiClient.getCharacters(this.currentStory.world_id);
+    } catch (err) {
+      console.error("Error loading story characters:", err);
+      this.storyCharacters = [];
+      new import_obsidian15.Notice(`Error loading characters: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+    }
+  }
+  renderStoryCharactersTab(container) {
+    var _a;
+    container.empty();
+    if (!((_a = this.currentStory) == null ? void 0 : _a.world_id)) {
+      const noWorldMsg = container.createDiv({ cls: "story-engine-empty-state" });
+      noWorldMsg.createEl("p", { text: "This story is not linked to a world." });
+      noWorldMsg.createEl("p", { text: "Link this story to a world to see its characters.", cls: "story-engine-hint" });
+      return;
+    }
+    const list = container.createDiv({ cls: "story-engine-list" });
+    if (this.storyCharacters.length === 0) {
+      list.createEl("p", { text: "No characters found in this story's world." });
+    } else {
+      for (const character of this.storyCharacters.sort((a, b) => a.name.localeCompare(b.name))) {
+        const item = list.createDiv({ cls: "story-engine-item" });
+        const titleDiv = item.createDiv({ cls: "story-engine-title", text: character.name });
+        titleDiv.style.cursor = "pointer";
+        titleDiv.onclick = () => {
+          this.showCharacterDetails(character);
+        };
+        const meta = item.createDiv({ cls: "story-engine-meta" });
+        if (character.description) {
+          meta.createEl("span", {
+            text: character.description.substring(0, 80) + (character.description.length > 80 ? "..." : "")
+          });
+        }
+        const actions = item.createDiv({ cls: "story-engine-item-actions" });
+        const viewBtn = actions.createEl("button", { text: "View" });
+        viewBtn.onclick = () => {
+          this.showCharacterDetails(character);
+        };
+      }
+    }
+    const footer = container.createDiv({ cls: "story-engine-list-footer" });
+    const createButton = footer.createEl("button", {
+      text: "Create Character",
+      cls: "mod-cta"
+    });
+    createButton.onclick = () => {
+      this.showCreateCharacterModalForStory();
+    };
+  }
+  showCreateCharacterModalForStory() {
+    var _a;
+    if (!((_a = this.currentStory) == null ? void 0 : _a.world_id)) {
+      new import_obsidian15.Notice("This story is not linked to a world");
+      return;
+    }
+    const modal = new import_obsidian15.Modal(this.app);
+    modal.titleEl.setText("Create Character");
+    const content = modal.contentEl;
+    let name = "";
+    let description = "";
+    content.createEl("label", { text: "Name *" });
+    const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+    nameInput.oninput = () => {
+      name = nameInput.value;
+    };
+    content.createEl("label", { text: "Description" });
+    const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+    descInput.oninput = () => {
+      description = descInput.value;
+    };
+    const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+    const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+    createBtn.onclick = async () => {
+      if (!name.trim()) {
+        new import_obsidian15.Notice("Name is required", 3e3);
+        return;
+      }
+      try {
+        await this.plugin.apiClient.createCharacter(this.currentStory.world_id, {
+          name: name.trim(),
+          description: description.trim()
+        });
+        await this.loadStoryCharacters();
+        this.renderTabContent();
+        modal.close();
+        new import_obsidian15.Notice("Character created");
+      } catch (err) {
+        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      }
+    };
+    buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+    modal.open();
+    nameInput.focus();
   }
   renderContentItem(container, contentBlock, entityType, entityId) {
     var _a, _b;
@@ -12417,23 +12593,38 @@ var StoryListView = class extends import_obsidian15.ItemView {
   renderWorldTabs() {
     if (!this.contentEl)
       return;
-    const existingTabs = this.contentEl.querySelector(".story-engine-tabs");
+    const existingTabs = this.contentEl.querySelector(".story-engine-tabs-container");
     if (existingTabs) {
       existingTabs.remove();
     }
-    const tabsContainer = this.contentEl.createDiv({ cls: "story-engine-tabs" });
-    const tabs = [
+    const tabsWrapper = this.contentEl.createDiv({ cls: "story-engine-tabs-container" });
+    const entityTabsContainer = tabsWrapper.createDiv({ cls: "story-engine-tabs" });
+    const entityTabs = [
       { key: "characters", label: "Characters" },
-      { key: "traits", label: "Traits" },
-      { key: "archetypes", label: "Archetypes" },
-      { key: "events", label: "Events" },
-      { key: "lore", label: "Lore" },
       { key: "locations", label: "Locations" },
       { key: "factions", label: "Factions" },
       { key: "artifacts", label: "Artifacts" }
     ];
-    for (const tab of tabs) {
-      const tabButton = tabsContainer.createEl("button", {
+    for (const tab of entityTabs) {
+      const tabButton = entityTabsContainer.createEl("button", {
+        text: tab.label,
+        cls: `story-engine-tab ${this.worldTab === tab.key ? "is-active" : ""}`
+      });
+      tabButton.onclick = () => {
+        this.worldTab = tab.key;
+        this.renderWorldTabs();
+        this.renderWorldTabContent();
+      };
+    }
+    const metaTabsContainer = tabsWrapper.createDiv({ cls: "story-engine-tabs" });
+    const metaTabs = [
+      { key: "traits", label: "Traits" },
+      { key: "archetypes", label: "Archetypes" },
+      { key: "events", label: "Events" },
+      { key: "lore", label: "Lore" }
+    ];
+    for (const tab of metaTabs) {
+      const tabButton = metaTabsContainer.createEl("button", {
         text: tab.label,
         cls: `story-engine-tab ${this.worldTab === tab.key ? "is-active" : ""}`
       });
@@ -12669,33 +12860,84 @@ var StoryListView = class extends import_obsidian15.ItemView {
       cls: "story-engine-btn-secondary"
     });
     timelineBtn.onclick = () => this.showTimelineModal();
-    if (this.events.length === 0) {
-      container.createEl("p", { text: "No events found. Create your first event!" });
+    const epochSection = container.createDiv({ cls: "story-engine-epoch-section" });
+    epochSection.createEl("h4", { text: "\u23F0 Epoch Event (Year Zero)", cls: "story-engine-section-title" });
+    const epochEvent = this.events.find((e) => e.is_epoch && e.timeline_position === 0);
+    if (epochEvent) {
+      const epochItem = epochSection.createDiv({ cls: "story-engine-item story-engine-epoch-item" });
+      const epochTitle = epochItem.createDiv({ cls: "story-engine-title" });
+      epochTitle.createSpan({ text: epochEvent.name });
+      epochTitle.createSpan({ cls: "story-engine-badge story-engine-badge-epoch", text: "EPOCH" });
+      const epochMeta = epochItem.createDiv({ cls: "story-engine-meta" });
+      epochMeta.createEl("span", { text: "Position: 0 (Year Zero)" });
+      if (epochEvent.description) {
+        epochMeta.createEl("span", { text: epochEvent.description.substring(0, 80) + (epochEvent.description.length > 80 ? "..." : "") });
+      }
+      const epochActions = epochItem.createDiv({ cls: "story-engine-item-actions" });
+      epochActions.createEl("button", { text: "Edit Epoch" }).onclick = () => {
+        this.showEditEventModal(epochEvent);
+      };
+    } else {
+      const createEpochBtn = epochSection.createEl("button", {
+        text: "\u{1F31F} Create Epoch Event (Year Zero)",
+        cls: "mod-cta story-engine-create-epoch-btn"
+      });
+      createEpochBtn.onclick = () => this.showCreateEpochEventModal();
+      epochSection.createEl("p", {
+        text: "The Epoch Event marks Year Zero - all other events are dated relative to this point.",
+        cls: "story-engine-hint"
+      });
+    }
+    const eventsSection = container.createDiv({ cls: "story-engine-events-list-section" });
+    eventsSection.createEl("h4", { text: "\u{1F4DC} Events", cls: "story-engine-section-title" });
+    const regularEvents = this.events.filter((e) => !(e.is_epoch && e.timeline_position === 0));
+    if (regularEvents.length === 0) {
+      eventsSection.createEl("p", { text: "No events yet. Create your first event!", cls: "story-engine-empty-hint" });
       return;
     }
-    const list = container.createDiv({ cls: "story-engine-list" });
-    for (const event of this.events.sort((a, b) => b.importance - a.importance)) {
+    const list = eventsSection.createDiv({ cls: "story-engine-list" });
+    const sortedEvents = regularEvents.sort((a, b) => {
+      var _a2, _b;
+      const posA = (_a2 = a.timeline_position) != null ? _a2 : Number.MAX_SAFE_INTEGER;
+      const posB = (_b = b.timeline_position) != null ? _b : Number.MAX_SAFE_INTEGER;
+      if (posA !== posB)
+        return posA - posB;
+      return b.importance - a.importance;
+    });
+    for (const event of sortedEvents) {
       const item = list.createDiv({ cls: "story-engine-item" });
       const titleRow = item.createDiv({ cls: "story-engine-title" });
-      titleRow.textContent = event.name;
+      titleRow.createSpan({ text: event.name });
       const importanceBadge = titleRow.createSpan({ cls: "story-engine-badge" });
       importanceBadge.textContent = `\u2605${event.importance}`;
       if (event.type) {
-        const typeBadge = titleRow.createSpan({ cls: "story-engine-badge" });
-        typeBadge.textContent = event.type;
+        titleRow.createSpan({ cls: "story-engine-badge", text: event.type });
+      }
+      if (event.is_epoch) {
+        titleRow.createSpan({ cls: "story-engine-badge story-engine-badge-epoch", text: "EPOCH" });
       }
       const meta = item.createDiv({ cls: "story-engine-meta" });
-      if (event.timeline) {
-        meta.createEl("span", { text: `Timeline: ${event.timeline}` });
+      if (event.timeline_position !== void 0 && event.timeline_position !== null) {
+        const posText = event.timeline_position >= 0 ? `Year ${event.timeline_position}` : `${Math.abs(event.timeline_position)} years before Year Zero`;
+        meta.createEl("span", { text: `\u{1F4C5} ${posText}`, cls: "story-engine-event-position" });
+      }
+      if (event.parent_id) {
+        const parentEvent = this.events.find((e) => e.id === event.parent_id);
+        if (parentEvent) {
+          meta.createEl("span", { text: `\u21B3 Related to: ${parentEvent.name}`, cls: "story-engine-event-parent" });
+        }
       }
       if (event.description) {
-        meta.createEl("span", { text: event.description.substring(0, 50) + (event.description.length > 50 ? "..." : "") });
+        meta.createEl("span", {
+          text: event.description.substring(0, 60) + (event.description.length > 60 ? "..." : ""),
+          cls: "story-engine-event-description"
+        });
       }
       const actions = item.createDiv({ cls: "story-engine-item-actions" });
-      const factionBtn = actions.createEl("button");
-      (0, import_obsidian15.setIcon)(factionBtn, "flag");
-      factionBtn.title = "Link to Faction";
-      factionBtn.onclick = () => this.showAddEventReferenceModal(event, "faction");
+      const linkBtn = actions.createEl("button");
+      (0, import_obsidian15.setIcon)(linkBtn, "link");
+      linkBtn.title = "Link to Entity";
+      linkBtn.onclick = () => this.showLinkEventToEntityModal(event);
       const eventLinkBtn = actions.createEl("button");
       (0, import_obsidian15.setIcon)(eventLinkBtn, "git-branch");
       eventLinkBtn.title = "Set Parent Event";
@@ -12716,6 +12958,64 @@ var StoryListView = class extends import_obsidian15.ItemView {
         }
       };
     }
+  }
+  showCreateEpochEventModal() {
+    if (!this.currentWorld)
+      return;
+    const modal = new import_obsidian15.Modal(this.app);
+    modal.titleEl.setText("Create Epoch Event (Year Zero)");
+    const content = modal.contentEl;
+    let name = "";
+    let description = "";
+    content.createEl("p", {
+      text: "The Epoch Event defines Year Zero in your world's timeline. All other events will be dated relative to this moment.",
+      cls: "story-engine-modal-hint"
+    });
+    content.createEl("label", { text: "Event Name *" });
+    const nameInput = content.createEl("input", {
+      type: "text",
+      cls: "story-engine-input",
+      placeholder: "e.g., The Great Cataclysm, The Founding, Year of the Dragon"
+    });
+    nameInput.oninput = () => {
+      name = nameInput.value;
+    };
+    content.createEl("label", { text: "Description" });
+    const descInput = content.createEl("textarea", {
+      cls: "story-engine-textarea",
+      placeholder: "Describe what happened at this pivotal moment..."
+    });
+    descInput.oninput = () => {
+      description = descInput.value;
+    };
+    const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+    const createBtn = buttonContainer.createEl("button", { text: "Create Epoch", cls: "mod-cta" });
+    createBtn.onclick = async () => {
+      if (!name.trim()) {
+        new import_obsidian15.Notice("Name is required");
+        return;
+      }
+      try {
+        await this.plugin.apiClient.createEvent(this.currentWorld.id, {
+          name: name.trim(),
+          description: description.trim() || void 0,
+          timeline_position: 0,
+          is_epoch: true,
+          importance: 10,
+          // Max importance for epoch
+          type: "Epoch"
+        });
+        modal.close();
+        await this.loadWorldData();
+        this.renderWorldTabContent();
+        new import_obsidian15.Notice("Epoch event created!");
+      } catch (err) {
+        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      }
+    };
+    const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
+    cancelBtn.onclick = () => modal.close();
+    modal.open();
   }
   renderTraitsTab(container) {
     if (this.traits.length === 0) {
@@ -12826,9 +13126,14 @@ var StoryListView = class extends import_obsidian15.ItemView {
       meta.createEl("span", { text: lore.description.substring(0, 50) + (lore.description.length > 50 ? "..." : "") });
     }
     const actions = item.createDiv({ cls: "story-engine-item-actions" });
-    actions.createEl("button", { text: "View Details" }).onclick = () => {
-      this.showLoreDetailsModal(lore);
-    };
+    const linkBtn = actions.createEl("button");
+    (0, import_obsidian15.setIcon)(linkBtn, "link");
+    linkBtn.title = "Link to Entity";
+    linkBtn.onclick = () => this.showAddLoreReferenceModal(lore);
+    const subBtn = actions.createEl("button");
+    (0, import_obsidian15.setIcon)(subBtn, "folder-plus");
+    subBtn.title = "Create Sub-Lore";
+    subBtn.onclick = () => this.showCreateLoreModal(lore.id);
     actions.createEl("button", { text: "Edit" }).onclick = () => {
       this.showEditLoreModal(lore);
     };
@@ -13200,35 +13505,65 @@ var StoryListView = class extends import_obsidian15.ItemView {
     let name = "";
     let type2 = "";
     let description = "";
-    let timeline = "";
     let importance = 5;
-    content.createEl("label", { text: "Name *" });
-    const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+    let timelinePosition = void 0;
+    content.createEl("h4", { text: "Basic Info", cls: "story-engine-modal-section" });
+    content.createEl("label", { text: "Event Name *" });
+    const nameInput = content.createEl("input", {
+      type: "text",
+      cls: "story-engine-input",
+      placeholder: "e.g., The Battle of Crimson Fields"
+    });
     nameInput.oninput = () => {
       name = nameInput.value;
     };
-    content.createEl("label", { text: "Type" });
-    const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., Battle, Discovery, Treaty" });
-    typeInput.oninput = () => {
-      type2 = typeInput.value;
-    };
-    content.createEl("label", { text: "Timeline" });
-    const timelineInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., Year 100, Before the War" });
-    timelineInput.oninput = () => {
-      timeline = timelineInput.value;
-    };
-    content.createEl("label", { text: "Importance (1-10)" });
-    const importanceInput = content.createEl("input", { type: "number", cls: "story-engine-input", value: "5", attr: { min: "1", max: "10" } });
-    importanceInput.oninput = () => {
-      importance = parseInt(importanceInput.value) || 5;
+    content.createEl("label", { text: "Event Type" });
+    const typeSelect = content.createEl("select", { cls: "story-engine-select" });
+    typeSelect.createEl("option", { value: "", text: "Select type..." });
+    ["Battle", "Treaty", "Discovery", "Birth", "Death", "Coronation", "Disaster", "Migration", "Founding", "Other"].forEach((t) => {
+      typeSelect.createEl("option", { value: t, text: t });
+    });
+    typeSelect.onchange = () => {
+      type2 = typeSelect.value;
     };
     content.createEl("label", { text: "Description" });
-    const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+    const descInput = content.createEl("textarea", {
+      cls: "story-engine-textarea",
+      placeholder: "What happened during this event?"
+    });
     descInput.oninput = () => {
       description = descInput.value;
     };
+    content.createEl("h4", { text: "\u{1F4C5} Timeline Position", cls: "story-engine-modal-section" });
+    content.createEl("label", { text: "Year (relative to Epoch/Year Zero)" });
+    content.createEl("p", {
+      text: "Use positive numbers for years after Year Zero, negative for years before.",
+      cls: "story-engine-hint"
+    });
+    const timelinePosInput = content.createEl("input", {
+      type: "number",
+      cls: "story-engine-input",
+      placeholder: "e.g., 100 (Year 100) or -50 (50 years before Year Zero)"
+    });
+    timelinePosInput.oninput = () => {
+      const val = timelinePosInput.value;
+      timelinePosition = val ? parseInt(val) : void 0;
+    };
+    content.createEl("h4", { text: "\u2B50 Importance", cls: "story-engine-modal-section" });
+    content.createEl("label", { text: "Importance Level (1-10)" });
+    const importanceInput = content.createEl("input", {
+      type: "range",
+      cls: "story-engine-range",
+      value: "5",
+      attr: { min: "1", max: "10" }
+    });
+    const importanceValue = content.createEl("span", { text: " 5", cls: "story-engine-range-value" });
+    importanceInput.oninput = () => {
+      importance = parseInt(importanceInput.value) || 5;
+      importanceValue.textContent = ` ${importance}`;
+    };
     const buttonContainer = content.createDiv({ cls: "modal-button-container" });
-    const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+    const createBtn = buttonContainer.createEl("button", { text: "Create Event", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
         new import_obsidian15.Notice("Name is required", 3e3);
@@ -13239,8 +13574,8 @@ var StoryListView = class extends import_obsidian15.ItemView {
           name: name.trim(),
           type: type2.trim() || void 0,
           description: description.trim() || void 0,
-          timeline: timeline.trim() || void 0,
-          importance: Math.max(1, Math.min(10, importance))
+          importance: Math.max(1, Math.min(10, importance)),
+          timeline_position: timelinePosition
         });
         await this.loadWorldData();
         this.renderWorldTabContent();
@@ -13255,39 +13590,66 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditEventModal(event) {
+    var _a, _b;
     const modal = new import_obsidian15.Modal(this.app);
     modal.titleEl.setText("Edit Event");
     const content = modal.contentEl;
     let name = event.name;
     let type2 = event.type || "";
     let description = event.description || "";
-    let timeline = event.timeline || "";
     let importance = event.importance;
-    content.createEl("label", { text: "Name *" });
+    let timelinePosition = (_a = event.timeline_position) != null ? _a : void 0;
+    content.createEl("h4", { text: "Basic Info", cls: "story-engine-modal-section" });
+    content.createEl("label", { text: "Event Name *" });
     const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
     nameInput.oninput = () => {
       name = nameInput.value;
     };
-    content.createEl("label", { text: "Type" });
-    const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: type2 });
-    typeInput.oninput = () => {
-      type2 = typeInput.value;
-    };
-    content.createEl("label", { text: "Timeline" });
-    const timelineInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: timeline });
-    timelineInput.oninput = () => {
-      timeline = timelineInput.value;
-    };
-    content.createEl("label", { text: "Importance (1-10)" });
-    const importanceInput = content.createEl("input", { type: "number", cls: "story-engine-input", value: importance.toString(), attr: { min: "1", max: "10" } });
-    importanceInput.oninput = () => {
-      importance = parseInt(importanceInput.value) || 5;
+    content.createEl("label", { text: "Event Type" });
+    const typeSelect = content.createEl("select", { cls: "story-engine-select" });
+    typeSelect.createEl("option", { value: "", text: "Select type..." });
+    ["Battle", "Treaty", "Discovery", "Birth", "Death", "Coronation", "Disaster", "Migration", "Founding", "Epoch", "Other"].forEach((t) => {
+      const opt = typeSelect.createEl("option", { value: t, text: t });
+      if (type2.toLowerCase() === t.toLowerCase())
+        opt.selected = true;
+    });
+    typeSelect.onchange = () => {
+      type2 = typeSelect.value;
     };
     content.createEl("label", { text: "Description" });
     const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
     descInput.value = description;
     descInput.oninput = () => {
       description = descInput.value;
+    };
+    content.createEl("h4", { text: "\u{1F4C5} Timeline Position", cls: "story-engine-modal-section" });
+    content.createEl("label", { text: "Year (relative to Epoch/Year Zero)" });
+    content.createEl("p", {
+      text: "Use positive numbers for years after Year Zero, negative for years before.",
+      cls: "story-engine-hint"
+    });
+    const timelinePosInput = content.createEl("input", {
+      type: "number",
+      cls: "story-engine-input",
+      value: (_b = timelinePosition == null ? void 0 : timelinePosition.toString()) != null ? _b : ""
+    });
+    timelinePosInput.placeholder = "e.g., 100 or -50";
+    timelinePosInput.oninput = () => {
+      const val = timelinePosInput.value;
+      timelinePosition = val ? parseInt(val) : void 0;
+    };
+    content.createEl("h4", { text: "\u2B50 Importance", cls: "story-engine-modal-section" });
+    content.createEl("label", { text: "Importance Level (1-10)" });
+    const importanceInput = content.createEl("input", {
+      type: "range",
+      cls: "story-engine-range",
+      value: importance.toString(),
+      attr: { min: "1", max: "10" }
+    });
+    const importanceValue = content.createEl("span", { text: ` ${importance}`, cls: "story-engine-range-value" });
+    importanceInput.oninput = () => {
+      importance = parseInt(importanceInput.value) || 5;
+      importanceValue.textContent = ` ${importance}`;
     };
     const buttonContainer = content.createDiv({ cls: "modal-button-container" });
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
@@ -13301,8 +13663,8 @@ var StoryListView = class extends import_obsidian15.ItemView {
           name: name.trim(),
           type: type2.trim() || void 0,
           description: description.trim() || void 0,
-          timeline: timeline.trim() || void 0,
-          importance: Math.max(1, Math.min(10, importance))
+          importance: Math.max(1, Math.min(10, importance)),
+          timeline_position: timelinePosition
         });
         await this.loadWorldData();
         this.renderWorldTabContent();
@@ -14017,50 +14379,78 @@ var StoryListView = class extends import_obsidian15.ItemView {
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
-  showAddEventReferenceModal(event, entityType) {
+  showLinkEventToEntityModal(event) {
     if (!this.currentWorld)
       return;
     const modal = new import_obsidian15.Modal(this.app);
-    modal.titleEl.setText(`Link Event to ${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`);
+    modal.titleEl.setText(`Link Event: ${event.name}`);
     const content = modal.contentEl;
+    let entityType = "character";
     let entityId = "";
     let relationshipType = "";
     let notes = "";
-    content.createEl("label", { text: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} *` });
+    content.createEl("label", { text: "Entity Type *" });
+    const typeSelect = content.createEl("select", { cls: "story-engine-select" });
+    typeSelect.createEl("option", { value: "character", text: "\u{1F464} Character" });
+    typeSelect.createEl("option", { value: "location", text: "\u{1F4CD} Location" });
+    typeSelect.createEl("option", { value: "faction", text: "\u{1F3F4} Faction" });
+    typeSelect.createEl("option", { value: "artifact", text: "\u2694\uFE0F Artifact" });
+    typeSelect.createEl("option", { value: "lore", text: "\u{1F4DC} Lore" });
+    content.createEl("label", { text: "Entity *" });
     const entitySelect = content.createEl("select", { cls: "story-engine-select" });
-    entitySelect.createEl("option", { value: "", text: `Select a ${entityType}...` });
-    if (entityType === "faction") {
-      for (const faction of this.factions.sort((a, b) => a.name.localeCompare(b.name))) {
-        entitySelect.createEl("option", { value: faction.id, text: faction.name });
+    const populateEntitySelect = () => {
+      entitySelect.empty();
+      entitySelect.createEl("option", { value: "", text: `Select a ${entityType}...` });
+      entityId = "";
+      if (entityType === "character") {
+        for (const char of this.characters.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: char.id, text: char.name });
+        }
+      } else if (entityType === "location") {
+        for (const loc of this.locations.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: loc.id, text: loc.name });
+        }
+      } else if (entityType === "faction") {
+        for (const faction of this.factions.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: faction.id, text: faction.name });
+        }
+      } else if (entityType === "artifact") {
+        for (const art of this.artifacts.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: art.id, text: art.name });
+        }
+      } else if (entityType === "lore") {
+        for (const lore of this.lores.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: lore.id, text: lore.name });
+        }
       }
-    } else if (entityType === "character") {
-      for (const char of this.characters.sort((a, b) => a.name.localeCompare(b.name))) {
-        entitySelect.createEl("option", { value: char.id, text: char.name });
-      }
-    } else if (entityType === "location") {
-      for (const loc of this.locations.sort((a, b) => a.name.localeCompare(b.name))) {
-        entitySelect.createEl("option", { value: loc.id, text: loc.name });
-      }
-    } else if (entityType === "artifact") {
-      for (const art of this.artifacts.sort((a, b) => a.name.localeCompare(b.name))) {
-        entitySelect.createEl("option", { value: art.id, text: art.name });
-      }
-    }
+    };
+    populateEntitySelect();
+    typeSelect.onchange = () => {
+      entityType = typeSelect.value;
+      populateEntitySelect();
+    };
     entitySelect.onchange = () => {
       entityId = entitySelect.value;
     };
     content.createEl("label", { text: "Relationship Type" });
-    const relTypeInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., involved, affected, caused" });
-    relTypeInput.oninput = () => {
-      relationshipType = relTypeInput.value;
+    const relTypeSelect = content.createEl("select", { cls: "story-engine-select" });
+    relTypeSelect.createEl("option", { value: "", text: "Select relationship..." });
+    ["involved", "caused", "affected", "witnessed", "created", "destroyed", "participated", "led", "opposed"].forEach((rel) => {
+      relTypeSelect.createEl("option", { value: rel, text: rel.charAt(0).toUpperCase() + rel.slice(1) });
+    });
+    relTypeSelect.onchange = () => {
+      relationshipType = relTypeSelect.value;
     };
     content.createEl("label", { text: "Notes" });
-    const notesInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+    const notesInput = content.createEl("textarea", {
+      cls: "story-engine-textarea",
+      placeholder: "Additional details about this relationship..."
+    });
     notesInput.oninput = () => {
       notes = notesInput.value;
     };
     const buttonContainer = content.createDiv({ cls: "modal-button-container" });
-    const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+    const createBtn = buttonContainer.createEl("button", { text: "Link Entity", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!entityId) {
         new import_obsidian15.Notice(`Please select a ${entityType}`, 3e3);
@@ -14071,7 +14461,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Reference created");
+        new import_obsidian15.Notice("Entity linked to event");
       } catch (err) {
         new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
@@ -14083,18 +14473,30 @@ var StoryListView = class extends import_obsidian15.ItemView {
     if (!this.currentWorld)
       return;
     const modal = new import_obsidian15.Modal(this.app);
-    modal.titleEl.setText("Set Parent Event");
+    modal.titleEl.setText("Set Parent Event (Cause)");
     const content = modal.contentEl;
-    let parentId = null;
-    content.createEl("label", { text: "Parent Event" });
+    let parentId = event.parent_id || null;
+    content.createEl("p", {
+      text: "Link this event to its cause or parent event in the timeline hierarchy.",
+      cls: "story-engine-hint"
+    });
+    content.createEl("label", { text: "Parent Event (Cause)" });
     const parentSelect = content.createEl("select", { cls: "story-engine-select" });
     parentSelect.createEl("option", { value: "", text: "None (Root Event)" });
-    for (const evt of this.events.filter((e) => e.id !== event.id).sort((a, b) => a.name.localeCompare(b.name))) {
-      parentSelect.createEl("option", { value: evt.id, text: evt.name });
-    }
-    if (event.parent_id) {
-      parentSelect.value = event.parent_id;
-      parentId = event.parent_id;
+    const sortedEvents = this.events.filter((e) => e.id !== event.id).sort((a, b) => {
+      var _a, _b;
+      const posA = (_a = a.timeline_position) != null ? _a : Number.MAX_SAFE_INTEGER;
+      const posB = (_b = b.timeline_position) != null ? _b : Number.MAX_SAFE_INTEGER;
+      if (posA !== posB)
+        return posA - posB;
+      return a.name.localeCompare(b.name);
+    });
+    for (const evt of sortedEvents) {
+      const posLabel = evt.timeline_position !== void 0 ? ` (Year ${evt.timeline_position})` : "";
+      const opt = parentSelect.createEl("option", { value: evt.id, text: `${evt.name}${posLabel}` });
+      if (event.parent_id === evt.id) {
+        opt.selected = true;
+      }
     }
     parentSelect.onchange = () => {
       parentId = parentSelect.value || null;
@@ -14103,11 +14505,11 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       try {
-        await this.plugin.apiClient.updateEvent(event.id, { parent_id: parentId || void 0 });
+        await this.plugin.apiClient.moveEvent(event.id, parentId);
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Parent event updated");
+        new import_obsidian15.Notice("Event parent updated");
       } catch (err) {
         new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
@@ -14131,6 +14533,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     typeSelect.createEl("option", { value: "location", text: "Location" });
     typeSelect.createEl("option", { value: "artifact", text: "Artifact" });
     typeSelect.createEl("option", { value: "event", text: "Event" });
+    typeSelect.createEl("option", { value: "faction", text: "Faction" });
     typeSelect.onchange = () => {
       entityType = typeSelect.value;
       entitySelect.empty();
@@ -14157,6 +14560,10 @@ var StoryListView = class extends import_obsidian15.ItemView {
         for (const evt of this.events.sort((a, b) => a.name.localeCompare(b.name))) {
           entitySelect.createEl("option", { value: evt.id, text: evt.name });
         }
+      } else if (type2 === "faction") {
+        for (const fac of this.factions.filter((f) => f.id !== faction.id).sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: fac.id, text: fac.name });
+        }
       }
     };
     loadEntitiesForType(entityType);
@@ -14164,7 +14571,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       entityId = entitySelect.value;
     };
     content.createEl("label", { text: "Role" });
-    const roleInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., leader, member, location" });
+    const roleInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., leader, member, ally, rival" });
     roleInput.oninput = () => {
       role = roleInput.value;
     };
@@ -14193,11 +14600,129 @@ var StoryListView = class extends import_obsidian15.ItemView {
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
+  showAddLoreReferenceModal(lore) {
+    if (!this.currentWorld)
+      return;
+    const modal = new import_obsidian15.Modal(this.app);
+    modal.titleEl.setText("Link Lore to Entity");
+    const content = modal.contentEl;
+    let entityType = "character";
+    let entityId = "";
+    let relationshipType = "";
+    let notes = "";
+    content.createEl("label", { text: "Entity Type *" });
+    const typeSelect = content.createEl("select", { cls: "story-engine-select" });
+    typeSelect.createEl("option", { value: "character", text: "Character" });
+    typeSelect.createEl("option", { value: "location", text: "Location" });
+    typeSelect.createEl("option", { value: "artifact", text: "Artifact" });
+    typeSelect.createEl("option", { value: "event", text: "Event" });
+    typeSelect.createEl("option", { value: "faction", text: "Faction" });
+    typeSelect.createEl("option", { value: "lore", text: "Lore" });
+    typeSelect.onchange = () => {
+      entityType = typeSelect.value;
+      entitySelect.empty();
+      entitySelect.createEl("option", { value: "", text: `Select a ${entityType}...` });
+      loadEntitiesForType(entityType);
+    };
+    content.createEl("label", { text: "Entity *" });
+    const entitySelect = content.createEl("select", { cls: "story-engine-select" });
+    entitySelect.createEl("option", { value: "", text: "Select an entity..." });
+    const loadEntitiesForType = (type2) => {
+      if (type2 === "character") {
+        for (const char of this.characters.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: char.id, text: char.name });
+        }
+      } else if (type2 === "location") {
+        for (const loc of this.locations.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: loc.id, text: loc.name });
+        }
+      } else if (type2 === "artifact") {
+        for (const art of this.artifacts.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: art.id, text: art.name });
+        }
+      } else if (type2 === "event") {
+        for (const evt of this.events.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: evt.id, text: evt.name });
+        }
+      } else if (type2 === "faction") {
+        for (const fac of this.factions.sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: fac.id, text: fac.name });
+        }
+      } else if (type2 === "lore") {
+        for (const l of this.lores.filter((l2) => l2.id !== lore.id).sort((a, b) => a.name.localeCompare(b.name))) {
+          entitySelect.createEl("option", { value: l.id, text: l.name });
+        }
+      }
+    };
+    loadEntitiesForType(entityType);
+    entitySelect.onchange = () => {
+      entityId = entitySelect.value;
+    };
+    content.createEl("label", { text: "Relationship Type" });
+    const relTypeInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., practitioner, origin, forbidden" });
+    relTypeInput.oninput = () => {
+      relationshipType = relTypeInput.value;
+    };
+    content.createEl("label", { text: "Notes" });
+    const notesInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+    notesInput.oninput = () => {
+      notes = notesInput.value;
+    };
+    const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+    const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+    createBtn.onclick = async () => {
+      if (!entityId) {
+        new import_obsidian15.Notice("Please select an entity", 3e3);
+        return;
+      }
+      try {
+        await this.plugin.apiClient.addLoreReference(lore.id, entityType, entityId, relationshipType.trim() || void 0, notes.trim() || void 0);
+        await this.loadWorldData();
+        this.renderWorldTabContent();
+        modal.close();
+        new import_obsidian15.Notice("Reference created");
+      } catch (err) {
+        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      }
+    };
+    buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+    modal.open();
+  }
   // ==================== Character Details View Methods ====================
   async showCharacterDetails(character) {
     this.viewMode = "character-details";
     const world = character.world_id ? await this.plugin.apiClient.getWorld(character.world_id).catch(() => null) : null;
     const characters = world ? await this.plugin.apiClient.getCharacters(world.id).catch(() => []) : [];
+    let traits = this.traits;
+    let archetypes = this.archetypes;
+    let events = world ? this.events : [];
+    if (!traits || traits.length === 0) {
+      try {
+        traits = await this.plugin.apiClient.getTraits();
+        this.traits = traits;
+      } catch (err) {
+        console.warn("Failed to load traits:", err);
+        traits = [];
+      }
+    }
+    if (!archetypes || archetypes.length === 0) {
+      try {
+        archetypes = await this.plugin.apiClient.getArchetypes();
+        this.archetypes = archetypes;
+      } catch (err) {
+        console.warn("Failed to load archetypes:", err);
+        archetypes = [];
+      }
+    }
+    if (world && (!events || events.length === 0)) {
+      try {
+        events = await this.plugin.apiClient.getEvents(world.id);
+        this.events = events;
+      } catch (err) {
+        console.warn("Failed to load events:", err);
+        events = [];
+      }
+    }
     this.characterDetailsView = new CharacterDetailsView(
       this.plugin,
       character,
@@ -14222,9 +14747,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
       },
       world,
       characters,
-      this.archetypes,
-      this.traits,
-      world ? this.events : []
+      archetypes,
+      traits,
+      events
     );
     await this.characterDetailsView.render();
   }

@@ -21,6 +21,11 @@ export class SyncService {
 				storyData.story.title
 			);
 
+			// IMPORTANT: Read existing metadata BEFORE writing to detect version changes
+			const existingMetadata = await this.fileManager
+				.readStoryMetadata(folderPath)
+				.catch(() => null);
+
 			// Fetch scenes and beats without chapter_id (orphans)
 			const allScenes = await this.apiClient.getScenesByStory(storyId);
 			const orphanScenes: SceneWithBeats[] = [];
@@ -190,11 +195,7 @@ export class SyncService {
 				await this.fileManager.writeBeatFile(beat, beatFilePath, storyData.story.title, beatContentBlocks);
 			}
 
-			// Check if version changed and create snapshot if needed
-			const existingMetadata = await this.fileManager
-				.readStoryMetadata(folderPath)
-				.catch(() => null);
-
+			// Check if version changed and create snapshot if needed (existingMetadata was read BEFORE writing)
 			if (
 				existingMetadata &&
 				existingMetadata.frontmatter.version !== undefined &&
@@ -665,8 +666,11 @@ export class SyncService {
 
 				// If paragraph has a link, read the local file
 				if (paragraph.linkName) {
-					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					// Search for file in type subfolders
+					const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+					if (contentBlockFilePath) {
+						localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					}
 
 					// If file not found by exact name, try to find by searching all prose block files
 					if (!localContentBlock) {
@@ -719,9 +723,8 @@ export class SyncService {
 							content: paragraph.content,
 						});
 
-						// Create file
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						// Create file in correct type subfolder
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create references if needed
@@ -733,7 +736,7 @@ export class SyncService {
 						}
 
 						// Add link to paragraph
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						break;
 					}
@@ -742,9 +745,8 @@ export class SyncService {
 						// Use remoteContentBlock if localContentBlock doesn't exist
 						if (!localContentBlock && remoteContentBlock) {
 							finalContentBlock = remoteContentBlock;
-							// Create local file since it doesn't exist
-							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-							const filePath = `${contentsFolderPath}/${fileName}`;
+							// Create local file in correct type subfolder since it doesn't exist
+							const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						} else if (localContentBlock) {
 							// Check if order_num needs update
@@ -752,8 +754,7 @@ export class SyncService {
 								finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
 									order_num: proseOrderNum++,
 								});
-								const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-								const filePath = `${contentsFolderPath}/${fileName}`;
+								const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 								await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 							} else {
 								finalContentBlock = localContentBlock;
@@ -784,8 +785,7 @@ export class SyncService {
 							updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
 						} else {
 							// No linkName - generate from finalContentBlock
-							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-							const linkName = fileName.replace(/\.md$/, "");
+							const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 							updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						}
 						break;
@@ -798,10 +798,9 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						// Update local file
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
-						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
+						// Update local file in correct type subfolder
+						const filePathLocalMod = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePathLocalMod, undefined);
 
 						// Update references if needed
 						if (finalContentBlock) {
@@ -817,17 +816,16 @@ export class SyncService {
 							}
 						}
 
-						const linkName = fileName.replace(/\.md$/, "");
-						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
+						const linkNameLocalMod = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
+						updatedSections.push(`[[${linkNameLocalMod}|${paragraph.content}]]`);
 						break;
 					}
 
 					case "remote_modified": {
-						// Update local file with remote content
+						// Update local file with remote content in correct type subfolder
 						finalContentBlock = remoteContentBlock!;
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
-						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
+						const filePathRemoteMod = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePathRemoteMod, undefined);
 
 						// Update references if needed
 						if (finalContentBlock) {
@@ -843,9 +841,9 @@ export class SyncService {
 							}
 						}
 
-						const linkName = fileName.replace(/\.md$/, "");
-						updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
-						new Notice(`Prose block updated from remote: ${linkName}`, 3000);
+						const linkNameRemoteMod = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
+						updatedSections.push(`[[${linkNameRemoteMod}|${finalContentBlock.content}]]`);
+						new Notice(`Prose block updated from remote: ${linkNameRemoteMod}`, 3000);
 						proseOrderNum++;
 						break;
 					}
@@ -869,10 +867,9 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						// Update local file
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
-						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
+						// Update local file in correct type subfolder
+						const filePathConflict = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
+						await this.fileManager.writeContentBlockFile(finalContentBlock, filePathConflict, undefined);
 
 						// Update references if needed
 						if (finalContentBlock) {
@@ -888,8 +885,8 @@ export class SyncService {
 							}
 						}
 
-						const linkName = fileName.replace(/\.md$/, "");
-						updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
+						const linkNameConflict = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
+						updatedSections.push(`[[${linkNameConflict}|${resolvedContent}]]`);
 						break;
 					}
 				}
@@ -1414,6 +1411,20 @@ export class SyncService {
 		const sceneMap = new Map<string, Scene>();
 		const beatMap = new Map<string, Beat>();
 
+		// Cache for remote content blocks by chapter ID (avoids N+1 queries)
+		const remoteContentBlocksCache = new Map<string, Map<string, ContentBlock>>();
+		const getRemoteContentBlocksMap = async (chapterId: string): Promise<Map<string, ContentBlock>> => {
+			if (!remoteContentBlocksCache.has(chapterId)) {
+				const blocks = await this.apiClient.getContentBlocks(chapterId);
+				const map = new Map<string, ContentBlock>();
+				for (const pb of blocks) {
+					map.set(pb.id, pb);
+				}
+				remoteContentBlocksCache.set(chapterId, map);
+			}
+			return remoteContentBlocksCache.get(chapterId)!;
+		};
+
 		// Process each section
 		for (const section of storyProse.sections) {
 			if (section.type === "scene" && section.scene) {
@@ -1525,19 +1536,18 @@ export class SyncService {
 					}
 				}
 
-				// Get remote prose blocks for current chapter
-				const remoteContentBlocks = await this.apiClient.getContentBlocks(currentChapter.id);
-				const remoteContentBlocksMap = new Map<string, ContentBlock>();
-				for (const pb of remoteContentBlocks) {
-					remoteContentBlocksMap.set(pb.id, pb);
-				}
+				// Get remote prose blocks for current chapter (using cache)
+				const remoteContentBlocksMap = await getRemoteContentBlocksMap(currentChapter.id);
 
 				let localContentBlock: ContentBlock | null = null;
 				let remoteContentBlock: ContentBlock | null = null;
 
 				if (paragraph.linkName) {
-					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					// Search for file in type subfolders
+					const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+					if (contentBlockFilePath) {
+						localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					}
 
 					if (!localContentBlock) {
 						localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
@@ -1580,8 +1590,8 @@ export class SyncService {
 							content: paragraph.content,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						// Create file in correct type subfolder
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create references
@@ -1597,8 +1607,7 @@ export class SyncService {
 					case "unchanged": {
 						if (!localContentBlock && remoteContentBlock) {
 							finalContentBlock = remoteContentBlock;
-							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-							const filePath = `${contentsFolderPath}/${fileName}`;
+							const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						} else if (localContentBlock) {
 							finalContentBlock = localContentBlock;
@@ -1616,16 +1625,14 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						break;
 					}
 
 					case "remote_modified": {
 						finalContentBlock = remoteContentBlock!;
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						proseOrderNum++;
 						break;
@@ -1644,8 +1651,7 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						break;
 					}
@@ -1741,8 +1747,11 @@ export class SyncService {
 				let remoteContentBlock: ContentBlock | null = null;
 
 				if (paragraph.linkName) {
-					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					// Search for file in type subfolders
+					const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+					if (contentBlockFilePath) {
+						localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					}
 
 					if (!localContentBlock) {
 						localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
@@ -1786,8 +1795,8 @@ export class SyncService {
 							content: paragraph.content,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						// Create file in correct type subfolder
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create reference to scene
@@ -1798,7 +1807,7 @@ export class SyncService {
 							await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
 						}
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						break;
 					}
@@ -1806,16 +1815,14 @@ export class SyncService {
 					case "unchanged": {
 						if (!localContentBlock && remoteContentBlock) {
 							finalContentBlock = remoteContentBlock;
-							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-							const filePath = `${contentsFolderPath}/${fileName}`;
+							const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						} else if (localContentBlock) {
 							if (localContentBlock.order_num !== proseOrderNum) {
 								finalContentBlock = await this.apiClient.updateContentBlock(localContentBlock.id, {
 									order_num: proseOrderNum++,
 								});
-								const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-								const filePath = `${contentsFolderPath}/${fileName}`;
+								const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 								await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 							} else {
 								finalContentBlock = localContentBlock;
@@ -1829,8 +1836,7 @@ export class SyncService {
 						if (paragraph.linkName) {
 							updatedSections.push(`[[${paragraph.linkName}|${paragraph.content}]]`);
 						} else {
-							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-							const linkName = fileName.replace(/\.md$/, "");
+							const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 							updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						}
 						break;
@@ -1842,22 +1848,20 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						break;
 					}
 
 					case "remote_modified": {
 						finalContentBlock = remoteContentBlock!;
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
 						new Notice(`Scene prose block updated from remote: ${linkName}`, 3000);
 						proseOrderNum++;
@@ -1881,11 +1885,10 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
 						break;
 					}
@@ -1991,8 +1994,11 @@ export class SyncService {
 				let remoteContentBlock: ContentBlock | null = null;
 
 				if (paragraph.linkName) {
-					const contentBlockFilePath = `${contentsFolderPath}/${paragraph.linkName}.md`;
-					localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					// Search for file in type subfolders
+					const contentBlockFilePath = await this.findContentBlockFileByLinkName(contentsFolderPath, paragraph.linkName);
+					if (contentBlockFilePath) {
+						localContentBlock = await this.fileManager.readContentBlockFromFile(contentBlockFilePath);
+					}
 
 					if (!localContentBlock) {
 						localContentBlock = await this.findContentBlockByContent(contentsFolderPath, paragraph.content);
@@ -2036,15 +2042,15 @@ export class SyncService {
 							content: paragraph.content,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						// Create file in correct type subfolder
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create reference to scene and beat
 						await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
 						await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", beatId);
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						break;
 					}
@@ -2052,16 +2058,14 @@ export class SyncService {
 					case "unchanged": {
 						if (!localContentBlock && remoteContentBlock) {
 							finalContentBlock = remoteContentBlock;
-							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-							const filePath = `${contentsFolderPath}/${fileName}`;
+							const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 							await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 							
-							const linkName = fileName.replace(/\.md$/, "");
+							const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 							updatedSections.push(`[[${linkName}|${remoteContentBlock.content}]]`);
 						} else if (localContentBlock) {
 							finalContentBlock = localContentBlock;
-							const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-							const linkName = fileName.replace(/\.md$/, "");
+							const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 							updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 							proseOrderNum++;
 						} else {
@@ -2077,23 +2081,21 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);
 						break;
 					}
 
 					case "remote_modified": {
 						finalContentBlock = remoteContentBlock!;
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 						proseOrderNum++;
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${remoteContentBlock!.content}]]`);
 						break;
 					}
@@ -2115,11 +2117,10 @@ export class SyncService {
 							order_num: proseOrderNum++,
 						});
 
-						const fileName = this.fileManager.generateContentBlockFileName(finalContentBlock);
-						const filePath = `${contentsFolderPath}/${fileName}`;
+						const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, finalContentBlock);
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
-						const linkName = fileName.replace(/\.md$/, "");
+						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${resolvedContent}]]`);
 						break;
 					}
@@ -2612,7 +2613,33 @@ export class SyncService {
 		}
 	}
 
-	// Find prose block by content when file name doesn't match
+	// Find content block file by link name (searches recursively in all type subfolders)
+	private async findContentBlockFileByLinkName(
+		contentsRoot: string,
+		linkName: string
+	): Promise<string | null> {
+		const root = this.fileManager.getVault().getAbstractFileByPath(contentsRoot);
+		if (!(root instanceof TFolder)) return null;
+
+		const target = `${linkName}.md`;
+
+		// Recursive search in all subfolders
+		const stack: TFolder[] = [root];
+		while (stack.length) {
+			const folder = stack.pop()!;
+			for (const child of folder.children) {
+				if (child instanceof TFolder) {
+					stack.push(child);
+				} else if (child instanceof TFile && child.name === target) {
+					return child.path;
+				}
+			}
+		}
+
+		return null;
+	}
+
+	// Find prose block by content when file name doesn't match (searches recursively in all type subfolders)
 	private async findContentBlockByContent(
 		contentsFolderPath: string,
 		content: string
@@ -2625,12 +2652,18 @@ export class SyncService {
 
 			const normalizedContent = content.trim();
 
-			// Search through all prose block files
-			for (const child of folder.children) {
-				if (child instanceof TFile && child.extension === "md") {
-					const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
-					if (contentBlock && contentBlock.content.trim() === normalizedContent) {
-						return contentBlock;
+			// Recursive search through all subfolders
+			const stack: TFolder[] = [folder];
+			while (stack.length) {
+				const currentFolder = stack.pop()!;
+				for (const child of currentFolder.children) {
+					if (child instanceof TFolder) {
+						stack.push(child);
+					} else if (child instanceof TFile && child.extension === "md") {
+						const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+						if (contentBlock && contentBlock.content.trim() === normalizedContent) {
+							return contentBlock;
+						}
 					}
 				}
 			}
@@ -2641,7 +2674,7 @@ export class SyncService {
 		return null;
 	}
 
-	// Find prose block by ID when we have remote ID but need local file
+	// Find prose block by ID when we have remote ID but need local file (searches recursively in all type subfolders)
 	private async findContentBlockById(
 		contentsFolderPath: string,
 		id: string
@@ -2652,12 +2685,18 @@ export class SyncService {
 				return null;
 			}
 
-			// Search through all prose block files
-			for (const child of folder.children) {
-				if (child instanceof TFile && child.extension === "md") {
-					const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
-					if (contentBlock && contentBlock.id === id) {
-						return contentBlock;
+			// Recursive search through all subfolders
+			const stack: TFolder[] = [folder];
+			while (stack.length) {
+				const currentFolder = stack.pop()!;
+				for (const child of currentFolder.children) {
+					if (child instanceof TFolder) {
+						stack.push(child);
+					} else if (child instanceof TFile && child.extension === "md") {
+						const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
+						if (contentBlock && contentBlock.id === id) {
+							return contentBlock;
+						}
 					}
 				}
 			}
@@ -2666,6 +2705,26 @@ export class SyncService {
 		}
 
 		return null;
+	}
+
+	// Get the correct file path for a content block (always uses type subfolders)
+	private getContentBlockFilePath(storyFolderPath: string, contentBlock: ContentBlock): string {
+		const fileName = this.fileManager.generateContentBlockFileName(contentBlock);
+		const typeFolderPath = this.fileManager.getContentBlockFolderPath(storyFolderPath, contentBlock.type || "text");
+		return `${typeFolderPath}/${fileName}`;
+	}
+
+	// Get content block file path from contents folder path (03-contents)
+	private async getContentBlockFilePathFromContents(
+		contentsFolderPath: string, 
+		contentBlock: ContentBlock
+	): Promise<string> {
+		const typeFolder = this.fileManager.getContentTypeFolder(contentBlock.type || "text");
+		const typeFolderPath = `${contentsFolderPath}/${typeFolder}`;
+		// Ensure type subfolder exists
+		await this.fileManager.ensureFolderExists(typeFolderPath);
+		const fileName = this.fileManager.generateContentBlockFileName(contentBlock);
+		return `${typeFolderPath}/${fileName}`;
 	}
 
 	// Resolve conflict using modal or auto-resolve based on mode

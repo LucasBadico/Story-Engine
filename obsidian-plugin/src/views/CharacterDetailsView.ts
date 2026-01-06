@@ -526,14 +526,14 @@ export class CharacterDetailsView {
 		const valueInput = content.createEl("input", {
 			cls: "story-engine-input",
 			attr: { type: "text", placeholder: "Value" },
-			value: charTrait.value || "",
 		});
+		valueInput.value = charTrait.value || "";
 
 		const notesInput = content.createEl("textarea", {
 			cls: "story-engine-textarea",
 			attr: { rows: "3", placeholder: "Notes" },
-			text: charTrait.notes || "",
 		});
+		notesInput.value = charTrait.notes || "";
 
 		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
 		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
