@@ -953,3 +953,89 @@
 	color: var(--text-normal);
 }
 
+/* TimeConfig Styles */
+.story-engine-time-config-section {
+	background: var(--background-secondary);
+	padding: 16px;
+	border-radius: 8px;
+	margin-bottom: 16px;
+}
+
+.story-engine-time-config-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.story-engine-time-config-section h4 {
+	margin: 0 0 8px 0;
+	font-size: 1rem;
+	font-weight: 600;
+}
+
+.story-engine-timeline-section {
+	margin-bottom: 16px;
+}
+
+.story-engine-btn-primary {
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--text-accent);
+	color: var(--text-on-accent);
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.story-engine-btn-primary:hover {
+	background-color: var(--text-accent-hover);
+}
+
+.story-engine-btn-secondary {
+	padding: 0.5rem 1rem;
+	font-size: 0.875rem;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+	cursor: pointer;
+	transition: background-color 0.2s;
+}
+
+.story-engine-btn-secondary:hover {
+	background-color: var(--background-modifier-hover);
+}
+
+/* Timeline Modal Styles */
+.story-engine-timeline-modal {
+	width: 90vw;
+	max-width: 900px;
+}
+
+.story-engine-timeline-modal h2 {
+	margin: 0 0 1rem 0;
+	font-size: 1.5rem;
+	font-weight: 600;
+}
+
+.story-engine-timeline-chart {
+	overflow-x: auto;
+	margin-top: 1rem;
+}
+
+.story-engine-timeline-chart svg {
+	background: var(--background-secondary);
+	border-radius: 8px;
+}
+
+.story-engine-timeline-chart .parent-link {
+	pointer-events: none;
+}
+
+.story-engine-timeline-chart .event-label {
+	fill: var(--text-normal);
+	font-family: var(--font-text);
+}
+

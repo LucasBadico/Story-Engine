@@ -32,6 +32,7 @@ pnpm-debug.log*
 *.swp
 *.swo
 *~
+*.key
 
 # OS
 .DS_Store

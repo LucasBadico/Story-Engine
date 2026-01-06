@@ -48,6 +48,7 @@ export interface World {
 	genre: string;
 	is_implicit: boolean;
 	rpg_system_id?: string | null;
+	time_config?: TimeConfig | null;
 	created_at: string;
 	updated_at: string;
 }
@@ -237,6 +238,9 @@ export interface WorldEvent {
 	description?: string | null;
 	timeline?: string | null;
 	importance: number;
+	parent_id?: string | null;
+	timeline_position?: number;
+	is_epoch?: boolean;
 	created_at: string;
 	updated_at: string;
 }
@@ -249,5 +253,159 @@ export interface Trait {
 	description: string;
 	created_at: string;
 	updated_at: string;
+}
+
+// Archetype - global por tenant (NAO tem world_id)
+export interface Archetype {
+	id: string;
+	tenant_id: string;
+	name: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
+}
+
+// ArchetypeTrait - relaciona archetype com trait (template)
+export interface ArchetypeTrait {
+	id: string;
+	archetype_id: string;
+	trait_id: string;
+	default_value: string;
+	created_at: string;
+}
+
+// Faction - hierarquica, pertence a um world
+export interface Faction {
+	id: string;
+	tenant_id: string;
+	world_id: string;
+	parent_id?: string | null;
+	name: string;
+	type?: string | null;
+	description: string;
+	beliefs: string;
+	structure: string;
+	symbols: string;
+	hierarchy_level: number;
+	created_at: string;
+	updated_at: string;
+}
+
+// Lore - hierarquica, pertence a um world
+export interface Lore {
+	id: string;
+	tenant_id: string;
+	world_id: string;
+	parent_id?: string | null;
+	name: string;
+	category?: string | null;
+	description: string;
+	rules: string;
+	limitations: string;
+	requirements: string;
+	hierarchy_level: number;
+	created_at: string;
+	updated_at: string;
+}
+
+// CharacterTrait - trait atribuido a character com value customizado
+export interface CharacterTrait {
+	id: string;
+	character_id: string;
+	trait_id: string;
+	trait_name: string;
+	trait_category: string;
+	trait_description: string;
+	value: string;
+	notes: string;
+	created_at: string;
+	updated_at: string;
+}
+
+// CharacterRelationship - auto-relacionamento entre characters
+export interface CharacterRelationship {
+	id: string;
+	tenant_id: string;
+	character1_id: string;
+	character2_id: string;
+	relationship_type: string; // "ally", "enemy", "family", "lover", "rival", "mentor", "student"
+	description: string;
+	bidirectional: boolean;
+	created_at: string;
+	updated_at: string;
+}
+
+// EventCharacter - relaciona evento com character
+export interface EventCharacter {
+	id: string;
+	event_id: string;
+	character_id: string;
+	role?: string | null;
+	created_at: string;
+}
+
+// EventReference - relaciona evento com entidades
+export interface EventReference {
+	id: string;
+	event_id: string;
+	entity_type: "character" | "location" | "artifact" | "faction";
+	entity_id: string;
+	relationship_type?: string | null;
+	notes: string;
+	created_at: string;
+}
+
+// SceneReference - relaciona scene com entity
+export interface SceneReference {
+	id: string;
+	scene_id: string;
+	entity_type: "character" | "location" | "artifact";
+	entity_id: string;
+	created_at: string;
+}
+
+// FactionReference - relaciona faction com outras entidades
+export interface FactionReference {
+	id: string;
+	faction_id: string;
+	entity_type: string;
+	entity_id: string;
+	role?: string | null;
+	notes: string;
+	created_at: string;
+}
+
+// LoreReference - relaciona lore com outras entidades
+export interface LoreReference {
+	id: string;
+	lore_id: string;
+	entity_type: string;
+	entity_id: string;
+	relationship_type?: string | null;
+	notes: string;
+	created_at: string;
+}
+
+// TimeConfig - configuracao de calendario do world
+export interface TimeConfig {
+	base_unit: string;
+	hours_per_day: number;
+	days_per_week: number;
+	days_per_year: number;
+	months_per_year: number;
+	month_lengths?: number[];
+	month_names?: string[];
+	day_names?: string[];
+	era_name?: string;
+	year_zero?: number;
+}
+
+// WorldDate - data no calendario do world
+export interface WorldDate {
+	year: number;
+	month: number;
+	day: number;
+	hour: number;
+	minute: number;
 }
 

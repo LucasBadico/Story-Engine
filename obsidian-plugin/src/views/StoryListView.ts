@@ -1,12 +1,14 @@
 import { ItemView, WorkspaceLeaf, Notice, Modal, setIcon } from "obsidian";
 import StoryEnginePlugin from "../main";
-import { Story, Chapter, Scene, Beat, ContentBlock, ContentBlockReference, World, RPGSystem, Character, Location, Artifact, WorldEvent, Trait } from "../types";
+import { Story, Chapter, Scene, Beat, ContentBlock, ContentBlockReference, World, RPGSystem, Character, Location, Artifact, WorldEvent, Trait, Archetype, Faction, Lore, TimeConfig, CharacterTrait, CharacterRelationship, EventCharacter, SceneReference } from "../types";
 import { ChapterModal } from "./modals/ChapterModal";
 import { SceneModal } from "./modals/SceneModal";
 import { BeatModal } from "./modals/BeatModal";
 import { ContentBlockModal } from "./modals/ContentBlockModal";
 import { CreateWorldModal } from "./CreateWorldModal";
 import { WorldDetailsModal } from "./WorldDetailsModal";
+import { TimelineModal } from "./TimelineModal";
+import { CharacterDetailsView } from "./CharacterDetailsView";
 
 export const STORY_LIST_VIEW_TYPE = "story-engine-list-view";
 
@@ -21,11 +23,13 @@ export class StoryListView extends ItemView {
 	headerEl!: HTMLElement;
 	currentStory: Story | null = null;
 	currentWorld: World | null = null;
-	viewMode: "list" | "details" | "world-details" = "list";
+	viewMode: "list" | "details" | "world-details" | "character-details" = "list";
 	currentTab: "chapters" | "scenes" | "beats" | "contents" = "chapters";
-	worldTab: "characters" | "locations" | "artifacts" | "events" | "traits" = "characters";
+	worldTab: "characters" | "traits" | "archetypes" | "events" | "lore" | "locations" | "factions" | "artifacts" = "characters";
 	listTab: "stories" | "worlds" | "rpg-systems" = "stories";
 	expandedWorldId: string | null = null;
+	// Character Details View
+	characterDetailsView: CharacterDetailsView | null = null;
 	chapters: Chapter[] = [];
 	scenes: Scene[] = [];
 	beats: Beat[] = [];
@@ -38,6 +42,9 @@ export class StoryListView extends ItemView {
 	artifacts: Artifact[] = [];
 	events: WorldEvent[] = [];
 	traits: Trait[] = [];
+	archetypes: Archetype[] = [];
+	factions: Faction[] = [];
+	lores: Lore[] = [];
 	loadingWorldData: boolean = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
@@ -49,12 +56,15 @@ export class StoryListView extends ItemView {
 		return STORY_LIST_VIEW_TYPE;
 	}
 
-	getDisplayText(): string {
+		getDisplayText(): string {
 		if (this.viewMode === "details" && this.currentStory) {
 			return this.currentStory.title;
 		}
 		if (this.viewMode === "world-details" && this.currentWorld) {
 			return this.currentWorld.name;
+		}
+		if (this.viewMode === "character-details" && this.characterDetailsView) {
+			return this.characterDetailsView["character"].name;
 		}
 		return "Stories";
 	}
@@ -90,6 +100,8 @@ export class StoryListView extends ItemView {
 			this.renderDetails();
 		} else if (this.viewMode === "world-details" && this.currentWorld) {
 			this.renderWorldDetails();
+		} else if (this.viewMode === "character-details" && this.characterDetailsView) {
+			this.characterDetailsView.render();
 		} else {
 			this.renderListHeader();
 			this.renderListContent();
@@ -2205,6 +2217,32 @@ export class StoryListView extends ItemView {
 				console.warn("Traits not available:", err);
 				this.traits = [];
 			}
+			// Archetypes are global per tenant
+			try {
+				this.archetypes = await this.plugin.apiClient.getArchetypes();
+			} catch (err) {
+				console.warn("Archetypes not available:", err);
+				this.archetypes = [];
+			}
+			// Factions and Lore are per-world
+			try {
+				this.factions = await this.plugin.apiClient.getFactions(this.currentWorld.id);
+			} catch (err) {
+				console.warn("Factions not available:", err);
+				this.factions = [];
+			}
+			try {
+				this.lores = await this.plugin.apiClient.getLores(this.currentWorld.id);
+			} catch (err) {
+				console.warn("Lores not available:", err);
+				this.lores = [];
+			}
+			// Reload world to get time_config
+			try {
+				this.currentWorld = await this.plugin.apiClient.getWorld(this.currentWorld.id);
+			} catch (err) {
+				console.warn("Failed to reload world:", err);
+			}
 		} catch (err) {
 			const errorMessage = err instanceof Error ? err.message : "Failed to load world data";
 			new Notice(`Error: ${errorMessage}`, 5000);
@@ -2333,12 +2371,15 @@ export class StoryListView extends ItemView {
 
 		const tabsContainer = this.contentEl.createDiv({ cls: "story-engine-tabs" });
 
-		const tabs: { key: "characters" | "locations" | "artifacts" | "events" | "traits"; label: string }[] = [
+		const tabs: { key: "characters" | "traits" | "archetypes" | "events" | "lore" | "locations" | "factions" | "artifacts"; label: string }[] = [
 			{ key: "characters", label: "Characters" },
-			{ key: "locations", label: "Locations" },
-			{ key: "artifacts", label: "Artifacts" },
-			{ key: "events", label: "Events" },
 			{ key: "traits", label: "Traits" },
+			{ key: "archetypes", label: "Archetypes" },
+			{ key: "events", label: "Events" },
+			{ key: "lore", label: "Lore" },
+			{ key: "locations", label: "Locations" },
+			{ key: "factions", label: "Factions" },
+			{ key: "artifacts", label: "Artifacts" },
 		];
 
 		for (const tab of tabs) {
@@ -2374,17 +2415,26 @@ export class StoryListView extends ItemView {
 			case "characters":
 				this.renderCharactersTab(contentContainer);
 				break;
-			case "locations":
-				this.renderLocationsTab(contentContainer);
+			case "traits":
+				this.renderTraitsTab(contentContainer);
 				break;
-			case "artifacts":
-				this.renderArtifactsTab(contentContainer);
+			case "archetypes":
+				this.renderArchetypesTab(contentContainer);
 				break;
 			case "events":
 				this.renderEventsTab(contentContainer);
 				break;
-			case "traits":
-				this.renderTraitsTab(contentContainer);
+			case "lore":
+				this.renderLoreTab(contentContainer);
+				break;
+			case "locations":
+				this.renderLocationsTab(contentContainer);
+				break;
+			case "factions":
+				this.renderFactionsTab(contentContainer);
+				break;
+			case "artifacts":
+				this.renderArtifactsTab(contentContainer);
 				break;
 		}
 
@@ -2401,21 +2451,33 @@ export class StoryListView extends ItemView {
 		};
 
 		switch (this.worldTab) {
-			case "locations":
-				createButtonText = "Create Location";
-				createButtonAction = () => this.showCreateLocationModal();
+			case "traits":
+				createButtonText = "Create Trait";
+				createButtonAction = () => this.showCreateTraitModal();
 				break;
-			case "artifacts":
-				createButtonText = "Create Artifact";
-				createButtonAction = () => this.showCreateArtifactModal();
+			case "archetypes":
+				createButtonText = "Create Archetype";
+				createButtonAction = () => this.showCreateArchetypeModal();
 				break;
 			case "events":
 				createButtonText = "Create Event";
 				createButtonAction = () => this.showCreateEventModal();
 				break;
-			case "traits":
-				createButtonText = "Create Trait";
-				createButtonAction = () => this.showCreateTraitModal();
+			case "lore":
+				createButtonText = "Create Lore";
+				createButtonAction = () => this.showCreateLoreModal();
+				break;
+			case "locations":
+				createButtonText = "Create Location";
+				createButtonAction = () => this.showCreateLocationModal();
+				break;
+			case "factions":
+				createButtonText = "Create Faction";
+				createButtonAction = () => this.showCreateFactionModal();
+				break;
+			case "artifacts":
+				createButtonText = "Create Artifact";
+				createButtonAction = () => this.showCreateArtifactModal();
 				break;
 		}
 
@@ -2435,7 +2497,11 @@ export class StoryListView extends ItemView {
 		const list = container.createDiv({ cls: "story-engine-list" });
 		for (const character of this.characters) {
 			const item = list.createDiv({ cls: "story-engine-item" });
-			item.createDiv({ cls: "story-engine-title", text: character.name });
+			const titleDiv = item.createDiv({ cls: "story-engine-title", text: character.name });
+			titleDiv.style.cursor = "pointer";
+			titleDiv.onclick = () => {
+				this.showCharacterDetails(character);
+			};
 			
 			const meta = item.createDiv({ cls: "story-engine-meta" });
 			if (character.description) {
@@ -2443,6 +2509,11 @@ export class StoryListView extends ItemView {
 			}
 
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
+			// Botão relacionamento
+			const relBtn = actions.createEl("button");
+			setIcon(relBtn, "users");
+			relBtn.title = "Add Relationship";
+			relBtn.onclick = () => this.showAddCharacterRelationshipModal(character);
 			actions.createEl("button", { text: "Edit" }).onclick = () => {
 				this.showEditCharacterModal(character);
 			};
@@ -2558,6 +2629,37 @@ export class StoryListView extends ItemView {
 	}
 
 	renderEventsTab(container: HTMLElement) {
+		// === SECAO 1: TIME CONFIG ===
+		const timeConfigSection = container.createDiv({ cls: "story-engine-time-config-section" });
+		
+		if (this.currentWorld?.time_config) {
+			// Mostrar configuracao atual
+			this.renderTimeConfigDisplay(timeConfigSection, this.currentWorld.time_config);
+			
+			// Botao Edit
+			const editBtn = timeConfigSection.createEl("button", { 
+				text: "Edit Time Config",
+				cls: "story-engine-btn-secondary"
+			});
+			editBtn.onclick = () => this.showTimeConfigModal(this.currentWorld!.time_config!);
+		} else {
+			// Mostrar botao para adicionar
+			const addBtn = timeConfigSection.createEl("button", { 
+				text: "Add Time Configuration",
+				cls: "story-engine-btn-primary"
+			});
+			addBtn.onclick = () => this.showTimeConfigModal(null);
+		}
+		
+		// === SECAO 2: BOTAO VER TIMELINE ===
+		const timelineSection = container.createDiv({ cls: "story-engine-timeline-section" });
+		const timelineBtn = timelineSection.createEl("button", {
+			text: "View Timeline",
+			cls: "story-engine-btn-secondary"
+		});
+		timelineBtn.onclick = () => this.showTimelineModal();
+		
+		// === SECAO 3: LISTA DE EVENTOS ===
 		if (this.events.length === 0) {
 			container.createEl("p", { text: "No events found. Create your first event!" });
 			return;
@@ -2588,6 +2690,16 @@ export class StoryListView extends ItemView {
 			}
 
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
+			// Link to Faction
+			const factionBtn = actions.createEl("button");
+			setIcon(factionBtn, "flag");
+			factionBtn.title = "Link to Faction";
+			factionBtn.onclick = () => this.showAddEventReferenceModal(event, "faction");
+			// Set Parent Event
+			const eventLinkBtn = actions.createEl("button");
+			setIcon(eventLinkBtn, "git-branch");
+			eventLinkBtn.title = "Set Parent Event";
+			eventLinkBtn.onclick = () => this.showSetEventParentModal(event);
 			actions.createEl("button", { text: "Edit" }).onclick = () => {
 				this.showEditEventModal(event);
 			};
@@ -2658,6 +2770,175 @@ export class StoryListView extends ItemView {
 		}
 	}
 
+	renderArchetypesTab(container: HTMLElement) {
+		if (this.archetypes.length === 0) {
+			container.createEl("p", { text: "No archetypes found. Create your first archetype!" });
+			return;
+		}
+
+		const list = container.createDiv({ cls: "story-engine-list" });
+		for (const archetype of this.archetypes.sort((a, b) => a.name.localeCompare(b.name))) {
+			const item = list.createDiv({ cls: "story-engine-item" });
+			item.createDiv({ cls: "story-engine-title", text: archetype.name });
+			
+			const meta = item.createDiv({ cls: "story-engine-meta" });
+			if (archetype.description) {
+				meta.createEl("span", { text: archetype.description.substring(0, 50) + (archetype.description.length > 50 ? "..." : "") });
+			}
+
+			const actions = item.createDiv({ cls: "story-engine-item-actions" });
+			actions.createEl("button", { text: "View Traits" }).onclick = async () => {
+				try {
+					const traits = await this.plugin.apiClient.getArchetypeTraits(archetype.id);
+					this.showArchetypeTraitsModal(archetype, traits);
+				} catch (err) {
+					new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+				}
+			};
+			actions.createEl("button", { text: "Edit" }).onclick = () => {
+				this.showEditArchetypeModal(archetype);
+			};
+			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+				if (confirm(`Delete archetype "${archetype.name}"?`)) {
+					try {
+						await this.plugin.apiClient.deleteArchetype(archetype.id);
+						await this.loadWorldData();
+						this.renderWorldTabContent();
+						new Notice("Archetype deleted");
+					} catch (err) {
+						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+					}
+				}
+			};
+		}
+	}
+
+	renderLoreTab(container: HTMLElement) {
+		if (this.lores.length === 0) {
+			container.createEl("p", { text: "No lore found. Create your first lore!" });
+			return;
+		}
+
+		// Group by hierarchy level
+		const rootLores = this.lores.filter(l => !l.parent_id);
+		const list = container.createDiv({ cls: "story-engine-list" });
+		
+		for (const lore of rootLores.sort((a, b) => a.name.localeCompare(b.name))) {
+			this.renderLoreItem(list, lore, 0);
+		}
+	}
+
+	renderLoreItem(container: HTMLElement, lore: Lore, level: number) {
+		const item = container.createDiv({ cls: "story-engine-item" });
+		item.style.marginLeft = `${level * 1}rem`;
+		
+		const titleRow = item.createDiv({ cls: "story-engine-title" });
+		titleRow.textContent = lore.name;
+		if (lore.category) {
+			const categoryBadge = titleRow.createSpan({ cls: "story-engine-badge" });
+			categoryBadge.textContent = lore.category;
+		}
+		
+		const meta = item.createDiv({ cls: "story-engine-meta" });
+		if (lore.description) {
+			meta.createEl("span", { text: lore.description.substring(0, 50) + (lore.description.length > 50 ? "..." : "") });
+		}
+
+		const actions = item.createDiv({ cls: "story-engine-item-actions" });
+		actions.createEl("button", { text: "View Details" }).onclick = () => {
+			this.showLoreDetailsModal(lore);
+		};
+		actions.createEl("button", { text: "Edit" }).onclick = () => {
+			this.showEditLoreModal(lore);
+		};
+		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			if (confirm(`Delete lore "${lore.name}"?`)) {
+				try {
+					await this.plugin.apiClient.deleteLore(lore.id);
+					await this.loadWorldData();
+					this.renderWorldTabContent();
+					new Notice("Lore deleted");
+				} catch (err) {
+					new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+				}
+			}
+		};
+
+		// Render children
+		const children = this.lores.filter(l => l.parent_id === lore.id);
+		for (const child of children.sort((a, b) => a.name.localeCompare(b.name))) {
+			this.renderLoreItem(container, child, level + 1);
+		}
+	}
+
+	renderFactionsTab(container: HTMLElement) {
+		if (this.factions.length === 0) {
+			container.createEl("p", { text: "No factions found. Create your first faction!" });
+			return;
+		}
+
+		// Group by hierarchy level
+		const rootFactions = this.factions.filter(f => !f.parent_id);
+		const list = container.createDiv({ cls: "story-engine-list" });
+		
+		for (const faction of rootFactions.sort((a, b) => a.name.localeCompare(b.name))) {
+			this.renderFactionItem(list, faction, 0);
+		}
+	}
+
+	renderFactionItem(container: HTMLElement, faction: Faction, level: number) {
+		const item = container.createDiv({ cls: "story-engine-item" });
+		item.style.marginLeft = `${level * 1}rem`;
+		
+		const titleRow = item.createDiv({ cls: "story-engine-title" });
+		titleRow.textContent = faction.name;
+		if (faction.type) {
+			const typeBadge = titleRow.createSpan({ cls: "story-engine-badge" });
+			typeBadge.textContent = faction.type;
+		}
+		
+		const meta = item.createDiv({ cls: "story-engine-meta" });
+		if (faction.description) {
+			meta.createEl("span", { text: faction.description.substring(0, 50) + (faction.description.length > 50 ? "..." : "") });
+		}
+
+		const actions = item.createDiv({ cls: "story-engine-item-actions" });
+		// Link to Entity
+		const linkBtn = actions.createEl("button");
+		setIcon(linkBtn, "link");
+		linkBtn.title = "Link to Entity";
+		linkBtn.onclick = () => this.showAddFactionReferenceModal(faction);
+		// Create Sub-Faction
+		const subBtn = actions.createEl("button");
+		setIcon(subBtn, "folder-plus");
+		subBtn.title = "Create Sub-Faction";
+		subBtn.onclick = () => this.showCreateFactionModal(faction.id);
+		actions.createEl("button", { text: "View Details" }).onclick = () => {
+			this.showFactionDetailsModal(faction);
+		};
+		actions.createEl("button", { text: "Edit" }).onclick = () => {
+			this.showEditFactionModal(faction);
+		};
+		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			if (confirm(`Delete faction "${faction.name}"?`)) {
+				try {
+					await this.plugin.apiClient.deleteFaction(faction.id);
+					await this.loadWorldData();
+					this.renderWorldTabContent();
+					new Notice("Faction deleted");
+				} catch (err) {
+					new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+				}
+			}
+		};
+
+		// Render children
+		const children = this.factions.filter(f => f.parent_id === faction.id);
+		for (const child of children.sort((a, b) => a.name.localeCompare(b.name))) {
+			this.renderFactionItem(container, child, level + 1);
+		}
+	}
+
 	// Modal methods for World entities
 	showCreateCharacterModal() {
 		if (!this.currentWorld) return;
@@ -2724,9 +3005,14 @@ export class StoryListView extends ItemView {
 				return;
 			}
 			try {
-				await this.plugin.apiClient.updateCharacter(character.id, { name: name.trim(), description: description.trim() });
-				await this.loadWorldData();
-				this.renderWorldTabContent();
+				const updated = await this.plugin.apiClient.updateCharacter(character.id, { name: name.trim(), description: description.trim() });
+				// Update character details view if we're in character details view
+				if (this.viewMode === "character-details" && this.characterDetailsView && this.characterDetailsView["character"].id === character.id) {
+					this.characterDetailsView.updateCharacter(updated);
+				} else {
+					await this.loadWorldData();
+					this.renderWorldTabContent();
+				}
 				modal.close();
 				new Notice("Character updated");
 			} catch (err) {
@@ -3155,5 +3441,825 @@ export class StoryListView extends ItemView {
 
 		modal.open();
 	}
+
+	renderTimeConfigDisplay(container: HTMLElement, config: TimeConfig) {
+		container.createEl("h4", { text: "Time Configuration" });
+		
+		const grid = container.createDiv({ cls: "story-engine-time-config-grid" });
+		
+		// Mostrar campos
+		grid.createDiv().setText(`Base Unit: ${config.base_unit}`);
+		grid.createDiv().setText(`Hours/Day: ${config.hours_per_day}`);
+		grid.createDiv().setText(`Days/Week: ${config.days_per_week}`);
+		grid.createDiv().setText(`Days/Year: ${config.days_per_year}`);
+		grid.createDiv().setText(`Months/Year: ${config.months_per_year}`);
+		
+		if (config.era_name) {
+			grid.createDiv().setText(`Era: ${config.era_name}`);
+		}
+		if (config.month_names?.length) {
+			grid.createDiv().setText(`Months: ${config.month_names.join(", ")}`);
+		}
+		if (config.year_zero !== undefined) {
+			grid.createDiv().setText(`Year Zero: ${config.year_zero}`);
+		}
+	}
+
+	showTimeConfigModal(existingConfig: TimeConfig | null) {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText(existingConfig ? "Edit Time Configuration" : "Create Time Configuration");
+		
+		const content = modal.contentEl;
+		let baseUnit = existingConfig?.base_unit || "year";
+		let hoursPerDay = existingConfig?.hours_per_day || 24;
+		let daysPerWeek = existingConfig?.days_per_week || 7;
+		let daysPerYear = existingConfig?.days_per_year || 365;
+		let monthsPerYear = existingConfig?.months_per_year || 12;
+		let eraName = existingConfig?.era_name || "";
+		let yearZero = existingConfig?.year_zero?.toString() || "";
+
+		content.createEl("label", { text: "Base Unit *" });
+		const baseUnitSelect = content.createEl("select", { cls: "story-engine-select" });
+		["year", "day", "hour", "custom"].forEach(unit => {
+			const opt = baseUnitSelect.createEl("option", { value: unit, text: unit });
+			if (baseUnit === unit) opt.selected = true;
+		});
+		baseUnitSelect.onchange = () => { baseUnit = baseUnitSelect.value; };
+
+		content.createEl("label", { text: "Hours per Day" });
+		const hoursPerDayInput = content.createEl("input", { 
+			type: "number", 
+			cls: "story-engine-input",
+			value: hoursPerDay.toString()
+		});
+		hoursPerDayInput.oninput = () => { hoursPerDay = parseFloat(hoursPerDayInput.value) || 24; };
+
+		content.createEl("label", { text: "Days per Week" });
+		const daysPerWeekInput = content.createEl("input", { 
+			type: "number", 
+			cls: "story-engine-input",
+			value: daysPerWeek.toString()
+		});
+		daysPerWeekInput.oninput = () => { daysPerWeek = parseInt(daysPerWeekInput.value) || 7; };
+
+		content.createEl("label", { text: "Days per Year" });
+		const daysPerYearInput = content.createEl("input", { 
+			type: "number", 
+			cls: "story-engine-input",
+			value: daysPerYear.toString()
+		});
+		daysPerYearInput.oninput = () => { daysPerYear = parseInt(daysPerYearInput.value) || 365; };
+
+		content.createEl("label", { text: "Months per Year" });
+		const monthsPerYearInput = content.createEl("input", { 
+			type: "number", 
+			cls: "story-engine-input",
+			value: monthsPerYear.toString()
+		});
+		monthsPerYearInput.oninput = () => { monthsPerYear = parseInt(monthsPerYearInput.value) || 12; };
+
+		content.createEl("label", { text: "Era Name (optional)" });
+		const eraNameInput = content.createEl("input", { 
+			type: "text", 
+			cls: "story-engine-input",
+			value: eraName
+		});
+		eraNameInput.oninput = () => { eraName = eraNameInput.value; };
+
+		content.createEl("label", { text: "Year Zero (optional)" });
+		const yearZeroInput = content.createEl("input", { 
+			type: "number", 
+			cls: "story-engine-input",
+			value: yearZero
+		});
+		yearZeroInput.oninput = () => { yearZero = yearZeroInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			try {
+				const timeConfig: TimeConfig = {
+					base_unit: baseUnit,
+					hours_per_day: hoursPerDay,
+					days_per_week: daysPerWeek,
+					days_per_year: daysPerYear,
+					months_per_year: monthsPerYear,
+					era_name: eraName.trim() || undefined,
+					year_zero: yearZero ? parseInt(yearZero) : undefined,
+				};
+				await this.plugin.apiClient.updateWorldTimeConfig(this.currentWorld!.id, timeConfig);
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Time configuration saved");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+
+		modal.open();
+	}
+
+	async showTimelineModal() {
+		if (!this.currentWorld) return;
+		try {
+			const events = await this.plugin.apiClient.getTimeline(this.currentWorld.id);
+			const modal = new TimelineModal(this.app, events, this.currentWorld.time_config || null);
+			modal.open();
+		} catch (err) {
+			new Notice(`Error: ${err instanceof Error ? err.message : "Failed to load timeline"}`, 5000);
+		}
+	}
+
+	// Placeholder methods for modals that will be implemented later
+	showArchetypeTraitsModal(archetype: Archetype, traits: any[]) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText(`Traits for ${archetype.name}`);
+		const content = modal.contentEl;
+		if (traits.length === 0) {
+			content.createEl("p", { text: "No traits assigned to this archetype." });
+		} else {
+			const list = content.createDiv({ cls: "story-engine-list" });
+			for (const trait of traits) {
+				const item = list.createDiv({ cls: "story-engine-item" });
+				item.createDiv({ cls: "story-engine-title", text: trait.trait_name || "Unknown" });
+			}
+		}
+		modal.open();
+	}
+
+	showCreateArchetypeModal() {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Archetype");
+		const content = modal.contentEl;
+		let name = "";
+		let description = "";
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createArchetype({ name: name.trim(), description: description.trim() });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Archetype created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditArchetypeModal(archetype: Archetype) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Archetype");
+		const content = modal.contentEl;
+		let name = archetype.name;
+		let description = archetype.description;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateArchetype(archetype.id, { name: name.trim(), description: description.trim() });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Archetype updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+	}
+
+	showLoreDetailsModal(lore: Lore) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText(lore.name);
+		const content = modal.contentEl;
+		content.createEl("h4", { text: "Description" });
+		content.createEl("p", { text: lore.description || "No description" });
+		if (lore.rules) {
+			content.createEl("h4", { text: "Rules" });
+			content.createEl("p", { text: lore.rules });
+		}
+		if (lore.limitations) {
+			content.createEl("h4", { text: "Limitations" });
+			content.createEl("p", { text: lore.limitations });
+		}
+		if (lore.requirements) {
+			content.createEl("h4", { text: "Requirements" });
+			content.createEl("p", { text: lore.requirements });
+		}
+		modal.open();
+	}
+
+	showCreateLoreModal(parentId?: string | null) {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Lore");
+		const content = modal.contentEl;
+		let name = "";
+		let category = "";
+		let description = "";
+		let rules = "";
+		let limitations = "";
+		let requirements = "";
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Category" });
+		const categoryInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		categoryInput.oninput = () => { category = categoryInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		content.createEl("label", { text: "Rules" });
+		const rulesInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		rulesInput.oninput = () => { rules = rulesInput.value; };
+
+		content.createEl("label", { text: "Limitations" });
+		const limitationsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		limitationsInput.oninput = () => { limitations = limitationsInput.value; };
+
+		content.createEl("label", { text: "Requirements" });
+		const requirementsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		requirementsInput.oninput = () => { requirements = requirementsInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createLore(this.currentWorld!.id, {
+					name: name.trim(),
+					category: category.trim() || undefined,
+					description: description.trim(),
+					rules: rules.trim(),
+					limitations: limitations.trim(),
+					requirements: requirements.trim(),
+					parent_id: parentId || undefined,
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Lore created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditLoreModal(lore: Lore) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Lore");
+		const content = modal.contentEl;
+		let name = lore.name;
+		let category = lore.category || "";
+		let description = lore.description;
+		let rules = lore.rules;
+		let limitations = lore.limitations;
+		let requirements = lore.requirements;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Category" });
+		const categoryInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: category });
+		categoryInput.oninput = () => { category = categoryInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		content.createEl("label", { text: "Rules" });
+		const rulesInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		rulesInput.value = rules;
+		rulesInput.oninput = () => { rules = rulesInput.value; };
+
+		content.createEl("label", { text: "Limitations" });
+		const limitationsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		limitationsInput.value = limitations;
+		limitationsInput.oninput = () => { limitations = limitationsInput.value; };
+
+		content.createEl("label", { text: "Requirements" });
+		const requirementsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		requirementsInput.value = requirements;
+		requirementsInput.oninput = () => { requirements = requirementsInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateLore(lore.id, {
+					name: name.trim(),
+					category: category.trim() || undefined,
+					description: description.trim(),
+					rules: rules.trim(),
+					limitations: limitations.trim(),
+					requirements: requirements.trim(),
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Lore updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+	}
+
+	showFactionDetailsModal(faction: Faction) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText(faction.name);
+		const content = modal.contentEl;
+		content.createEl("h4", { text: "Description" });
+		content.createEl("p", { text: faction.description || "No description" });
+		if (faction.beliefs) {
+			content.createEl("h4", { text: "Beliefs" });
+			content.createEl("p", { text: faction.beliefs });
+		}
+		if (faction.structure) {
+			content.createEl("h4", { text: "Structure" });
+			content.createEl("p", { text: faction.structure });
+		}
+		if (faction.symbols) {
+			content.createEl("h4", { text: "Symbols" });
+			content.createEl("p", { text: faction.symbols });
+		}
+		modal.open();
+	}
+
+	showCreateFactionModal(parentId?: string | null) {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Create Faction");
+		const content = modal.contentEl;
+		let name = "";
+		let type = "";
+		let description = "";
+		let beliefs = "";
+		let structure = "";
+		let symbols = "";
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Type" });
+		const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input" });
+		typeInput.oninput = () => { type = typeInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		content.createEl("label", { text: "Beliefs" });
+		const beliefsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		beliefsInput.oninput = () => { beliefs = beliefsInput.value; };
+
+		content.createEl("label", { text: "Structure" });
+		const structureInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		structureInput.oninput = () => { structure = structureInput.value; };
+
+		content.createEl("label", { text: "Symbols" });
+		const symbolsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		symbolsInput.oninput = () => { symbols = symbolsInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createFaction(this.currentWorld!.id, {
+					name: name.trim(),
+					type: type.trim() || undefined,
+					description: description.trim(),
+					beliefs: beliefs.trim(),
+					structure: structure.trim(),
+					symbols: symbols.trim(),
+					parent_id: parentId || undefined,
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Faction created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+		nameInput.focus();
+	}
+
+	showEditFactionModal(faction: Faction) {
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Edit Faction");
+		const content = modal.contentEl;
+		let name = faction.name;
+		let type = faction.type || "";
+		let description = faction.description;
+		let beliefs = faction.beliefs;
+		let structure = faction.structure;
+		let symbols = faction.symbols;
+
+		content.createEl("label", { text: "Name *" });
+		const nameInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: name });
+		nameInput.oninput = () => { name = nameInput.value; };
+
+		content.createEl("label", { text: "Type" });
+		const typeInput = content.createEl("input", { type: "text", cls: "story-engine-input", value: type });
+		typeInput.oninput = () => { type = typeInput.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.value = description;
+		descInput.oninput = () => { description = descInput.value; };
+
+		content.createEl("label", { text: "Beliefs" });
+		const beliefsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		beliefsInput.value = beliefs;
+		beliefsInput.oninput = () => { beliefs = beliefsInput.value; };
+
+		content.createEl("label", { text: "Structure" });
+		const structureInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		structureInput.value = structure;
+		structureInput.oninput = () => { structure = structureInput.value; };
+
+		content.createEl("label", { text: "Symbols" });
+		const symbolsInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		symbolsInput.value = symbols;
+		symbolsInput.oninput = () => { symbols = symbolsInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			if (!name.trim()) {
+				new Notice("Name is required", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.updateFaction(faction.id, {
+					name: name.trim(),
+					type: type.trim() || undefined,
+					description: description.trim(),
+					beliefs: beliefs.trim(),
+					structure: structure.trim(),
+					symbols: symbols.trim(),
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Faction updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+	}
+
+	// ==================== Relationship Modals ====================
+
+	showAddCharacterRelationshipModal(character: Character) {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Add Character Relationship");
+		
+		const content = modal.contentEl;
+		let otherCharacterId = "";
+		let relationshipType = "ally";
+		let description = "";
+		let bidirectional = true;
+
+		content.createEl("label", { text: "Other Character *" });
+		const characterSelect = content.createEl("select", { cls: "story-engine-select" });
+		characterSelect.createEl("option", { value: "", text: "Select a character..." });
+		for (const char of this.characters.filter(c => c.id !== character.id).sort((a, b) => a.name.localeCompare(b.name))) {
+			characterSelect.createEl("option", { value: char.id, text: char.name });
+		}
+		characterSelect.onchange = () => { otherCharacterId = characterSelect.value; };
+
+		content.createEl("label", { text: "Relationship Type *" });
+		const typeSelect = content.createEl("select", { cls: "story-engine-select" });
+		const relationshipTypes = ["ally", "enemy", "family", "lover", "rival", "mentor", "student"];
+		for (const type of relationshipTypes) {
+			typeSelect.createEl("option", { value: type, text: type.charAt(0).toUpperCase() + type.slice(1) });
+		}
+		typeSelect.onchange = () => { relationshipType = typeSelect.value; };
+
+		content.createEl("label", { text: "Description" });
+		const descInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		descInput.oninput = () => { description = descInput.value; };
+
+		content.createEl("label", { text: "Bidirectional" });
+		const bidirectionalCheckbox = content.createEl("input", { type: "checkbox" });
+		bidirectionalCheckbox.checked = true;
+		bidirectionalCheckbox.onchange = () => { bidirectional = bidirectionalCheckbox.checked; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!otherCharacterId) {
+				new Notice("Please select a character", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.createCharacterRelationship(character.id, {
+					character2_id: otherCharacterId,
+					relationship_type: relationshipType,
+					description: description.trim(),
+					bidirectional: bidirectional,
+				});
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Relationship created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+	}
+
+	showAddEventReferenceModal(event: WorldEvent, entityType: "faction" | "character" | "location" | "artifact") {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText(`Link Event to ${entityType.charAt(0).toUpperCase() + entityType.slice(1)}`);
+		
+		const content = modal.contentEl;
+		let entityId = "";
+		let relationshipType = "";
+		let notes = "";
+
+		content.createEl("label", { text: `${entityType.charAt(0).toUpperCase() + entityType.slice(1)} *` });
+		const entitySelect = content.createEl("select", { cls: "story-engine-select" });
+		entitySelect.createEl("option", { value: "", text: `Select a ${entityType}...` });
+		
+		if (entityType === "faction") {
+			for (const faction of this.factions.sort((a, b) => a.name.localeCompare(b.name))) {
+				entitySelect.createEl("option", { value: faction.id, text: faction.name });
+			}
+		} else if (entityType === "character") {
+			for (const char of this.characters.sort((a, b) => a.name.localeCompare(b.name))) {
+				entitySelect.createEl("option", { value: char.id, text: char.name });
+			}
+		} else if (entityType === "location") {
+			for (const loc of this.locations.sort((a, b) => a.name.localeCompare(b.name))) {
+				entitySelect.createEl("option", { value: loc.id, text: loc.name });
+			}
+		} else if (entityType === "artifact") {
+			for (const art of this.artifacts.sort((a, b) => a.name.localeCompare(b.name))) {
+				entitySelect.createEl("option", { value: art.id, text: art.name });
+			}
+		}
+		entitySelect.onchange = () => { entityId = entitySelect.value; };
+
+		content.createEl("label", { text: "Relationship Type" });
+		const relTypeInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., involved, affected, caused" });
+		relTypeInput.oninput = () => { relationshipType = relTypeInput.value; };
+
+		content.createEl("label", { text: "Notes" });
+		const notesInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		notesInput.oninput = () => { notes = notesInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!entityId) {
+				new Notice(`Please select a ${entityType}`, 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.addEventReference(event.id, entityType, entityId, relationshipType.trim() || undefined, notes.trim() || undefined);
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Reference created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+	}
+
+	showSetEventParentModal(event: WorldEvent) {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Set Parent Event");
+		
+		const content = modal.contentEl;
+		let parentId: string | null = null;
+
+		content.createEl("label", { text: "Parent Event" });
+		const parentSelect = content.createEl("select", { cls: "story-engine-select" });
+		parentSelect.createEl("option", { value: "", text: "None (Root Event)" });
+		for (const evt of this.events.filter(e => e.id !== event.id).sort((a, b) => a.name.localeCompare(b.name))) {
+			parentSelect.createEl("option", { value: evt.id, text: evt.name });
+		}
+		if (event.parent_id) {
+			parentSelect.value = event.parent_id;
+			parentId = event.parent_id;
+		}
+		parentSelect.onchange = () => { parentId = parentSelect.value || null; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
+		saveBtn.onclick = async () => {
+			try {
+				await this.plugin.apiClient.updateEvent(event.id, { parent_id: parentId || undefined });
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Parent event updated");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+	}
+
+	showAddFactionReferenceModal(faction: Faction) {
+		if (!this.currentWorld) return;
+		const modal = new Modal(this.app);
+		modal.titleEl.setText("Link Faction to Entity");
+		
+		const content = modal.contentEl;
+		let entityType = "character";
+		let entityId = "";
+		let role = "";
+		let notes = "";
+
+		content.createEl("label", { text: "Entity Type *" });
+		const typeSelect = content.createEl("select", { cls: "story-engine-select" });
+		typeSelect.createEl("option", { value: "character", text: "Character" });
+		typeSelect.createEl("option", { value: "location", text: "Location" });
+		typeSelect.createEl("option", { value: "artifact", text: "Artifact" });
+		typeSelect.createEl("option", { value: "event", text: "Event" });
+		typeSelect.onchange = () => {
+			entityType = typeSelect.value;
+			// Update entity select options
+			entitySelect.empty();
+			entitySelect.createEl("option", { value: "", text: `Select a ${entityType}...` });
+			loadEntitiesForType(entityType);
+		};
+
+		content.createEl("label", { text: "Entity *" });
+		const entitySelect = content.createEl("select", { cls: "story-engine-select" });
+		entitySelect.createEl("option", { value: "", text: "Select an entity..." });
+		
+		const loadEntitiesForType = (type: string) => {
+			if (type === "character") {
+				for (const char of this.characters.sort((a, b) => a.name.localeCompare(b.name))) {
+					entitySelect.createEl("option", { value: char.id, text: char.name });
+				}
+			} else if (type === "location") {
+				for (const loc of this.locations.sort((a, b) => a.name.localeCompare(b.name))) {
+					entitySelect.createEl("option", { value: loc.id, text: loc.name });
+				}
+			} else if (type === "artifact") {
+				for (const art of this.artifacts.sort((a, b) => a.name.localeCompare(b.name))) {
+					entitySelect.createEl("option", { value: art.id, text: art.name });
+				}
+			} else if (type === "event") {
+				for (const evt of this.events.sort((a, b) => a.name.localeCompare(b.name))) {
+					entitySelect.createEl("option", { value: evt.id, text: evt.name });
+				}
+			}
+		};
+		loadEntitiesForType(entityType);
+		entitySelect.onchange = () => { entityId = entitySelect.value; };
+
+		content.createEl("label", { text: "Role" });
+		const roleInput = content.createEl("input", { type: "text", cls: "story-engine-input", placeholder: "e.g., leader, member, location" });
+		roleInput.oninput = () => { role = roleInput.value; };
+
+		content.createEl("label", { text: "Notes" });
+		const notesInput = content.createEl("textarea", { cls: "story-engine-textarea" });
+		notesInput.oninput = () => { notes = notesInput.value; };
+
+		const buttonContainer = content.createDiv({ cls: "modal-button-container" });
+		const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
+		createBtn.onclick = async () => {
+			if (!entityId) {
+				new Notice("Please select an entity", 3000);
+				return;
+			}
+			try {
+				await this.plugin.apiClient.addFactionReference(faction.id, entityType, entityId, role.trim() || undefined, notes.trim() || undefined);
+				await this.loadWorldData();
+				this.renderWorldTabContent();
+				modal.close();
+				new Notice("Reference created");
+			} catch (err) {
+				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
+			}
+		};
+		buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
+		modal.open();
+	}
+
+	// ==================== Character Details View Methods ====================
+
+	async showCharacterDetails(character: Character) {
+		this.viewMode = "character-details";
+		
+		// Get world if available
+		const world = character.world_id ? await this.plugin.apiClient.getWorld(character.world_id).catch(() => null) : null;
+		
+		// Get characters for relationships (from world if available, otherwise empty)
+		const characters = world ? await this.plugin.apiClient.getCharacters(world.id).catch(() => []) : [];
+		
+		// Create CharacterDetailsView instance
+		this.characterDetailsView = new CharacterDetailsView(
+			this.plugin,
+			character,
+			this.headerEl,
+			this.contentEl,
+			() => {
+				// onBack callback
+				this.characterDetailsView = null;
+				if (this.currentWorld) {
+					this.viewMode = "world-details";
+					this.renderWorldDetails();
+				} else if (this.currentStory) {
+					this.viewMode = "details";
+					this.renderDetails();
+				} else {
+					this.viewMode = "list";
+					this.renderListHeader();
+					this.renderListContent();
+				}
+			},
+			(character) => {
+				// onEditCharacter callback
+				this.showEditCharacterModal(character);
+			},
+			world,
+			characters,
+			this.archetypes,
+			this.traits,
+			world ? this.events : []
+		);
+		
+		await this.characterDetailsView.render();
+	}
+
 }
 

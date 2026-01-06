@@ -17,6 +17,18 @@ import {
 	Artifact,
 	WorldEvent,
 	Trait,
+	Archetype,
+	ArchetypeTrait,
+	Faction,
+	FactionReference,
+	Lore,
+	LoreReference,
+	CharacterTrait,
+	CharacterRelationship,
+	EventCharacter,
+	EventReference,
+	SceneReference,
+	TimeConfig,
 } from "../types";
 
 export class StoryEngineClient {
@@ -690,6 +702,453 @@ export class StoryEngineClient {
 
 	async deleteTrait(id: string): Promise<void> {
 		await this.request("DELETE", `/api/v1/traits/${id}`);
+	}
+
+	// Archetype methods
+	async getArchetypes(): Promise<Archetype[]> {
+		const response = await this.request<{ archetypes: Archetype[] }>(
+			"GET",
+			"/api/v1/archetypes"
+		);
+		return response.archetypes || [];
+	}
+
+	async getArchetype(id: string): Promise<Archetype> {
+		const response = await this.request<{ archetype: Archetype }>(
+			"GET",
+			`/api/v1/archetypes/${id}`
+		);
+		return response.archetype;
+	}
+
+	async createArchetype(data: Partial<Archetype>): Promise<Archetype> {
+		const response = await this.request<{ archetype: Archetype }>(
+			"POST",
+			"/api/v1/archetypes",
+			data
+		);
+		return response.archetype;
+	}
+
+	async updateArchetype(id: string, data: Partial<Archetype>): Promise<Archetype> {
+		const response = await this.request<{ archetype: Archetype }>(
+			"PUT",
+			`/api/v1/archetypes/${id}`,
+			data
+		);
+		return response.archetype;
+	}
+
+	async deleteArchetype(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/archetypes/${id}`);
+	}
+
+	async getArchetypeTraits(archetypeId: string): Promise<ArchetypeTrait[]> {
+		const response = await this.request<{ archetype_traits: ArchetypeTrait[] }>(
+			"GET",
+			`/api/v1/archetypes/${archetypeId}/traits`
+		);
+		return response.archetype_traits || [];
+	}
+
+	async addArchetypeTrait(archetypeId: string, traitId: string, defaultValue?: string): Promise<void> {
+		await this.request(
+			"POST",
+			`/api/v1/archetypes/${archetypeId}/traits`,
+			{
+				trait_id: traitId,
+				default_value: defaultValue,
+			}
+		);
+	}
+
+	async removeArchetypeTrait(archetypeId: string, traitId: string): Promise<void> {
+		await this.request(
+			"DELETE",
+			`/api/v1/archetypes/${archetypeId}/traits/${traitId}`
+		);
+	}
+
+	// Faction methods
+	async getFactions(worldId: string): Promise<Faction[]> {
+		const response = await this.request<{ factions: Faction[] }>(
+			"GET",
+			`/api/v1/worlds/${worldId}/factions`
+		);
+		return response.factions || [];
+	}
+
+	async getFaction(id: string): Promise<Faction> {
+		const response = await this.request<{ faction: Faction }>(
+			"GET",
+			`/api/v1/factions/${id}`
+		);
+		return response.faction;
+	}
+
+	async createFaction(worldId: string, data: Partial<Faction>): Promise<Faction> {
+		const response = await this.request<{ faction: Faction }>(
+			"POST",
+			`/api/v1/worlds/${worldId}/factions`,
+			data
+		);
+		return response.faction;
+	}
+
+	async updateFaction(id: string, data: Partial<Faction>): Promise<Faction> {
+		const response = await this.request<{ faction: Faction }>(
+			"PUT",
+			`/api/v1/factions/${id}`,
+			data
+		);
+		return response.faction;
+	}
+
+	async deleteFaction(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/factions/${id}`);
+	}
+
+	async getFactionChildren(id: string): Promise<Faction[]> {
+		const response = await this.request<{ factions: Faction[] }>(
+			"GET",
+			`/api/v1/factions/${id}/children`
+		);
+		return response.factions || [];
+	}
+
+	async getFactionReferences(factionId: string): Promise<FactionReference[]> {
+		const response = await this.request<{ references: FactionReference[] }>(
+			"GET",
+			`/api/v1/factions/${factionId}/references`
+		);
+		return response.references || [];
+	}
+
+	async addFactionReference(factionId: string, entityType: string, entityId: string, role?: string, notes?: string): Promise<FactionReference> {
+		const response = await this.request<{ reference: FactionReference }>(
+			"POST",
+			`/api/v1/factions/${factionId}/references`,
+			{
+				entity_type: entityType,
+				entity_id: entityId,
+				role: role,
+				notes: notes,
+			}
+		);
+		return response.reference;
+	}
+
+	async updateFactionReference(id: string, role?: string, notes?: string): Promise<FactionReference> {
+		const response = await this.request<{ reference: FactionReference }>(
+			"PUT",
+			`/api/v1/faction-references/${id}`,
+			{
+				role: role,
+				notes: notes,
+			}
+		);
+		return response.reference;
+	}
+
+	async removeFactionReference(factionId: string, entityType: string, entityId: string): Promise<void> {
+		await this.request(
+			"DELETE",
+			`/api/v1/factions/${factionId}/references/${entityType}/${entityId}`
+		);
+	}
+
+	// Lore methods
+	async getLores(worldId: string): Promise<Lore[]> {
+		const response = await this.request<{ lores: Lore[] }>(
+			"GET",
+			`/api/v1/worlds/${worldId}/lores`
+		);
+		return response.lores || [];
+	}
+
+	async getLore(id: string): Promise<Lore> {
+		const response = await this.request<{ lore: Lore }>(
+			"GET",
+			`/api/v1/lores/${id}`
+		);
+		return response.lore;
+	}
+
+	async createLore(worldId: string, data: Partial<Lore>): Promise<Lore> {
+		const response = await this.request<{ lore: Lore }>(
+			"POST",
+			`/api/v1/worlds/${worldId}/lores`,
+			data
+		);
+		return response.lore;
+	}
+
+	async updateLore(id: string, data: Partial<Lore>): Promise<Lore> {
+		const response = await this.request<{ lore: Lore }>(
+			"PUT",
+			`/api/v1/lores/${id}`,
+			data
+		);
+		return response.lore;
+	}
+
+	async deleteLore(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/lores/${id}`);
+	}
+
+	async getLoreChildren(id: string): Promise<Lore[]> {
+		const response = await this.request<{ lores: Lore[] }>(
+			"GET",
+			`/api/v1/lores/${id}/children`
+		);
+		return response.lores || [];
+	}
+
+	async getLoreReferences(loreId: string): Promise<LoreReference[]> {
+		const response = await this.request<{ references: LoreReference[] }>(
+			"GET",
+			`/api/v1/lores/${loreId}/references`
+		);
+		return response.references || [];
+	}
+
+	async addLoreReference(loreId: string, entityType: string, entityId: string, relationshipType?: string, notes?: string): Promise<LoreReference> {
+		const response = await this.request<{ reference: LoreReference }>(
+			"POST",
+			`/api/v1/lores/${loreId}/references`,
+			{
+				entity_type: entityType,
+				entity_id: entityId,
+				relationship_type: relationshipType,
+				notes: notes,
+			}
+		);
+		return response.reference;
+	}
+
+	async updateLoreReference(id: string, relationshipType?: string, notes?: string): Promise<LoreReference> {
+		const response = await this.request<{ reference: LoreReference }>(
+			"PUT",
+			`/api/v1/lore-references/${id}`,
+			{
+				relationship_type: relationshipType,
+				notes: notes,
+			}
+		);
+		return response.reference;
+	}
+
+	async removeLoreReference(loreId: string, entityType: string, entityId: string): Promise<void> {
+		await this.request(
+			"DELETE",
+			`/api/v1/lores/${loreId}/references/${entityType}/${entityId}`
+		);
+	}
+
+	// Character Traits methods
+	async getCharacterTraits(characterId: string): Promise<CharacterTrait[]> {
+		const response = await this.request<{ character_traits: CharacterTrait[] }>(
+			"GET",
+			`/api/v1/characters/${characterId}/traits`
+		);
+		return response.character_traits || [];
+	}
+
+	async addCharacterTrait(characterId: string, traitId: string, value?: string, notes?: string): Promise<CharacterTrait> {
+		const response = await this.request<{ character_trait: CharacterTrait }>(
+			"POST",
+			`/api/v1/characters/${characterId}/traits`,
+			{
+				trait_id: traitId,
+				value: value,
+				notes: notes,
+			}
+		);
+		return response.character_trait;
+	}
+
+	async updateCharacterTrait(characterId: string, traitId: string, value?: string, notes?: string): Promise<CharacterTrait> {
+		const response = await this.request<{ character_trait: CharacterTrait }>(
+			"PUT",
+			`/api/v1/characters/${characterId}/traits/${traitId}`,
+			{
+				value: value,
+				notes: notes,
+			}
+		);
+		return response.character_trait;
+	}
+
+	async removeCharacterTrait(characterId: string, traitId: string): Promise<void> {
+		await this.request(
+			"DELETE",
+			`/api/v1/characters/${characterId}/traits/${traitId}`
+		);
+	}
+
+	// Character Events methods
+	async getCharacterEvents(characterId: string): Promise<EventCharacter[]> {
+		const response = await this.request<{ event_characters: EventCharacter[] }>(
+			"GET",
+			`/api/v1/characters/${characterId}/events`
+		);
+		return response.event_characters || [];
+	}
+
+	// Character Relationships methods
+	async getCharacterRelationships(characterId: string): Promise<CharacterRelationship[]> {
+		const response = await this.request<{ relationships: CharacterRelationship[] }>(
+			"GET",
+			`/api/v1/characters/${characterId}/relationships`
+		);
+		return response.relationships || [];
+	}
+
+	async createCharacterRelationship(characterId: string, data: Partial<CharacterRelationship>): Promise<CharacterRelationship> {
+		const response = await this.request<{ relationship: CharacterRelationship }>(
+			"POST",
+			`/api/v1/characters/${characterId}/relationships`,
+			data
+		);
+		return response.relationship;
+	}
+
+	async updateCharacterRelationship(id: string, data: Partial<CharacterRelationship>): Promise<CharacterRelationship> {
+		const response = await this.request<{ relationship: CharacterRelationship }>(
+			"PUT",
+			`/api/v1/character-relationships/${id}`,
+			data
+		);
+		return response.relationship;
+	}
+
+	async deleteCharacterRelationship(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/character-relationships/${id}`);
+	}
+
+	// Event Characters/References methods
+	async getEventCharacters(eventId: string): Promise<EventCharacter[]> {
+		const response = await this.request<{ event_characters: EventCharacter[] }>(
+			"GET",
+			`/api/v1/events/${eventId}/characters`
+		);
+		return response.event_characters || [];
+	}
+
+	async addEventCharacter(eventId: string, characterId: string, role?: string): Promise<EventCharacter> {
+		const response = await this.request<{ event_character: EventCharacter }>(
+			"POST",
+			`/api/v1/events/${eventId}/characters`,
+			{
+				character_id: characterId,
+				role: role,
+			}
+		);
+		return response.event_character;
+	}
+
+	async removeEventCharacter(eventId: string, characterId: string): Promise<void> {
+		await this.request(
+			"DELETE",
+			`/api/v1/events/${eventId}/characters/${characterId}`
+		);
+	}
+
+	async getEventReferences(eventId: string): Promise<EventReference[]> {
+		const response = await this.request<{ references: EventReference[] }>(
+			"GET",
+			`/api/v1/events/${eventId}/references`
+		);
+		return response.references || [];
+	}
+
+	async addEventReference(eventId: string, entityType: string, entityId: string, relationshipType?: string, notes?: string): Promise<EventReference> {
+		const response = await this.request<{ reference: EventReference }>(
+			"POST",
+			`/api/v1/events/${eventId}/references`,
+			{
+				entity_type: entityType,
+				entity_id: entityId,
+				relationship_type: relationshipType,
+				notes: notes,
+			}
+		);
+		return response.reference;
+	}
+
+	async updateEventReference(id: string, relationshipType?: string, notes?: string): Promise<EventReference> {
+		const response = await this.request<{ reference: EventReference }>(
+			"PUT",
+			`/api/v1/event-references/${id}`,
+			{
+				relationship_type: relationshipType,
+				notes: notes,
+			}
+		);
+		return response.reference;
+	}
+
+	async removeEventReference(eventId: string, entityType: string, entityId: string): Promise<void> {
+		await this.request(
+			"DELETE",
+			`/api/v1/events/${eventId}/references/${entityType}/${entityId}`
+		);
+	}
+
+	// Scene References methods
+	async getSceneReferences(sceneId: string): Promise<SceneReference[]> {
+		const response = await this.request<{ references: SceneReference[] }>(
+			"GET",
+			`/api/v1/scenes/${sceneId}/references`
+		);
+		return response.references || [];
+	}
+
+	async addSceneReference(sceneId: string, entityType: string, entityId: string): Promise<SceneReference> {
+		const response = await this.request<{ reference: SceneReference }>(
+			"POST",
+			`/api/v1/scenes/${sceneId}/references`,
+			{
+				entity_type: entityType,
+				entity_id: entityId,
+			}
+		);
+		return response.reference;
+	}
+
+	async removeSceneReference(sceneId: string, entityType: string, entityId: string): Promise<void> {
+		await this.request(
+			"DELETE",
+			`/api/v1/scenes/${sceneId}/references/${entityType}/${entityId}`
+		);
+	}
+
+	// Timeline methods
+	async getTimeline(worldId: string, fromPos?: number, toPos?: number): Promise<WorldEvent[]> {
+		const queryParams = new URLSearchParams();
+		if (fromPos !== undefined) {
+			queryParams.append("from_pos", fromPos.toString());
+		}
+		if (toPos !== undefined) {
+			queryParams.append("to_pos", toPos.toString());
+		}
+		const queryString = queryParams.toString();
+		const endpoint = `/api/v1/worlds/${worldId}/timeline${queryString ? `?${queryString}` : ""}`;
+		const response = await this.request<{ events: WorldEvent[] }>(
+			"GET",
+			endpoint
+		);
+		return response.events || [];
+	}
+
+	// World TimeConfig methods
+	async updateWorldTimeConfig(worldId: string, timeConfig: TimeConfig): Promise<World> {
+		const response = await this.request<{ world: World }>(
+			"PUT",
+			`/api/v1/worlds/${worldId}/time-config`,
+			timeConfig
+		);
+		return response.world;
 	}
 }
 
