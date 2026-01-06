@@ -24,6 +24,7 @@ import (
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
@@ -64,6 +65,7 @@ func main() {
 	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
 	characterRepo := postgres.NewCharacterRepository(pgDB)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(pgDB)
+	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(pgDB)
 	artifactRepo := postgres.NewArtifactRepository(pgDB)
 	artifactReferenceRepo := postgres.NewArtifactReferenceRepository(pgDB)
 	eventRepo := postgres.NewEventRepository(pgDB)
@@ -119,15 +121,22 @@ func main() {
 	deleteArchetypeUseCase := archetypeapp.NewDeleteArchetypeUseCase(archetypeRepo, archetypeTraitRepo, auditLogRepo, log)
 	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
 	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
+	getArchetypeTraitsUseCase := archetypeapp.NewGetArchetypeTraitsUseCase(archetypeTraitRepo, log)
 	createCharacterUseCase := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
 	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
 	getCharacterTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	getCharacterEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
 	addTraitToCharacterUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
 	updateCharacterTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	removeTraitFromCharacterUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+	createCharacterRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
+	getCharacterRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	listCharacterRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
+	updateCharacterRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	deleteCharacterRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
 	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
 	getArtifactUseCase := artifactapp.NewGetArtifactUseCase(artifactRepo, log)
 	listArtifactsUseCase := artifactapp.NewListArtifactsUseCase(artifactRepo, log)
@@ -256,13 +265,13 @@ func main() {
 	tenantHandler := handlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := handlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	locationHandler := handlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
-	characterHandler := handlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, getCharacterTraitsUseCase, addTraitToCharacterUseCase, updateCharacterTraitUseCase, removeTraitFromCharacterUseCase, log)
+	characterHandler := handlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, getCharacterTraitsUseCase, getCharacterEventsUseCase, addTraitToCharacterUseCase, updateCharacterTraitUseCase, removeTraitFromCharacterUseCase, createCharacterRelationshipUseCase, getCharacterRelationshipUseCase, listCharacterRelationshipsUseCase, updateCharacterRelationshipUseCase, deleteCharacterRelationshipUseCase, log)
 	artifactHandler := handlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
 	eventHandler := handlers.NewEventHandler(createEventUseCase, getEventUseCase, listEventsUseCase, updateEventUseCase, deleteEventUseCase, addEventReferenceUseCase, removeEventReferenceUseCase, getEventReferencesUseCase, updateEventReferenceUseCase, getEventChildrenUseCase, getEventAncestorsUseCase, getEventDescendantsUseCase, moveEventUseCase, setEventEpochUseCase, getEventEpochUseCase, getTimelineUseCase, log)
 	factionHandler := handlers.NewFactionHandler(createFactionUseCase, getFactionUseCase, listFactionsUseCase, updateFactionUseCase, deleteFactionUseCase, getFactionChildrenUseCase, addFactionReferenceUseCase, removeFactionReferenceUseCase, getFactionReferencesUseCase, updateFactionReferenceUseCase, log)
 	loreHandler := handlers.NewLoreHandler(createLoreUseCase, getLoreUseCase, listLoresUseCase, updateLoreUseCase, deleteLoreUseCase, getLoreChildrenUseCase, addLoreReferenceUseCase, removeLoreReferenceUseCase, getLoreReferencesUseCase, updateLoreReferenceUseCase, log)
 	traitHandler := handlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
-	archetypeHandler := handlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
+	archetypeHandler := handlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, getArchetypeTraitsUseCase, log)
 	storyHandler := handlers.NewStoryHandler(
 		createStoryUseCase,
 		getStoryUseCase,

@@ -383,6 +383,159 @@ func TestArchetypeHandler_RemoveTrait(t *testing.T) {
 	})
 }
 
+func TestArchetypeHandler_GetArchetypeTraits(t *testing.T) {
+	conn, cleanup := setupTestServerWithArchetype(t)
+	defer cleanup()
+
+	archetypeClient := archetypepb.NewArchetypeServiceClient(conn)
+	traitClient := traitpb.NewTraitServiceClient(conn)
+	tenantClient := tenantpb.NewTenantServiceClient(conn)
+
+	t.Run("get traits for archetype", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Get Traits Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+
+		archetypeResp, err := archetypeClient.CreateArchetype(ctx, &archetypepb.CreateArchetypeRequest{
+			Name: "Warrior",
+		})
+		if err != nil {
+			t.Fatalf("failed to create archetype: %v", err)
+		}
+
+		// Create and add multiple traits
+		trait1Resp, err := traitClient.CreateTrait(ctx, &traitpb.CreateTraitRequest{
+			Name: "Brave",
+		})
+		if err != nil {
+			t.Fatalf("failed to create trait 1: %v", err)
+		}
+
+		trait2Resp, err := traitClient.CreateTrait(ctx, &traitpb.CreateTraitRequest{
+			Name: "Strong",
+		})
+		if err != nil {
+			t.Fatalf("failed to create trait 2: %v", err)
+		}
+
+		// Add traits to archetype
+		_, err = archetypeClient.AddTraitToArchetype(ctx, &archetypepb.AddTraitToArchetypeRequest{
+			ArchetypeId:  archetypeResp.Archetype.Id,
+			TraitId:      trait1Resp.Trait.Id,
+			DefaultValue: "High",
+		})
+		if err != nil {
+			t.Fatalf("failed to add trait 1: %v", err)
+		}
+
+		_, err = archetypeClient.AddTraitToArchetype(ctx, &archetypepb.AddTraitToArchetypeRequest{
+			ArchetypeId:  archetypeResp.Archetype.Id,
+			TraitId:      trait2Resp.Trait.Id,
+			DefaultValue: "Medium",
+		})
+		if err != nil {
+			t.Fatalf("failed to add trait 2: %v", err)
+		}
+
+		// Get traits
+		getReq := &archetypepb.GetArchetypeTraitsRequest{
+			ArchetypeId: archetypeResp.Archetype.Id,
+		}
+		getResp, err := archetypeClient.GetArchetypeTraits(ctx, getReq)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(getResp.Traits) != 2 {
+			t.Errorf("expected 2 traits, got %d", len(getResp.Traits))
+		}
+
+		// Verify traits are present
+		foundTrait1 := false
+		foundTrait2 := false
+		for _, at := range getResp.Traits {
+			if at.TraitId == trait1Resp.Trait.Id {
+				foundTrait1 = true
+				if at.DefaultValue != "High" {
+					t.Errorf("expected default_value 'High', got '%s'", at.DefaultValue)
+				}
+			}
+			if at.TraitId == trait2Resp.Trait.Id {
+				foundTrait2 = true
+				if at.DefaultValue != "Medium" {
+					t.Errorf("expected default_value 'Medium', got '%s'", at.DefaultValue)
+				}
+			}
+		}
+
+		if !foundTrait1 {
+			t.Error("trait 1 not found in response")
+		}
+		if !foundTrait2 {
+			t.Error("trait 2 not found in response")
+		}
+	})
+
+	t.Run("get traits for archetype with no traits", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Empty Traits Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+
+		archetypeResp, err := archetypeClient.CreateArchetype(ctx, &archetypepb.CreateArchetypeRequest{
+			Name: "Mage",
+		})
+		if err != nil {
+			t.Fatalf("failed to create archetype: %v", err)
+		}
+
+		getReq := &archetypepb.GetArchetypeTraitsRequest{
+			ArchetypeId: archetypeResp.Archetype.Id,
+		}
+		getResp, err := archetypeClient.GetArchetypeTraits(ctx, getReq)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+
+		if len(getResp.Traits) != 0 {
+			t.Errorf("expected 0 traits, got %d", len(getResp.Traits))
+		}
+	})
+
+	t.Run("invalid archetype_id", func(t *testing.T) {
+		tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
+			Name: "Invalid ID Test Tenant",
+		})
+		if err != nil {
+			t.Fatalf("failed to create tenant: %v", err)
+		}
+
+		ctx := metadata.AppendToOutgoingContext(context.Background(), "tenant_id", tenantResp.Tenant.Id)
+
+		getReq := &archetypepb.GetArchetypeTraitsRequest{
+			ArchetypeId: "invalid-uuid",
+		}
+		_, err = archetypeClient.GetArchetypeTraits(ctx, getReq)
+		if err == nil {
+			t.Fatal("expected error for invalid archetype_id")
+		}
+
+		s, _ := status.FromError(err)
+		if s.Code() != codes.InvalidArgument {
+			t.Errorf("expected InvalidArgument, got %v", s.Code())
+		}
+	})
+}
+
 // Helper function to create a test server with archetype handler
 func setupTestServerWithArchetype(t *testing.T) (*grpc.ClientConn, func()) {
 	db, cleanupDB := postgres.SetupTestDB(t)
@@ -404,10 +557,11 @@ func setupTestServerWithArchetype(t *testing.T) (*grpc.ClientConn, func()) {
 	deleteArchetypeUseCase := archetypeapp.NewDeleteArchetypeUseCase(archetypeRepo, archetypeTraitRepo, auditLogRepo, log)
 	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
 	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
+	getArchetypeTraitsUseCase := archetypeapp.NewGetArchetypeTraitsUseCase(archetypeTraitRepo, log)
 
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	traitHandler := NewTraitHandler(createTraitUseCase, getTraitUseCase, traitapp.NewListTraitsUseCase(traitRepo, log), traitapp.NewUpdateTraitUseCase(traitRepo, auditLogRepo, log), traitapp.NewDeleteTraitUseCase(traitRepo, auditLogRepo, log), log)
-	archetypeHandler := NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
+	archetypeHandler := NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, getArchetypeTraitsUseCase, log)
 
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
 		TenantHandler:    tenantHandler,

@@ -11,6 +11,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	characterpb "github.com/story-engine/main-service/proto/character"
@@ -103,7 +104,22 @@ func setupTestServerWithCharacterRPGStats(t *testing.T) (*grpc.ClientConn, func(
 
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
-	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log), characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), characterTraitRepo, log), characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, postgres.NewTraitRepository(db), log), characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log), log)
+	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
+	characterHandler := NewCharacterHandler(
+		createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase,
+		characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log),
+		characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log),
+		characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), characterTraitRepo, log),
+		characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, postgres.NewTraitRepository(db), log),
+		characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log),
+		characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log),
+		characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log),
+		characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		log,
+	)
 	characterStatsHandler := NewCharacterRPGStatsHandler(createStatsUseCase, getActiveStatsUseCase, listStatsHistoryUseCase, activateVersionUseCase, deleteAllStatsUseCase, log)
 
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{

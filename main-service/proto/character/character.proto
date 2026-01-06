@@ -4,6 +4,7 @@ option go_package = "github.com/story-engine/main-service/proto/character";
 
 import "google/protobuf/timestamp.proto";
 import "proto/common/common.proto";
+import "proto/event/event.proto";
 
 // Character represents a character entity
 message Character {
@@ -132,6 +133,84 @@ message RemoveTraitFromCharacterRequest {
 message RemoveTraitFromCharacterResponse {
 }
 
+// CharacterRelationship represents a relationship between two characters
+message CharacterRelationship {
+  string id = 1;
+  string character1_id = 2;
+  string character2_id = 3;
+  string relationship_type = 4;
+  string description = 5;
+  bool bidirectional = 6;
+  google.protobuf.Timestamp created_at = 7;
+  google.protobuf.Timestamp updated_at = 8;
+}
+
+// GetCharacterEventsRequest is the request to get events for a character
+message GetCharacterEventsRequest {
+  string character_id = 1;
+}
+
+// GetCharacterEventsResponse is the response containing character events
+message GetCharacterEventsResponse {
+  repeated event.Event events = 1;
+}
+
+// CreateCharacterRelationshipRequest is the request to create a character relationship
+message CreateCharacterRelationshipRequest {
+  string character_id = 1;
+  string other_character_id = 2;
+  string relationship_type = 3;
+  string description = 4;
+  bool bidirectional = 5;
+}
+
+// CreateCharacterRelationshipResponse is the response after creating a relationship
+message CreateCharacterRelationshipResponse {
+  CharacterRelationship relationship = 1;
+}
+
+// GetCharacterRelationshipRequest is the request to get a character relationship by ID
+message GetCharacterRelationshipRequest {
+  string id = 1;
+}
+
+// GetCharacterRelationshipResponse is the response containing a character relationship
+message GetCharacterRelationshipResponse {
+  CharacterRelationship relationship = 1;
+}
+
+// ListCharacterRelationshipsRequest is the request to list relationships for a character
+message ListCharacterRelationshipsRequest {
+  string character_id = 1;
+}
+
+// ListCharacterRelationshipsResponse is the response containing character relationships
+message ListCharacterRelationshipsResponse {
+  repeated CharacterRelationship relationships = 1;
+}
+
+// UpdateCharacterRelationshipRequest is the request to update a character relationship
+message UpdateCharacterRelationshipRequest {
+  string id = 1;
+  optional string relationship_type = 2;
+  optional string description = 3;
+  optional bool bidirectional = 4;
+}
+
+// UpdateCharacterRelationshipResponse is the response after updating a relationship
+message UpdateCharacterRelationshipResponse {
+  CharacterRelationship relationship = 1;
+}
+
+// DeleteCharacterRelationshipRequest is the request to delete a character relationship
+message DeleteCharacterRelationshipRequest {
+  string id = 1;
+}
+
+// DeleteCharacterRelationshipResponse is the response after deleting a relationship
+message DeleteCharacterRelationshipResponse {
+}
+
 // CharacterService provides character management operations
 service CharacterService {
   rpc CreateCharacter(CreateCharacterRequest) returns (CreateCharacterResponse);
@@ -143,6 +222,12 @@ service CharacterService {
   rpc AddTraitToCharacter(AddTraitToCharacterRequest) returns (AddTraitToCharacterResponse);
   rpc UpdateCharacterTrait(UpdateCharacterTraitRequest) returns (UpdateCharacterTraitResponse);
   rpc RemoveTraitFromCharacter(RemoveTraitFromCharacterRequest) returns (RemoveTraitFromCharacterResponse);
+  rpc GetCharacterEvents(GetCharacterEventsRequest) returns (GetCharacterEventsResponse);
+  rpc CreateCharacterRelationship(CreateCharacterRelationshipRequest) returns (CreateCharacterRelationshipResponse);
+  rpc GetCharacterRelationship(GetCharacterRelationshipRequest) returns (GetCharacterRelationshipResponse);
+  rpc ListCharacterRelationships(ListCharacterRelationshipsRequest) returns (ListCharacterRelationshipsResponse);
+  rpc UpdateCharacterRelationship(UpdateCharacterRelationshipRequest) returns (UpdateCharacterRelationshipResponse);
+  rpc DeleteCharacterRelationship(DeleteCharacterRelationshipRequest) returns (DeleteCharacterRelationshipResponse);
 }
 
 

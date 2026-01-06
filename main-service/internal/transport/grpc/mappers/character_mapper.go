@@ -48,4 +48,22 @@ func CharacterTraitToProto(ct *world.CharacterTrait) *characterpb.CharacterTrait
 	}
 }
 
+// CharacterRelationshipToProto converts a character relationship domain entity to a protobuf message
+func CharacterRelationshipToProto(cr *world.CharacterRelationship) *characterpb.CharacterRelationship {
+	if cr == nil {
+		return nil
+	}
+
+	return &characterpb.CharacterRelationship{
+		Id:              cr.ID.String(),
+		Character1Id:    cr.Character1ID.String(),
+		Character2Id:    cr.Character2ID.String(),
+		RelationshipType: cr.RelationshipType,
+		Description:     cr.Description,
+		Bidirectional:    cr.Bidirectional,
+		CreatedAt:        timestamppb.New(cr.CreatedAt),
+		UpdatedAt:        timestamppb.New(cr.UpdatedAt),
+	}
+}
+
 

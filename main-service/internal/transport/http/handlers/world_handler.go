@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
+	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
@@ -164,10 +165,11 @@ func (h *WorldHandler) Update(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req struct {
-		Name        *string `json:"name"`
-		Description *string `json:"description"`
-		Genre       *string `json:"genre"`
-		IsImplicit  *bool   `json:"is_implicit"`
+		Name        *string         `json:"name"`
+		Description *string         `json:"description"`
+		Genre       *string         `json:"genre"`
+		IsImplicit  *bool           `json:"is_implicit"`
+		TimeConfig  *world.TimeConfig `json:"time_config"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -185,6 +187,7 @@ func (h *WorldHandler) Update(w http.ResponseWriter, r *http.Request) {
 		Description: req.Description,
 		Genre:       req.Genre,
 		IsImplicit:  req.IsImplicit,
+		TimeConfig:  req.TimeConfig,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)

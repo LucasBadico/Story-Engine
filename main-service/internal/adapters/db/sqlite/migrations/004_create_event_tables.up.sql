@@ -14,10 +14,10 @@ CREATE TABLE IF NOT EXISTS events (
     CONSTRAINT events_world_fk FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_events_world_id ON events(world_id);
-CREATE INDEX idx_events_tenant_id ON events(tenant_id);
-CREATE INDEX idx_events_type ON events(type);
-CREATE INDEX idx_events_timeline ON events(timeline);
+CREATE INDEX IF NOT EXISTS idx_events_world_id ON events(world_id);
+CREATE INDEX IF NOT EXISTS idx_events_tenant_id ON events(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_events_type ON events(type);
+CREATE INDEX IF NOT EXISTS idx_events_timeline ON events(timeline);
 
 -- Create event_characters table
 CREATE TABLE IF NOT EXISTS event_characters (
@@ -33,9 +33,9 @@ CREATE TABLE IF NOT EXISTS event_characters (
     CONSTRAINT event_characters_event_character_unique UNIQUE (event_id, character_id)
 );
 
-CREATE INDEX idx_event_characters_event_id ON event_characters(event_id);
-CREATE INDEX idx_event_characters_character_id ON event_characters(character_id);
-CREATE INDEX idx_event_characters_tenant_id ON event_characters(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_event_characters_event_id ON event_characters(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_characters_character_id ON event_characters(character_id);
+CREATE INDEX IF NOT EXISTS idx_event_characters_tenant_id ON event_characters(tenant_id);
 
 -- Create event_locations table
 CREATE TABLE IF NOT EXISTS event_locations (
@@ -51,9 +51,9 @@ CREATE TABLE IF NOT EXISTS event_locations (
     CONSTRAINT event_locations_event_location_unique UNIQUE (event_id, location_id)
 );
 
-CREATE INDEX idx_event_locations_event_id ON event_locations(event_id);
-CREATE INDEX idx_event_locations_location_id ON event_locations(location_id);
-CREATE INDEX idx_event_locations_tenant_id ON event_locations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_event_locations_event_id ON event_locations(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_locations_location_id ON event_locations(location_id);
+CREATE INDEX IF NOT EXISTS idx_event_locations_tenant_id ON event_locations(tenant_id);
 
 -- Create event_artifacts table
 CREATE TABLE IF NOT EXISTS event_artifacts (
@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS event_artifacts (
     CONSTRAINT event_artifacts_event_artifact_unique UNIQUE (event_id, artifact_id)
 );
 
-CREATE INDEX idx_event_artifacts_event_id ON event_artifacts(event_id);
-CREATE INDEX idx_event_artifacts_artifact_id ON event_artifacts(artifact_id);
-CREATE INDEX idx_event_artifacts_tenant_id ON event_artifacts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_event_artifacts_event_id ON event_artifacts(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_artifacts_artifact_id ON event_artifacts(artifact_id);
+CREATE INDEX IF NOT EXISTS idx_event_artifacts_tenant_id ON event_artifacts(tenant_id);
 

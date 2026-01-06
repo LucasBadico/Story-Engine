@@ -22,4 +22,28 @@ func ArchetypeToProto(a *world.Archetype) *archetypepb.Archetype {
 	}
 }
 
+// ArchetypeTraitToProto converts an archetype trait domain entity to a protobuf message
+func ArchetypeTraitToProto(at *world.ArchetypeTrait, trait *world.Trait) *archetypepb.ArchetypeTrait {
+	if at == nil {
+		return nil
+	}
+
+	pb := &archetypepb.ArchetypeTrait{
+		Id:           at.ID.String(),
+		ArchetypeId:  at.ArchetypeID.String(),
+		TraitId:      at.TraitID.String(),
+		DefaultValue: at.DefaultValue,
+		CreatedAt:    timestamppb.New(at.CreatedAt),
+	}
+
+	// Include trait information if provided
+	if trait != nil {
+		pb.TraitName = trait.Name
+		pb.TraitCategory = trait.Category
+		pb.TraitDescription = trait.Description
+	}
+
+	return pb
+}
+
 

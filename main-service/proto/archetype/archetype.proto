@@ -91,6 +91,28 @@ message RemoveTraitFromArchetypeRequest {
 message RemoveTraitFromArchetypeResponse {
 }
 
+// ArchetypeTrait represents a trait assigned to an archetype
+message ArchetypeTrait {
+  string id = 1;
+  string archetype_id = 2;
+  string trait_id = 3;
+  string trait_name = 4;
+  string trait_category = 5;
+  string trait_description = 6;
+  string default_value = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// GetArchetypeTraitsRequest is the request to get traits for an archetype
+message GetArchetypeTraitsRequest {
+  string archetype_id = 1;
+}
+
+// GetArchetypeTraitsResponse is the response containing archetype traits
+message GetArchetypeTraitsResponse {
+  repeated ArchetypeTrait traits = 1;
+}
+
 // ArchetypeService provides archetype management operations
 service ArchetypeService {
   rpc CreateArchetype(CreateArchetypeRequest) returns (CreateArchetypeResponse);
@@ -98,6 +120,7 @@ service ArchetypeService {
   rpc UpdateArchetype(UpdateArchetypeRequest) returns (UpdateArchetypeResponse);
   rpc ListArchetypes(ListArchetypesRequest) returns (ListArchetypesResponse);
   rpc DeleteArchetype(DeleteArchetypeRequest) returns (DeleteArchetypeResponse);
+  rpc GetArchetypeTraits(GetArchetypeTraitsRequest) returns (GetArchetypeTraitsResponse);
   rpc AddTraitToArchetype(AddTraitToArchetypeRequest) returns (AddTraitToArchetypeResponse);
   rpc RemoveTraitFromArchetype(RemoveTraitFromArchetypeRequest) returns (RemoveTraitFromArchetypeResponse);
 }

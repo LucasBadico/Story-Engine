@@ -12,9 +12,9 @@ CREATE TABLE IF NOT EXISTS worlds (
     CONSTRAINT worlds_tenant_fk FOREIGN KEY (tenant_id) REFERENCES tenants(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_worlds_tenant_id ON worlds(tenant_id);
-CREATE INDEX idx_worlds_implicit ON worlds(tenant_id, is_implicit);
-CREATE INDEX idx_worlds_rpg_system_id ON worlds(rpg_system_id);
+CREATE INDEX IF NOT EXISTS idx_worlds_tenant_id ON worlds(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_worlds_implicit ON worlds(tenant_id, is_implicit);
+CREATE INDEX IF NOT EXISTS idx_worlds_rpg_system_id ON worlds(rpg_system_id);
 
 -- Create locations table
 CREATE TABLE IF NOT EXISTS locations (
@@ -33,10 +33,10 @@ CREATE TABLE IF NOT EXISTS locations (
     CONSTRAINT locations_parent_fk FOREIGN KEY (parent_id) REFERENCES locations(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_locations_world_id ON locations(world_id);
-CREATE INDEX idx_locations_tenant_id ON locations(tenant_id);
-CREATE INDEX idx_locations_parent_id ON locations(parent_id);
-CREATE INDEX idx_locations_world_parent ON locations(world_id, parent_id);
+CREATE INDEX IF NOT EXISTS idx_locations_world_id ON locations(world_id);
+CREATE INDEX IF NOT EXISTS idx_locations_tenant_id ON locations(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_locations_parent_id ON locations(parent_id);
+CREATE INDEX IF NOT EXISTS idx_locations_world_parent ON locations(world_id, parent_id);
 
 -- Create traits table
 CREATE TABLE IF NOT EXISTS traits (
@@ -51,8 +51,8 @@ CREATE TABLE IF NOT EXISTS traits (
     CONSTRAINT traits_tenant_name_unique UNIQUE (tenant_id, name)
 );
 
-CREATE INDEX idx_traits_tenant_id ON traits(tenant_id);
-CREATE INDEX idx_traits_category ON traits(tenant_id, category);
+CREATE INDEX IF NOT EXISTS idx_traits_tenant_id ON traits(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_traits_category ON traits(tenant_id, category);
 
 -- Create archetypes table
 CREATE TABLE IF NOT EXISTS archetypes (
@@ -66,7 +66,7 @@ CREATE TABLE IF NOT EXISTS archetypes (
     CONSTRAINT archetypes_tenant_name_unique UNIQUE (tenant_id, name)
 );
 
-CREATE INDEX idx_archetypes_tenant_id ON archetypes(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_archetypes_tenant_id ON archetypes(tenant_id);
 
 -- Create characters table (current_class_id without FK constraint)
 CREATE TABLE IF NOT EXISTS characters (
@@ -85,10 +85,10 @@ CREATE TABLE IF NOT EXISTS characters (
     CONSTRAINT characters_archetype_fk FOREIGN KEY (archetype_id) REFERENCES archetypes(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_characters_world_id ON characters(world_id);
-CREATE INDEX idx_characters_tenant_id ON characters(tenant_id);
-CREATE INDEX idx_characters_archetype_id ON characters(archetype_id);
-CREATE INDEX idx_characters_current_class ON characters(current_class_id);
+CREATE INDEX IF NOT EXISTS idx_characters_world_id ON characters(world_id);
+CREATE INDEX IF NOT EXISTS idx_characters_tenant_id ON characters(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_characters_archetype_id ON characters(archetype_id);
+CREATE INDEX IF NOT EXISTS idx_characters_current_class ON characters(current_class_id);
 
 -- Create character_traits table
 CREATE TABLE IF NOT EXISTS character_traits (
@@ -109,9 +109,9 @@ CREATE TABLE IF NOT EXISTS character_traits (
     CONSTRAINT character_traits_character_trait_unique UNIQUE (character_id, trait_id)
 );
 
-CREATE INDEX idx_character_traits_character_id ON character_traits(character_id);
-CREATE INDEX idx_character_traits_trait_id ON character_traits(trait_id);
-CREATE INDEX idx_character_traits_tenant_id ON character_traits(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_character_traits_character_id ON character_traits(character_id);
+CREATE INDEX IF NOT EXISTS idx_character_traits_trait_id ON character_traits(trait_id);
+CREATE INDEX IF NOT EXISTS idx_character_traits_tenant_id ON character_traits(tenant_id);
 
 -- Create archetype_traits table
 CREATE TABLE IF NOT EXISTS archetype_traits (
@@ -125,8 +125,8 @@ CREATE TABLE IF NOT EXISTS archetype_traits (
     CONSTRAINT archetype_traits_archetype_trait_unique UNIQUE (archetype_id, trait_id)
 );
 
-CREATE INDEX idx_archetype_traits_archetype_id ON archetype_traits(archetype_id);
-CREATE INDEX idx_archetype_traits_trait_id ON archetype_traits(trait_id);
+CREATE INDEX IF NOT EXISTS idx_archetype_traits_archetype_id ON archetype_traits(archetype_id);
+CREATE INDEX IF NOT EXISTS idx_archetype_traits_trait_id ON archetype_traits(trait_id);
 
 -- Create artifacts table
 CREATE TABLE IF NOT EXISTS artifacts (
@@ -142,8 +142,8 @@ CREATE TABLE IF NOT EXISTS artifacts (
     CONSTRAINT artifacts_world_fk FOREIGN KEY (world_id) REFERENCES worlds(id) ON DELETE CASCADE
 );
 
-CREATE INDEX idx_artifacts_world_id ON artifacts(world_id);
-CREATE INDEX idx_artifacts_tenant_id ON artifacts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_world_id ON artifacts(world_id);
+CREATE INDEX IF NOT EXISTS idx_artifacts_tenant_id ON artifacts(tenant_id);
 
 -- Create artifact_references table
 CREATE TABLE IF NOT EXISTS artifact_references (
@@ -159,7 +159,7 @@ CREATE TABLE IF NOT EXISTS artifact_references (
     CONSTRAINT artifact_references_artifact_entity_unique UNIQUE (artifact_id, entity_type, entity_id)
 );
 
-CREATE INDEX idx_artifact_references_artifact_id ON artifact_references(artifact_id);
-CREATE INDEX idx_artifact_references_tenant_id ON artifact_references(tenant_id);
-CREATE INDEX idx_artifact_references_entity ON artifact_references(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_artifact_references_artifact_id ON artifact_references(artifact_id);
+CREATE INDEX IF NOT EXISTS idx_artifact_references_tenant_id ON artifact_references(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_artifact_references_entity ON artifact_references(entity_type, entity_id);
 

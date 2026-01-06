@@ -11,6 +11,6 @@ CREATE TABLE IF NOT EXISTS tenants (
     CONSTRAINT tenants_status_check CHECK (status IN ('active', 'suspended', 'deleted'))
 );
 
-CREATE INDEX idx_tenants_status ON tenants(status);
-CREATE INDEX idx_tenants_created_at ON tenants(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_tenants_status ON tenants(status);
+CREATE INDEX IF NOT EXISTS idx_tenants_created_at ON tenants(created_at DESC);
 

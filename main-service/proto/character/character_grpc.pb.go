@@ -19,15 +19,21 @@ import (
 const _ = grpc.SupportPackageIsVersion7
 
 const (
-	CharacterService_CreateCharacter_FullMethodName          = "/character.CharacterService/CreateCharacter"
-	CharacterService_GetCharacter_FullMethodName             = "/character.CharacterService/GetCharacter"
-	CharacterService_UpdateCharacter_FullMethodName          = "/character.CharacterService/UpdateCharacter"
-	CharacterService_ListCharacters_FullMethodName           = "/character.CharacterService/ListCharacters"
-	CharacterService_DeleteCharacter_FullMethodName          = "/character.CharacterService/DeleteCharacter"
-	CharacterService_GetCharacterTraits_FullMethodName       = "/character.CharacterService/GetCharacterTraits"
-	CharacterService_AddTraitToCharacter_FullMethodName      = "/character.CharacterService/AddTraitToCharacter"
-	CharacterService_UpdateCharacterTrait_FullMethodName     = "/character.CharacterService/UpdateCharacterTrait"
-	CharacterService_RemoveTraitFromCharacter_FullMethodName = "/character.CharacterService/RemoveTraitFromCharacter"
+	CharacterService_CreateCharacter_FullMethodName             = "/character.CharacterService/CreateCharacter"
+	CharacterService_GetCharacter_FullMethodName                = "/character.CharacterService/GetCharacter"
+	CharacterService_UpdateCharacter_FullMethodName             = "/character.CharacterService/UpdateCharacter"
+	CharacterService_ListCharacters_FullMethodName              = "/character.CharacterService/ListCharacters"
+	CharacterService_DeleteCharacter_FullMethodName             = "/character.CharacterService/DeleteCharacter"
+	CharacterService_GetCharacterTraits_FullMethodName          = "/character.CharacterService/GetCharacterTraits"
+	CharacterService_AddTraitToCharacter_FullMethodName         = "/character.CharacterService/AddTraitToCharacter"
+	CharacterService_UpdateCharacterTrait_FullMethodName        = "/character.CharacterService/UpdateCharacterTrait"
+	CharacterService_RemoveTraitFromCharacter_FullMethodName    = "/character.CharacterService/RemoveTraitFromCharacter"
+	CharacterService_GetCharacterEvents_FullMethodName          = "/character.CharacterService/GetCharacterEvents"
+	CharacterService_CreateCharacterRelationship_FullMethodName = "/character.CharacterService/CreateCharacterRelationship"
+	CharacterService_GetCharacterRelationship_FullMethodName    = "/character.CharacterService/GetCharacterRelationship"
+	CharacterService_ListCharacterRelationships_FullMethodName  = "/character.CharacterService/ListCharacterRelationships"
+	CharacterService_UpdateCharacterRelationship_FullMethodName = "/character.CharacterService/UpdateCharacterRelationship"
+	CharacterService_DeleteCharacterRelationship_FullMethodName = "/character.CharacterService/DeleteCharacterRelationship"
 )
 
 // CharacterServiceClient is the client API for CharacterService service.
@@ -43,6 +49,12 @@ type CharacterServiceClient interface {
 	AddTraitToCharacter(ctx context.Context, in *AddTraitToCharacterRequest, opts ...grpc.CallOption) (*AddTraitToCharacterResponse, error)
 	UpdateCharacterTrait(ctx context.Context, in *UpdateCharacterTraitRequest, opts ...grpc.CallOption) (*UpdateCharacterTraitResponse, error)
 	RemoveTraitFromCharacter(ctx context.Context, in *RemoveTraitFromCharacterRequest, opts ...grpc.CallOption) (*RemoveTraitFromCharacterResponse, error)
+	GetCharacterEvents(ctx context.Context, in *GetCharacterEventsRequest, opts ...grpc.CallOption) (*GetCharacterEventsResponse, error)
+	CreateCharacterRelationship(ctx context.Context, in *CreateCharacterRelationshipRequest, opts ...grpc.CallOption) (*CreateCharacterRelationshipResponse, error)
+	GetCharacterRelationship(ctx context.Context, in *GetCharacterRelationshipRequest, opts ...grpc.CallOption) (*GetCharacterRelationshipResponse, error)
+	ListCharacterRelationships(ctx context.Context, in *ListCharacterRelationshipsRequest, opts ...grpc.CallOption) (*ListCharacterRelationshipsResponse, error)
+	UpdateCharacterRelationship(ctx context.Context, in *UpdateCharacterRelationshipRequest, opts ...grpc.CallOption) (*UpdateCharacterRelationshipResponse, error)
+	DeleteCharacterRelationship(ctx context.Context, in *DeleteCharacterRelationshipRequest, opts ...grpc.CallOption) (*DeleteCharacterRelationshipResponse, error)
 }
 
 type characterServiceClient struct {
@@ -134,6 +146,60 @@ func (c *characterServiceClient) RemoveTraitFromCharacter(ctx context.Context, i
 	return out, nil
 }
 
+func (c *characterServiceClient) GetCharacterEvents(ctx context.Context, in *GetCharacterEventsRequest, opts ...grpc.CallOption) (*GetCharacterEventsResponse, error) {
+	out := new(GetCharacterEventsResponse)
+	err := c.cc.Invoke(ctx, CharacterService_GetCharacterEvents_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *characterServiceClient) CreateCharacterRelationship(ctx context.Context, in *CreateCharacterRelationshipRequest, opts ...grpc.CallOption) (*CreateCharacterRelationshipResponse, error) {
+	out := new(CreateCharacterRelationshipResponse)
+	err := c.cc.Invoke(ctx, CharacterService_CreateCharacterRelationship_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *characterServiceClient) GetCharacterRelationship(ctx context.Context, in *GetCharacterRelationshipRequest, opts ...grpc.CallOption) (*GetCharacterRelationshipResponse, error) {
+	out := new(GetCharacterRelationshipResponse)
+	err := c.cc.Invoke(ctx, CharacterService_GetCharacterRelationship_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *characterServiceClient) ListCharacterRelationships(ctx context.Context, in *ListCharacterRelationshipsRequest, opts ...grpc.CallOption) (*ListCharacterRelationshipsResponse, error) {
+	out := new(ListCharacterRelationshipsResponse)
+	err := c.cc.Invoke(ctx, CharacterService_ListCharacterRelationships_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *characterServiceClient) UpdateCharacterRelationship(ctx context.Context, in *UpdateCharacterRelationshipRequest, opts ...grpc.CallOption) (*UpdateCharacterRelationshipResponse, error) {
+	out := new(UpdateCharacterRelationshipResponse)
+	err := c.cc.Invoke(ctx, CharacterService_UpdateCharacterRelationship_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *characterServiceClient) DeleteCharacterRelationship(ctx context.Context, in *DeleteCharacterRelationshipRequest, opts ...grpc.CallOption) (*DeleteCharacterRelationshipResponse, error) {
+	out := new(DeleteCharacterRelationshipResponse)
+	err := c.cc.Invoke(ctx, CharacterService_DeleteCharacterRelationship_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CharacterServiceServer is the server API for CharacterService service.
 // All implementations must embed UnimplementedCharacterServiceServer
 // for forward compatibility
@@ -147,6 +213,12 @@ type CharacterServiceServer interface {
 	AddTraitToCharacter(context.Context, *AddTraitToCharacterRequest) (*AddTraitToCharacterResponse, error)
 	UpdateCharacterTrait(context.Context, *UpdateCharacterTraitRequest) (*UpdateCharacterTraitResponse, error)
 	RemoveTraitFromCharacter(context.Context, *RemoveTraitFromCharacterRequest) (*RemoveTraitFromCharacterResponse, error)
+	GetCharacterEvents(context.Context, *GetCharacterEventsRequest) (*GetCharacterEventsResponse, error)
+	CreateCharacterRelationship(context.Context, *CreateCharacterRelationshipRequest) (*CreateCharacterRelationshipResponse, error)
+	GetCharacterRelationship(context.Context, *GetCharacterRelationshipRequest) (*GetCharacterRelationshipResponse, error)
+	ListCharacterRelationships(context.Context, *ListCharacterRelationshipsRequest) (*ListCharacterRelationshipsResponse, error)
+	UpdateCharacterRelationship(context.Context, *UpdateCharacterRelationshipRequest) (*UpdateCharacterRelationshipResponse, error)
+	DeleteCharacterRelationship(context.Context, *DeleteCharacterRelationshipRequest) (*DeleteCharacterRelationshipResponse, error)
 	mustEmbedUnimplementedCharacterServiceServer()
 }
 
@@ -180,6 +252,24 @@ func (UnimplementedCharacterServiceServer) UpdateCharacterTrait(context.Context,
 }
 func (UnimplementedCharacterServiceServer) RemoveTraitFromCharacter(context.Context, *RemoveTraitFromCharacterRequest) (*RemoveTraitFromCharacterResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method RemoveTraitFromCharacter not implemented")
+}
+func (UnimplementedCharacterServiceServer) GetCharacterEvents(context.Context, *GetCharacterEventsRequest) (*GetCharacterEventsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCharacterEvents not implemented")
+}
+func (UnimplementedCharacterServiceServer) CreateCharacterRelationship(context.Context, *CreateCharacterRelationshipRequest) (*CreateCharacterRelationshipResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateCharacterRelationship not implemented")
+}
+func (UnimplementedCharacterServiceServer) GetCharacterRelationship(context.Context, *GetCharacterRelationshipRequest) (*GetCharacterRelationshipResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetCharacterRelationship not implemented")
+}
+func (UnimplementedCharacterServiceServer) ListCharacterRelationships(context.Context, *ListCharacterRelationshipsRequest) (*ListCharacterRelationshipsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListCharacterRelationships not implemented")
+}
+func (UnimplementedCharacterServiceServer) UpdateCharacterRelationship(context.Context, *UpdateCharacterRelationshipRequest) (*UpdateCharacterRelationshipResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method UpdateCharacterRelationship not implemented")
+}
+func (UnimplementedCharacterServiceServer) DeleteCharacterRelationship(context.Context, *DeleteCharacterRelationshipRequest) (*DeleteCharacterRelationshipResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteCharacterRelationship not implemented")
 }
 func (UnimplementedCharacterServiceServer) mustEmbedUnimplementedCharacterServiceServer() {}
 
@@ -356,6 +446,114 @@ func _CharacterService_RemoveTraitFromCharacter_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
+func _CharacterService_GetCharacterEvents_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCharacterEventsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).GetCharacterEvents(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_GetCharacterEvents_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).GetCharacterEvents(ctx, req.(*GetCharacterEventsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CharacterService_CreateCharacterRelationship_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateCharacterRelationshipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).CreateCharacterRelationship(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_CreateCharacterRelationship_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).CreateCharacterRelationship(ctx, req.(*CreateCharacterRelationshipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CharacterService_GetCharacterRelationship_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetCharacterRelationshipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).GetCharacterRelationship(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_GetCharacterRelationship_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).GetCharacterRelationship(ctx, req.(*GetCharacterRelationshipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CharacterService_ListCharacterRelationships_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListCharacterRelationshipsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).ListCharacterRelationships(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_ListCharacterRelationships_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).ListCharacterRelationships(ctx, req.(*ListCharacterRelationshipsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CharacterService_UpdateCharacterRelationship_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateCharacterRelationshipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).UpdateCharacterRelationship(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_UpdateCharacterRelationship_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).UpdateCharacterRelationship(ctx, req.(*UpdateCharacterRelationshipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _CharacterService_DeleteCharacterRelationship_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteCharacterRelationshipRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CharacterServiceServer).DeleteCharacterRelationship(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: CharacterService_DeleteCharacterRelationship_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CharacterServiceServer).DeleteCharacterRelationship(ctx, req.(*DeleteCharacterRelationshipRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // CharacterService_ServiceDesc is the grpc.ServiceDesc for CharacterService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -398,6 +596,30 @@ var CharacterService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "RemoveTraitFromCharacter",
 			Handler:    _CharacterService_RemoveTraitFromCharacter_Handler,
+		},
+		{
+			MethodName: "GetCharacterEvents",
+			Handler:    _CharacterService_GetCharacterEvents_Handler,
+		},
+		{
+			MethodName: "CreateCharacterRelationship",
+			Handler:    _CharacterService_CreateCharacterRelationship_Handler,
+		},
+		{
+			MethodName: "GetCharacterRelationship",
+			Handler:    _CharacterService_GetCharacterRelationship_Handler,
+		},
+		{
+			MethodName: "ListCharacterRelationships",
+			Handler:    _CharacterService_ListCharacterRelationships_Handler,
+		},
+		{
+			MethodName: "UpdateCharacterRelationship",
+			Handler:    _CharacterService_UpdateCharacterRelationship_Handler,
+		},
+		{
+			MethodName: "DeleteCharacterRelationship",
+			Handler:    _CharacterService_DeleteCharacterRelationship_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

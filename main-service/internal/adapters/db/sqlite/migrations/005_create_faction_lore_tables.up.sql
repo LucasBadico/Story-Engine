@@ -18,10 +18,10 @@ CREATE TABLE IF NOT EXISTS factions (
     CONSTRAINT factions_parent_fk FOREIGN KEY (parent_id) REFERENCES factions(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_factions_tenant_id ON factions(tenant_id);
-CREATE INDEX idx_factions_world_id ON factions(world_id);
-CREATE INDEX idx_factions_parent_id ON factions(parent_id);
-CREATE INDEX idx_factions_world_parent ON factions(world_id, parent_id);
+CREATE INDEX IF NOT EXISTS idx_factions_tenant_id ON factions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_factions_world_id ON factions(world_id);
+CREATE INDEX IF NOT EXISTS idx_factions_parent_id ON factions(parent_id);
+CREATE INDEX IF NOT EXISTS idx_factions_world_parent ON factions(world_id, parent_id);
 
 -- Create faction_references table
 CREATE TABLE IF NOT EXISTS faction_references (
@@ -43,9 +43,9 @@ CREATE TABLE IF NOT EXISTS faction_references (
     CONSTRAINT faction_references_faction_entity_unique UNIQUE (faction_id, entity_type, entity_id)
 );
 
-CREATE INDEX idx_faction_references_tenant_id ON faction_references(tenant_id);
-CREATE INDEX idx_faction_references_faction_id ON faction_references(faction_id);
-CREATE INDEX idx_faction_references_entity ON faction_references(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_faction_references_tenant_id ON faction_references(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_faction_references_faction_id ON faction_references(faction_id);
+CREATE INDEX IF NOT EXISTS idx_faction_references_entity ON faction_references(entity_type, entity_id);
 
 -- Create lores table
 CREATE TABLE IF NOT EXISTS lores (
@@ -67,10 +67,10 @@ CREATE TABLE IF NOT EXISTS lores (
     CONSTRAINT lores_parent_fk FOREIGN KEY (parent_id) REFERENCES lores(id) ON DELETE SET NULL
 );
 
-CREATE INDEX idx_lores_tenant_id ON lores(tenant_id);
-CREATE INDEX idx_lores_world_id ON lores(world_id);
-CREATE INDEX idx_lores_parent_id ON lores(parent_id);
-CREATE INDEX idx_lores_world_parent ON lores(world_id, parent_id);
+CREATE INDEX IF NOT EXISTS idx_lores_tenant_id ON lores(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_lores_world_id ON lores(world_id);
+CREATE INDEX IF NOT EXISTS idx_lores_parent_id ON lores(parent_id);
+CREATE INDEX IF NOT EXISTS idx_lores_world_parent ON lores(world_id, parent_id);
 
 -- Create lore_references table
 CREATE TABLE IF NOT EXISTS lore_references (
@@ -92,7 +92,7 @@ CREATE TABLE IF NOT EXISTS lore_references (
     CONSTRAINT lore_references_lore_entity_unique UNIQUE (lore_id, entity_type, entity_id)
 );
 
-CREATE INDEX idx_lore_references_tenant_id ON lore_references(tenant_id);
-CREATE INDEX idx_lore_references_lore_id ON lore_references(lore_id);
-CREATE INDEX idx_lore_references_entity ON lore_references(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_lore_references_tenant_id ON lore_references(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_lore_references_lore_id ON lore_references(lore_id);
+CREATE INDEX IF NOT EXISTS idx_lore_references_entity ON lore_references(entity_type, entity_id);
 

@@ -18,12 +18,12 @@ CREATE TABLE IF NOT EXISTS stories (
     CONSTRAINT stories_status_check CHECK (status IN ('draft', 'published', 'archived'))
 );
 
-CREATE INDEX idx_stories_tenant_id ON stories(tenant_id);
-CREATE INDEX idx_stories_root_story_id ON stories(root_story_id);
-CREATE INDEX idx_stories_previous_story_id ON stories(previous_story_id);
-CREATE INDEX idx_stories_status ON stories(status);
-CREATE INDEX idx_stories_created_at ON stories(created_at DESC);
-CREATE INDEX idx_stories_world_id ON stories(world_id);
+CREATE INDEX IF NOT EXISTS idx_stories_tenant_id ON stories(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_stories_root_story_id ON stories(root_story_id);
+CREATE INDEX IF NOT EXISTS idx_stories_previous_story_id ON stories(previous_story_id);
+CREATE INDEX IF NOT EXISTS idx_stories_status ON stories(status);
+CREATE INDEX IF NOT EXISTS idx_stories_created_at ON stories(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_stories_world_id ON stories(world_id);
 
 -- Create chapters table
 CREATE TABLE IF NOT EXISTS chapters (
@@ -42,9 +42,9 @@ CREATE TABLE IF NOT EXISTS chapters (
     CONSTRAINT chapters_number_positive CHECK (number > 0)
 );
 
-CREATE INDEX idx_chapters_story_id ON chapters(story_id);
-CREATE INDEX idx_chapters_tenant_id ON chapters(tenant_id);
-CREATE INDEX idx_chapters_story_number ON chapters(story_id, number);
+CREATE INDEX IF NOT EXISTS idx_chapters_story_id ON chapters(story_id);
+CREATE INDEX IF NOT EXISTS idx_chapters_tenant_id ON chapters(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_chapters_story_number ON chapters(story_id, number);
 
 -- Create scenes table (chapter_id is nullable, pov_character_id references characters from migration 002)
 CREATE TABLE IF NOT EXISTS scenes (
@@ -65,10 +65,10 @@ CREATE TABLE IF NOT EXISTS scenes (
     CONSTRAINT scenes_order_positive CHECK (order_num > 0)
 );
 
-CREATE INDEX idx_scenes_story_id ON scenes(story_id);
-CREATE INDEX idx_scenes_tenant_id ON scenes(tenant_id);
-CREATE INDEX idx_scenes_chapter_id ON scenes(chapter_id);
-CREATE INDEX idx_scenes_chapter_order ON scenes(chapter_id, order_num) WHERE chapter_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_scenes_story_id ON scenes(story_id);
+CREATE INDEX IF NOT EXISTS idx_scenes_tenant_id ON scenes(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_scenes_chapter_id ON scenes(chapter_id);
+CREATE INDEX IF NOT EXISTS idx_scenes_chapter_order ON scenes(chapter_id, order_num) WHERE chapter_id IS NOT NULL;
 
 -- Create beats table
 CREATE TABLE IF NOT EXISTS beats (
@@ -88,10 +88,10 @@ CREATE TABLE IF NOT EXISTS beats (
     CONSTRAINT beats_order_positive CHECK (order_num > 0)
 );
 
-CREATE INDEX idx_beats_scene_id ON beats(scene_id);
-CREATE INDEX idx_beats_tenant_id ON beats(tenant_id);
-CREATE INDEX idx_beats_scene_order ON beats(scene_id, order_num);
-CREATE INDEX idx_beats_type ON beats(type);
+CREATE INDEX IF NOT EXISTS idx_beats_scene_id ON beats(scene_id);
+CREATE INDEX IF NOT EXISTS idx_beats_tenant_id ON beats(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_beats_scene_order ON beats(scene_id, order_num);
+CREATE INDEX IF NOT EXISTS idx_beats_type ON beats(type);
 
 -- Create content_blocks table (chapter_id is nullable)
 CREATE TABLE IF NOT EXISTS content_blocks (
@@ -114,11 +114,11 @@ CREATE TABLE IF NOT EXISTS content_blocks (
     CONSTRAINT content_blocks_order_positive CHECK (order_num > 0 OR order_num IS NULL)
 );
 
-CREATE INDEX idx_content_blocks_chapter_id ON content_blocks(chapter_id);
-CREATE INDEX idx_content_blocks_tenant_id ON content_blocks(tenant_id);
-CREATE INDEX idx_content_blocks_chapter_order ON content_blocks(chapter_id, order_num) WHERE chapter_id IS NOT NULL;
-CREATE INDEX idx_content_blocks_kind ON content_blocks(kind);
-CREATE INDEX idx_content_blocks_type ON content_blocks(type);
+CREATE INDEX IF NOT EXISTS idx_content_blocks_chapter_id ON content_blocks(chapter_id);
+CREATE INDEX IF NOT EXISTS idx_content_blocks_tenant_id ON content_blocks(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_content_blocks_chapter_order ON content_blocks(chapter_id, order_num) WHERE chapter_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_content_blocks_kind ON content_blocks(kind);
+CREATE INDEX IF NOT EXISTS idx_content_blocks_type ON content_blocks(type);
 
 -- Create content_block_references table
 CREATE TABLE IF NOT EXISTS content_block_references (
@@ -138,8 +138,8 @@ CREATE TABLE IF NOT EXISTS content_block_references (
     CONSTRAINT content_block_references_unique UNIQUE (content_block_id, entity_type, entity_id)
 );
 
-CREATE INDEX idx_content_block_references_content_block_id ON content_block_references(content_block_id);
-CREATE INDEX idx_content_block_references_tenant_id ON content_block_references(tenant_id);
-CREATE INDEX idx_content_block_references_entity ON content_block_references(entity_type, entity_id);
-CREATE INDEX idx_content_block_references_entity_id ON content_block_references(entity_id);
+CREATE INDEX IF NOT EXISTS idx_content_block_references_content_block_id ON content_block_references(content_block_id);
+CREATE INDEX IF NOT EXISTS idx_content_block_references_tenant_id ON content_block_references(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_content_block_references_entity ON content_block_references(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_content_block_references_entity_id ON content_block_references(entity_id);
 

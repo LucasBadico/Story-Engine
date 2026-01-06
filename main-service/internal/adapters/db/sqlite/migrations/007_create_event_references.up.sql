@@ -16,9 +16,9 @@ CREATE TABLE IF NOT EXISTS event_references (
     CONSTRAINT event_references_event_entity_unique UNIQUE (event_id, entity_type, entity_id)
 );
 
-CREATE INDEX idx_event_references_tenant_id ON event_references(tenant_id);
-CREATE INDEX idx_event_references_event_id ON event_references(event_id);
-CREATE INDEX idx_event_references_entity ON event_references(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_event_references_tenant_id ON event_references(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_event_references_event_id ON event_references(event_id);
+CREATE INDEX IF NOT EXISTS idx_event_references_entity ON event_references(entity_type, entity_id);
 
 -- Migrar dados de event_characters
 INSERT INTO event_references (id, tenant_id, event_id, entity_type, entity_id, relationship_type, created_at)

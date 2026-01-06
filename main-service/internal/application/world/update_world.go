@@ -39,6 +39,7 @@ type UpdateWorldInput struct {
 	Description *string
 	Genre       *string
 	IsImplicit  *bool
+	TimeConfig  *world.TimeConfig
 }
 
 // UpdateWorldOutput represents the output of updating a world
@@ -69,6 +70,15 @@ func (uc *UpdateWorldUseCase) Execute(ctx context.Context, input UpdateWorldInpu
 	}
 	if input.IsImplicit != nil {
 		w.SetImplicit(*input.IsImplicit)
+	}
+	if input.TimeConfig != nil {
+		if err := input.TimeConfig.Validate(); err != nil {
+			return nil, &platformerrors.ValidationError{
+				Field:   "time_config",
+				Message: err.Error(),
+			}
+		}
+		w.SetTimeConfig(input.TimeConfig)
 	}
 
 	if err := w.Validate(); err != nil {

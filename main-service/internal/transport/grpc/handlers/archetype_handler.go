@@ -5,9 +5,9 @@ import (
 
 	"github.com/google/uuid"
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
+	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
-	"github.com/story-engine/main-service/internal/platform/logger"
 	archetypepb "github.com/story-engine/main-service/proto/archetype"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -23,6 +23,7 @@ type ArchetypeHandler struct {
 	deleteArchetypeUseCase     *archetypeapp.DeleteArchetypeUseCase
 	addTraitUseCase            *archetypeapp.AddTraitToArchetypeUseCase
 	removeTraitUseCase         *archetypeapp.RemoveTraitFromArchetypeUseCase
+	getTraitsUseCase          *archetypeapp.GetArchetypeTraitsUseCase
 	logger                     logger.Logger
 }
 
@@ -35,6 +36,7 @@ func NewArchetypeHandler(
 	deleteArchetypeUseCase *archetypeapp.DeleteArchetypeUseCase,
 	addTraitUseCase *archetypeapp.AddTraitToArchetypeUseCase,
 	removeTraitUseCase *archetypeapp.RemoveTraitFromArchetypeUseCase,
+	getTraitsUseCase *archetypeapp.GetArchetypeTraitsUseCase,
 	logger logger.Logger,
 ) *ArchetypeHandler {
 	return &ArchetypeHandler{
@@ -45,6 +47,7 @@ func NewArchetypeHandler(
 		deleteArchetypeUseCase: deleteArchetypeUseCase,
 		addTraitUseCase:        addTraitUseCase,
 		removeTraitUseCase:     removeTraitUseCase,
+		getTraitsUseCase:       getTraitsUseCase,
 		logger:                 logger,
 	}
 }
@@ -301,6 +304,41 @@ func (h *ArchetypeHandler) RemoveTraitFromArchetype(ctx context.Context, req *ar
 	}
 
 	return &archetypepb.RemoveTraitFromArchetypeResponse{}, nil
+}
+
+// GetArchetypeTraits retrieves all traits for an archetype
+func (h *ArchetypeHandler) GetArchetypeTraits(ctx context.Context, req *archetypepb.GetArchetypeTraitsRequest) (*archetypepb.GetArchetypeTraitsResponse, error) {
+	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
+	if !ok {
+		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
+	}
+
+	tenantUUID, err := uuid.Parse(tenantID)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
+	}
+
+	archetypeID, err := uuid.Parse(req.ArchetypeId)
+	if err != nil {
+		return nil, status.Errorf(codes.InvalidArgument, "invalid archetype_id: %v", err)
+	}
+
+	output, err := h.getTraitsUseCase.Execute(ctx, archetypeapp.GetArchetypeTraitsInput{
+		TenantID:    tenantUUID,
+		ArchetypeID: archetypeID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	traits := make([]*archetypepb.ArchetypeTrait, len(output.Traits))
+	for i, at := range output.Traits {
+		traits[i] = mappers.ArchetypeTraitToProto(at, nil)
+	}
+
+	return &archetypepb.GetArchetypeTraitsResponse{
+		Traits: traits,
+	}, nil
 }
 
 

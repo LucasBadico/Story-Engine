@@ -10,6 +10,6 @@ CREATE TABLE IF NOT EXISTS scene_references (
     CONSTRAINT scene_references_unique UNIQUE (scene_id, entity_type, entity_id)
 );
 
-CREATE INDEX idx_scene_references_scene_id ON scene_references(scene_id);
-CREATE INDEX idx_scene_references_entity ON scene_references(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_scene_references_scene_id ON scene_references(scene_id);
+CREATE INDEX IF NOT EXISTS idx_scene_references_entity ON scene_references(entity_type, entity_id);
 

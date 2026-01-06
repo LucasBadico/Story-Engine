@@ -31,6 +31,7 @@ import (
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
@@ -71,6 +72,7 @@ func main() {
 	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
 	characterRepo := postgres.NewCharacterRepository(pgDB)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(pgDB)
+	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(pgDB)
 	artifactRepo := postgres.NewArtifactRepository(pgDB)
 	artifactReferenceRepo := postgres.NewArtifactReferenceRepository(pgDB)
 	eventRepo := postgres.NewEventRepository(pgDB)
@@ -124,6 +126,12 @@ func main() {
 	removeTraitFromCharacterUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
 	updateCharacterTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	getCharacterTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	getCharacterEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
+	createCharacterRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
+	getCharacterRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	listCharacterRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
+	updateCharacterRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	deleteCharacterRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
 	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
 	getArtifactUseCase := artifactapp.NewGetArtifactUseCase(artifactRepo, log)
 	listArtifactsUseCase := artifactapp.NewListArtifactsUseCase(artifactRepo, log)
@@ -180,6 +188,7 @@ func main() {
 	deleteArchetypeUseCase := archetypeapp.NewDeleteArchetypeUseCase(archetypeRepo, archetypeTraitRepo, auditLogRepo, log)
 	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
 	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
+	getArchetypeTraitsUseCase := archetypeapp.NewGetArchetypeTraitsUseCase(archetypeTraitRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
 	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
@@ -275,7 +284,7 @@ func main() {
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := httphandlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	locationHandler := httphandlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
-	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, changeCharacterClassUseCase, getAvailableClassesUseCase, log)
+	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, getCharacterEventsUseCase, createCharacterRelationshipUseCase, getCharacterRelationshipUseCase, listCharacterRelationshipsUseCase, updateCharacterRelationshipUseCase, deleteCharacterRelationshipUseCase, changeCharacterClassUseCase, getAvailableClassesUseCase, log)
 	rpgClassHandler := httphandlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, log)
 	inventoryHandler := httphandlers.NewInventoryHandler(createInventorySlotUseCase, listInventorySlotsUseCase, createInventoryItemUseCase, getInventoryItemUseCase, listInventoryItemsUseCase, updateInventoryItemUseCase, deleteInventoryItemUseCase, addItemToInventoryUseCase, listCharacterInventoryUseCase, updateCharacterInventoryUseCase, equipItemUseCase, unequipItemUseCase, deleteCharacterInventoryUseCase, transferItemUseCase, log)
 	artifactHandler := httphandlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
@@ -288,7 +297,7 @@ func main() {
 	skillHandler := httphandlers.NewSkillHandler(createSkillUseCase, getSkillUseCase, listSkillsUseCase, updateSkillUseCase, deleteSkillUseCase, log)
 	characterSkillHandler := httphandlers.NewCharacterSkillHandler(learnSkillUseCase, listCharacterSkillsUseCase, updateCharacterSkillUseCase, deleteCharacterSkillUseCase, log)
 	traitHandler := httphandlers.NewTraitHandler(createTraitUseCase, getTraitUseCase, listTraitsUseCase, updateTraitUseCase, deleteTraitUseCase, log)
-	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, log)
+	archetypeHandler := httphandlers.NewArchetypeHandler(createArchetypeUseCase, getArchetypeUseCase, listArchetypesUseCase, updateArchetypeUseCase, deleteArchetypeUseCase, addTraitToArchetypeUseCase, removeTraitFromArchetypeUseCase, getArchetypeTraitsUseCase, log)
 	storyHandler := httphandlers.NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, log)
 	chapterHandler := httphandlers.NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
 	sceneHandler := httphandlers.NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
@@ -328,6 +337,11 @@ func main() {
 	mux.HandleFunc("POST /api/v1/characters/{id}/traits", characterHandler.AddTrait)
 	mux.HandleFunc("PUT /api/v1/characters/{id}/traits/{trait_id}", characterHandler.UpdateTrait)
 	mux.HandleFunc("DELETE /api/v1/characters/{id}/traits/{trait_id}", characterHandler.RemoveTrait)
+	mux.HandleFunc("GET /api/v1/characters/{id}/events", characterHandler.GetEvents)
+	mux.HandleFunc("GET /api/v1/characters/{id}/relationships", characterHandler.ListRelationships)
+	mux.HandleFunc("POST /api/v1/characters/{id}/relationships", characterHandler.CreateRelationship)
+	mux.HandleFunc("PUT /api/v1/character-relationships/{id}", characterHandler.UpdateRelationship)
+	mux.HandleFunc("DELETE /api/v1/character-relationships/{id}", characterHandler.DeleteRelationship)
 
 	mux.HandleFunc("POST /api/v1/worlds/{world_id}/artifacts", artifactHandler.Create)
 	mux.HandleFunc("GET /api/v1/worlds/{world_id}/artifacts", artifactHandler.List)
@@ -389,6 +403,7 @@ func main() {
 	mux.HandleFunc("GET /api/v1/archetypes/{id}", archetypeHandler.Get)
 	mux.HandleFunc("PUT /api/v1/archetypes/{id}", archetypeHandler.Update)
 	mux.HandleFunc("DELETE /api/v1/archetypes/{id}", archetypeHandler.Delete)
+	mux.HandleFunc("GET /api/v1/archetypes/{id}/traits", archetypeHandler.GetTraits)
 	mux.HandleFunc("POST /api/v1/archetypes/{id}/traits", archetypeHandler.AddTrait)
 	mux.HandleFunc("DELETE /api/v1/archetypes/{id}/traits/{trait_id}", archetypeHandler.RemoveTrait)
 

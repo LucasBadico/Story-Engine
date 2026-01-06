@@ -21,6 +21,7 @@ type ArchetypeHandler struct {
 	deleteArchetypeUseCase     *archetypeapp.DeleteArchetypeUseCase
 	addTraitUseCase            *archetypeapp.AddTraitToArchetypeUseCase
 	removeTraitUseCase         *archetypeapp.RemoveTraitFromArchetypeUseCase
+	getTraitsUseCase           *archetypeapp.GetArchetypeTraitsUseCase
 	logger                     logger.Logger
 }
 
@@ -33,6 +34,7 @@ func NewArchetypeHandler(
 	deleteArchetypeUseCase *archetypeapp.DeleteArchetypeUseCase,
 	addTraitUseCase *archetypeapp.AddTraitToArchetypeUseCase,
 	removeTraitUseCase *archetypeapp.RemoveTraitFromArchetypeUseCase,
+	getTraitsUseCase *archetypeapp.GetArchetypeTraitsUseCase,
 	logger logger.Logger,
 ) *ArchetypeHandler {
 	return &ArchetypeHandler{
@@ -43,6 +45,7 @@ func NewArchetypeHandler(
 		deleteArchetypeUseCase: deleteArchetypeUseCase,
 		addTraitUseCase:        addTraitUseCase,
 		removeTraitUseCase:     removeTraitUseCase,
+		getTraitsUseCase:       getTraitsUseCase,
 		logger:                 logger,
 	}
 }
@@ -305,4 +308,32 @@ func (h *ArchetypeHandler) RemoveTrait(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// GetTraits handles GET /api/v1/archetypes/{id}/traits
+func (h *ArchetypeHandler) GetTraits(w http.ResponseWriter, r *http.Request) {
+	tenantID := middleware.GetTenantID(r.Context())
+
+	id := r.PathValue("id")
+	archetypeID, err := uuid.Parse(id)
+	if err != nil {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "invalid UUID format",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	output, err := h.getTraitsUseCase.Execute(r.Context(), archetypeapp.GetArchetypeTraitsInput{
+		TenantID:    tenantID,
+		ArchetypeID: archetypeID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"traits": output.Traits,
+	})
+}
 

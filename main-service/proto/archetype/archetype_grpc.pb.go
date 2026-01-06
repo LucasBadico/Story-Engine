@@ -24,6 +24,7 @@ const (
 	ArchetypeService_UpdateArchetype_FullMethodName          = "/archetype.ArchetypeService/UpdateArchetype"
 	ArchetypeService_ListArchetypes_FullMethodName           = "/archetype.ArchetypeService/ListArchetypes"
 	ArchetypeService_DeleteArchetype_FullMethodName          = "/archetype.ArchetypeService/DeleteArchetype"
+	ArchetypeService_GetArchetypeTraits_FullMethodName       = "/archetype.ArchetypeService/GetArchetypeTraits"
 	ArchetypeService_AddTraitToArchetype_FullMethodName      = "/archetype.ArchetypeService/AddTraitToArchetype"
 	ArchetypeService_RemoveTraitFromArchetype_FullMethodName = "/archetype.ArchetypeService/RemoveTraitFromArchetype"
 )
@@ -37,6 +38,7 @@ type ArchetypeServiceClient interface {
 	UpdateArchetype(ctx context.Context, in *UpdateArchetypeRequest, opts ...grpc.CallOption) (*UpdateArchetypeResponse, error)
 	ListArchetypes(ctx context.Context, in *ListArchetypesRequest, opts ...grpc.CallOption) (*ListArchetypesResponse, error)
 	DeleteArchetype(ctx context.Context, in *DeleteArchetypeRequest, opts ...grpc.CallOption) (*DeleteArchetypeResponse, error)
+	GetArchetypeTraits(ctx context.Context, in *GetArchetypeTraitsRequest, opts ...grpc.CallOption) (*GetArchetypeTraitsResponse, error)
 	AddTraitToArchetype(ctx context.Context, in *AddTraitToArchetypeRequest, opts ...grpc.CallOption) (*AddTraitToArchetypeResponse, error)
 	RemoveTraitFromArchetype(ctx context.Context, in *RemoveTraitFromArchetypeRequest, opts ...grpc.CallOption) (*RemoveTraitFromArchetypeResponse, error)
 }
@@ -94,6 +96,15 @@ func (c *archetypeServiceClient) DeleteArchetype(ctx context.Context, in *Delete
 	return out, nil
 }
 
+func (c *archetypeServiceClient) GetArchetypeTraits(ctx context.Context, in *GetArchetypeTraitsRequest, opts ...grpc.CallOption) (*GetArchetypeTraitsResponse, error) {
+	out := new(GetArchetypeTraitsResponse)
+	err := c.cc.Invoke(ctx, ArchetypeService_GetArchetypeTraits_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *archetypeServiceClient) AddTraitToArchetype(ctx context.Context, in *AddTraitToArchetypeRequest, opts ...grpc.CallOption) (*AddTraitToArchetypeResponse, error) {
 	out := new(AddTraitToArchetypeResponse)
 	err := c.cc.Invoke(ctx, ArchetypeService_AddTraitToArchetype_FullMethodName, in, out, opts...)
@@ -121,6 +132,7 @@ type ArchetypeServiceServer interface {
 	UpdateArchetype(context.Context, *UpdateArchetypeRequest) (*UpdateArchetypeResponse, error)
 	ListArchetypes(context.Context, *ListArchetypesRequest) (*ListArchetypesResponse, error)
 	DeleteArchetype(context.Context, *DeleteArchetypeRequest) (*DeleteArchetypeResponse, error)
+	GetArchetypeTraits(context.Context, *GetArchetypeTraitsRequest) (*GetArchetypeTraitsResponse, error)
 	AddTraitToArchetype(context.Context, *AddTraitToArchetypeRequest) (*AddTraitToArchetypeResponse, error)
 	RemoveTraitFromArchetype(context.Context, *RemoveTraitFromArchetypeRequest) (*RemoveTraitFromArchetypeResponse, error)
 	mustEmbedUnimplementedArchetypeServiceServer()
@@ -144,6 +156,9 @@ func (UnimplementedArchetypeServiceServer) ListArchetypes(context.Context, *List
 }
 func (UnimplementedArchetypeServiceServer) DeleteArchetype(context.Context, *DeleteArchetypeRequest) (*DeleteArchetypeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method DeleteArchetype not implemented")
+}
+func (UnimplementedArchetypeServiceServer) GetArchetypeTraits(context.Context, *GetArchetypeTraitsRequest) (*GetArchetypeTraitsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetArchetypeTraits not implemented")
 }
 func (UnimplementedArchetypeServiceServer) AddTraitToArchetype(context.Context, *AddTraitToArchetypeRequest) (*AddTraitToArchetypeResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method AddTraitToArchetype not implemented")
@@ -254,6 +269,24 @@ func _ArchetypeService_DeleteArchetype_Handler(srv interface{}, ctx context.Cont
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArchetypeService_GetArchetypeTraits_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetArchetypeTraitsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArchetypeServiceServer).GetArchetypeTraits(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArchetypeService_GetArchetypeTraits_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArchetypeServiceServer).GetArchetypeTraits(ctx, req.(*GetArchetypeTraitsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _ArchetypeService_AddTraitToArchetype_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(AddTraitToArchetypeRequest)
 	if err := dec(in); err != nil {
@@ -316,6 +349,10 @@ var ArchetypeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "DeleteArchetype",
 			Handler:    _ArchetypeService_DeleteArchetype_Handler,
+		},
+		{
+			MethodName: "GetArchetypeTraits",
+			Handler:    _ArchetypeService_GetArchetypeTraits_Handler,
 		},
 		{
 			MethodName: "AddTraitToArchetype",

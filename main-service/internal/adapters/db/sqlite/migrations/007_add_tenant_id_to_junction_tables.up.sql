@@ -28,9 +28,9 @@ DROP TABLE archetype_traits;
 ALTER TABLE archetype_traits_new RENAME TO archetype_traits;
 
 -- Step 5: Recreate indexes
-CREATE INDEX idx_archetype_traits_tenant_id ON archetype_traits(tenant_id);
-CREATE INDEX idx_archetype_traits_archetype_id ON archetype_traits(archetype_id);
-CREATE INDEX idx_archetype_traits_trait_id ON archetype_traits(trait_id);
+CREATE INDEX IF NOT EXISTS idx_archetype_traits_tenant_id ON archetype_traits(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_archetype_traits_archetype_id ON archetype_traits(archetype_id);
+CREATE INDEX IF NOT EXISTS idx_archetype_traits_trait_id ON archetype_traits(trait_id);
 
 -- Add tenant_id column to scene_references table
 
@@ -61,7 +61,8 @@ DROP TABLE scene_references;
 ALTER TABLE scene_references_new RENAME TO scene_references;
 
 -- Step 5: Recreate indexes
-CREATE INDEX idx_scene_references_tenant_id ON scene_references(tenant_id);
-CREATE INDEX idx_scene_references_scene_id ON scene_references(scene_id);
-CREATE INDEX idx_scene_references_entity ON scene_references(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_scene_references_tenant_id ON scene_references(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_scene_references_scene_id ON scene_references(scene_id);
+CREATE INDEX IF NOT EXISTS idx_scene_references_entity ON scene_references(entity_type, entity_id);
+
 

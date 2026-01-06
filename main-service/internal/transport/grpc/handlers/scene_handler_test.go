@@ -12,6 +12,7 @@ import (
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/application/story"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	"github.com/story-engine/main-service/internal/application/tenant"
@@ -831,7 +832,24 @@ func setupTestServerWithSceneReferences(t *testing.T) (*grpc.ClientConn, func())
 	storyHandler := NewStoryHandler(createStoryUseCase, getStoryUseCase, updateStoryUseCase, listStoriesUseCase, cloneStoryUseCase, versionGraphUseCase, log)
 	chapterHandler := NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)
 	sceneHandler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUC, removeSceneReferenceUC, getSceneReferencesUC, log)
-	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, characterapp.NewGetCharacterTraitsUseCase(postgres.NewCharacterTraitRepository(db), log), characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), postgres.NewCharacterTraitRepository(db), log), characterapp.NewUpdateCharacterTraitUseCase(postgres.NewCharacterTraitRepository(db), postgres.NewTraitRepository(db), log), characterapp.NewRemoveTraitFromCharacterUseCase(postgres.NewCharacterTraitRepository(db), log), log)
+	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	traitRepo := postgres.NewTraitRepository(db)
+	characterHandler := NewCharacterHandler(
+		createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase,
+		characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log),
+		characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log),
+		characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log),
+		characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log),
+		characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log),
+		characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log),
+		characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log),
+		characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		log,
+	)
 	locationHandler := NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, locationapp.NewGetChildrenUseCase(locationRepo, log), locationapp.NewGetAncestorsUseCase(locationRepo, log), locationapp.NewGetDescendantsUseCase(locationRepo, log), locationapp.NewMoveLocationUseCase(locationRepo, auditLogRepo, log), log)
 	artifactHandler := NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, artifactapp.NewGetArtifactReferencesUseCase(artifactReferenceRepo, log), artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, log), artifactapp.NewRemoveArtifactReferenceUseCase(artifactReferenceRepo, log), log)
 
