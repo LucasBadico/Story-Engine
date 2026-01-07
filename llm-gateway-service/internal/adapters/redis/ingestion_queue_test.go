@@ -138,6 +138,16 @@ func TestIngestionQueue_PopStable(t *testing.T) {
 	if count != 0 {
 		t.Errorf("Expected queue to be empty after PopStable, got %d items", count)
 	}
+
+	processingKey := queue.processingKey(tenantID)
+	processingCount, err := client.ZCard(ctx, processingKey).Result()
+	if err != nil {
+		t.Fatalf("Failed to verify processing queue: %v", err)
+	}
+
+	if processingCount != 2 {
+		t.Errorf("Expected 2 items in processing after PopStable, got %d", processingCount)
+	}
 }
 
 func TestIngestionQueue_PopStable_WithLimit(t *testing.T) {
@@ -175,6 +185,16 @@ func TestIngestionQueue_PopStable_WithLimit(t *testing.T) {
 
 	if count != 2 {
 		t.Errorf("Expected 2 remaining items, got %d", count)
+	}
+
+	processingKey := queue.processingKey(tenantID)
+	processingCount, err := client.ZCard(ctx, processingKey).Result()
+	if err != nil {
+		t.Fatalf("Failed to verify processing queue: %v", err)
+	}
+
+	if processingCount != 3 {
+		t.Errorf("Expected 3 items in processing after PopStable, got %d", processingCount)
 	}
 }
 
@@ -240,6 +260,109 @@ func TestIngestionQueue_Remove(t *testing.T) {
 	}
 }
 
+func TestIngestionQueue_Ack(t *testing.T) {
+	client, cleanup := setupTestRedis(t)
+	defer cleanup()
+
+	queue := NewIngestionQueue(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+	sourceID := uuid.New()
+
+	queue.Push(ctx, tenantID, string(memory.SourceTypeStory), sourceID)
+
+	time.Sleep(50 * time.Millisecond)
+	_, err := queue.PopStable(ctx, tenantID, time.Now(), 10)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	err = queue.Ack(ctx, tenantID, string(memory.SourceTypeStory), sourceID)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	processingKey := queue.processingKey(tenantID)
+	processingCount, err := client.ZCard(ctx, processingKey).Result()
+	if err != nil {
+		t.Fatalf("Failed to verify processing queue: %v", err)
+	}
+
+	if processingCount != 0 {
+		t.Errorf("Expected processing to be empty after Ack, got %d", processingCount)
+	}
+}
+
+func TestIngestionQueue_Release(t *testing.T) {
+	client, cleanup := setupTestRedis(t)
+	defer cleanup()
+
+	queue := NewIngestionQueue(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+	sourceID := uuid.New()
+
+	queue.Push(ctx, tenantID, string(memory.SourceTypeStory), sourceID)
+
+	time.Sleep(50 * time.Millisecond)
+	_, err := queue.PopStable(ctx, tenantID, time.Now(), 10)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	err = queue.Release(ctx, tenantID, string(memory.SourceTypeStory), sourceID)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	queueKey := queue.queueKey(tenantID)
+	queueCount, err := client.ZCard(ctx, queueKey).Result()
+	if err != nil {
+		t.Fatalf("Failed to verify queue: %v", err)
+	}
+
+	if queueCount != 1 {
+		t.Errorf("Expected item to be back in queue after Release, got %d", queueCount)
+	}
+}
+
+func TestIngestionQueue_RequeueExpiredProcessing(t *testing.T) {
+	client, cleanup := setupTestRedis(t)
+	defer cleanup()
+
+	queue := NewIngestionQueue(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+	sourceID := uuid.New()
+
+	queue.Push(ctx, tenantID, string(memory.SourceTypeStory), sourceID)
+
+	time.Sleep(50 * time.Millisecond)
+	_, err := queue.PopStable(ctx, tenantID, time.Now(), 10)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	count, err := queue.RequeueExpiredProcessing(ctx, tenantID, time.Now().Add(1*time.Second), 10)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if count != 1 {
+		t.Errorf("Expected 1 item requeued, got %d", count)
+	}
+
+	queueKey := queue.queueKey(tenantID)
+	queueCount, err := client.ZCard(ctx, queueKey).Result()
+	if err != nil {
+		t.Fatalf("Failed to verify queue: %v", err)
+	}
+
+	if queueCount != 1 {
+		t.Errorf("Expected item to be in queue after requeue, got %d", queueCount)
+	}
+}
+
 func TestIngestionQueue_ListTenantsWithItems(t *testing.T) {
 	client, cleanup := setupTestRedis(t)
 	defer cleanup()
@@ -283,6 +406,31 @@ func TestIngestionQueue_ListTenantsWithItems(t *testing.T) {
 	}
 }
 
+func TestIngestionQueue_ListTenantsWithProcessingItems(t *testing.T) {
+	client, cleanup := setupTestRedis(t)
+	defer cleanup()
+
+	queue := NewIngestionQueue(client)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	queue.Push(ctx, tenantID, string(memory.SourceTypeStory), uuid.New())
+	time.Sleep(50 * time.Millisecond)
+	_, err := queue.PopStable(ctx, tenantID, time.Now(), 10)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	tenants, err := queue.ListTenantsWithProcessingItems(ctx)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+
+	if len(tenants) != 1 {
+		t.Errorf("Expected 1 tenant with processing items, got %d", len(tenants))
+	}
+}
+
 func TestIngestionQueue_EmptyQueue(t *testing.T) {
 	client, cleanup := setupTestRedis(t)
 	defer cleanup()
@@ -311,5 +459,3 @@ func TestIngestionQueue_EmptyQueue(t *testing.T) {
 		t.Errorf("Expected 0 tenants, got %d", len(tenants))
 	}
 }
-
-

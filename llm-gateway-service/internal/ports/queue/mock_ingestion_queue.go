@@ -9,8 +9,10 @@ import (
 
 // MockIngestionQueue is a mock implementation of IngestionQueue for testing
 type MockIngestionQueue struct {
-	items map[string]*QueueItem // key: "tenantID:sourceType:sourceID"
-	tenants map[uuid.UUID]bool
+	items           map[string]*QueueItem // key: "tenantID:sourceType:sourceID"
+	processingItems map[string]*QueueItem
+	tenants         map[uuid.UUID]bool
+	processingTenants map[uuid.UUID]bool
 	
 	enqueueErr error
 	popErr     error
@@ -20,8 +22,10 @@ type MockIngestionQueue struct {
 // NewMockIngestionQueue creates a new mock ingestion queue
 func NewMockIngestionQueue() *MockIngestionQueue {
 	return &MockIngestionQueue{
-		items:   make(map[string]*QueueItem),
-		tenants: make(map[uuid.UUID]bool),
+		items:             make(map[string]*QueueItem),
+		processingItems:   make(map[string]*QueueItem),
+		tenants:           make(map[uuid.UUID]bool),
+		processingTenants: make(map[uuid.UUID]bool),
 	}
 }
 
@@ -57,25 +61,54 @@ func (m *MockIngestionQueue) Push(ctx context.Context, tenantID uuid.UUID, sourc
 	return nil
 }
 
-// Remove removes an item from queue
-func (m *MockIngestionQueue) Remove(ctx context.Context, tenantID uuid.UUID, sourceType string, sourceID uuid.UUID) error {
+// Ack removes an item from processing
+func (m *MockIngestionQueue) Ack(ctx context.Context, tenantID uuid.UUID, sourceType string, sourceID uuid.UUID) error {
 	key := tenantID.String() + ":" + sourceType + ":" + sourceID.String()
-	delete(m.items, key)
-	// Check if tenant still has items
-	hasItems := false
-	for _, item := range m.items {
-		if item.TenantID == tenantID {
-			hasItems = true
-			break
-		}
-	}
-	if !hasItems {
-		delete(m.tenants, tenantID)
-	}
+	delete(m.processingItems, key)
+	m.refreshProcessingTenants(tenantID)
 	return nil
 }
 
-// PopStable removes and returns stable items from the queue
+// Release moves an item from processing back to the queue
+func (m *MockIngestionQueue) Release(ctx context.Context, tenantID uuid.UUID, sourceType string, sourceID uuid.UUID) error {
+	key := tenantID.String() + ":" + sourceType + ":" + sourceID.String()
+	if item, ok := m.processingItems[key]; ok {
+		delete(m.processingItems, key)
+		item.Timestamp = time.Now()
+		m.items[key] = item
+		m.tenants[tenantID] = true
+	}
+	m.refreshProcessingTenants(tenantID)
+	return nil
+}
+
+// RequeueExpiredProcessing moves expired processing items back to the queue
+func (m *MockIngestionQueue) RequeueExpiredProcessing(ctx context.Context, tenantID uuid.UUID, expiredBefore time.Time, limit int) (int, error) {
+	count := 0
+	for key, item := range m.processingItems {
+		if item.TenantID == tenantID && item.Timestamp.Before(expiredBefore) && count < limit {
+			delete(m.processingItems, key)
+			item.Timestamp = time.Now()
+			m.items[key] = item
+			m.tenants[tenantID] = true
+			count++
+		}
+	}
+	m.refreshProcessingTenants(tenantID)
+	return count, nil
+}
+
+// Remove removes an item from both queue and processing
+func (m *MockIngestionQueue) Remove(ctx context.Context, tenantID uuid.UUID, sourceType string, sourceID uuid.UUID) error {
+	key := tenantID.String() + ":" + sourceType + ":" + sourceID.String()
+	delete(m.items, key)
+	delete(m.processingItems, key)
+	m.refreshTenants(tenantID)
+	m.refreshProcessingTenants(tenantID)
+	return nil
+}
+
+// PopStable moves stable items from the queue to processing
 func (m *MockIngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, stableAt time.Time, limit int) ([]*QueueItem, error) {
 	if m.popErr != nil {
 		return nil, m.popErr
@@ -86,19 +119,14 @@ func (m *MockIngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, 
 		if item.TenantID == tenantID && item.Timestamp.Before(stableAt) && count < limit {
 			result = append(result, item)
 			delete(m.items, key)
+			item.Timestamp = time.Now()
+			m.processingItems[key] = item
 			count++
 		}
 	}
-	// If no items left for tenant, remove from tenants map
-	hasItems := false
-	for _, item := range m.items {
-		if item.TenantID == tenantID {
-			hasItems = true
-			break
-		}
-	}
-	if !hasItems {
-		delete(m.tenants, tenantID)
+	m.refreshTenants(tenantID)
+	if count > 0 {
+		m.processingTenants[tenantID] = true
 	}
 	return result, nil
 }
@@ -115,3 +143,34 @@ func (m *MockIngestionQueue) ListTenantsWithItems(ctx context.Context) ([]uuid.U
 	return result, nil
 }
 
+// ListTenantsWithProcessingItems returns tenants with processing items
+func (m *MockIngestionQueue) ListTenantsWithProcessingItems(ctx context.Context) ([]uuid.UUID, error) {
+	if m.listErr != nil {
+		return nil, m.listErr
+	}
+	var result []uuid.UUID
+	for tenantID := range m.processingTenants {
+		result = append(result, tenantID)
+	}
+	return result, nil
+}
+
+func (m *MockIngestionQueue) refreshTenants(tenantID uuid.UUID) {
+	for _, item := range m.items {
+		if item.TenantID == tenantID {
+			m.tenants[tenantID] = true
+			return
+		}
+	}
+	delete(m.tenants, tenantID)
+}
+
+func (m *MockIngestionQueue) refreshProcessingTenants(tenantID uuid.UUID) {
+	for _, item := range m.processingItems {
+		if item.TenantID == tenantID {
+			m.processingTenants[tenantID] = true
+			return
+		}
+	}
+	delete(m.processingTenants, tenantID)
+}

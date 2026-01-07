@@ -21,15 +21,20 @@ func TestNewDebouncedWorker_Configuration(t *testing.T) {
 	cfg.Worker.DebounceMinutes = 5
 	cfg.Worker.PollSeconds = 60
 	cfg.Worker.BatchSize = 10
+	cfg.Worker.ProcessingTimeoutSeconds = 600
 
 	debounceInterval := time.Duration(cfg.Worker.DebounceMinutes) * time.Minute
 	pollInterval := time.Duration(cfg.Worker.PollSeconds) * time.Second
+	processingTimeout := time.Duration(cfg.Worker.ProcessingTimeoutSeconds) * time.Second
 
 	if debounceInterval != 5*time.Minute {
 		t.Errorf("Expected debounceInterval 5m, got %v", debounceInterval)
 	}
 	if pollInterval != 60*time.Second {
 		t.Errorf("Expected pollInterval 60s, got %v", pollInterval)
+	}
+	if processingTimeout != 600*time.Second {
+		t.Errorf("Expected processingTimeout 600s, got %v", processingTimeout)
 	}
 	if cfg.Worker.BatchSize != 10 {
 		t.Errorf("Expected batchSize 10, got %d", cfg.Worker.BatchSize)
@@ -96,9 +101,11 @@ func TestDebouncedWorker_Configuration(t *testing.T) {
 	cfg.Worker.DebounceMinutes = 5
 	cfg.Worker.PollSeconds = 60
 	cfg.Worker.BatchSize = 10
+	cfg.Worker.ProcessingTimeoutSeconds = 600
 
 	debounceInterval := time.Duration(cfg.Worker.DebounceMinutes) * time.Minute
 	pollInterval := time.Duration(cfg.Worker.PollSeconds) * time.Second
+	processingTimeout := time.Duration(cfg.Worker.ProcessingTimeoutSeconds) * time.Second
 
 	if debounceInterval != 5*time.Minute {
 		t.Errorf("Expected debounceInterval 5m, got %v", debounceInterval)
@@ -106,8 +113,10 @@ func TestDebouncedWorker_Configuration(t *testing.T) {
 	if pollInterval != 60*time.Second {
 		t.Errorf("Expected pollInterval 60s, got %v", pollInterval)
 	}
+	if processingTimeout != 600*time.Second {
+		t.Errorf("Expected processingTimeout 600s, got %v", processingTimeout)
+	}
 	if cfg.Worker.BatchSize != 10 {
 		t.Errorf("Expected batchSize 10, got %d", cfg.Worker.BatchSize)
 	}
 }
-

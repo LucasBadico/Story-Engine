@@ -11,6 +11,7 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/platform/config"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/queue"
+	"google.golang.org/grpc/metadata"
 )
 
 // DebouncedWorker processes ingestion queue items with debounce
@@ -28,6 +29,7 @@ type DebouncedWorker struct {
 	ingestLore         *ingest.IngestLoreUseCase
 	logger             *logger.Logger
 	debounceInterval   time.Duration
+	processingTimeout  time.Duration
 	pollInterval       time.Duration
 	batchSize          int
 }
@@ -62,6 +64,7 @@ func NewDebouncedWorker(
 		ingestLore:         ingestLore,
 		logger:             logger,
 		debounceInterval:   time.Duration(cfg.Worker.DebounceMinutes) * time.Minute,
+		processingTimeout:  time.Duration(cfg.Worker.ProcessingTimeoutSeconds) * time.Second,
 		pollInterval:       time.Duration(cfg.Worker.PollSeconds) * time.Second,
 		batchSize:          cfg.Worker.BatchSize,
 	}
@@ -71,6 +74,7 @@ func NewDebouncedWorker(
 func (w *DebouncedWorker) Run(ctx context.Context) {
 	w.logger.Info("Starting debounced worker",
 		"debounce_interval", w.debounceInterval,
+		"processing_timeout", w.processingTimeout,
 		"poll_interval", w.pollInterval,
 		"batch_size", w.batchSize)
 
@@ -94,8 +98,11 @@ func (w *DebouncedWorker) Run(ctx context.Context) {
 // processStableItems finds and processes items that haven't been updated recently
 func (w *DebouncedWorker) processStableItems(ctx context.Context) {
 	stableAt := time.Now().Add(-w.debounceInterval)
+	expiredBefore := time.Now().Add(-w.processingTimeout)
 
 	w.logger.Debug("Processing stable items", "stable_at", stableAt)
+
+	w.requeueExpiredProcessing(ctx, expiredBefore)
 
 	// Get list of tenants that have items in queue
 	tenantIDs, err := w.queue.ListTenantsWithItems(ctx)
@@ -144,16 +151,56 @@ func (w *DebouncedWorker) processTenantQueue(ctx context.Context, tenantID uuid.
 				"source_type", item.SourceType,
 				"source_id", item.SourceID,
 				"error", err)
+			if releaseErr := w.queue.Release(ctx, item.TenantID, item.SourceType, item.SourceID); releaseErr != nil {
+				w.logger.Error("Failed to release item back to queue",
+					"tenant_id", item.TenantID,
+					"source_type", item.SourceType,
+					"source_id", item.SourceID,
+					"error", releaseErr)
+			}
 			// Continue processing other items
 			continue
+		}
+
+		if err := w.queue.Ack(ctx, item.TenantID, item.SourceType, item.SourceID); err != nil {
+			w.logger.Error("Failed to ack processed item",
+				"tenant_id", item.TenantID,
+				"source_type", item.SourceType,
+				"source_id", item.SourceID,
+				"error", err)
 		}
 	}
 
 	return nil
 }
 
+func (w *DebouncedWorker) requeueExpiredProcessing(ctx context.Context, expiredBefore time.Time) {
+	tenantIDs, err := w.queue.ListTenantsWithProcessingItems(ctx)
+	if err != nil {
+		w.logger.Error("Failed to list tenants with processing items", "error", err)
+		return
+	}
+
+	for _, tenantID := range tenantIDs {
+		for {
+			count, err := w.queue.RequeueExpiredProcessing(ctx, tenantID, expiredBefore, w.batchSize)
+			if err != nil {
+				w.logger.Error("Failed to requeue expired processing items",
+					"tenant_id", tenantID,
+					"error", err)
+				break
+			}
+			if count == 0 || count < w.batchSize {
+				break
+			}
+		}
+	}
+}
+
 // processItem processes a single queue item
 func (w *DebouncedWorker) processItem(ctx context.Context, item *queue.QueueItem) error {
+	ctx = metadata.AppendToOutgoingContext(ctx, "tenant_id", item.TenantID.String())
+
 	switch memory.SourceType(item.SourceType) {
 	case memory.SourceTypeStory:
 		_, err := w.ingestStory.Execute(ctx, ingest.IngestStoryInput{
@@ -261,4 +308,3 @@ func (w *DebouncedWorker) processItem(ctx context.Context, item *queue.QueueItem
 
 	return nil
 }
-

@@ -29,6 +29,7 @@ type Config struct {
 		DebounceMinutes int
 		PollSeconds     int
 		BatchSize       int
+		ProcessingTimeoutSeconds int
 	}
 }
 
@@ -67,6 +68,7 @@ func Load() *Config {
 	cfg.Worker.DebounceMinutes = getEnvInt("WORKER_DEBOUNCE_MINUTES", 5)
 	cfg.Worker.PollSeconds = getEnvInt("WORKER_POLL_SECONDS", 60)
 	cfg.Worker.BatchSize = getEnvInt("WORKER_BATCH_SIZE", 10)
+	cfg.Worker.ProcessingTimeoutSeconds = getEnvInt("WORKER_PROCESSING_TIMEOUT_SECONDS", 600)
 
 	return cfg
 }
@@ -86,4 +88,3 @@ func getEnvInt(key string, defaultValue int) int {
 	}
 	return defaultValue
 }
-
