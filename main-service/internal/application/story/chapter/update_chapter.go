@@ -7,22 +7,26 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 // UpdateChapterUseCase handles chapter updates
 type UpdateChapterUseCase struct {
 	chapterRepo repositories.ChapterRepository
+	ingestionQueue queue.IngestionQueue
 	logger      logger.Logger
 }
 
 // NewUpdateChapterUseCase creates a new UpdateChapterUseCase
 func NewUpdateChapterUseCase(
 	chapterRepo repositories.ChapterRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *UpdateChapterUseCase {
 	return &UpdateChapterUseCase{
 		chapterRepo: chapterRepo,
+		ingestionQueue: ingestionQueue,
 		logger:      logger,
 	}
 }
@@ -86,9 +90,18 @@ func (uc *UpdateChapterUseCase) Execute(ctx context.Context, input UpdateChapter
 	}
 
 	uc.logger.Info("chapter updated", "chapter_id", input.ID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, chapter.ID)
 
 	return &UpdateChapterOutput{
 		Chapter: chapter,
 	}, nil
 }
 
+func (uc *UpdateChapterUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, chapterID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "chapter", chapterID); err != nil {
+		uc.logger.Error("failed to enqueue chapter ingestion", "error", err, "chapter_id", chapterID, "tenant_id", tenantID)
+	}
+}

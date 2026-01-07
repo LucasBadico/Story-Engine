@@ -12,6 +12,7 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -189,11 +190,19 @@ func TestFactionHandler_AddReference(t *testing.T) {
 	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
 	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	getEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
+	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
+	createRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
+	getRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	listRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
+	updateRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	deleteRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
 	rpgClassRepo := postgres.NewRPGClassRepository(db)
 	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
 	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
-	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
+	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, getEventsUseCase, createRelationshipUseCase, getRelationshipUseCase, listRelationshipsUseCase, updateRelationshipUseCase, deleteRelationshipUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	characterBody := `{"name": "Test Character"}`
 	characterReq := httptest.NewRequest("POST", "/api/v1/worlds/"+worldID+"/characters", strings.NewReader(characterBody))
@@ -264,5 +273,3 @@ func TestFactionHandler_AddReference(t *testing.T) {
 		}
 	})
 }
-
-

@@ -60,9 +60,9 @@ func TestStoryHandler_Create(t *testing.T) {
 	}
 
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
-	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, nil, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	transactionRepo := postgres.NewTransactionRepository(db)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo, auditLogRepo, transactionRepo, log)
@@ -168,9 +168,9 @@ func TestStoryHandler_Get(t *testing.T) {
 	}
 
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
-	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, nil, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	transactionRepo := postgres.NewTransactionRepository(db)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo, auditLogRepo, transactionRepo, log)
@@ -284,9 +284,9 @@ func TestStoryHandler_List(t *testing.T) {
 	}
 
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
-	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, nil, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	transactionRepo := postgres.NewTransactionRepository(db)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(storyRepo, chapterRepo, sceneRepo, beatRepo, contentBlockRepo, auditLogRepo, transactionRepo, log)

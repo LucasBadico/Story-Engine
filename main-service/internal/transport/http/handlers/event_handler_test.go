@@ -30,9 +30,9 @@ func TestEventHandler_Create(t *testing.T) {
 	storyRepo := postgres.NewStoryRepository(db)
 	log := logger.New()
 
-	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
-	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
+	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
 	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
@@ -171,9 +171,9 @@ func TestEventHandler_Get(t *testing.T) {
 	storyRepo := postgres.NewStoryRepository(db)
 	log := logger.New()
 
-	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
-	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
+	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
 	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)

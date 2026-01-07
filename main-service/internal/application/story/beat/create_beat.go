@@ -7,6 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -14,6 +15,7 @@ import (
 type CreateBeatUseCase struct {
 	beatRepo  repositories.BeatRepository
 	sceneRepo repositories.SceneRepository
+	ingestionQueue queue.IngestionQueue
 	logger    logger.Logger
 }
 
@@ -21,11 +23,13 @@ type CreateBeatUseCase struct {
 func NewCreateBeatUseCase(
 	beatRepo repositories.BeatRepository,
 	sceneRepo repositories.SceneRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *CreateBeatUseCase {
 	return &CreateBeatUseCase{
 		beatRepo:  beatRepo,
 		sceneRepo: sceneRepo,
+		ingestionQueue: ingestionQueue,
 		logger:    logger,
 	}
 }
@@ -95,9 +99,18 @@ func (uc *CreateBeatUseCase) Execute(ctx context.Context, input CreateBeatInput)
 	}
 
 	uc.logger.Info("beat created", "beat_id", beat.ID, "scene_id", input.SceneID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, beat.ID)
 
 	return &CreateBeatOutput{
 		Beat: beat,
 	}, nil
 }
 
+func (uc *CreateBeatUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, beatID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "beat", beatID); err != nil {
+		uc.logger.Error("failed to enqueue beat ingestion", "error", err, "beat_id", beatID, "tenant_id", tenantID)
+	}
+}

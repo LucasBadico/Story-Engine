@@ -7,22 +7,26 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 // UpdateContentBlockUseCase handles content block updates
 type UpdateContentBlockUseCase struct {
 	contentBlockRepo repositories.ContentBlockRepository
+	ingestionQueue   queue.IngestionQueue
 	logger           logger.Logger
 }
 
 // NewUpdateContentBlockUseCase creates a new UpdateContentBlockUseCase
 func NewUpdateContentBlockUseCase(
 	contentBlockRepo repositories.ContentBlockRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *UpdateContentBlockUseCase {
 	return &UpdateContentBlockUseCase{
 		contentBlockRepo: contentBlockRepo,
+		ingestionQueue:   ingestionQueue,
 		logger:           logger,
 	}
 }
@@ -101,9 +105,18 @@ func (uc *UpdateContentBlockUseCase) Execute(ctx context.Context, input UpdateCo
 	}
 
 	uc.logger.Info("content block updated", "content_block_id", input.ID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, contentBlock.ID)
 
 	return &UpdateContentBlockOutput{
 		ContentBlock: contentBlock,
 	}, nil
 }
 
+func (uc *UpdateContentBlockUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, contentBlockID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "content_block", contentBlockID); err != nil {
+		uc.logger.Error("failed to enqueue content block ingestion", "error", err, "content_block_id", contentBlockID, "tenant_id", tenantID)
+	}
+}

@@ -7,22 +7,26 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 // UpdateSceneUseCase handles scene updates
 type UpdateSceneUseCase struct {
 	sceneRepo repositories.SceneRepository
+	ingestionQueue queue.IngestionQueue
 	logger    logger.Logger
 }
 
 // NewUpdateSceneUseCase creates a new UpdateSceneUseCase
 func NewUpdateSceneUseCase(
 	sceneRepo repositories.SceneRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *UpdateSceneUseCase {
 	return &UpdateSceneUseCase{
 		sceneRepo: sceneRepo,
+		ingestionQueue: ingestionQueue,
 		logger:    logger,
 	}
 }
@@ -86,9 +90,18 @@ func (uc *UpdateSceneUseCase) Execute(ctx context.Context, input UpdateSceneInpu
 	}
 
 	uc.logger.Info("scene updated", "scene_id", input.ID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, scene.ID)
 
 	return &UpdateSceneOutput{
 		Scene: scene,
 	}, nil
 }
 
+func (uc *UpdateSceneUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, sceneID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "scene", sceneID); err != nil {
+		uc.logger.Error("failed to enqueue scene ingestion", "error", err, "scene_id", sceneID, "tenant_id", tenantID)
+	}
+}

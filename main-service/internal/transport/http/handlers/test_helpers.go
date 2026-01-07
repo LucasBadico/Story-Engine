@@ -111,9 +111,9 @@ func setupTestStory(t *testing.T, db *postgres.DB, tenantID string) string {
 	log := logger.New()
 
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
-	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, nil, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	chapterRepo := postgres.NewChapterRepository(db)
 	sceneRepo := postgres.NewSceneRepository(db)
@@ -158,9 +158,9 @@ func setupTestChapter(t *testing.T, db *postgres.DB, tenantID, storyID string) s
 	storyRepo := postgres.NewStoryRepository(db)
 	log := logger.New()
 
-	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, log)
+	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, nil, log)
 	getChapterUseCase := chapterapp.NewGetChapterUseCase(chapterRepo, log)
-	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, log)
+	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, nil, log)
 	deleteChapterUseCase := chapterapp.NewDeleteChapterUseCase(chapterRepo, log)
 	listChaptersUseCase := chapterapp.NewListChaptersUseCase(chapterRepo, log)
 	chapterHandler := NewChapterHandler(createChapterUseCase, getChapterUseCase, updateChapterUseCase, deleteChapterUseCase, listChaptersUseCase, log)

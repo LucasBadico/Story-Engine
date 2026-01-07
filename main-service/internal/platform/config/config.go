@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 // Config holds application configuration
@@ -10,6 +11,7 @@ type Config struct {
 	Database DatabaseConfig
 	GRPC     GRPCConfig
 	HTTP     HTTPConfig
+	LLM      LLMConfig
 }
 
 // DatabaseConfig holds database connection settings
@@ -35,6 +37,19 @@ type GRPCConfig struct {
 // HTTPConfig holds HTTP server settings
 type HTTPConfig struct {
 	Port int
+}
+
+// LLMConfig holds LLM gateway integration settings
+type LLMConfig struct {
+	Enabled bool
+	Redis   RedisConfig
+}
+
+// RedisConfig holds Redis connection settings
+type RedisConfig struct {
+	Addr     string
+	Password string
+	DB       int
 }
 
 // DSN returns the database connection string based on the driver
@@ -76,6 +91,14 @@ func Load() *Config {
 		HTTP: HTTPConfig{
 			Port: getEnvInt("HTTP_PORT", 8080),
 		},
+		LLM: LLMConfig{
+			Enabled: getEnvBool("LLM_GATEWAY_ENABLED", false),
+			Redis: RedisConfig{
+				Addr:     getEnv("LLM_GATEWAY_REDIS_ADDR", "localhost:6379"),
+				Password: getEnv("LLM_GATEWAY_REDIS_PASSWORD", ""),
+				DB:       getEnvInt("LLM_GATEWAY_REDIS_DB", 0),
+			},
+		},
 	}
 }
 
@@ -98,7 +121,7 @@ func getEnvInt(key string, defaultValue int) int {
 
 func getEnvBool(key string, defaultValue bool) bool {
 	if value := os.Getenv(key); value != "" {
-		if value == "true" || value == "1" {
+		if strings.ToLower(value) == "true" || value == "1" {
 			return true
 		}
 		if value == "false" || value == "0" {

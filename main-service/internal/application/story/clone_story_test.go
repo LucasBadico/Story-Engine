@@ -48,7 +48,7 @@ func TestCloneStoryUseCase_Execute(t *testing.T) {
 
 	// Create a story
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
-	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 	storyOutput, err := createStoryUseCase.Execute(ctx, CreateStoryInput{
 		TenantID:       tenantOutput.Tenant.ID,
 		Title:          "Test Story",

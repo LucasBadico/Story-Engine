@@ -42,7 +42,7 @@ func TestCreateStoryUseCase_Execute(t *testing.T) {
 
 	storyRepo := postgres.NewStoryRepository(db)
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
-	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 
 	t.Run("successful creation", func(t *testing.T) {
 		input := CreateStoryInput{

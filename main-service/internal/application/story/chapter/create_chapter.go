@@ -7,6 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -14,6 +15,7 @@ import (
 type CreateChapterUseCase struct {
 	chapterRepo repositories.ChapterRepository
 	storyRepo    repositories.StoryRepository
+	ingestionQueue queue.IngestionQueue
 	logger       logger.Logger
 }
 
@@ -21,11 +23,13 @@ type CreateChapterUseCase struct {
 func NewCreateChapterUseCase(
 	chapterRepo repositories.ChapterRepository,
 	storyRepo repositories.StoryRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *CreateChapterUseCase {
 	return &CreateChapterUseCase{
 		chapterRepo: chapterRepo,
 		storyRepo:   storyRepo,
+		ingestionQueue: ingestionQueue,
 		logger:      logger,
 	}
 }
@@ -97,9 +101,18 @@ func (uc *CreateChapterUseCase) Execute(ctx context.Context, input CreateChapter
 	}
 
 	uc.logger.Info("chapter created", "chapter_id", chapter.ID, "story_id", input.StoryID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, chapter.ID)
 
 	return &CreateChapterOutput{
 		Chapter: chapter,
 	}, nil
 }
 
+func (uc *CreateChapterUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, chapterID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "chapter", chapterID); err != nil {
+		uc.logger.Error("failed to enqueue chapter ingestion", "error", err, "chapter_id", chapterID, "tenant_id", tenantID)
+	}
+}

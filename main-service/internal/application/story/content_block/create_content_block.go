@@ -7,6 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -14,6 +15,7 @@ import (
 type CreateContentBlockUseCase struct {
 	contentBlockRepo repositories.ContentBlockRepository
 	chapterRepo      repositories.ChapterRepository
+	ingestionQueue   queue.IngestionQueue
 	logger           logger.Logger
 }
 
@@ -21,11 +23,13 @@ type CreateContentBlockUseCase struct {
 func NewCreateContentBlockUseCase(
 	contentBlockRepo repositories.ContentBlockRepository,
 	chapterRepo repositories.ChapterRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *CreateContentBlockUseCase {
 	return &CreateContentBlockUseCase{
 		contentBlockRepo: contentBlockRepo,
 		chapterRepo:      chapterRepo,
+		ingestionQueue:   ingestionQueue,
 		logger:           logger,
 	}
 }
@@ -111,9 +115,18 @@ func (uc *CreateContentBlockUseCase) Execute(ctx context.Context, input CreateCo
 	}
 
 	uc.logger.Info("content block created", "content_block_id", contentBlock.ID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, contentBlock.ID)
 
 	return &CreateContentBlockOutput{
 		ContentBlock: contentBlock,
 	}, nil
 }
 
+func (uc *CreateContentBlockUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, contentBlockID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "content_block", contentBlockID); err != nil {
+		uc.logger.Error("failed to enqueue content block ingestion", "error", err, "content_block_id", contentBlockID, "tenant_id", tenantID)
+	}
+}

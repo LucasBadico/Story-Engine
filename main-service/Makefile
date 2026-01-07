@@ -1,5 +1,12 @@
 .PHONY: db-up db-down db-reset-volume db-truncate migrate-up migrate-down migrate-create test test-integration test-http clean run-offline
 
+# PostgreSQL defaults (used by pg-test-clean)
+PGH ?= localhost
+PGP ?= 5432
+PGU ?= postgres
+PGD ?= postgres
+PGPASS ?= postgres
+
 # Database management
 db-up:
 	@echo "Checking if PostgreSQL is running locally..."
@@ -95,3 +102,23 @@ test-http: db-up
 	@echo "Running HTTP handler tests with database cloning..."
 	go test -v -tags=integration ./internal/transport/http/...
 
+
+# Clean only databases that start with test_
+pg-test-clean:
+	@echo ">> Dropping databases starting with test_"
+	@PGPASSWORD=$(PGPASS) cmds=$$(PGPASSWORD=$(PGPASS) psql -h $(PGH) -p $(PGP) -U $(PGU) -d $(PGD) -Atc "\
+SELECT 'DROP DATABASE IF EXISTS \"' || datname || '\";' \
+FROM pg_database \
+WHERE datistemplate = false \
+  AND datname ~ E'^test_';"); \
+	echo "$$cmds" | pbcopy 2>/dev/null || true; \
+	echo "$$cmds" | while read -r cmd; do \
+		db=$$(echo $$cmd | sed -n 's/.*DROP DATABASE IF EXISTS \"\(.*\)\";.*/\1/p'); \
+		[ -z "$$db" ] && continue; \
+		echo " - Cleaning $$db"; \
+		PGPASSWORD=$(PGPASS) psql -h $(PGH) -p $(PGP) -U $(PGU) -d $(PGD) -Atc "\
+SELECT pg_terminate_backend(pid) FROM pg_stat_activity \
+WHERE datname='$$db' AND pid <> pg_backend_pid();" >/dev/null || true; \
+		PGPASSWORD=$(PGPASS) psql -h $(PGH) -p $(PGP) -U $(PGU) -d $(PGD) -c "$$cmd"; \
+	done
+	@echo ">> Done!"

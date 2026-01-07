@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	redisadapter "github.com/story-engine/main-service/internal/adapters/redis"
 	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	characterinventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
@@ -40,8 +41,10 @@ import (
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	httphandlers "github.com/story-engine/main-service/internal/transport/http/handlers"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
+	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -52,6 +55,21 @@ func main() {
 	log := logger.New()
 
 	log.Info("Starting HTTP server", "port", cfg.HTTP.Port)
+	log.Info("LLM gateway notifications", "enabled", cfg.LLM.Enabled)
+
+	var ingestionQueue queue.IngestionQueue
+	if cfg.LLM.Enabled {
+		redisClient := redis.NewClient(&redis.Options{
+			Addr:     cfg.LLM.Redis.Addr,
+			Password: cfg.LLM.Redis.Password,
+			DB:       cfg.LLM.Redis.DB,
+		})
+		if err := redisClient.Ping(context.Background()).Err(); err != nil {
+			log.Error("failed to connect to LLM Redis", "error", err)
+		} else {
+			ingestionQueue = redisadapter.NewIngestionQueue(redisClient)
+		}
+	}
 
 	// Connect to database
 	db, err := database.New(cfg.Database)
@@ -189,9 +207,9 @@ func main() {
 	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
 	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
 	getArchetypeTraitsUseCase := archetypeapp.NewGetArchetypeTraitsUseCase(archetypeTraitRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, ingestionQueue, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
-	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, ingestionQueue, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
@@ -203,29 +221,29 @@ func main() {
 		transactionRepo,
 		log,
 	)
-	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, log)
+	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, ingestionQueue, log)
 	getChapterUseCase := chapterapp.NewGetChapterUseCase(chapterRepo, log)
-	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, log)
+	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, ingestionQueue, log)
 	deleteChapterUseCase := chapterapp.NewDeleteChapterUseCase(chapterRepo, log)
 	listChaptersUseCase := chapterapp.NewListChaptersUseCase(chapterRepo, log)
-	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, ingestionQueue, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
-	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
+	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, ingestionQueue, log)
 	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
 	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
 	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
 	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
-	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, log)
+	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, ingestionQueue, log)
 	getBeatUseCase := beatapp.NewGetBeatUseCase(beatRepo, log)
-	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, log)
+	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, ingestionQueue, log)
 	deleteBeatUseCase := beatapp.NewDeleteBeatUseCase(beatRepo, log)
 	listBeatsUseCase := beatapp.NewListBeatsUseCase(beatRepo, log)
 	moveBeatUseCase := beatapp.NewMoveBeatUseCase(beatRepo, sceneRepo, log)
-	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, log)
+	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, ingestionQueue, log)
 	getContentBlockUseCase := contentblockapp.NewGetContentBlockUseCase(contentBlockRepo, log)
-	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, log)
+	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, ingestionQueue, log)
 	deleteContentBlockUseCase := contentblockapp.NewDeleteContentBlockUseCase(contentBlockRepo, log)
 	listContentBlocksUseCase := contentblockapp.NewListContentBlocksUseCase(contentBlockRepo, log)
 	createContentBlockReferenceUseCase := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockReferenceRepo, contentBlockRepo, log)

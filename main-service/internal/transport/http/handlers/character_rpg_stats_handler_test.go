@@ -12,6 +12,7 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -41,9 +42,17 @@ func TestCharacterRPGStatsHandler_Create(t *testing.T) {
 	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
 	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	getEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
+	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
+	createRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
+	getRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	listRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
+	updateRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	deleteRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
 	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
 	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
-	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
+	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, getEventsUseCase, createRelationshipUseCase, getRelationshipUseCase, listRelationshipsUseCase, updateRelationshipUseCase, deleteRelationshipUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
 	characterBody := `{"name": "Test Character"}`
@@ -150,9 +159,17 @@ func TestCharacterRPGStatsHandler_GetActive(t *testing.T) {
 	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo2, log)
 	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo2, traitRepo2, log)
 	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo2, log)
+	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	getEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
+	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
+	createRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
+	getRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	listRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
+	updateRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	deleteRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
 	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo2, log)
 	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo2, rpgSystemRepo2, log)
-	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
+	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, getEventsUseCase, createRelationshipUseCase, getRelationshipUseCase, listRelationshipsUseCase, updateRelationshipUseCase, deleteRelationshipUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	// Create character
 	characterBody := `{"name": "Test Character"}`
@@ -226,4 +243,3 @@ func TestCharacterRPGStatsHandler_GetActive(t *testing.T) {
 		}
 	})
 }
-

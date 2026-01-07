@@ -7,22 +7,26 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 // UpdateBeatUseCase handles beat updates
 type UpdateBeatUseCase struct {
 	beatRepo repositories.BeatRepository
+	ingestionQueue queue.IngestionQueue
 	logger   logger.Logger
 }
 
 // NewUpdateBeatUseCase creates a new UpdateBeatUseCase
 func NewUpdateBeatUseCase(
 	beatRepo repositories.BeatRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *UpdateBeatUseCase {
 	return &UpdateBeatUseCase{
 		beatRepo: beatRepo,
+		ingestionQueue: ingestionQueue,
 		logger:   logger,
 	}
 }
@@ -86,9 +90,18 @@ func (uc *UpdateBeatUseCase) Execute(ctx context.Context, input UpdateBeatInput)
 	}
 
 	uc.logger.Info("beat updated", "beat_id", input.ID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, beat.ID)
 
 	return &UpdateBeatOutput{
 		Beat: beat,
 	}, nil
 }
 
+func (uc *UpdateBeatUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, beatID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "beat", beatID); err != nil {
+		uc.logger.Error("failed to enqueue beat ingestion", "error", err, "beat_id", beatID, "tenant_id", tenantID)
+	}
+}

@@ -7,22 +7,26 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 // UpdateStoryUseCase handles story updates
 type UpdateStoryUseCase struct {
 	storyRepo repositories.StoryRepository
+	ingestionQueue queue.IngestionQueue
 	logger    logger.Logger
 }
 
 // NewUpdateStoryUseCase creates a new UpdateStoryUseCase
 func NewUpdateStoryUseCase(
 	storyRepo repositories.StoryRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *UpdateStoryUseCase {
 	return &UpdateStoryUseCase{
 		storyRepo: storyRepo,
+		ingestionQueue: ingestionQueue,
 		logger:    logger,
 	}
 }
@@ -80,9 +84,18 @@ func (uc *UpdateStoryUseCase) Execute(ctx context.Context, input UpdateStoryInpu
 	}
 
 	uc.logger.Info("story updated", "story_id", input.ID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, s.ID)
 
 	return &UpdateStoryOutput{
 		Story: s,
 	}, nil
 }
 
+func (uc *UpdateStoryUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, storyID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "story", storyID); err != nil {
+		uc.logger.Error("failed to enqueue story ingestion", "error", err, "story_id", storyID, "tenant_id", tenantID)
+	}
+}

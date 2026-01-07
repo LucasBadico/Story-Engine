@@ -41,6 +41,10 @@ func main() {
 	log := logger.New()
 
 	log.Info("Starting offline HTTP server", "port", cfg.HTTP.Port)
+	log.Info("LLM gateway notifications disabled in offline mode")
+	if cfg.LLM.Enabled {
+		cfg.LLM.Enabled = false
+	}
 
 	// Connect to SQLite database
 	sqliteDB, err := database.NewSQLite(cfg.Database)
@@ -183,9 +187,9 @@ func main() {
 	addTraitToArchetypeUseCase := archetypeapp.NewAddTraitToArchetypeUseCase(archetypeRepo, traitRepo, archetypeTraitRepo, log)
 	removeTraitFromArchetypeUseCase := archetypeapp.NewRemoveTraitFromArchetypeUseCase(archetypeTraitRepo, log)
 	getArchetypeTraitsUseCase := archetypeapp.NewGetArchetypeTraitsUseCase(archetypeTraitRepo, log)
-	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, log)
+	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
-	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, log)
+	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, nil, log)
 	listStoriesUseCase := story.NewListStoriesUseCase(storyRepo, log)
 	cloneStoryUseCase := story.NewCloneStoryUseCase(
 		storyRepo,
@@ -197,29 +201,29 @@ func main() {
 		transactionRepo,
 		log,
 	)
-	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, log)
+	createChapterUseCase := chapterapp.NewCreateChapterUseCase(chapterRepo, storyRepo, nil, log)
 	getChapterUseCase := chapterapp.NewGetChapterUseCase(chapterRepo, log)
-	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, log)
+	updateChapterUseCase := chapterapp.NewUpdateChapterUseCase(chapterRepo, nil, log)
 	deleteChapterUseCase := chapterapp.NewDeleteChapterUseCase(chapterRepo, log)
 	listChaptersUseCase := chapterapp.NewListChaptersUseCase(chapterRepo, log)
-	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, log)
+	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
-	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, log)
+	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
 	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
 	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
 	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
 	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
-	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, log)
+	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, nil, log)
 	getBeatUseCase := beatapp.NewGetBeatUseCase(beatRepo, log)
-	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, log)
+	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, nil, log)
 	deleteBeatUseCase := beatapp.NewDeleteBeatUseCase(beatRepo, log)
 	listBeatsUseCase := beatapp.NewListBeatsUseCase(beatRepo, log)
 	moveBeatUseCase := beatapp.NewMoveBeatUseCase(beatRepo, sceneRepo, log)
-	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, log)
+	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, nil, log)
 	getContentBlockUseCase := contentblockapp.NewGetContentBlockUseCase(contentBlockRepo, log)
-	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, log)
+	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, nil, log)
 	deleteContentBlockUseCase := contentblockapp.NewDeleteContentBlockUseCase(contentBlockRepo, log)
 	listContentBlocksUseCase := contentblockapp.NewListContentBlocksUseCase(contentBlockRepo, log)
 	createContentBlockReferenceUseCase := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockReferenceRepo, contentBlockRepo, log)

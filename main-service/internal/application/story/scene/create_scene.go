@@ -7,6 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -15,6 +16,7 @@ type CreateSceneUseCase struct {
 	sceneRepo   repositories.SceneRepository
 	chapterRepo repositories.ChapterRepository
 	storyRepo   repositories.StoryRepository
+	ingestionQueue queue.IngestionQueue
 	logger      logger.Logger
 }
 
@@ -23,12 +25,14 @@ func NewCreateSceneUseCase(
 	sceneRepo repositories.SceneRepository,
 	chapterRepo repositories.ChapterRepository,
 	storyRepo repositories.StoryRepository,
+	ingestionQueue queue.IngestionQueue,
 	logger logger.Logger,
 ) *CreateSceneUseCase {
 	return &CreateSceneUseCase{
 		sceneRepo:   sceneRepo,
 		chapterRepo: chapterRepo,
 		storyRepo:   storyRepo,
+		ingestionQueue: ingestionQueue,
 		logger:      logger,
 	}
 }
@@ -103,9 +107,18 @@ func (uc *CreateSceneUseCase) Execute(ctx context.Context, input CreateSceneInpu
 	}
 
 	uc.logger.Info("scene created", "scene_id", scene.ID, "story_id", input.StoryID, "tenant_id", input.TenantID)
+	uc.enqueueIngestion(ctx, input.TenantID, scene.ID)
 
 	return &CreateSceneOutput{
 		Scene: scene,
 	}, nil
 }
 
+func (uc *CreateSceneUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, sceneID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "scene", sceneID); err != nil {
+		uc.logger.Error("failed to enqueue scene ingestion", "error", err, "scene_id", sceneID, "tenant_id", tenantID)
+	}
+}
