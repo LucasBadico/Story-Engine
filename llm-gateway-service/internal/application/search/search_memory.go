@@ -17,36 +17,38 @@ type SearchMemoryInput struct {
 	Query       string
 	Limit       int
 	SourceTypes []memory.SourceType // Optional filter by source types
+	Cursor      *repositories.SearchCursor
 
 	// Structural filters
-	BeatTypes   []string
-	Characters  []string
-	SceneIDs    []uuid.UUID
-	StoryID     *uuid.UUID
+	BeatTypes  []string
+	Characters []string
+	SceneIDs   []uuid.UUID
+	StoryID    *uuid.UUID
 }
 
 // SearchMemoryOutput is the output containing relevant chunks
 type SearchMemoryOutput struct {
-	Chunks []*SearchResult
+	Chunks     []*SearchResult
+	NextCursor *repositories.SearchCursor
 }
 
 // SearchResult represents a search result chunk
 type SearchResult struct {
-	ChunkID     uuid.UUID
-	DocumentID  uuid.UUID
-	SourceType  memory.SourceType
-	SourceID    uuid.UUID
-	Content     string
-	Similarity  float64 // Cosine similarity score
+	ChunkID    uuid.UUID
+	DocumentID uuid.UUID
+	SourceType memory.SourceType
+	SourceID   uuid.UUID
+	Content    string
+	Similarity float64 // Cosine similarity score
 
 	// Structural metadata
-	BeatType     *string   `json:"beat_type,omitempty"`
-	BeatIntent   *string   `json:"beat_intent,omitempty"`
-	Characters   []string  `json:"characters,omitempty"`
-	LocationName *string   `json:"location_name,omitempty"`
-	Timeline     *string   `json:"timeline,omitempty"`
-	POVCharacter *string   `json:"pov_character,omitempty"`
-	ContentKind  *string   `json:"content_kind,omitempty"`
+	BeatType     *string  `json:"beat_type,omitempty"`
+	BeatIntent   *string  `json:"beat_intent,omitempty"`
+	Characters   []string `json:"characters,omitempty"`
+	LocationName *string  `json:"location_name,omitempty"`
+	Timeline     *string  `json:"timeline,omitempty"`
+	POVCharacter *string  `json:"pov_character,omitempty"`
+	ContentKind  *string  `json:"content_kind,omitempty"`
 }
 
 // SearchMemoryUseCase handles semantic memory search
@@ -96,14 +98,15 @@ func (uc *SearchMemoryUseCase) Execute(ctx context.Context, input SearchMemoryIn
 	}
 
 	// Search for similar chunks
-	chunks, err := uc.chunkRepo.SearchSimilar(ctx, input.TenantID, queryEmbedding, limit, filters)
+	chunks, err := uc.chunkRepo.SearchSimilar(ctx, input.TenantID, queryEmbedding, limit, input.Cursor, filters)
 	if err != nil {
 		return nil, err
 	}
 
 	// Convert chunks to search results
 	results := make([]*SearchResult, 0, len(chunks))
-	for _, chunk := range chunks {
+	for _, scored := range chunks {
+		chunk := scored.Chunk
 		// Get document for source info
 		doc, err := uc.docRepo.GetByID(ctx, chunk.DocumentID)
 		if err != nil {
@@ -111,8 +114,8 @@ func (uc *SearchMemoryUseCase) Execute(ctx context.Context, input SearchMemoryIn
 			continue
 		}
 
-		// Calculate cosine similarity
-		similarity := uc.calculateSimilarity(queryEmbedding, chunk.Embedding)
+		// Convert cosine distance to similarity score
+		similarity := 1 - scored.Distance
 
 		results = append(results, &SearchResult{
 			ChunkID:      chunk.ID,
@@ -131,8 +134,18 @@ func (uc *SearchMemoryUseCase) Execute(ctx context.Context, input SearchMemoryIn
 		})
 	}
 
+	var nextCursor *repositories.SearchCursor
+	if len(chunks) > 0 {
+		last := chunks[len(chunks)-1]
+		nextCursor = &repositories.SearchCursor{
+			Distance: last.Distance,
+			ChunkID:  last.Chunk.ID,
+		}
+	}
+
 	return &SearchMemoryOutput{
-		Chunks: results,
+		Chunks:     results,
+		NextCursor: nextCursor,
 	}, nil
 }
 

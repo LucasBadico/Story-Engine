@@ -19,17 +19,20 @@ type Config struct {
 		GRPCAddr string
 	}
 	Embedding struct {
-		Provider string
-		BaseURL  string
-		APIKey   string
-		Model    string
+		Provider  string
+		BaseURL   string
+		APIKey    string
+		Model     string
 		Dimension int
 	}
 	Worker struct {
-		DebounceMinutes int
-		PollSeconds     int
-		BatchSize       int
+		DebounceMinutes          int
+		PollSeconds              int
+		BatchSize                int
 		ProcessingTimeoutSeconds int
+	}
+	HTTP struct {
+		Addr string
 	}
 }
 
@@ -53,7 +56,7 @@ func Load() *Config {
 	cfg.Embedding.BaseURL = getEnv("EMBEDDING_BASE_URL", "http://localhost:11434")
 	cfg.Embedding.APIKey = getEnv("EMBEDDING_API_KEY", "")
 	cfg.Embedding.Model = getEnv("EMBEDDING_MODEL", "nomic-embed-text")
-	
+
 	// Set default dimension based on provider/model
 	if cfg.Embedding.Provider == "openai" {
 		cfg.Embedding.Dimension = 1536 // OpenAI ada-002
@@ -69,6 +72,9 @@ func Load() *Config {
 	cfg.Worker.PollSeconds = getEnvInt("WORKER_POLL_SECONDS", 60)
 	cfg.Worker.BatchSize = getEnvInt("WORKER_BATCH_SIZE", 10)
 	cfg.Worker.ProcessingTimeoutSeconds = getEnvInt("WORKER_PROCESSING_TIMEOUT_SECONDS", 600)
+
+	// HTTP API
+	cfg.HTTP.Addr = getEnv("HTTP_ADDR", ":8081")
 
 	return cfg
 }

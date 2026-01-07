@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-reset-volume db-reset db-truncate migrate-up migrate-down migrate-create test test-fmt test-integration test-integration-fmt test-unit test-coverage clean deps run-worker
+.PHONY: db-up db-down db-reset-volume db-reset db-truncate migrate-up migrate-down migrate-create test test-fmt test-integration test-integration-fmt test-unit test-coverage clean deps run-worker run-http
 
 # Database management
 db-up:
@@ -134,3 +134,7 @@ deps:
 # Run worker
 run-worker:
 	go run cmd/worker/main.go
+
+# Run HTTP API
+run-http:
+	go run cmd/http/main.go

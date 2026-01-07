@@ -27,7 +27,7 @@ func TestChunkRepository_Create(t *testing.T) {
 		t.Fatalf("Failed to create document: %v", err)
 	}
 
-	embedding := make([]float32, 1536)
+	embedding := make([]float32, 768)
 	for i := range embedding {
 		embedding[i] = 0.1
 	}
@@ -77,7 +77,7 @@ func TestChunkRepository_CreateBatch(t *testing.T) {
 
 	chunks := make([]*memory.Chunk, 3)
 	for i := 0; i < 3; i++ {
-		embedding := make([]float32, 1536)
+		embedding := make([]float32, 768)
 		for j := range embedding {
 			embedding[j] = float32(i) * 0.1
 		}
@@ -117,13 +117,13 @@ func TestChunkRepository_SearchSimilar(t *testing.T) {
 	}
 
 	// Create chunks with different embeddings
-	queryEmbedding := make([]float32, 1536)
+	queryEmbedding := make([]float32, 768)
 	for i := range queryEmbedding {
 		queryEmbedding[i] = 0.5
 	}
 
 	// Chunk similar to query
-	similarEmbedding := make([]float32, 1536)
+	similarEmbedding := make([]float32, 768)
 	for i := range similarEmbedding {
 		similarEmbedding[i] = 0.5
 	}
@@ -133,7 +133,7 @@ func TestChunkRepository_SearchSimilar(t *testing.T) {
 	}
 
 	// Chunk different from query
-	differentEmbedding := make([]float32, 1536)
+	differentEmbedding := make([]float32, 768)
 	for i := range differentEmbedding {
 		differentEmbedding[i] = -0.5
 	}
@@ -144,7 +144,7 @@ func TestChunkRepository_SearchSimilar(t *testing.T) {
 
 	// Search
 	filters := &repositories.SearchFilters{}
-	results, err := repo.SearchSimilar(ctx, tenantID, queryEmbedding, 10, filters)
+	results, err := repo.SearchSimilar(ctx, tenantID, queryEmbedding, 10, nil, filters)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
@@ -154,7 +154,7 @@ func TestChunkRepository_SearchSimilar(t *testing.T) {
 	}
 
 	// First result should be more similar
-	if results[0].ID != chunk1.ID {
+	if results[0].Chunk.ID != chunk1.ID {
 		t.Logf("Note: SearchSimilar may return chunks in different order depending on vector similarity calculation")
 	}
 }
@@ -176,7 +176,7 @@ func TestChunkRepository_SearchSimilar_WithBeatTypeFilter(t *testing.T) {
 	}
 
 	// Create chunks with different beat types
-	embedding := make([]float32, 1536)
+	embedding := make([]float32, 768)
 	for i := range embedding {
 		embedding[i] = 0.1
 	}
@@ -199,16 +199,71 @@ func TestChunkRepository_SearchSimilar_WithBeatTypeFilter(t *testing.T) {
 	filters := &repositories.SearchFilters{
 		BeatTypes: []string{"setup"},
 	}
-	results, err := repo.SearchSimilar(ctx, tenantID, embedding, 10, filters)
+	results, err := repo.SearchSimilar(ctx, tenantID, embedding, 10, nil, filters)
 	if err != nil {
 		t.Fatalf("Expected no error, got %v", err)
 	}
 
 	// Should only return setup chunks
 	for _, result := range results {
-		if result.BeatType == nil || *result.BeatType != "setup" {
-			t.Errorf("Expected only setup chunks, got beat type %v", result.BeatType)
+		if result.Chunk.BeatType == nil || *result.Chunk.BeatType != "setup" {
+			t.Errorf("Expected only setup chunks, got beat type %v", result.Chunk.BeatType)
 		}
+	}
+}
+
+func TestChunkRepository_SearchSimilar_WithCursor(t *testing.T) {
+	db, cleanup := SetupTestDB(t)
+	defer cleanup()
+
+	repo := NewChunkRepository(db)
+	ctx := context.Background()
+	tenantID := uuid.New()
+
+	docRepo := NewDocumentRepository(db)
+	doc := memory.NewDocument(tenantID, memory.SourceTypeContentBlock, uuid.New(), "Test", "Content")
+	if err := docRepo.Create(ctx, doc); err != nil {
+		t.Fatalf("Failed to create document: %v", err)
+	}
+
+	embedding := make([]float32, 768)
+	for i := range embedding {
+		embedding[i] = 0.1
+	}
+
+	chunk1 := memory.NewChunk(doc.ID, 0, "Chunk A", embedding, 10)
+	chunk2 := memory.NewChunk(doc.ID, 1, "Chunk B", embedding, 10)
+	chunk3 := memory.NewChunk(doc.ID, 2, "Chunk C", embedding, 10)
+
+	if err := repo.Create(ctx, chunk1); err != nil {
+		t.Fatalf("Failed to create chunk1: %v", err)
+	}
+	if err := repo.Create(ctx, chunk2); err != nil {
+		t.Fatalf("Failed to create chunk2: %v", err)
+	}
+	if err := repo.Create(ctx, chunk3); err != nil {
+		t.Fatalf("Failed to create chunk3: %v", err)
+	}
+
+	results, err := repo.SearchSimilar(ctx, tenantID, embedding, 2, nil, nil)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 results, got %d", len(results))
+	}
+
+	cursor := &repositories.SearchCursor{
+		Distance: results[1].Distance,
+		ChunkID:  results[1].Chunk.ID,
+	}
+
+	nextResults, err := repo.SearchSimilar(ctx, tenantID, embedding, 2, cursor, nil)
+	if err != nil {
+		t.Fatalf("Expected no error, got %v", err)
+	}
+	if len(nextResults) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(nextResults))
 	}
 }
 
@@ -238,7 +293,7 @@ func TestChunkRepository_MetadataPersistence(t *testing.T) {
 	contentKind := "final"
 	characters := []string{"John", "Mary"}
 
-	embedding := make([]float32, 1536)
+	embedding := make([]float32, 768)
 	for i := range embedding {
 		embedding[i] = 0.1
 	}

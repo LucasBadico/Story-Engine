@@ -49,7 +49,7 @@ make run-worker
 
 ```bash
 # Run HTTP API
-go run ./cmd/api
+go run ./cmd/http
 ```
 
 ## Search API

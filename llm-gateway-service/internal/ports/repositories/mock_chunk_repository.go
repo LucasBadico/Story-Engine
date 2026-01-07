@@ -9,9 +9,9 @@ import (
 
 // MockChunkRepository is a mock implementation of ChunkRepository for testing
 type MockChunkRepository struct {
-	chunks map[uuid.UUID]*memory.Chunk
+	chunks     map[uuid.UUID]*memory.Chunk
 	byDocument map[uuid.UUID][]*memory.Chunk
-	
+
 	createErr      error
 	createBatchErr error
 	getByIDErr     error
@@ -23,8 +23,8 @@ type MockChunkRepository struct {
 // NewMockChunkRepository creates a new mock chunk repository
 func NewMockChunkRepository() *MockChunkRepository {
 	return &MockChunkRepository{
-		chunks:      make(map[uuid.UUID]*memory.Chunk),
-		byDocument:  make(map[uuid.UUID][]*memory.Chunk),
+		chunks:     make(map[uuid.UUID]*memory.Chunk),
+		byDocument: make(map[uuid.UUID][]*memory.Chunk),
 	}
 }
 
@@ -126,18 +126,21 @@ func (m *MockChunkRepository) DeleteByDocument(ctx context.Context, documentID u
 }
 
 // SearchSimilar searches for similar chunks using vector similarity
-func (m *MockChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int, filters *SearchFilters) ([]*memory.Chunk, error) {
+func (m *MockChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int, cursor *SearchCursor, filters *SearchFilters) ([]*ScoredChunk, error) {
 	if m.searchErr != nil {
 		return nil, m.searchErr
 	}
 	// Simple mock: return all chunks up to limit
-	result := []*memory.Chunk{}
+	result := []*ScoredChunk{}
 	count := 0
 	for _, chunk := range m.chunks {
 		if count >= limit {
 			break
 		}
-		result = append(result, chunk)
+		result = append(result, &ScoredChunk{
+			Chunk:    chunk,
+			Distance: 0,
+		})
 		count++
 	}
 	return result, nil
@@ -151,5 +154,3 @@ type NotFoundError struct {
 func (e *NotFoundError) Error() string {
 	return e.Message
 }
-
-

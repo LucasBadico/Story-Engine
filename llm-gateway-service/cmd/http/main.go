@@ -1,0 +1,91 @@
+package main
+
+import (
+	"context"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/story-engine/llm-gateway-service/internal/adapters/db/postgres"
+	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/ollama"
+	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/openai"
+	"github.com/story-engine/llm-gateway-service/internal/application/search"
+	"github.com/story-engine/llm-gateway-service/internal/platform/config"
+	"github.com/story-engine/llm-gateway-service/internal/platform/database"
+	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
+	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
+	"github.com/story-engine/llm-gateway-service/internal/transport/httpapi"
+)
+
+func main() {
+	cfg := config.Load()
+	log := logger.New()
+
+	log.Info("Starting ingestion service API...")
+
+	db, err := database.New(cfg)
+	if err != nil {
+		log.Error("Failed to connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+	log.Info("Database connected")
+
+	pgDB := postgres.NewDB(db)
+	documentRepo := postgres.NewDocumentRepository(pgDB)
+	chunkRepo := postgres.NewChunkRepository(pgDB)
+
+	var embedder embeddings.Embedder
+	switch cfg.Embedding.Provider {
+	case "openai":
+		embedder = openai.NewOpenAIEmbedder(cfg)
+		log.Info("Using OpenAI embedder", "model", cfg.Embedding.Model)
+	case "ollama":
+		embedder = ollama.NewOllamaEmbedder(cfg)
+		log.Info("Using Ollama embedder", "model", cfg.Embedding.Model, "base_url", cfg.Embedding.BaseURL)
+	default:
+		log.Error("Unsupported embedding provider", "provider", cfg.Embedding.Provider)
+		os.Exit(1)
+	}
+
+	searchUseCase := search.NewSearchMemoryUseCase(
+		chunkRepo,
+		documentRepo,
+		embedder,
+		log,
+	)
+
+	searchHandler := httpapi.NewSearchHandler(searchUseCase, log)
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("/health", httpapi.Health)
+	mux.HandleFunc("/api/v1/search", searchHandler.Search)
+
+	server := &http.Server{
+		Addr:              cfg.HTTP.Addr,
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		log.Info("HTTP server listening", "addr", cfg.HTTP.Addr)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Error("HTTP server failed", "error", err)
+			stop()
+		}
+	}()
+
+	<-ctx.Done()
+	log.Info("Shutting down API...")
+
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(shutdownCtx); err != nil {
+		log.Error("HTTP server shutdown failed", "error", err)
+	}
+}

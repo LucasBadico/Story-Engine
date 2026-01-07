@@ -171,7 +171,7 @@ func (r *ChunkRepository) DeleteByDocument(ctx context.Context, documentID uuid.
 }
 
 // SearchSimilar searches for similar chunks using vector similarity
-func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int, filters *repositories.SearchFilters) ([]*memory.Chunk, error) {
+func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID, embedding []float32, limit int, cursor *repositories.SearchCursor, filters *repositories.SearchFilters) ([]*repositories.ScoredChunk, error) {
 	if filters == nil {
 		filters = &repositories.SearchFilters{}
 	}
@@ -180,7 +180,8 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 	query := `
 		SELECT c.id, c.document_id, c.chunk_index, c.content, c.embedding, c.token_count, c.created_at,
 		       c.scene_id, c.beat_id, c.beat_type, c.beat_intent, c.characters, c.location_id, c.location_name,
-		       c.timeline, c.pov_character, c.content_kind
+		       c.timeline, c.pov_character, c.content_kind,
+		       (c.embedding <=> $%d::vector) AS distance
 		FROM embedding_chunks c
 		INNER JOIN embedding_documents d ON c.document_id = d.id
 		WHERE d.tenant_id = $1
@@ -252,12 +253,31 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 		argIndex++
 	}
 
+	vectorArgIndex := argIndex
+	args = append(args, formatVector(embedding))
+	argIndex++
+	query = fmt.Sprintf(query, vectorArgIndex)
+
+	if cursor != nil {
+		query += fmt.Sprintf(`
+			AND (
+				(c.embedding <=> $%d::vector) > $%d
+				OR (
+					(c.embedding <=> $%d::vector) = $%d
+					AND c.id > $%d
+				)
+			)
+		`, vectorArgIndex, argIndex, vectorArgIndex, argIndex, argIndex+1)
+		args = append(args, cursor.Distance, cursor.ChunkID)
+		argIndex += 2
+	}
+
 	// Add vector similarity search
 	query += fmt.Sprintf(`
-		ORDER BY c.embedding <=> $%d::vector
+		ORDER BY c.embedding <=> $%d::vector, c.id
 		LIMIT $%d
-	`, argIndex, argIndex+1)
-	args = append(args, formatVector(embedding), limit)
+	`, vectorArgIndex, argIndex)
+	args = append(args, limit)
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {
@@ -265,14 +285,15 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 	}
 	defer rows.Close()
 
-	var chunks []*memory.Chunk
+	var chunks []*repositories.ScoredChunk
 	for rows.Next() {
 		var chunk memory.Chunk
 		var embeddingStr string
 		var charactersJSON string
+		var distance float64
 		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
 			&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
-			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind); err != nil {
+			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind, &distance); err != nil {
 			return nil, err
 		}
 		chunk.Embedding = parseVector(embeddingStr)
@@ -281,7 +302,10 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 				return nil, fmt.Errorf("failed to unmarshal characters: %w", err)
 			}
 		}
-		chunks = append(chunks, &chunk)
+		chunks = append(chunks, &repositories.ScoredChunk{
+			Chunk:    &chunk,
+			Distance: distance,
+		})
 	}
 
 	return chunks, rows.Err()
