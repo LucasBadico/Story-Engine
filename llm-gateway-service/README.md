@@ -38,12 +38,56 @@ Set environment variables:
 - `MAIN_SERVICE_GRPC_ADDR`: gRPC address of main-service
 - `EMBEDDING_PROVIDER`: Provider name (openai, ollama, etc.)
 - `EMBEDDING_API_KEY`: API key for embedding provider
+- `HTTP_ADDR`: HTTP server bind address (default `:8081`)
 
 ## Usage
 
 ```bash
 # Run worker
 make run-worker
+```
+
+```bash
+# Run HTTP API
+go run ./cmd/api
+```
+
+## Search API
+
+```
+POST /api/v1/search
+X-Tenant-ID: <tenant-uuid>
+Content-Type: application/json
+
+{
+  "query": "string",
+  "limit": 10,
+  "cursor": "base64"
+}
+```
+
+Response:
+```
+{
+  "chunks": [
+    {
+      "chunk_id": "uuid",
+      "document_id": "uuid",
+      "source_type": "story",
+      "source_id": "uuid",
+      "content": "...",
+      "score": 0.87,
+      "beat_type": "...",
+      "beat_intent": "...",
+      "characters": ["..."],
+      "location_name": "...",
+      "timeline": "...",
+      "pov_character": "...",
+      "content_kind": "..."
+    }
+  ],
+  "next_cursor": "base64"
+}
 ```
 
 ## Development
@@ -55,4 +99,3 @@ make test
 # Run integration tests
 make test-integration
 ```
-

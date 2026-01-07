@@ -12,3 +12,4 @@
 - ls, cat, file para confirmar existência
 - git status para ver mudanças
 - Não assumir nada
+
