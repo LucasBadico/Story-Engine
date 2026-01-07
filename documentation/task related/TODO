@@ -112,3 +112,5 @@ World documents with lists of entities
 
 
   - criar um modo de importar historia de um tenant para outro tenant.
+
+- [ ] Criar um flag/revision para quando algo estiver "errado/incongruente".

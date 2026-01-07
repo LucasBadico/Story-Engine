@@ -1,5 +1,5 @@
 import { Notice, Plugin } from "obsidian";
-import { StoryEngineSettings } from "./types";
+import { ExtractSearchResult, StoryEngineSettings } from "./types";
 import { StoryEngineClient } from "./api/client";
 import { StoryEngineSettingTab } from "./settings";
 import { registerCommands } from "./commands";
@@ -8,9 +8,14 @@ import { CreateStoryModal } from "./views/CreateStoryModal";
 import { FileManager } from "./sync/fileManager";
 import { SyncService } from "./sync/syncService";
 import { StoryListView, STORY_LIST_VIEW_TYPE } from "./views/StoryListView";
+import {
+	StoryEngineExtractView,
+	STORY_ENGINE_EXTRACT_VIEW_TYPE,
+} from "./views/StoryEngineExtractView";
 
 const DEFAULT_SETTINGS: StoryEngineSettings = {
 	apiUrl: "http://localhost:8080",
+	llmGatewayUrl: "http://localhost:8081",
 	apiKey: "",
 	tenantId: "",
 	tenantName: "",
@@ -27,6 +32,7 @@ export default class StoryEnginePlugin extends Plugin {
 	apiClient!: StoryEngineClient;
 	fileManager!: FileManager;
 	syncService!: SyncService;
+	extractResult: ExtractSearchResult | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -58,17 +64,40 @@ export default class StoryEnginePlugin extends Plugin {
 			(leaf) => new StoryListView(leaf, this)
 		);
 
+		this.registerView(
+			STORY_ENGINE_EXTRACT_VIEW_TYPE,
+			(leaf) => new StoryEngineExtractView(leaf, this)
+		);
+
 		// Add ribbon icon to open the view
 		this.addRibbonIcon("book-open", "Story Engine", () => {
 			this.activateView();
 		});
 
 		registerCommands(this);
+
+		this.registerEvent(
+			this.app.workspace.on("editor-menu", (menu, editor) => {
+				const selection = editor.getSelection().trim();
+				if (!selection) {
+					return;
+				}
+
+				menu.addItem((item) => {
+					item.setTitle("Story Engine: Extract entities");
+					item.setIcon("search");
+					item.onClick(() => {
+						this.extractSelectionCommand(selection);
+					});
+				});
+			})
+		);
 	}
 
 	async onunload() {
 		// Detach all leaves of the story list view
 		this.app.workspace.detachLeavesOfType(STORY_LIST_VIEW_TYPE);
+		this.app.workspace.detachLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE);
 	}
 
 	async loadSettings() {
@@ -186,6 +215,139 @@ export default class StoryEnginePlugin extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
+	async activateExtractView() {
+		const { workspace } = this.app;
+
+		let leaf = workspace.getLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE)[0];
+
+		if (!leaf) {
+			leaf = workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+		}
+
+		if (!leaf) {
+			new Notice("Could not open extract view. Please try again.", 3000);
+			return;
+		}
+
+		await leaf.setViewState({
+			type: STORY_ENGINE_EXTRACT_VIEW_TYPE,
+			active: true,
+		});
+
+		workspace.revealLeaf(leaf);
+	}
+
+	async extractSelectionCommand(selection: string) {
+		const trimmedSelection = selection.trim();
+		if (!trimmedSelection) {
+			new Notice("Select text to extract entities", 3000);
+			return;
+		}
+
+		if (this.settings.mode !== "remote") {
+			new Notice("Extraction requires the full remote version.", 5000);
+			return;
+		}
+
+		const tenantId = this.settings.tenantId?.trim();
+		if (!tenantId) {
+			new Notice("Please configure Tenant ID in settings", 5000);
+			return;
+		}
+
+		const gatewayUrl = this.settings.llmGatewayUrl?.trim();
+		if (!gatewayUrl) {
+			new Notice("Please configure LLM Gateway URL in settings", 5000);
+			return;
+		}
+
+		try {
+			if (navigator?.clipboard?.writeText) {
+				await navigator.clipboard.writeText(trimmedSelection);
+			}
+		} catch {
+			// Clipboard is optional; ignore failures.
+		}
+
+		new Notice("Sending text to extraction...", 3000);
+
+		try {
+			const response = await fetch(
+				`${gatewayUrl.replace(/\/$/, "")}/api/v1/search`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"X-Tenant-ID": tenantId,
+						...(this.settings.apiKey
+							? { Authorization: `Bearer ${this.settings.apiKey}` }
+							: {}),
+					},
+					body: JSON.stringify({
+						query: trimmedSelection,
+						limit: 10,
+					}),
+				}
+			);
+
+			if (!response.ok) {
+				let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+				try {
+					const errorBody = (await response.json()) as { error?: string };
+					if (errorBody?.error) {
+						errorMessage = errorBody.error;
+					}
+				} catch {
+					// Ignore JSON parse errors.
+				}
+				throw new Error(errorMessage);
+			}
+
+			const payload = (await response.json()) as {
+				chunks: ExtractSearchResult["chunks"];
+				next_cursor?: string;
+			};
+
+			this.extractResult = {
+				query: trimmedSelection,
+				chunks: payload.chunks ?? [],
+				next_cursor: payload.next_cursor,
+				received_at: new Date().toISOString(),
+			};
+
+			await this.activateView();
+			await this.activateExtractView();
+			this.updateExtractViews();
+
+			new Notice(
+				`Extraction complete: ${this.extractResult.chunks.length} matches`,
+				4000
+			);
+		} catch (err) {
+			const errorMessage =
+				err instanceof Error ? err.message : "Failed to extract entities";
+			new Notice(`Error: ${errorMessage}`, 5000);
+		}
+	}
+
+	updateExtractViews() {
+		const listLeaf =
+			this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+		if (listLeaf) {
+			const view = listLeaf.view as StoryListView;
+			if (view.viewMode === "list") {
+				view.renderListContent();
+			}
+		}
+
+		const extractLeaf =
+			this.app.workspace.getLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE)[0];
+		if (extractLeaf) {
+			const view = extractLeaf.view as StoryEngineExtractView;
+			view.setResult(this.extractResult);
+		}
+	}
+
 	openSettings() {
 		const setting = (this.app as any).setting;
 		if (setting) {
@@ -196,4 +358,3 @@ export default class StoryEnginePlugin extends Plugin {
 		}
 	}
 }
-

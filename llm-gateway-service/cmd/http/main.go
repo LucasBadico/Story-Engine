@@ -17,6 +17,7 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
 	"github.com/story-engine/llm-gateway-service/internal/transport/httpapi"
+	"github.com/story-engine/llm-gateway-service/internal/transport/httpapi/middleware"
 )
 
 func main() {
@@ -63,9 +64,14 @@ func main() {
 	mux.HandleFunc("/health", httpapi.Health)
 	mux.HandleFunc("/api/v1/search", searchHandler.Search)
 
+	handler := middleware.Chain(
+		mux,
+		middleware.CORS(),
+	)
+
 	server := &http.Server{
 		Addr:              cfg.HTTP.Addr,
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

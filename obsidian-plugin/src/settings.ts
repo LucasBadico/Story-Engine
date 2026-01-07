@@ -72,6 +72,19 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("LLM Gateway URL")
+			.setDesc("The base URL of the LLM Gateway service")
+			.addText((text) =>
+				text
+					.setPlaceholder("http://localhost:8081")
+					.setValue(this.plugin.settings.llmGatewayUrl)
+					.onChange(async (value) => {
+						this.plugin.settings.llmGatewayUrl = value.trim();
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// Tenant ID (conditional - only shown in remote mode)
 		tenantIdSetting = new Setting(containerEl)
 			.setName("Tenant ID")
@@ -241,6 +254,5 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 			);
 	}
 }
-
 
 

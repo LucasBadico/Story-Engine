@@ -1,5 +1,6 @@
 export interface StoryEngineSettings {
 	apiUrl: string;
+	llmGatewayUrl: string;
 	apiKey: string;
 	tenantId: string;
 	tenantName: string;
@@ -17,6 +18,29 @@ export interface ErrorResponse {
 	error: string;
 	message: string;
 	code: string;
+}
+
+export interface ExtractSearchChunk {
+	chunk_id: string;
+	document_id: string;
+	source_type: string;
+	source_id: string;
+	content: string;
+	score: number;
+	beat_type?: string;
+	beat_intent?: string;
+	characters?: string[];
+	location_name?: string;
+	timeline?: string;
+	pov_character?: string;
+	content_kind?: string;
+}
+
+export interface ExtractSearchResult {
+	query: string;
+	chunks: ExtractSearchChunk[];
+	next_cursor?: string;
+	received_at: string;
 }
 
 export interface Tenant {
@@ -408,4 +432,3 @@ export interface WorldDate {
 	hour: number;
 	minute: number;
 }
-

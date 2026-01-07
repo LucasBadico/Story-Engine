@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => StoryEnginePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // src/api/client.ts
 var StoryEngineClient = class {
@@ -1063,6 +1063,12 @@ var StoryEngineSettingTab = class extends import_obsidian.PluginSettingTab {
         await this.plugin.saveSettings();
       })
     );
+    new import_obsidian.Setting(containerEl).setName("LLM Gateway URL").setDesc("The base URL of the LLM Gateway service").addText(
+      (text) => text.setPlaceholder("http://localhost:8081").setValue(this.plugin.settings.llmGatewayUrl).onChange(async (value) => {
+        this.plugin.settings.llmGatewayUrl = value.trim();
+        await this.plugin.saveSettings();
+      })
+    );
     tenantIdSetting = new import_obsidian.Setting(containerEl).setName("Tenant ID").setDesc("Your workspace tenant ID (UUID format) - Required in remote mode").addText(
       (text) => text.setPlaceholder("00000000-0000-0000-0000-000000000000").setValue(this.plugin.settings.tenantId || "").onChange(async (value) => {
         this.plugin.settings.tenantId = value.trim();
@@ -1307,6 +1313,18 @@ function registerCommands(plugin) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
         new import_obsidian3.Notice(`Error: ${errorMessage}`, 5e3);
       }
+    }
+  });
+  plugin.addCommand({
+    id: "extract-entities-from-selection",
+    name: "Extract Entities from Selection",
+    editorCallback: (editor) => {
+      const selection2 = editor.getSelection();
+      if (!selection2.trim()) {
+        new import_obsidian3.Notice("Select text to extract entities", 3e3);
+        return;
+      }
+      plugin.extractSelectionCommand(selection2);
     }
   });
 }
@@ -14755,9 +14773,162 @@ var StoryListView = class extends import_obsidian15.ItemView {
   }
 };
 
+// src/views/StoryEngineExtractView.ts
+var import_obsidian16 = require("obsidian");
+var STORY_ENGINE_EXTRACT_VIEW_TYPE = "story-engine-extract-view";
+var StoryEngineExtractView = class extends import_obsidian16.ItemView {
+  constructor(leaf, plugin) {
+    super(leaf);
+    this.result = null;
+    this.plugin = plugin;
+  }
+  getViewType() {
+    return STORY_ENGINE_EXTRACT_VIEW_TYPE;
+  }
+  getDisplayText() {
+    return "Extract";
+  }
+  getIcon() {
+    return "search";
+  }
+  async onOpen() {
+    const container = this.containerEl.children[1];
+    container.empty();
+    container.addClass("story-engine-extract-container");
+    this.contentRoot = container;
+    this.setResult(this.plugin.extractResult);
+  }
+  setResult(result) {
+    this.result = result;
+    this.render();
+  }
+  render() {
+    if (!this.contentRoot)
+      return;
+    this.contentRoot.empty();
+    if (!this.result) {
+      const header2 = this.contentRoot.createDiv({
+        cls: "story-engine-extract-header"
+      });
+      header2.createEl("h2", { text: "Extract" });
+      const headerActions2 = header2.createDiv({
+        cls: "story-engine-extract-header-actions"
+      });
+      const backButton2 = headerActions2.createEl("button", {
+        text: "Back to Stories",
+        cls: "story-engine-extract-back"
+      });
+      backButton2.onclick = () => {
+        this.plugin.activateView();
+      };
+      this.contentRoot.createEl("p", {
+        text: "No extraction results yet.",
+        cls: "story-engine-extract-empty"
+      });
+      return;
+    }
+    const header = this.contentRoot.createDiv({
+      cls: "story-engine-extract-header"
+    });
+    header.createEl("h2", { text: "Extract Results" });
+    const headerMeta = header.createDiv({
+      cls: "story-engine-extract-meta"
+    });
+    headerMeta.createEl("div", {
+      text: `Matches: ${this.result.chunks.length}`
+    });
+    headerMeta.createEl("div", {
+      text: `Query length: ${this.result.query.length}`
+    });
+    const headerActions = header.createDiv({
+      cls: "story-engine-extract-header-actions"
+    });
+    const backButton = headerActions.createEl("button", {
+      text: "Back to Stories",
+      cls: "story-engine-extract-back"
+    });
+    backButton.onclick = () => {
+      this.plugin.activateView();
+    };
+    const queryBlock = this.contentRoot.createDiv({
+      cls: "story-engine-extract-query"
+    });
+    queryBlock.createEl("div", {
+      text: "Query",
+      cls: "story-engine-extract-label"
+    });
+    queryBlock.createEl("div", {
+      text: this.result.query,
+      cls: "story-engine-extract-query-text"
+    });
+    const actions = this.contentRoot.createDiv({
+      cls: "story-engine-extract-actions"
+    });
+    const clearButton = actions.createEl("button", {
+      text: "Clear Results",
+      cls: "story-engine-extract-clear"
+    });
+    clearButton.onclick = () => {
+      this.plugin.extractResult = null;
+      this.setResult(null);
+      this.plugin.updateExtractViews();
+    };
+    const list = this.contentRoot.createDiv({
+      cls: "story-engine-extract-list"
+    });
+    if (!this.result.chunks.length) {
+      list.createEl("p", {
+        text: "No matches returned from search.",
+        cls: "story-engine-extract-empty"
+      });
+      return;
+    }
+    this.result.chunks.forEach((chunk, index) => {
+      this.renderChunk(list, chunk, index);
+    });
+  }
+  renderChunk(container, chunk, index) {
+    const item = container.createDiv({ cls: "story-engine-extract-item" });
+    const header = item.createDiv({ cls: "story-engine-extract-item-header" });
+    header.createEl("div", {
+      text: `#${index + 1}`,
+      cls: "story-engine-extract-rank"
+    });
+    header.createEl("div", {
+      text: `Score: ${chunk.score.toFixed(3)}`,
+      cls: "story-engine-extract-score"
+    });
+    const meta = item.createDiv({ cls: "story-engine-extract-item-meta" });
+    meta.createEl("div", { text: `Source: ${chunk.source_type}` });
+    meta.createEl("div", { text: `Source ID: ${chunk.source_id}` });
+    if (chunk.content_kind) {
+      meta.createEl("div", { text: `Kind: ${chunk.content_kind}` });
+    }
+    if (chunk.location_name) {
+      meta.createEl("div", { text: `Location: ${chunk.location_name}` });
+    }
+    if (chunk.timeline) {
+      meta.createEl("div", { text: `Timeline: ${chunk.timeline}` });
+    }
+    if (chunk.pov_character) {
+      meta.createEl("div", { text: `POV: ${chunk.pov_character}` });
+    }
+    if (chunk.characters && chunk.characters.length) {
+      meta.createEl("div", {
+        text: `Characters: ${chunk.characters.join(", ")}`
+      });
+    }
+    item.createEl("div", {
+      text: chunk.content,
+      cls: "story-engine-extract-content"
+    });
+  }
+};
+
 // src/main.ts
 var DEFAULT_SETTINGS = {
   apiUrl: "http://localhost:8080",
+  llmGatewayUrl: "http://localhost:8081",
   apiKey: "",
   tenantId: "",
   tenantName: "",
@@ -14768,7 +14939,11 @@ var DEFAULT_SETTINGS = {
   showHelpBox: true,
   localModeVideoUrl: "https://example.com/setup-video"
 };
-var StoryEnginePlugin = class extends import_obsidian16.Plugin {
+var StoryEnginePlugin = class extends import_obsidian17.Plugin {
+  constructor() {
+    super(...arguments);
+    this.extractResult = null;
+  }
   async onload() {
     await this.loadSettings();
     this.apiClient = new StoryEngineClient(
@@ -14792,13 +14967,33 @@ var StoryEnginePlugin = class extends import_obsidian16.Plugin {
       STORY_LIST_VIEW_TYPE,
       (leaf) => new StoryListView(leaf, this)
     );
+    this.registerView(
+      STORY_ENGINE_EXTRACT_VIEW_TYPE,
+      (leaf) => new StoryEngineExtractView(leaf, this)
+    );
     this.addRibbonIcon("book-open", "Story Engine", () => {
       this.activateView();
     });
     registerCommands(this);
+    this.registerEvent(
+      this.app.workspace.on("editor-menu", (menu, editor) => {
+        const selection2 = editor.getSelection().trim();
+        if (!selection2) {
+          return;
+        }
+        menu.addItem((item) => {
+          item.setTitle("Story Engine: Extract entities");
+          item.setIcon("search");
+          item.onClick(() => {
+            this.extractSelectionCommand(selection2);
+          });
+        });
+      })
+    );
   }
   async onunload() {
     this.app.workspace.detachLeavesOfType(STORY_LIST_VIEW_TYPE);
+    this.app.workspace.detachLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE);
   }
   async loadSettings() {
     this.settings = Object.assign(
@@ -14836,28 +15031,28 @@ var StoryEnginePlugin = class extends import_obsidian16.Plugin {
     if (this.settings.mode === "remote") {
       const tenantId = (_a = this.settings.tenantId) == null ? void 0 : _a.trim();
       if (!tenantId) {
-        new import_obsidian16.Notice("Please configure Tenant ID in settings", 5e3);
+        new import_obsidian17.Notice("Please configure Tenant ID in settings", 5e3);
         return;
       }
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(tenantId)) {
-        new import_obsidian16.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
+        new import_obsidian17.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
         return;
       }
     }
     new CreateStoryModal(this.app, this, async (title, worldId, shouldSync) => {
       try {
-        new import_obsidian16.Notice(`Creating story "${title}"...`);
+        new import_obsidian17.Notice(`Creating story "${title}"...`);
         const story = await this.apiClient.createStory(title, worldId);
-        new import_obsidian16.Notice(`Story "${title}" created successfully`);
+        new import_obsidian17.Notice(`Story "${title}" created successfully`);
         if (shouldSync) {
           try {
-            new import_obsidian16.Notice(`Syncing story to Obsidian...`);
+            new import_obsidian17.Notice(`Syncing story to Obsidian...`);
             await this.syncService.pullStory(story.id);
-            new import_obsidian16.Notice(`Story synced to your vault!`);
+            new import_obsidian17.Notice(`Story synced to your vault!`);
           } catch (syncErr) {
             const syncErrorMessage = syncErr instanceof Error ? syncErr.message : "Failed to sync story";
-            new import_obsidian16.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
+            new import_obsidian17.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
           }
         }
         const openView = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
@@ -14870,7 +15065,7 @@ var StoryEnginePlugin = class extends import_obsidian16.Plugin {
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to create story";
-        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       }
     }).open();
   }
@@ -14880,7 +15075,7 @@ var StoryEnginePlugin = class extends import_obsidian16.Plugin {
     if (!leaf) {
       const rightLeaf = workspace.getRightLeaf(false);
       if (!rightLeaf) {
-        new import_obsidian16.Notice("Could not create view. Please try again.", 3e3);
+        new import_obsidian17.Notice("Could not create view. Please try again.", 3e3);
         return;
       }
       leaf = rightLeaf;
@@ -14890,6 +15085,110 @@ var StoryEnginePlugin = class extends import_obsidian16.Plugin {
       });
     }
     workspace.revealLeaf(leaf);
+  }
+  async activateExtractView() {
+    const { workspace } = this.app;
+    let leaf = workspace.getLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE)[0];
+    if (!leaf) {
+      leaf = workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+    }
+    if (!leaf) {
+      new import_obsidian17.Notice("Could not open extract view. Please try again.", 3e3);
+      return;
+    }
+    await leaf.setViewState({
+      type: STORY_ENGINE_EXTRACT_VIEW_TYPE,
+      active: true
+    });
+    workspace.revealLeaf(leaf);
+  }
+  async extractSelectionCommand(selection2) {
+    var _a, _b, _c, _d;
+    const trimmedSelection = selection2.trim();
+    if (!trimmedSelection) {
+      new import_obsidian17.Notice("Select text to extract entities", 3e3);
+      return;
+    }
+    if (this.settings.mode !== "remote") {
+      new import_obsidian17.Notice("Extraction requires the full remote version.", 5e3);
+      return;
+    }
+    const tenantId = (_a = this.settings.tenantId) == null ? void 0 : _a.trim();
+    if (!tenantId) {
+      new import_obsidian17.Notice("Please configure Tenant ID in settings", 5e3);
+      return;
+    }
+    const gatewayUrl = (_b = this.settings.llmGatewayUrl) == null ? void 0 : _b.trim();
+    if (!gatewayUrl) {
+      new import_obsidian17.Notice("Please configure LLM Gateway URL in settings", 5e3);
+      return;
+    }
+    try {
+      if ((_c = navigator == null ? void 0 : navigator.clipboard) == null ? void 0 : _c.writeText) {
+        await navigator.clipboard.writeText(trimmedSelection);
+      }
+    } catch (e) {
+    }
+    new import_obsidian17.Notice("Sending text to extraction...", 3e3);
+    try {
+      const response = await fetch(
+        `${gatewayUrl.replace(/\/$/, "")}/api/v1/search`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-ID": tenantId,
+            ...this.settings.apiKey ? { Authorization: `Bearer ${this.settings.apiKey}` } : {}
+          },
+          body: JSON.stringify({
+            query: trimmedSelection,
+            limit: 10
+          })
+        }
+      );
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorBody = await response.json();
+          if (errorBody == null ? void 0 : errorBody.error) {
+            errorMessage = errorBody.error;
+          }
+        } catch (e) {
+        }
+        throw new Error(errorMessage);
+      }
+      const payload = await response.json();
+      this.extractResult = {
+        query: trimmedSelection,
+        chunks: (_d = payload.chunks) != null ? _d : [],
+        next_cursor: payload.next_cursor,
+        received_at: (/* @__PURE__ */ new Date()).toISOString()
+      };
+      await this.activateView();
+      await this.activateExtractView();
+      this.updateExtractViews();
+      new import_obsidian17.Notice(
+        `Extraction complete: ${this.extractResult.chunks.length} matches`,
+        4e3
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to extract entities";
+      new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
+    }
+  }
+  updateExtractViews() {
+    const listLeaf = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
+    if (listLeaf) {
+      const view = listLeaf.view;
+      if (view.viewMode === "list") {
+        view.renderListContent();
+      }
+    }
+    const extractLeaf = this.app.workspace.getLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE)[0];
+    if (extractLeaf) {
+      const view = extractLeaf.view;
+      view.setResult(this.extractResult);
+    }
   }
   openSettings() {
     const setting = this.app.setting;
