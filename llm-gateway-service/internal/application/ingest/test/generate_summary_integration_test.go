@@ -13,6 +13,7 @@ import (
 
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
 	"github.com/story-engine/llm-gateway-service/internal/application/ingest"
+	"github.com/story-engine/llm-gateway-service/internal/platform/llm/executor"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
@@ -27,8 +28,17 @@ func TestGenerateSummary_GeminiIntegration(t *testing.T) {
 	}
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
+	executorConfig := executor.ConfigFromEnv("gemini")
+	providers := []executor.Provider{
+		executor.NewRouterModelProvider("gemini", gemini.NewRouterModel(apiKey, model)),
+	}
+	llmExecutor, err := executor.New(executorConfig, providers)
+	if err != nil {
+		t.Fatalf("failed to start LLM executor: %v", err)
+	}
 	useCase := ingest.NewGenerateSummaryUseCase(
-		gemini.NewRouterModel(apiKey, model),
+		llmExecutor,
+		"gemini",
 		logger.New(),
 	)
 

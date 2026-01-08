@@ -165,8 +165,7 @@ func main() {
 		if err != nil {
 			log.Error("Failed to start LLM executor for summary", "error", err)
 		} else {
-			routerModel := executor.NewRouterModelAdapter(llmExecutor, "gemini")
-			summaryGenerator = ingest.NewGenerateSummaryUseCase(routerModel, log)
+			summaryGenerator = ingest.NewGenerateSummaryUseCase(llmExecutor, "gemini", log)
 			log.Info("Summary generation enabled", "model", model)
 		}
 	} else {

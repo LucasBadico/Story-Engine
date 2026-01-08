@@ -8,19 +8,21 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/story-engine/llm-gateway-service/internal/platform/llm/executor"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
-	"github.com/story-engine/llm-gateway-service/internal/ports/llm"
 )
 
 type GenerateSummaryUseCase struct {
-	model  llm.RouterModel
-	logger *logger.Logger
+	executor *executor.Executor
+	provider string
+	logger   *logger.Logger
 }
 
-func NewGenerateSummaryUseCase(model llm.RouterModel, logger *logger.Logger) *GenerateSummaryUseCase {
+func NewGenerateSummaryUseCase(executor *executor.Executor, provider string, logger *logger.Logger) *GenerateSummaryUseCase {
 	return &GenerateSummaryUseCase{
-		model:  model,
-		logger: logger,
+		executor: executor,
+		provider: provider,
+		logger:   logger,
 	}
 }
 
@@ -59,8 +61,12 @@ func (uc *GenerateSummaryUseCase) Execute(ctx context.Context, input GenerateSum
 		maxItems = 3
 	}
 
+	if uc.executor == nil {
+		return GenerateSummaryOutput{}, errors.New("llm executor is required")
+	}
+
 	prompt := buildGenerateEntitySummaryPrompt(entityType, name, contents, input.Context, maxItems)
-	raw, err := uc.model.Generate(ctx, prompt)
+	raw, err := uc.executor.Submit(ctx, prompt, uc.provider)
 	if err != nil {
 		uc.logger.Error("summary model failed", "error", err)
 		return GenerateSummaryOutput{}, err
@@ -110,7 +116,7 @@ func (uc *GenerateSummaryUseCase) repairSummaryOutput(ctx context.Context, raw s
 	}
 
 	repairPrompt := buildGenerateEntitySummaryRepairPrompt(raw, maxItems)
-	repairedRaw, err := uc.model.Generate(ctx, repairPrompt)
+	repairedRaw, err := uc.executor.Submit(ctx, repairPrompt, uc.provider)
 	if err != nil {
 		uc.logger.Error("summary repair model failed", "error", err)
 		return GenerateSummaryOutput{}, err
