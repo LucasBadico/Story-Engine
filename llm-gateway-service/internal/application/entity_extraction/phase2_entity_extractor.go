@@ -45,6 +45,7 @@ func newPhase2EntityExtractorUseCase(model llm.RouterModel, logger *logger.Logge
 type Phase2EntityExtractorInput struct {
 	Text          string
 	Context       string
+	AlreadyFound  []Phase2KnownEntity
 	MaxCandidates int
 }
 
@@ -56,6 +57,7 @@ type Phase2EntityExtractorOutput struct {
 type Phase2EntityCandidate struct {
 	Name        string `json:"name"`
 	Evidence    string `json:"evidence"`
+	Summary     string `json:"summary"`
 	StartOffset int
 	EndOffset   int
 }
@@ -63,10 +65,16 @@ type Phase2EntityCandidate struct {
 type phase2EntityCandidateRaw struct {
 	Name     string `json:"name"`
 	Evidence string `json:"evidence"`
+	Summary  string `json:"summary"`
 }
 
 type phase2EntityExtractorRawOutput struct {
 	Candidates []phase2EntityCandidateRaw `json:"candidates"`
+}
+
+type Phase2KnownEntity struct {
+	Name    string
+	Summary string
 }
 
 //go:embed prompts/phase2_character_extractor.prompt
@@ -92,7 +100,7 @@ func (u *Phase2EntityExtractorUseCase) Execute(ctx context.Context, input Phase2
 		maxCandidates = 5
 	}
 
-	prompt, err := buildPhase2EntityExtractorPrompt(u.entityType, text, input.Context, maxCandidates)
+	prompt, err := buildPhase2EntityExtractorPrompt(u.entityType, text, input.Context, input.AlreadyFound, maxCandidates)
 	if err != nil {
 		return Phase2EntityExtractorOutput{}, err
 	}
@@ -117,6 +125,7 @@ func (u *Phase2EntityExtractorUseCase) Execute(ctx context.Context, input Phase2
 		if evidence == "" {
 			evidence = strings.TrimSpace(candidate.Name)
 		}
+		summary := strings.TrimSpace(candidate.Summary)
 		start, end := findEvidenceOffset(text, evidence)
 		if start < 0 {
 			u.logger.Warn("evidence not found in text", "entity_type", u.entityType, "evidence", evidence)
@@ -125,6 +134,7 @@ func (u *Phase2EntityExtractorUseCase) Execute(ctx context.Context, input Phase2
 		candidates = append(candidates, Phase2EntityCandidate{
 			Name:        strings.TrimSpace(candidate.Name),
 			Evidence:    evidence,
+			Summary:     summary,
 			StartOffset: start,
 			EndOffset:   end,
 		})
@@ -140,7 +150,7 @@ func (u *Phase2EntityExtractorUseCase) Execute(ctx context.Context, input Phase2
 	}, nil
 }
 
-func buildPhase2EntityExtractorPrompt(entityType string, text string, context string, maxCandidates int) (string, error) {
+func buildPhase2EntityExtractorPrompt(entityType string, text string, context string, alreadyFound []Phase2KnownEntity, maxCandidates int) (string, error) {
 	template, ok := phase2PromptTemplateByType(entityType)
 	if !ok {
 		return "", fmt.Errorf("unsupported entity type: %s", entityType)
@@ -149,6 +159,7 @@ func buildPhase2EntityExtractorPrompt(entityType string, text string, context st
 	prompt := template
 	prompt = strings.ReplaceAll(prompt, "{{selected_text}}", text)
 	prompt = strings.ReplaceAll(prompt, "{{context_if_any}}", strings.TrimSpace(context))
+	prompt = strings.ReplaceAll(prompt, "{{already_found}}", renderAlreadyFound(alreadyFound))
 	prompt = strings.ReplaceAll(prompt, "{{max_candidates}}", fmt.Sprintf("%d", maxCandidates))
 	return strings.TrimSpace(prompt) + "\n", nil
 }
@@ -195,6 +206,29 @@ func parsePhase2EntityExtractorOutput(raw string) (phase2EntityExtractorRawOutpu
 	}
 
 	return phase2EntityExtractorRawOutput{}, errors.New("invalid extractor output JSON")
+}
+
+func renderAlreadyFound(values []Phase2KnownEntity) string {
+	if len(values) == 0 {
+		return "none"
+	}
+	parts := make([]string, 0, len(values))
+	for _, value := range values {
+		name := strings.TrimSpace(value.Name)
+		if name == "" {
+			continue
+		}
+		summary := strings.TrimSpace(value.Summary)
+		if summary == "" {
+			parts = append(parts, name)
+			continue
+		}
+		parts = append(parts, fmt.Sprintf("%s — %s", name, summary))
+	}
+	if len(parts) == 0 {
+		return "none"
+	}
+	return strings.Join(parts, ", ")
 }
 
 func findEvidenceOffset(text string, evidence string) (int, int) {

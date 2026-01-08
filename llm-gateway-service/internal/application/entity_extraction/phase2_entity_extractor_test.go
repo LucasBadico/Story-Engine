@@ -17,19 +17,19 @@ func TestFindEvidenceOffset(t *testing.T) {
 }
 
 func TestBuildPhase2EntityExtractorPrompt(t *testing.T) {
-	_, err := buildPhase2EntityExtractorPrompt("unknown", "text", "", 3)
+	_, err := buildPhase2EntityExtractorPrompt("unknown", "text", "", nil, 3)
 	if err == nil {
 		t.Fatalf("expected error for unsupported type")
 	}
 
-	prompt, err := buildPhase2EntityExtractorPrompt("character", "Text", "", 2)
+	prompt, err := buildPhase2EntityExtractorPrompt("character", "Text", "", []Phase2KnownEntity{{Name: "Aria", Summary: "Mage"}}, 2)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if prompt == "" {
 		t.Fatalf("expected prompt content")
 	}
-	if !containsAll(prompt, []string{"Text", "candidates"}) {
+	if !containsAll(prompt, []string{"Text", "candidates", "ALREADY FOUND"}) {
 		t.Fatalf("expected prompt to include template content")
 	}
 }

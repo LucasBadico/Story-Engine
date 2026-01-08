@@ -9,6 +9,7 @@ Rules:
 - Do NOT extract other types.
 - Only return locations explicitly or strongly implied.
 - Evidence MUST be an exact substring from the text.
+- Prefer using already found entities when the mention refers to the same entity.
 - Return JSON on a single line. Do NOT include unescaped newlines inside strings.
 - Return at most {{max_candidates}} candidates. Stop immediately after the closing brace.
 
@@ -20,10 +21,14 @@ TEXT:
 OPTIONAL CONTEXT:
 {{context_if_any}}
 
+ALREADY FOUND:
+{{already_found}}
+
 Return a JSON object with a "candidates" array.
 Each candidate must include:
 - name
 - evidence (exact substring)
+- summary (short, grounded in text; update if this is the same entity as already found)
 
 JSON TEMPLATE (return exactly this shape):
-{"candidates":[{"name":"...","evidence":"..."}]}
+{"candidates":[{"name":"...","evidence":"...","summary":"..."}]}
