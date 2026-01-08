@@ -10,6 +10,7 @@ import (
 // SearchFilters contains filters for semantic search
 type SearchFilters struct {
 	SourceTypes []memory.SourceType
+	ChunkTypes  []string
 	BeatTypes   []string
 	SceneIDs    []uuid.UUID
 	Characters  []string

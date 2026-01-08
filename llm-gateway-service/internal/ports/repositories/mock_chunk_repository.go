@@ -130,10 +130,16 @@ func (m *MockChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.U
 	if m.searchErr != nil {
 		return nil, m.searchErr
 	}
+	if filters == nil {
+		filters = &SearchFilters{}
+	}
 	// Simple mock: return all chunks up to limit
 	result := []*ScoredChunk{}
 	count := 0
 	for _, chunk := range m.chunks {
+		if len(filters.ChunkTypes) > 0 && !matchesChunkType(chunk, filters.ChunkTypes) {
+			continue
+		}
 		if count >= limit {
 			break
 		}
@@ -144,6 +150,21 @@ func (m *MockChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.U
 		count++
 	}
 	return result, nil
+}
+
+func matchesChunkType(chunk *memory.Chunk, types []string) bool {
+	if chunk == nil {
+		return false
+	}
+	if chunk.ChunkType == nil {
+		return false
+	}
+	for _, t := range types {
+		if t == *chunk.ChunkType {
+			return true
+		}
+	}
+	return false
 }
 
 // NotFoundError represents a not found error

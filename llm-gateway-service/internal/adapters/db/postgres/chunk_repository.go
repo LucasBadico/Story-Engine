@@ -201,6 +201,17 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 		query += fmt.Sprintf(" AND d.source_type IN (%s)", strings.Join(placeholders, ","))
 	}
 
+	// Add chunk type filter if provided
+	if len(filters.ChunkTypes) > 0 {
+		placeholders := make([]string, len(filters.ChunkTypes))
+		for i, ct := range filters.ChunkTypes {
+			placeholders[i] = fmt.Sprintf("$%d", argIndex)
+			args = append(args, ct)
+			argIndex++
+		}
+		query += fmt.Sprintf(" AND c.type IN (%s)", strings.Join(placeholders, ","))
+	}
+
 	// Add story filter if provided
 	if filters.StoryID != nil {
 		query += fmt.Sprintf(" AND d.source_id = $%d", argIndex)

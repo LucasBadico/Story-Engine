@@ -1,0 +1,29 @@
+You are fixing malformed output from an entity linker.
+
+Return a valid JSON object that matches the schema exactly.
+Only use the candidate indices provided.
+
+RAW OUTPUT:
+{{raw_output}}
+
+EXTRACTED ENTITY:
+- type: {{entity_type}}
+- name: {{entity_name}}
+- summary: {{entity_summary}}
+
+OPTIONAL CONTEXT:
+{{context_if_any}}
+
+CANDIDATES:
+{{candidates_block}}
+
+OUTPUT JSON SCHEMA:
+{
+  "match": {
+    "index": 0,
+    "reason": "short explanation grounded in the summaries"
+  },
+  "reason": "if match is null, explain briefly why"
+}
+
+If there is no match, set "match" to null and keep "reason".
