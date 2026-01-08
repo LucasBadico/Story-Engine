@@ -15090,7 +15090,7 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
       new import_obsidian16.Notice("World ID missing. Select a story or world first.", 4e3);
       return;
     }
-    const description = (_b = entity.summary) != null ? _b : "";
+    const description = ((_b = entity.summary) == null ? void 0 : _b.trim()) || entity.name;
     let createdId = "";
     switch (entity.type) {
       case "character": {

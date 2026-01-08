@@ -383,7 +383,7 @@ export class StoryEngineExtractView extends ItemView {
 			return;
 		}
 
-		const description = entity.summary ?? "";
+		const description = entity.summary?.trim() || entity.name;
 		let createdId = "";
 
 		switch (entity.type) {
