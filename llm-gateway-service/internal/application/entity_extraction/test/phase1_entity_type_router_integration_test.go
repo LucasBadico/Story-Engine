@@ -16,6 +16,10 @@ import (
 )
 
 func TestPhase1EntityTypeRouter_GeminiIntegration(t *testing.T) {
+	if strings.TrimSpace(os.Getenv("LLM_TESTS_ENABLED")) == "" {
+		t.Skip("LLM_TESTS_ENABLED not set; skipping LLM integration tests")
+	}
+
 	apiKey := loadGeminiAPIKey(t)
 	if apiKey == "" {
 		t.Fatalf("gemini api key not configured")

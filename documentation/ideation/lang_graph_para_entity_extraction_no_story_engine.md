@@ -110,6 +110,41 @@ A LLM **não aprende o banco**, ela respeita o contrato.
 
 Inferir **quais tipos de entidades podem existir** no trecho selecionado.
 
+### Pipeline do Passo Zero (Pré-Processamento por Parágrafo/Chunk)
+
+Antes do Router, o texto é segmentado para garantir robustez em textos longos e
+para manter rastreabilidade por trecho nas fases seguintes.
+
+**Segmentação**
+- **Primeiro nível**: split por parágrafos (linhas vazias).
+- **Se o parágrafo for grande**: quebrar por sentenças até um limite.
+- **Fallback**: janela fixa com pequeno overlap (10–15%) para trechos ainda longos.
+
+**Metadados por trecho**
+- `paragraph_id`
+- `chunk_id`
+- `start_offset` / `end_offset`
+- `text`
+
+**Execução**
+- Rodar o Router em **todos os chunks**.
+- Guardar `candidates` por chunk e **agregar por parágrafo**:
+  - `confidence[type] = max(confidence)`
+  - `occurrences[type] = count_chunks_with_type`
+
+**Regra de parada**
+- **Não parar entre parágrafos**.
+- **Pode parar dentro de um parágrafo** somente se ele foi quebrado em múltiplos chunks
+  e já encontrou todos os tipos possíveis ou atingiu um limite de chunks.
+
+**Saída do Passo Zero**
+- `paragraph_results[]` com:
+  - `chunks[]` (texto + offsets)
+  - `chunk_candidates[]`
+  - `paragraph_candidates[]`
+
+Esses resultados alimentam diretamente as fases de extração e deduplicação.
+
 ### Input
 
 - Texto selecionado
@@ -311,4 +346,3 @@ LangGraph é uma **boa camada de orquestração** para o Entity Extractor:
 - escala com complexidade narrativa
 
 Ele complementa (não substitui) sua arquitetura atual baseada em serviços, embeddings e modelos de domínio.
-
