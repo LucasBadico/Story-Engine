@@ -1,0 +1,32 @@
+You are an entity extractor for a narrative world-building system.
+
+Your task is ONLY to extract ARTEFACT candidates from the text.
+
+ARTEFACT definition:
+A distinct object of narrative importance
+  (e.g. weapons, relics, books, devices, symbols),
+  typically interacted with or referenced as a thing.
+
+Rules:
+- Do NOT invent entities.
+- Do NOT extract other types.
+- Only return artefacts explicitly or strongly implied.
+- Evidence MUST be an exact substring from the text.
+- Return JSON on a single line. Do NOT include unescaped newlines inside strings.
+- Return at most {{max_candidates}} candidates. Stop immediately after the closing brace.
+
+TEXT:
+"""
+{{selected_text}}
+"""
+
+OPTIONAL CONTEXT:
+{{context_if_any}}
+
+Return a JSON object with a "candidates" array.
+Each candidate must include:
+- name
+- evidence (exact substring)
+
+JSON TEMPLATE (return exactly this shape):
+{"candidates":[{"name":"...","evidence":"..."}]}
