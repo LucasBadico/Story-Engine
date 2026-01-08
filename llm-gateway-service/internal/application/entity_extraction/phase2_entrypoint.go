@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"sync"
 
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/llm"
@@ -87,6 +88,10 @@ func (u *Phase2EntryUseCase) Execute(ctx context.Context, input Phase2EntryInput
 			continue
 		}
 
+		results := make([]Phase2EntityExtractorOutput, 0, len(chunk.Types))
+		var resultsMu sync.Mutex
+		var wg sync.WaitGroup
+
 		for _, entityType := range chunk.Types {
 			extractor, ok := u.extractors[entityType]
 			if !ok {
@@ -94,17 +99,32 @@ func (u *Phase2EntryUseCase) Execute(ctx context.Context, input Phase2EntryInput
 				continue
 			}
 
-			output, err := extractor.Execute(ctx, Phase2EntityExtractorInput{
-				Text:          text,
-				Context:       input.Context,
-				AlreadyFound:  collectExistingEntities(findingsByType, entityType),
-				MaxCandidates: maxCandidates,
-			})
-			if err != nil {
-				u.logger.Error("phase2 extractor failed", "entity_type", entityType, "error", err)
-				continue
-			}
+			alreadyFound := collectExistingEntities(findingsByType, entityType)
 
+			wg.Add(1)
+			go func(entityType string, extractor *Phase2EntityExtractorUseCase, known []Phase2KnownEntity) {
+				defer wg.Done()
+
+				output, err := extractor.Execute(ctx, Phase2EntityExtractorInput{
+					Text:          text,
+					Context:       input.Context,
+					AlreadyFound:  known,
+					MaxCandidates: maxCandidates,
+				})
+				if err != nil {
+					u.logger.Error("phase2 extractor failed", "entity_type", entityType, "error", err)
+					return
+				}
+
+				resultsMu.Lock()
+				results = append(results, output)
+				resultsMu.Unlock()
+			}(entityType, extractor, alreadyFound)
+		}
+
+		wg.Wait()
+
+		for _, output := range results {
 			for _, candidate := range output.Candidates {
 				start := candidate.StartOffset + chunk.StartOffset
 				end := candidate.EndOffset + chunk.StartOffset

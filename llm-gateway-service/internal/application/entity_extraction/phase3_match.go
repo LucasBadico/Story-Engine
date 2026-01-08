@@ -6,7 +6,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/story-engine/llm-gateway-service/internal/core/memory"
@@ -100,100 +104,166 @@ func (u *Phase3MatchUseCase) Execute(ctx context.Context, input Phase3MatchInput
 	}
 
 	results := make([]Phase3MatchResult, 0, len(input.Findings))
+	var resultsMu sync.Mutex
+
+	parallelism := getMatchParallelism(u.logger)
+	sem := make(chan struct{}, parallelism)
+	var wg sync.WaitGroup
+
 	for _, finding := range input.Findings {
-		query := strings.TrimSpace(finding.Summary)
-		if query == "" {
-			query = strings.TrimSpace(finding.Name)
-		}
-		if query == "" {
-			results = append(results, Phase3MatchResult{
-				EntityType: finding.EntityType,
-				Name:       finding.Name,
-				Summary:    finding.Summary,
-			})
-			continue
-		}
+		finding := finding
+		wg.Add(1)
+		sem <- struct{}{}
 
-		sourceType, ok := mapEntityTypeToSourceType(finding.EntityType)
-		if !ok {
-			u.logger.Warn("unsupported entity type for phase3 match", "entity_type", finding.EntityType)
-			results = append(results, Phase3MatchResult{
-				EntityType: finding.EntityType,
-				Name:       finding.Name,
-				Summary:    finding.Summary,
-			})
-			continue
-		}
+		go func() {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
 
-		embedding, err := u.embedder.EmbedText(query)
-		if err != nil {
-			return Phase3MatchOutput{}, err
-		}
-
-		filters := &repositories.SearchFilters{
-			SourceTypes: []memory.SourceType{sourceType},
-			ChunkTypes:  []string{"summary"},
-		}
-		if input.WorldID != nil {
-			filters.WorldIDs = []uuid.UUID{*input.WorldID}
-		}
-
-		scored, err := u.chunkRepo.SearchSimilar(ctx, input.TenantID, embedding, maxCandidates, nil, filters)
-		if err != nil {
-			return Phase3MatchOutput{}, err
-		}
-
-		candidates := make([]Phase3MatchCandidate, 0, len(scored))
-		for _, entry := range scored {
-			if entry == nil || entry.Chunk == nil {
-				continue
-			}
-			similarity := 1 - entry.Distance
-			if similarity < minSimilarity {
-				continue
-			}
-			doc, err := u.docRepo.GetByID(ctx, entry.Chunk.DocumentID)
+			result, err := u.matchFinding(ctx, input, finding, minSimilarity, maxCandidates)
 			if err != nil {
-				u.logger.Error("phase3 match: failed to load document", "document_id", entry.Chunk.DocumentID, "error", err)
-				continue
+				u.logger.Error("phase3 match failed", "entity_type", finding.EntityType, "error", err)
+				result = Phase3MatchResult{
+					EntityType: finding.EntityType,
+					Name:       finding.Name,
+					Summary:    finding.Summary,
+				}
 			}
 
-			summary := strings.TrimSpace(entry.Chunk.Content)
-			if summary == "" && entry.Chunk.EmbedText != nil {
-				summary = strings.TrimSpace(*entry.Chunk.EmbedText)
-			}
+			resultsMu.Lock()
+			results = append(results, result)
+			resultsMu.Unlock()
+		}()
+	}
 
-			entityName := ""
-			if entry.Chunk.EntityName != nil {
-				entityName = strings.TrimSpace(*entry.Chunk.EntityName)
-			}
+	wg.Wait()
+	return Phase3MatchOutput{Results: results}, nil
+}
 
-			candidates = append(candidates, Phase3MatchCandidate{
-				ChunkID:    entry.Chunk.ID,
-				DocumentID: entry.Chunk.DocumentID,
-				SourceType: doc.SourceType,
-				SourceID:   doc.SourceID,
-				EntityName: entityName,
-				Summary:    summary,
-				Similarity: similarity,
-			})
+func getMatchParallelism(log *logger.Logger) int {
+	cpuCount := runtime.NumCPU()
+	parallelism := cpuCount
+	if parallelism < 1 {
+		parallelism = 1
+	}
+
+	if value := strings.TrimSpace(os.Getenv("ENTITY_EXTRACT_PARALLELISM")); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil && parsed > 0 {
+			parallelism = parsed
 		}
+	}
 
-		match := (*Phase3ConfirmedMatch)(nil)
-		if len(candidates) > 0 {
-			match = u.confirmMatch(ctx, finding, candidates, input.Context)
-		}
+	if log != nil && parallelism > cpuCount {
+		log.Warn(
+			"entity extract parallelism exceeds CPU count",
+			"parallelism", parallelism,
+			"cpu_count", cpuCount,
+		)
+	}
 
-		results = append(results, Phase3MatchResult{
+	if parallelism < 1 {
+		parallelism = 1
+	}
+
+	return parallelism
+}
+
+func (u *Phase3MatchUseCase) matchFinding(
+	ctx context.Context,
+	input Phase3MatchInput,
+	finding Phase2EntityFinding,
+	minSimilarity float64,
+	maxCandidates int,
+) (Phase3MatchResult, error) {
+	query := strings.TrimSpace(finding.Summary)
+	if query == "" {
+		query = strings.TrimSpace(finding.Name)
+	}
+	if query == "" {
+		return Phase3MatchResult{
 			EntityType: finding.EntityType,
 			Name:       finding.Name,
 			Summary:    finding.Summary,
-			Candidates: candidates,
-			Match:      match,
+		}, nil
+	}
+
+	sourceType, ok := mapEntityTypeToSourceType(finding.EntityType)
+	if !ok {
+		u.logger.Warn("unsupported entity type for phase3 match", "entity_type", finding.EntityType)
+		return Phase3MatchResult{
+			EntityType: finding.EntityType,
+			Name:       finding.Name,
+			Summary:    finding.Summary,
+		}, nil
+	}
+
+	embedding, err := u.embedder.EmbedText(query)
+	if err != nil {
+		return Phase3MatchResult{}, err
+	}
+
+	filters := &repositories.SearchFilters{
+		SourceTypes: []memory.SourceType{sourceType},
+		ChunkTypes:  []string{"summary"},
+	}
+	if input.WorldID != nil {
+		filters.WorldIDs = []uuid.UUID{*input.WorldID}
+	}
+
+	scored, err := u.chunkRepo.SearchSimilar(ctx, input.TenantID, embedding, maxCandidates, nil, filters)
+	if err != nil {
+		return Phase3MatchResult{}, err
+	}
+
+	candidates := make([]Phase3MatchCandidate, 0, len(scored))
+	for _, entry := range scored {
+		if entry == nil || entry.Chunk == nil {
+			continue
+		}
+		similarity := 1 - entry.Distance
+		if similarity < minSimilarity {
+			continue
+		}
+		doc, err := u.docRepo.GetByID(ctx, entry.Chunk.DocumentID)
+		if err != nil {
+			u.logger.Error("phase3 match: failed to load document", "document_id", entry.Chunk.DocumentID, "error", err)
+			continue
+		}
+
+		summary := strings.TrimSpace(entry.Chunk.Content)
+		if summary == "" && entry.Chunk.EmbedText != nil {
+			summary = strings.TrimSpace(*entry.Chunk.EmbedText)
+		}
+
+		entityName := ""
+		if entry.Chunk.EntityName != nil {
+			entityName = strings.TrimSpace(*entry.Chunk.EntityName)
+		}
+
+		candidates = append(candidates, Phase3MatchCandidate{
+			ChunkID:    entry.Chunk.ID,
+			DocumentID: entry.Chunk.DocumentID,
+			SourceType: doc.SourceType,
+			SourceID:   doc.SourceID,
+			EntityName: entityName,
+			Summary:    summary,
+			Similarity: similarity,
 		})
 	}
 
-	return Phase3MatchOutput{Results: results}, nil
+	match := (*Phase3ConfirmedMatch)(nil)
+	if len(candidates) > 0 {
+		match = u.confirmMatch(ctx, finding, candidates, input.Context)
+	}
+
+	return Phase3MatchResult{
+		EntityType: finding.EntityType,
+		Name:       finding.Name,
+		Summary:    finding.Summary,
+		Candidates: candidates,
+		Match:      match,
+	}, nil
 }
 
 func (u *Phase3MatchUseCase) confirmMatch(
@@ -353,6 +423,8 @@ func mapEntityTypeToSourceType(entityType string) (memory.SourceType, bool) {
 		return memory.SourceTypeArtifact, true
 	case "faction":
 		return memory.SourceTypeFaction, true
+	case "event":
+		return memory.SourceTypeEvent, true
 	default:
 		return "", false
 	}
