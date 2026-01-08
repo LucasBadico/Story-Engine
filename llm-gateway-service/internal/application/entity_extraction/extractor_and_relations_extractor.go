@@ -68,7 +68,7 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 
 	entityTypes := input.EntityTypes
 	if len(entityTypes) == 0 {
-		entityTypes = []string{"character", "location", "artefact", "faction"}
+		entityTypes = []string{"character", "location", "artefact", "faction", "event"}
 	}
 
 	split, err := SplitTextIntoParagraphChunks(Phase0TextSplitInput{

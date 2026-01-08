@@ -79,6 +79,7 @@ func TestPhase1EntityTypeRouter_GeminiIntegration(t *testing.T) {
 		"location":  {},
 		"artefact":  {},
 		"faction":   {},
+		"event":     {},
 	}
 
 	for _, testCase := range testCases {
@@ -94,6 +95,7 @@ func TestPhase1EntityTypeRouter_GeminiIntegration(t *testing.T) {
 					"location",
 					"artefact",
 					"faction",
+					"event",
 				},
 				MaxCandidates: 4,
 			}

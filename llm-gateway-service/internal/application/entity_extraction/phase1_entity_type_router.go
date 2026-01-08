@@ -161,6 +161,7 @@ func renderEntityTypesBlock(entityTypes []string) string {
 		"location":  "A physical or conceptual place where events occur\n  (e.g. buildings, cities, rooms, regions).",
 		"artefact":  "A distinct object of narrative importance\n  (e.g. weapons, relics, books, devices, symbols),\n  typically interacted with or referenced as a thing.",
 		"faction":   "An organized group, collective, or institution\n  (e.g. guilds, clans, orders, nations, companies),\n  usually referred to by a shared name or identity.",
+		"event":     "A notable occurrence or incident in the narrative timeline\n  (e.g. battles, treaties, rituals, disasters, festivals, turning points).",
 	}
 
 	builder := strings.Builder{}

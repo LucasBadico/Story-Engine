@@ -34,6 +34,10 @@ func NewPhase2FactionExtractorUseCase(model llm.RouterModel, logger *logger.Logg
 	return newPhase2EntityExtractorUseCase(model, logger, "faction")
 }
 
+func NewPhase2EventExtractorUseCase(model llm.RouterModel, logger *logger.Logger) *Phase2EntityExtractorUseCase {
+	return newPhase2EntityExtractorUseCase(model, logger, "event")
+}
+
 func newPhase2EntityExtractorUseCase(model llm.RouterModel, logger *logger.Logger, entityType string) *Phase2EntityExtractorUseCase {
 	return &Phase2EntityExtractorUseCase{
 		model:      model,
@@ -88,6 +92,9 @@ var phase2ArtefactExtractorPromptTemplate string
 
 //go:embed prompts/phase2_faction_extractor.prompt
 var phase2FactionExtractorPromptTemplate string
+
+//go:embed prompts/phase2_event_extractor.prompt
+var phase2EventExtractorPromptTemplate string
 
 func (u *Phase2EntityExtractorUseCase) Execute(ctx context.Context, input Phase2EntityExtractorInput) (Phase2EntityExtractorOutput, error) {
 	text := strings.TrimSpace(input.Text)
@@ -174,6 +181,8 @@ func phase2PromptTemplateByType(entityType string) (string, bool) {
 		return phase2ArtefactExtractorPromptTemplate, true
 	case "faction":
 		return phase2FactionExtractorPromptTemplate, true
+	case "event":
+		return phase2EventExtractorPromptTemplate, true
 	default:
 		return "", false
 	}

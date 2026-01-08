@@ -24,6 +24,7 @@ func NewPhase2EntryUseCase(model llm.RouterModel, logger *logger.Logger, matcher
 		"location":  NewPhase2LocationExtractorUseCase(model, logger),
 		"artefact":  NewPhase2ArtefactExtractorUseCase(model, logger),
 		"faction":   NewPhase2FactionExtractorUseCase(model, logger),
+		"event":     NewPhase2EventExtractorUseCase(model, logger),
 	}
 
 	return &Phase2EntryUseCase{
