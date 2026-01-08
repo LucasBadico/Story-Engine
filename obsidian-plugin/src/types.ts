@@ -43,6 +43,30 @@ export interface ExtractSearchResult {
 	received_at: string;
 }
 
+export interface ExtractEntityMatch {
+	source_type: string;
+	source_id: string;
+	entity_name?: string;
+	similarity: number;
+	reason?: string;
+}
+
+export interface ExtractEntity {
+	type: string;
+	name: string;
+	summary?: string;
+	found: boolean;
+	match?: ExtractEntityMatch;
+	candidates?: ExtractEntityMatch[];
+}
+
+export interface ExtractEntityResult {
+	text: string;
+	world_id: string;
+	entities: ExtractEntity[];
+	received_at: string;
+}
+
 export interface Tenant {
 	id: string;
 	name: string;

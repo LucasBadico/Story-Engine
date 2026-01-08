@@ -1,5 +1,5 @@
 import { Notice, Plugin } from "obsidian";
-import { ExtractSearchResult, StoryEngineSettings } from "./types";
+import { ExtractEntityResult, StoryEngineSettings } from "./types";
 import { StoryEngineClient } from "./api/client";
 import { StoryEngineSettingTab } from "./settings";
 import { registerCommands } from "./commands";
@@ -32,7 +32,7 @@ export default class StoryEnginePlugin extends Plugin {
 	apiClient!: StoryEngineClient;
 	fileManager!: FileManager;
 	syncService!: SyncService;
-	extractResult: ExtractSearchResult | null = null;
+	extractResult: ExtractEntityResult | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -237,6 +237,26 @@ export default class StoryEnginePlugin extends Plugin {
 		workspace.revealLeaf(leaf);
 	}
 
+	private async getActiveWorldId(): Promise<string | null> {
+		const activeFile = this.app.workspace.getActiveFile();
+		if (!activeFile) {
+			return null;
+		}
+
+		const fileContent = await this.app.vault.read(activeFile);
+		const frontmatter = this.fileManager.parseFrontmatter(fileContent);
+		const storyId =
+			frontmatter.story_id ||
+			(activeFile.name === "story.md" ? frontmatter.id : "");
+
+		if (!storyId) {
+			return null;
+		}
+
+		const story = await this.apiClient.getStory(storyId);
+		return story.world_id ?? null;
+	}
+
 	async extractSelectionCommand(selection: string) {
 		const trimmedSelection = selection.trim();
 		if (!trimmedSelection) {
@@ -261,6 +281,24 @@ export default class StoryEnginePlugin extends Plugin {
 			return;
 		}
 
+		let worldId: string | null = null;
+		try {
+			worldId = await this.getActiveWorldId();
+		} catch (err) {
+			const errorMessage =
+				err instanceof Error ? err.message : "Failed to resolve story";
+			new Notice(`Error: ${errorMessage}`, 5000);
+			return;
+		}
+
+		if (!worldId) {
+			new Notice(
+				"Open a synced story document before extracting entities.",
+				5000
+			);
+			return;
+		}
+
 		try {
 			if (navigator?.clipboard?.writeText) {
 				await navigator.clipboard.writeText(trimmedSelection);
@@ -273,7 +311,7 @@ export default class StoryEnginePlugin extends Plugin {
 
 		try {
 			const response = await fetch(
-				`${gatewayUrl.replace(/\/$/, "")}/api/v1/search`,
+				`${gatewayUrl.replace(/\/$/, "")}/api/v1/entity-extract`,
 				{
 					method: "POST",
 					headers: {
@@ -284,8 +322,8 @@ export default class StoryEnginePlugin extends Plugin {
 							: {}),
 					},
 					body: JSON.stringify({
-						query: trimmedSelection,
-						limit: 10,
+						text: trimmedSelection,
+						world_id: worldId,
 					}),
 				}
 			);
@@ -304,14 +342,13 @@ export default class StoryEnginePlugin extends Plugin {
 			}
 
 			const payload = (await response.json()) as {
-				chunks: ExtractSearchResult["chunks"];
-				next_cursor?: string;
+				entities: ExtractEntityResult["entities"];
 			};
 
 			this.extractResult = {
-				query: trimmedSelection,
-				chunks: payload.chunks ?? [],
-				next_cursor: payload.next_cursor,
+				text: trimmedSelection,
+				world_id: worldId,
+				entities: payload.entities ?? [],
 				received_at: new Date().toISOString(),
 			};
 
@@ -319,8 +356,11 @@ export default class StoryEnginePlugin extends Plugin {
 			await this.activateExtractView();
 			this.updateExtractViews();
 
+			const foundCount = this.extractResult.entities.filter(
+				(entity) => entity.found
+			).length;
 			new Notice(
-				`Extraction complete: ${this.extractResult.chunks.length} matches`,
+				`Extraction complete: ${foundCount}/${this.extractResult.entities.length} matched`,
 				4000
 			);
 		} catch (err) {

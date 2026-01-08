@@ -1,12 +1,16 @@
-import { ItemView, WorkspaceLeaf } from "obsidian";
+import { ItemView, Notice, WorkspaceLeaf } from "obsidian";
 import StoryEnginePlugin from "../main";
-import { ExtractSearchChunk, ExtractSearchResult } from "../types";
+import {
+	ExtractEntity,
+	ExtractEntityMatch,
+	ExtractEntityResult,
+} from "../types";
 
 export const STORY_ENGINE_EXTRACT_VIEW_TYPE = "story-engine-extract-view";
 
 export class StoryEngineExtractView extends ItemView {
 	plugin: StoryEnginePlugin;
-	private result: ExtractSearchResult | null = null;
+	private result: ExtractEntityResult | null = null;
 	private contentRoot!: HTMLElement;
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
@@ -34,7 +38,7 @@ export class StoryEngineExtractView extends ItemView {
 		this.setResult(this.plugin.extractResult);
 	}
 
-	setResult(result: ExtractSearchResult | null) {
+	setResult(result: ExtractEntityResult | null) {
 		this.result = result;
 		this.render();
 	}
@@ -75,11 +79,16 @@ export class StoryEngineExtractView extends ItemView {
 		const headerMeta = header.createDiv({
 			cls: "story-engine-extract-meta",
 		});
+		const foundCount = this.result.entities.filter((entity) => entity.found)
+			.length;
 		headerMeta.createEl("div", {
-			text: `Matches: ${this.result.chunks.length}`,
+			text: `Entities: ${this.result.entities.length}`,
 		});
 		headerMeta.createEl("div", {
-			text: `Query length: ${this.result.query.length}`,
+			text: `Found: ${foundCount}`,
+		});
+		headerMeta.createEl("div", {
+			text: `Text length: ${this.result.text.length}`,
 		});
 
 		const headerActions = header.createDiv({
@@ -97,11 +106,11 @@ export class StoryEngineExtractView extends ItemView {
 			cls: "story-engine-extract-query",
 		});
 		queryBlock.createEl("div", {
-			text: "Query",
+			text: "Text",
 			cls: "story-engine-extract-label",
 		});
 		queryBlock.createEl("div", {
-			text: this.result.query,
+			text: this.result.text,
 			cls: "story-engine-extract-query-text",
 		});
 
@@ -122,20 +131,20 @@ export class StoryEngineExtractView extends ItemView {
 			cls: "story-engine-extract-list",
 		});
 
-		if (!this.result.chunks.length) {
+		if (!this.result.entities.length) {
 			list.createEl("p", {
-				text: "No matches returned from search.",
+				text: "No entities returned from extraction.",
 				cls: "story-engine-extract-empty",
 			});
 			return;
 		}
 
-		this.result.chunks.forEach((chunk, index) => {
-			this.renderChunk(list, chunk, index);
+		this.result.entities.forEach((entity, index) => {
+			this.renderEntity(list, entity, index);
 		});
 	}
 
-	private renderChunk(container: HTMLElement, chunk: ExtractSearchChunk, index: number) {
+	private renderEntity(container: HTMLElement, entity: ExtractEntity, index: number) {
 		const item = container.createDiv({ cls: "story-engine-extract-item" });
 		const header = item.createDiv({ cls: "story-engine-extract-item-header" });
 		header.createEl("div", {
@@ -143,34 +152,178 @@ export class StoryEngineExtractView extends ItemView {
 			cls: "story-engine-extract-rank",
 		});
 		header.createEl("div", {
-			text: `Score: ${chunk.score.toFixed(3)}`,
-			cls: "story-engine-extract-score",
+			text: entity.found ? "Found" : "New",
+			cls: `story-engine-extract-status ${
+				entity.found ? "is-found" : "is-new"
+			}`,
 		});
 
-		const meta = item.createDiv({ cls: "story-engine-extract-item-meta" });
-		meta.createEl("div", { text: `Source: ${chunk.source_type}` });
-		meta.createEl("div", { text: `Source ID: ${chunk.source_id}` });
-		if (chunk.content_kind) {
-			meta.createEl("div", { text: `Kind: ${chunk.content_kind}` });
-		}
-		if (chunk.location_name) {
-			meta.createEl("div", { text: `Location: ${chunk.location_name}` });
-		}
-		if (chunk.timeline) {
-			meta.createEl("div", { text: `Timeline: ${chunk.timeline}` });
-		}
-		if (chunk.pov_character) {
-			meta.createEl("div", { text: `POV: ${chunk.pov_character}` });
-		}
-		if (chunk.characters && chunk.characters.length) {
-			meta.createEl("div", {
-				text: `Characters: ${chunk.characters.join(", ")}`,
+		const title = item.createDiv({ cls: "story-engine-extract-item-title" });
+		title.createEl("div", {
+			text: entity.name,
+			cls: "story-engine-extract-entity-name",
+		});
+		title.createEl("div", {
+			text: entity.type,
+			cls: "story-engine-extract-entity-type",
+		});
+
+		if (entity.summary) {
+			item.createEl("div", {
+				text: entity.summary,
+				cls: "story-engine-extract-content",
 			});
 		}
 
-		item.createEl("div", {
-			text: chunk.content,
-			cls: "story-engine-extract-content",
+		if (entity.match) {
+			item.appendChild(this.renderMatch("Match", entity.match));
+		}
+
+		if (entity.candidates && entity.candidates.length) {
+			const list = item.createDiv({ cls: "story-engine-extract-candidates" });
+			list.createEl("div", {
+				text: "Candidates",
+				cls: "story-engine-extract-label",
+			});
+			entity.candidates.forEach((candidate) => {
+				list.appendChild(this.renderMatch("", candidate));
+			});
+		}
+
+		const actions = item.createDiv({ cls: "story-engine-extract-actions" });
+		const actionButton = actions.createEl("button", {
+			text: entity.found ? "Update Entity" : "Create Entity",
+			cls: "story-engine-extract-action",
 		});
+		actionButton.onclick = async () => {
+			actionButton.disabled = true;
+			try {
+				if (entity.found) {
+					await this.updateEntity(entity);
+				} else {
+					await this.createEntity(entity);
+				}
+			} finally {
+				actionButton.disabled = false;
+			}
+		};
+	}
+
+	private renderMatch(label: string, match: ExtractEntityMatch): HTMLElement {
+		const wrapper = document.createElement("div");
+		wrapper.className = "story-engine-extract-match";
+		const parts = [];
+		if (label) {
+			parts.push(label);
+		}
+		parts.push(`${match.source_type}:${match.source_id}`);
+		if (match.entity_name) {
+			parts.push(match.entity_name);
+		}
+		parts.push(`sim ${match.similarity.toFixed(3)}`);
+		if (match.reason) {
+			parts.push(match.reason);
+		}
+		wrapper.textContent = parts.join(" · ");
+		return wrapper;
+	}
+
+	private async createEntity(entity: ExtractEntity) {
+		if (!this.result?.world_id) {
+			new Notice("World ID missing. Select a story or world first.", 4000);
+			return;
+		}
+
+		const description = entity.summary ?? "";
+		let createdId = "";
+
+		switch (entity.type) {
+			case "character": {
+				const created = await this.plugin.apiClient.createCharacter(
+					this.result.world_id,
+					{ name: entity.name, description }
+				);
+				createdId = created.id;
+				break;
+			}
+			case "location": {
+				const created = await this.plugin.apiClient.createLocation(
+					this.result.world_id,
+					{ name: entity.name, description }
+				);
+				createdId = created.id;
+				break;
+			}
+			case "artefact": {
+				const created = await this.plugin.apiClient.createArtifact(
+					this.result.world_id,
+					{ name: entity.name, description }
+				);
+				createdId = created.id;
+				break;
+			}
+			case "faction": {
+				const created = await this.plugin.apiClient.createFaction(
+					this.result.world_id,
+					{ name: entity.name, description }
+				);
+				createdId = created.id;
+				break;
+			}
+			default:
+				new Notice(`Unsupported type: ${entity.type}`, 4000);
+				return;
+		}
+
+		entity.found = true;
+		entity.match = {
+			source_type: entity.type,
+			source_id: createdId,
+			entity_name: entity.name,
+			similarity: 1,
+			reason: "Created from extract",
+		};
+		this.render();
+		new Notice(`Created ${entity.type}: ${entity.name}`, 3000);
+	}
+
+	private async updateEntity(entity: ExtractEntity) {
+		if (!entity.match?.source_id) {
+			new Notice("No match available to update.", 4000);
+			return;
+		}
+
+		const description = entity.summary ?? "";
+		switch (entity.type) {
+			case "character":
+				await this.plugin.apiClient.updateCharacter(entity.match.source_id, {
+					name: entity.name,
+					description,
+				});
+				break;
+			case "location":
+				await this.plugin.apiClient.updateLocation(entity.match.source_id, {
+					name: entity.name,
+					description,
+				});
+				break;
+			case "artefact":
+				await this.plugin.apiClient.updateArtifact(entity.match.source_id, {
+					name: entity.name,
+					description,
+				});
+				break;
+			case "faction":
+				await this.plugin.apiClient.updateFaction(entity.match.source_id, {
+					name: entity.name,
+					description,
+				});
+				break;
+			default:
+				new Notice(`Unsupported type: ${entity.type}`, 4000);
+				return;
+		}
+
+		new Notice(`Updated ${entity.type}: ${entity.name}`, 3000);
 	}
 }
