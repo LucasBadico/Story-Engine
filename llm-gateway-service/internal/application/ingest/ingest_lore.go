@@ -150,12 +150,13 @@ func (uc *IngestLoreUseCase) Execute(ctx context.Context, input IngestLoreInput)
 // buildLoreContent builds content string from lore
 func (uc *IngestLoreUseCase) buildLoreContent(lore *grpcclient.Lore, world *grpcclient.World) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Lore: %s", lore.Name))
+	header := fmt.Sprintf("Lore: %s", lore.Name)
+	if lore.Description != "" {
+		header = fmt.Sprintf("Lore: %s - %s", lore.Name, lore.Description)
+	}
+	parts = append(parts, header)
 	if lore.Category != nil && *lore.Category != "" {
 		parts = append(parts, fmt.Sprintf("Category: %s", *lore.Category))
-	}
-	if lore.Description != "" {
-		parts = append(parts, fmt.Sprintf("Description: %s", lore.Description))
 	}
 	if lore.Rules != "" {
 		parts = append(parts, fmt.Sprintf("Rules: %s", lore.Rules))

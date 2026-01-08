@@ -144,10 +144,11 @@ func (uc *IngestWorldUseCase) Execute(ctx context.Context, input IngestWorldInpu
 // buildWorldContent builds content string from world metadata
 func (uc *IngestWorldUseCase) buildWorldContent(world *grpcclient.World) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("World: %s", world.Name))
+	header := fmt.Sprintf("World: %s", world.Name)
 	if world.Description != "" {
-		parts = append(parts, fmt.Sprintf("Description: %s", world.Description))
+		header = fmt.Sprintf("World: %s - %s", world.Name, world.Description)
 	}
+	parts = append(parts, header)
 	if world.Genre != "" {
 		parts = append(parts, fmt.Sprintf("Genre: %s", world.Genre))
 	}

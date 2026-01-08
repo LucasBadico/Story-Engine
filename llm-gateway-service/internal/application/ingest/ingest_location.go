@@ -175,16 +175,17 @@ func (uc *IngestLocationUseCase) buildHierarchyPath(ctx context.Context, locatio
 // buildLocationContent builds content string from location and hierarchy
 func (uc *IngestLocationUseCase) buildLocationContent(location *grpcclient.Location, hierarchyPath []string, world *grpcclient.World) string {
 	var parts []string
+	baseName := location.Name
 	if len(hierarchyPath) > 1 {
-		parts = append(parts, fmt.Sprintf("Location: %s", strings.Join(hierarchyPath, " > ")))
-	} else {
-		parts = append(parts, fmt.Sprintf("Location: %s", location.Name))
+		baseName = strings.Join(hierarchyPath, " > ")
 	}
+	header := fmt.Sprintf("Location: %s", baseName)
+	if location.Description != "" {
+		header = fmt.Sprintf("Location: %s - %s", baseName, location.Description)
+	}
+	parts = append(parts, header)
 	if location.Type != "" {
 		parts = append(parts, fmt.Sprintf("Type: %s", location.Type))
-	}
-	if location.Description != "" {
-		parts = append(parts, fmt.Sprintf("Description: %s", location.Description))
 	}
 	if world != nil {
 		parts = append(parts, fmt.Sprintf("World: %s", world.Name))

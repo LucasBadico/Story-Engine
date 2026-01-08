@@ -158,10 +158,11 @@ func (uc *IngestCharacterUseCase) Execute(ctx context.Context, input IngestChara
 // buildCharacterContent builds content string from character and traits
 func (uc *IngestCharacterUseCase) buildCharacterContent(character *grpcclient.Character, traits []*grpcclient.CharacterTrait, world *grpcclient.World) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Character: %s", character.Name))
+	header := fmt.Sprintf("Character: %s", character.Name)
 	if character.Description != "" {
-		parts = append(parts, fmt.Sprintf("Description: %s", character.Description))
+		header = fmt.Sprintf("Character: %s - %s", character.Name, character.Description)
 	}
+	parts = append(parts, header)
 	if world != nil {
 		parts = append(parts, fmt.Sprintf("World: %s", world.Name))
 	}

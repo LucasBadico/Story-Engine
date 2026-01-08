@@ -150,12 +150,13 @@ func (uc *IngestFactionUseCase) Execute(ctx context.Context, input IngestFaction
 // buildFactionContent builds content string from faction
 func (uc *IngestFactionUseCase) buildFactionContent(faction *grpcclient.Faction, world *grpcclient.World) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Faction: %s", faction.Name))
+	header := fmt.Sprintf("Faction: %s", faction.Name)
+	if faction.Description != "" {
+		header = fmt.Sprintf("Faction: %s - %s", faction.Name, faction.Description)
+	}
+	parts = append(parts, header)
 	if faction.Type != nil && *faction.Type != "" {
 		parts = append(parts, fmt.Sprintf("Type: %s", *faction.Type))
-	}
-	if faction.Description != "" {
-		parts = append(parts, fmt.Sprintf("Description: %s", faction.Description))
 	}
 	if faction.Beliefs != "" {
 		parts = append(parts, fmt.Sprintf("Beliefs: %s", faction.Beliefs))

@@ -150,10 +150,11 @@ func (uc *IngestArtifactUseCase) Execute(ctx context.Context, input IngestArtifa
 // buildArtifactContent builds content string from artifact
 func (uc *IngestArtifactUseCase) buildArtifactContent(artifact *grpcclient.Artifact, world *grpcclient.World) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Artifact: %s", artifact.Name))
+	header := fmt.Sprintf("Artifact: %s", artifact.Name)
 	if artifact.Description != "" {
-		parts = append(parts, fmt.Sprintf("Description: %s", artifact.Description))
+		header = fmt.Sprintf("Artifact: %s - %s", artifact.Name, artifact.Description)
 	}
+	parts = append(parts, header)
 	if artifact.Rarity != "" {
 		parts = append(parts, fmt.Sprintf("Rarity: %s", artifact.Rarity))
 	}

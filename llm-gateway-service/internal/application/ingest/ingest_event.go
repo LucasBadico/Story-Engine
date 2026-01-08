@@ -169,12 +169,13 @@ func (uc *IngestEventUseCase) Execute(ctx context.Context, input IngestEventInpu
 // buildEventContent builds content string from event and relationships
 func (uc *IngestEventUseCase) buildEventContent(event *grpcclient.Event, eventCharacters []*grpcclient.EventCharacter, eventLocations []*grpcclient.EventLocation, eventArtifacts []*grpcclient.EventArtifact, world *grpcclient.World) string {
 	var parts []string
-	parts = append(parts, fmt.Sprintf("Event: %s", event.Name))
+	header := fmt.Sprintf("Event: %s", event.Name)
+	if event.Description != nil && *event.Description != "" {
+		header = fmt.Sprintf("Event: %s - %s", event.Name, *event.Description)
+	}
+	parts = append(parts, header)
 	if event.Type != nil && *event.Type != "" {
 		parts = append(parts, fmt.Sprintf("Type: %s", *event.Type))
-	}
-	if event.Description != nil && *event.Description != "" {
-		parts = append(parts, fmt.Sprintf("Description: %s", *event.Description))
 	}
 	if event.Timeline != nil && *event.Timeline != "" {
 		parts = append(parts, fmt.Sprintf("Timeline: %s", *event.Timeline))
