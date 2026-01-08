@@ -56,6 +56,7 @@ export interface ExtractEntity {
 	name: string;
 	summary?: string;
 	found: boolean;
+	created?: boolean;
 	match?: ExtractEntityMatch;
 	candidates?: ExtractEntityMatch[];
 }

@@ -244,6 +244,47 @@
 	background: var(--background-secondary);
 }
 
+.story-engine-extract-tabs {
+	display: flex;
+	gap: 0.5rem;
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding-bottom: 0.5rem;
+}
+
+.story-engine-extract-tab {
+	padding: 0.35rem 0.75rem;
+	font-size: 0.75rem;
+	border-radius: 999px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	color: var(--text-muted);
+	transition: all 0.2s ease;
+}
+
+.story-engine-extract-tab.is-active {
+	background: var(--background-secondary);
+	color: var(--text-normal);
+	border-color: var(--background-modifier-border-hover);
+}
+
+.story-engine-extract-tab.is-disabled {
+	opacity: 0.4;
+	cursor: not-allowed;
+}
+
+.story-engine-extract-panels {
+	display: flex;
+	flex-direction: column;
+}
+
+.story-engine-extract-panel {
+	display: none;
+}
+
+.story-engine-extract-panel.is-active {
+	display: block;
+}
+
 .story-engine-extract-query-text {
 	font-size: 0.9rem;
 	color: var(--text-normal);
@@ -288,7 +329,7 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.5rem;
-	max-height: 220px;
+	max-height: 300px;
 	overflow: auto;
 }
 
@@ -302,21 +343,30 @@
 	gap: 0.25rem;
 }
 
-.story-engine-extract-log-time {
-	font-size: 0.7rem;
-	color: var(--text-faint);
-}
-
-.story-engine-extract-log-type {
+.story-engine-extract-log-header {
 	font-size: 0.75rem;
-	color: var(--text-muted);
-	text-transform: uppercase;
-	letter-spacing: 0.03em;
+	color: var(--text-faint);
+	letter-spacing: 0.02em;
 }
 
-.story-engine-extract-log-message {
+.story-engine-extract-log-label {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.5rem;
 	font-size: 0.85rem;
 	color: var(--text-normal);
+	cursor: pointer;
+}
+
+.story-engine-extract-log-toggle {
+	font-size: 0.85rem;
+	color: var(--text-muted);
+}
+
+.story-engine-extract-log-toggle.is-typing {
+	animation: story-engine-typing 1.1s infinite;
+	color: var(--text-muted);
 }
 
 .story-engine-extract-log-data {
@@ -356,6 +406,11 @@
 .story-engine-extract-status.is-found {
 	background: rgba(64, 160, 64, 0.2);
 	color: #9fe6a0;
+}
+
+.story-engine-extract-status.is-created {
+	background: rgba(68, 126, 214, 0.2);
+	color: #b3cdfa;
 }
 
 .story-engine-extract-status.is-new {
@@ -413,6 +468,18 @@
 .story-engine-extract-empty {
 	font-size: 0.85rem;
 	color: var(--text-muted);
+}
+
+@keyframes story-engine-typing {
+	0% {
+		opacity: 0.2;
+	}
+	50% {
+		opacity: 1;
+	}
+	100% {
+		opacity: 0.2;
+	}
 }
 
 .story-engine-back-btn {

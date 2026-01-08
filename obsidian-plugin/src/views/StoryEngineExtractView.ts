@@ -14,6 +14,8 @@ export class StoryEngineExtractView extends ItemView {
 	private contentRoot!: HTMLElement;
 	private logs = [] as StoryEnginePlugin["extractLogs"];
 	private status: StoryEnginePlugin["extractStatus"] = "idle";
+	private activeTab: "entities" | "progress" = "progress";
+	private expandedLogs = new Set<string>();
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
 		super(leaf);
@@ -57,6 +59,10 @@ export class StoryEngineExtractView extends ItemView {
 	private render() {
 		if (!this.contentRoot) return;
 		this.contentRoot.empty();
+
+		if (this.activeTab === "entities" && this.status === "running") {
+			this.activeTab = "progress";
+		}
 
 		const header = this.contentRoot.createDiv({
 			cls: "story-engine-extract-header",
@@ -124,7 +130,57 @@ export class StoryEngineExtractView extends ItemView {
 			cls: "story-engine-extract-query-text",
 		});
 
-		this.renderLogs();
+		const tabs = this.contentRoot.createDiv({
+			cls: "story-engine-extract-tabs",
+		});
+
+		const hasEntities = this.result.entities.length > 0;
+		const entitiesDisabled = !hasEntities || this.status === "running";
+		const entitiesTab = tabs.createEl("button", {
+			text: "Entities Found",
+			cls: `story-engine-extract-tab ${
+				this.activeTab === "entities" ? "is-active" : ""
+			}`,
+		});
+		if (entitiesDisabled) {
+			entitiesTab.disabled = true;
+			entitiesTab.addClass("is-disabled");
+			if (this.activeTab === "entities") {
+				this.activeTab = "progress";
+			}
+		}
+		entitiesTab.onclick = () => {
+			if (entitiesDisabled) return;
+			this.activeTab = "entities";
+			this.render();
+		};
+
+		const progressTab = tabs.createEl("button", {
+			text: "Progress",
+			cls: `story-engine-extract-tab ${
+				this.activeTab === "progress" ? "is-active" : ""
+			}`,
+		});
+		progressTab.onclick = () => {
+			this.activeTab = "progress";
+			this.render();
+		};
+
+		const panels = this.contentRoot.createDiv({
+			cls: "story-engine-extract-panels",
+		});
+
+		const entitiesPanel = panels.createDiv({
+			cls: `story-engine-extract-panel ${
+				this.activeTab === "entities" ? "is-active" : ""
+			}`,
+		});
+
+		const progressPanel = panels.createDiv({
+			cls: `story-engine-extract-panel ${
+				this.activeTab === "progress" ? "is-active" : ""
+			}`,
+		});
 
 		const actions = this.contentRoot.createDiv({
 			cls: "story-engine-extract-actions",
@@ -139,25 +195,26 @@ export class StoryEngineExtractView extends ItemView {
 			this.plugin.updateExtractViews();
 		};
 
-		const list = this.contentRoot.createDiv({
-			cls: "story-engine-extract-list",
-		});
+		this.renderLogs(progressPanel);
 
-		if (!this.result.entities.length) {
-			list.createEl("p", {
+		if (hasEntities) {
+			const list = entitiesPanel.createDiv({
+				cls: "story-engine-extract-list",
+			});
+			this.result.entities.forEach((entity, index) => {
+				this.renderEntity(list, entity, index);
+			});
+		} else {
+			entitiesPanel.createEl("p", {
 				text: "No entities returned from extraction.",
 				cls: "story-engine-extract-empty",
 			});
-			return;
 		}
-
-		this.result.entities.forEach((entity, index) => {
-			this.renderEntity(list, entity, index);
-		});
 	}
 
-	private renderLogs() {
-		const logBlock = this.contentRoot.createDiv({
+	private renderLogs(container?: HTMLElement) {
+		const root = container ?? this.contentRoot;
+		const logBlock = root.createDiv({
 			cls: "story-engine-extract-logs",
 		});
 		logBlock.createEl("div", {
@@ -174,27 +231,56 @@ export class StoryEngineExtractView extends ItemView {
 		}
 
 		const list = logBlock.createDiv({ cls: "story-engine-extract-log-list" });
-		this.logs.forEach((entry) => {
-			const item = list.createDiv({ cls: "story-engine-extract-log-item" });
-			item.createDiv({
-				text: entry.timestamp,
-				cls: "story-engine-extract-log-time",
+		const lastIndex = this.logs.length - 1;
+		this.logs.forEach((entry, index) => {
+			const eventLabel = entry.phase
+				? `${entry.phase} · ${entry.eventType}`
+				: entry.eventType;
+			const item = list.createDiv({
+				cls: `story-engine-extract-log-item ${
+					index === lastIndex ? "is-latest" : ""
+				}`,
 			});
-			item.createDiv({
-				text: entry.phase ? `${entry.phase} · ${entry.eventType}` : entry.eventType,
-				cls: "story-engine-extract-log-type",
+			const header = item.createDiv({
+				cls: "story-engine-extract-log-header",
 			});
-			item.createDiv({
-				text: entry.message,
-				cls: "story-engine-extract-log-message",
+			header.createSpan({
+				text: `${entry.timestamp} | ${eventLabel}`,
+				cls: "story-engine-extract-log-title",
 			});
-			if (entry.data && Object.keys(entry.data).length) {
+
+			const label = item.createDiv({
+				cls: "story-engine-extract-log-label",
+			});
+			label.createSpan({ text: entry.message });
+			const toggle = label.createSpan({
+				text: index === lastIndex
+					? "..."
+					: this.expandedLogs.has(entry.id)
+						? "−"
+						: "+",
+				cls: "story-engine-extract-log-toggle",
+			});
+			label.onclick = () => {
+				if (this.expandedLogs.has(entry.id)) {
+					this.expandedLogs.delete(entry.id);
+				} else {
+					this.expandedLogs.add(entry.id);
+				}
+				this.render();
+			};
+			if (index === lastIndex) {
+				toggle.addClass("is-typing");
+			}
+
+			if (this.expandedLogs.has(entry.id) && entry.data) {
 				item.createEl("pre", {
 					text: JSON.stringify(entry.data, null, 2),
 					cls: "story-engine-extract-log-data",
 				});
 			}
 		});
+		list.scrollTop = list.scrollHeight;
 	}
 
 	private renderEntity(container: HTMLElement, entity: ExtractEntity, index: number) {
@@ -204,11 +290,19 @@ export class StoryEngineExtractView extends ItemView {
 			text: `#${index + 1}`,
 			cls: "story-engine-extract-rank",
 		});
+		const statusText = entity.created
+			? "Created"
+			: entity.found
+				? "Found"
+				: "New";
+		const statusClass = entity.created
+			? "is-created"
+			: entity.found
+				? "is-found"
+				: "is-new";
 		header.createEl("div", {
-			text: entity.found ? "Found" : "New",
-			cls: `story-engine-extract-status ${
-				entity.found ? "is-found" : "is-new"
-			}`,
+			text: statusText,
+			cls: `story-engine-extract-status ${statusClass}`,
 		});
 
 		const title = item.createDiv({ cls: "story-engine-extract-item-title" });
@@ -243,23 +337,25 @@ export class StoryEngineExtractView extends ItemView {
 			});
 		}
 
-		const actions = item.createDiv({ cls: "story-engine-extract-actions" });
-		const actionButton = actions.createEl("button", {
-			text: entity.found ? "Update Entity" : "Create Entity",
-			cls: "story-engine-extract-action",
-		});
-		actionButton.onclick = async () => {
-			actionButton.disabled = true;
-			try {
-				if (entity.found) {
-					await this.updateEntity(entity);
-				} else {
-					await this.createEntity(entity);
+		if (!entity.created) {
+			const actions = item.createDiv({ cls: "story-engine-extract-actions" });
+			const actionButton = actions.createEl("button", {
+				text: entity.found ? "Update Entity" : "Create Entity",
+				cls: "story-engine-extract-action",
+			});
+			actionButton.onclick = async () => {
+				actionButton.disabled = true;
+				try {
+					if (entity.found) {
+						await this.updateEntity(entity);
+					} else {
+						await this.createEntity(entity);
+					}
+				} finally {
+					actionButton.disabled = false;
 				}
-			} finally {
-				actionButton.disabled = false;
-			}
-		};
+			};
+		}
 	}
 
 	private renderMatch(label: string, match: ExtractEntityMatch): HTMLElement {
@@ -336,7 +432,8 @@ export class StoryEngineExtractView extends ItemView {
 				return;
 		}
 
-		entity.found = true;
+		entity.found = false;
+		entity.created = true;
 		entity.match = {
 			source_type: entity.type,
 			source_id: createdId,
