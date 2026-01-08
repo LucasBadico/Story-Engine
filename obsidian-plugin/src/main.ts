@@ -1,5 +1,10 @@
 import { Notice, Plugin } from "obsidian";
-import { ExtractEntityResult, StoryEngineSettings } from "./types";
+import {
+	ExtractEntityResult,
+	ExtractLogEntry,
+	ExtractStreamEvent,
+	StoryEngineSettings,
+} from "./types";
 import { StoryEngineClient } from "./api/client";
 import { StoryEngineSettingTab } from "./settings";
 import { registerCommands } from "./commands";
@@ -33,6 +38,9 @@ export default class StoryEnginePlugin extends Plugin {
 	fileManager!: FileManager;
 	syncService!: SyncService;
 	extractResult: ExtractEntityResult | null = null;
+	extractLogs: ExtractLogEntry[] = [];
+	extractStatus: "idle" | "running" | "done" | "error" | "canceled" = "idle";
+	private extractAbortController: AbortController | null = null;
 
 	async onload() {
 		await this.loadSettings();
@@ -299,6 +307,11 @@ export default class StoryEnginePlugin extends Plugin {
 			return;
 		}
 
+		this.resetExtractState(trimmedSelection, worldId);
+		await this.activateView();
+		await this.activateExtractView();
+		this.updateExtractViews();
+
 		try {
 			if (navigator?.clipboard?.writeText) {
 				await navigator.clipboard.writeText(trimmedSelection);
@@ -307,67 +320,13 @@ export default class StoryEnginePlugin extends Plugin {
 			// Clipboard is optional; ignore failures.
 		}
 
-		new Notice("Sending text to extraction...", 3000);
-
-		try {
-			const response = await fetch(
-				`${gatewayUrl.replace(/\/$/, "")}/api/v1/entity-extract`,
-				{
-					method: "POST",
-					headers: {
-						"Content-Type": "application/json",
-						"X-Tenant-ID": tenantId,
-						...(this.settings.apiKey
-							? { Authorization: `Bearer ${this.settings.apiKey}` }
-							: {}),
-					},
-					body: JSON.stringify({
-						text: trimmedSelection,
-						world_id: worldId,
-					}),
-				}
-			);
-
-			if (!response.ok) {
-				let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-				try {
-					const errorBody = (await response.json()) as { error?: string };
-					if (errorBody?.error) {
-						errorMessage = errorBody.error;
-					}
-				} catch {
-					// Ignore JSON parse errors.
-				}
-				throw new Error(errorMessage);
-			}
-
-			const payload = (await response.json()) as {
-				entities: ExtractEntityResult["entities"];
-			};
-
-			this.extractResult = {
-				text: trimmedSelection,
-				world_id: worldId,
-				entities: payload.entities ?? [],
-				received_at: new Date().toISOString(),
-			};
-
-			await this.activateView();
-			await this.activateExtractView();
-			this.updateExtractViews();
-
-			const foundCount = this.extractResult.entities.filter(
-				(entity) => entity.found
-			).length;
-			new Notice(
-				`Extraction complete: ${foundCount}/${this.extractResult.entities.length} matched`,
-				4000
-			);
-		} catch (err) {
-			const errorMessage =
-				err instanceof Error ? err.message : "Failed to extract entities";
-			new Notice(`Error: ${errorMessage}`, 5000);
-		}
+		new Notice("Starting extraction stream...", 3000);
+		await this.startExtractStream({
+			tenantId,
+			gatewayUrl,
+			worldId,
+			text: trimmedSelection,
+		});
 	}
 
 	updateExtractViews() {
@@ -385,6 +344,202 @@ export default class StoryEnginePlugin extends Plugin {
 		if (extractLeaf) {
 			const view = extractLeaf.view as StoryEngineExtractView;
 			view.setResult(this.extractResult);
+			view.setLogs(this.extractLogs, this.extractStatus);
+		}
+	}
+
+	private resetExtractState(text: string, worldId: string) {
+		this.cancelExtractStream();
+		this.extractResult = {
+			text,
+			world_id: worldId,
+			entities: [],
+			received_at: new Date().toISOString(),
+		};
+		this.extractLogs = [];
+		this.extractStatus = "running";
+	}
+
+	cancelExtractStream() {
+		if (this.extractAbortController) {
+			this.extractAbortController.abort();
+			this.extractAbortController = null;
+			this.extractStatus = "canceled";
+			this.appendExtractLog({
+				type: "client.cancel",
+				message: "Extraction canceled by user.",
+			});
+			this.updateExtractViews();
+		}
+	}
+
+	private appendExtractLog(event: ExtractStreamEvent) {
+		const timestamp = event.timestamp
+			? new Date(event.timestamp).toISOString()
+			: new Date().toISOString();
+		this.extractLogs.push({
+			id: `${timestamp}-${this.extractLogs.length}`,
+			eventType: event.type,
+			phase: event.phase,
+			message: event.message,
+			data: event.data,
+			timestamp,
+		});
+	}
+
+	private async startExtractStream(params: {
+		tenantId: string;
+		gatewayUrl: string;
+		worldId: string;
+		text: string;
+	}) {
+		const { tenantId, gatewayUrl, worldId, text } = params;
+		const controller = new AbortController();
+		this.extractAbortController = controller;
+		this.appendExtractLog({
+			type: "client.start",
+			message: "Opening extraction stream.",
+		});
+		this.updateExtractViews();
+
+		try {
+			const response = await fetch(
+				`${gatewayUrl.replace(/\/$/, "")}/api/v1/entity-extract/stream`,
+				{
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"X-Tenant-ID": tenantId,
+						...(this.settings.apiKey
+							? { Authorization: `Bearer ${this.settings.apiKey}` }
+							: {}),
+					},
+					body: JSON.stringify({
+						text,
+						world_id: worldId,
+					}),
+					signal: controller.signal,
+				}
+			);
+
+			if (!response.ok) {
+				let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+				try {
+					const errorBody = (await response.json()) as { error?: string };
+					if (errorBody?.error) {
+						errorMessage = errorBody.error;
+					}
+				} catch {
+					// Ignore JSON parse errors.
+				}
+				throw new Error(errorMessage);
+			}
+
+			if (!response.body) {
+				throw new Error("No response stream available.");
+			}
+
+			const reader = response.body.getReader();
+			const decoder = new TextDecoder("utf-8");
+			let buffer = "";
+			let currentEvent = "message";
+			let dataLines: string[] = [];
+
+			const flushEvent = () => {
+				if (!dataLines.length) return;
+				const rawData = dataLines.join("\n").trim();
+				dataLines = [];
+				if (!rawData) return;
+
+				let parsed: ExtractStreamEvent | null = null;
+				try {
+					parsed = JSON.parse(rawData) as ExtractStreamEvent;
+				} catch {
+					this.appendExtractLog({
+						type: "parse.error",
+						message: "Failed to parse stream event payload.",
+						data: { raw: rawData, event: currentEvent },
+					});
+					this.updateExtractViews();
+					return;
+				}
+
+				if (!parsed.type) {
+					parsed.type = currentEvent || "message";
+				}
+
+				this.appendExtractLog(parsed);
+
+				if (parsed.type === "result" && parsed.data?.payload) {
+					const payload = parsed.data.payload as {
+						entities: ExtractEntityResult["entities"];
+					};
+					if (this.extractResult) {
+						this.extractResult.entities = payload.entities ?? [];
+						this.extractResult.received_at = new Date().toISOString();
+					}
+					this.extractStatus = "done";
+					const foundCount = this.extractResult?.entities.filter(
+						(entity) => entity.found
+					).length;
+					new Notice(
+						`Extraction complete: ${foundCount ?? 0}/${this.extractResult?.entities.length ?? 0} matched`,
+						4000
+					);
+				}
+
+				if (parsed.type === "error") {
+					this.extractStatus = "error";
+				}
+
+				this.updateExtractViews();
+			};
+
+			while (true) {
+				const { value, done } = await reader.read();
+				if (done) break;
+				buffer += decoder.decode(value, { stream: true });
+
+				let lineEnd = buffer.indexOf("\n");
+				while (lineEnd !== -1) {
+					const line = buffer.slice(0, lineEnd).replace(/\r$/, "");
+					buffer = buffer.slice(lineEnd + 1);
+					lineEnd = buffer.indexOf("\n");
+
+					if (!line) {
+						flushEvent();
+						currentEvent = "message";
+						continue;
+					}
+
+					if (line.startsWith("event:")) {
+						currentEvent = line.replace("event:", "").trim();
+						continue;
+					}
+
+					if (line.startsWith("data:")) {
+						dataLines.push(line.replace("data:", "").trim());
+					}
+				}
+			}
+
+			this.extractAbortController = null;
+			if (this.extractStatus === "running") {
+				this.extractStatus = "done";
+			}
+		} catch (err) {
+			if (err instanceof DOMException && err.name === "AbortError") {
+				return;
+			}
+			const errorMessage =
+				err instanceof Error ? err.message : "Failed to extract entities";
+			this.extractStatus = "error";
+			this.appendExtractLog({
+				type: "error",
+				message: errorMessage,
+			});
+			new Notice(`Error: ${errorMessage}`, 5000);
+			this.updateExtractViews();
 		}
 	}
 

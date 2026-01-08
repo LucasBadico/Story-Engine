@@ -67,6 +67,23 @@ export interface ExtractEntityResult {
 	received_at: string;
 }
 
+export interface ExtractStreamEvent {
+	type: string;
+	phase?: string;
+	message: string;
+	data?: Record<string, any>;
+	timestamp?: string;
+}
+
+export interface ExtractLogEntry {
+	id: string;
+	eventType: string;
+	phase?: string;
+	message: string;
+	data?: Record<string, any>;
+	timestamp: string;
+}
+
 export interface Tenant {
 	id: string;
 	name: string;

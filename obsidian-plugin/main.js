@@ -14780,7 +14780,11 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.result = null;
+    this.logs = [];
+    this.status = "idle";
     this.plugin = plugin;
+    this.logs = plugin.extractLogs;
+    this.status = plugin.extractStatus;
   }
   getViewType() {
     return STORY_ENGINE_EXTRACT_VIEW_TYPE;
@@ -14797,53 +14801,43 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
     container.addClass("story-engine-extract-container");
     this.contentRoot = container;
     this.setResult(this.plugin.extractResult);
+    this.setLogs(this.plugin.extractLogs, this.plugin.extractStatus);
   }
   setResult(result) {
     this.result = result;
+    this.render();
+  }
+  setLogs(logs, status) {
+    this.logs = logs;
+    this.status = status;
     this.render();
   }
   render() {
     if (!this.contentRoot)
       return;
     this.contentRoot.empty();
-    if (!this.result) {
-      const header2 = this.contentRoot.createDiv({
-        cls: "story-engine-extract-header"
-      });
-      header2.createEl("h2", { text: "Extract" });
-      const headerActions2 = header2.createDiv({
-        cls: "story-engine-extract-header-actions"
-      });
-      const backButton2 = headerActions2.createEl("button", {
-        text: "Back to Stories",
-        cls: "story-engine-extract-back"
-      });
-      backButton2.onclick = () => {
-        this.plugin.activateView();
-      };
-      this.contentRoot.createEl("p", {
-        text: "No extraction results yet.",
-        cls: "story-engine-extract-empty"
-      });
-      return;
-    }
     const header = this.contentRoot.createDiv({
       cls: "story-engine-extract-header"
     });
-    header.createEl("h2", { text: "Extract Results" });
+    header.createEl("h2", { text: "Extract" });
     const headerMeta = header.createDiv({
       cls: "story-engine-extract-meta"
     });
-    const foundCount = this.result.entities.filter((entity) => entity.found).length;
     headerMeta.createEl("div", {
-      text: `Entities: ${this.result.entities.length}`
+      text: `Status: ${this.status}`
     });
-    headerMeta.createEl("div", {
-      text: `Found: ${foundCount}`
-    });
-    headerMeta.createEl("div", {
-      text: `Text length: ${this.result.text.length}`
-    });
+    if (this.result) {
+      const foundCount = this.result.entities.filter((entity) => entity.found).length;
+      headerMeta.createEl("div", {
+        text: `Entities: ${this.result.entities.length}`
+      });
+      headerMeta.createEl("div", {
+        text: `Found: ${foundCount}`
+      });
+      headerMeta.createEl("div", {
+        text: `Text length: ${this.result.text.length}`
+      });
+    }
     const headerActions = header.createDiv({
       cls: "story-engine-extract-header-actions"
     });
@@ -14854,6 +14848,23 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
     backButton.onclick = () => {
       this.plugin.activateView();
     };
+    if (this.status === "running") {
+      const cancelButton = headerActions.createEl("button", {
+        text: "Cancel",
+        cls: "story-engine-extract-cancel"
+      });
+      cancelButton.onclick = () => {
+        this.plugin.cancelExtractStream();
+      };
+    }
+    if (!this.result) {
+      this.renderLogs();
+      this.contentRoot.createEl("p", {
+        text: "No extraction results yet.",
+        cls: "story-engine-extract-empty"
+      });
+      return;
+    }
     const queryBlock = this.contentRoot.createDiv({
       cls: "story-engine-extract-query"
     });
@@ -14865,6 +14876,7 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
       text: this.result.text,
       cls: "story-engine-extract-query-text"
     });
+    this.renderLogs();
     const actions = this.contentRoot.createDiv({
       cls: "story-engine-extract-actions"
     });
@@ -14889,6 +14901,44 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
     }
     this.result.entities.forEach((entity, index) => {
       this.renderEntity(list, entity, index);
+    });
+  }
+  renderLogs() {
+    const logBlock = this.contentRoot.createDiv({
+      cls: "story-engine-extract-logs"
+    });
+    logBlock.createEl("div", {
+      text: "Progress",
+      cls: "story-engine-extract-label"
+    });
+    if (!this.logs.length) {
+      logBlock.createEl("p", {
+        text: "No events yet.",
+        cls: "story-engine-extract-empty"
+      });
+      return;
+    }
+    const list = logBlock.createDiv({ cls: "story-engine-extract-log-list" });
+    this.logs.forEach((entry) => {
+      const item = list.createDiv({ cls: "story-engine-extract-log-item" });
+      item.createDiv({
+        text: entry.timestamp,
+        cls: "story-engine-extract-log-time"
+      });
+      item.createDiv({
+        text: entry.phase ? `${entry.phase} \xB7 ${entry.eventType}` : entry.eventType,
+        cls: "story-engine-extract-log-type"
+      });
+      item.createDiv({
+        text: entry.message,
+        cls: "story-engine-extract-log-message"
+      });
+      if (entry.data && Object.keys(entry.data).length) {
+        item.createEl("pre", {
+          text: JSON.stringify(entry.data, null, 2),
+          cls: "story-engine-extract-log-data"
+        });
+      }
     });
   }
   renderEntity(container, entity, index) {
@@ -15007,6 +15057,14 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
         createdId = created.id;
         break;
       }
+      case "event": {
+        const created = await this.plugin.apiClient.createEvent(
+          this.result.world_id,
+          { name: entity.name, description }
+        );
+        createdId = created.id;
+        break;
+      }
       default:
         new import_obsidian16.Notice(`Unsupported type: ${entity.type}`, 4e3);
         return;
@@ -15054,6 +15112,12 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
           description
         });
         break;
+      case "event":
+        await this.plugin.apiClient.updateEvent(entity.match.source_id, {
+          name: entity.name,
+          description
+        });
+        break;
       default:
         new import_obsidian16.Notice(`Unsupported type: ${entity.type}`, 4e3);
         return;
@@ -15080,6 +15144,9 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
   constructor() {
     super(...arguments);
     this.extractResult = null;
+    this.extractLogs = [];
+    this.extractStatus = "idle";
+    this.extractAbortController = null;
   }
   async onload() {
     await this.loadSettings();
@@ -15255,7 +15322,7 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
     return (_a = story.world_id) != null ? _a : null;
   }
   async extractSelectionCommand(selection2) {
-    var _a, _b, _c, _d;
+    var _a, _b, _c;
     const trimmedSelection = selection2.trim();
     if (!trimmedSelection) {
       new import_obsidian17.Notice("Select text to extract entities", 3e3);
@@ -15290,61 +15357,23 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
       );
       return;
     }
+    this.resetExtractState(trimmedSelection, worldId);
+    await this.activateView();
+    await this.activateExtractView();
+    this.updateExtractViews();
     try {
       if ((_c = navigator == null ? void 0 : navigator.clipboard) == null ? void 0 : _c.writeText) {
         await navigator.clipboard.writeText(trimmedSelection);
       }
     } catch (e) {
     }
-    new import_obsidian17.Notice("Sending text to extraction...", 3e3);
-    try {
-      const response = await fetch(
-        `${gatewayUrl.replace(/\/$/, "")}/api/v1/entity-extract`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Tenant-ID": tenantId,
-            ...this.settings.apiKey ? { Authorization: `Bearer ${this.settings.apiKey}` } : {}
-          },
-          body: JSON.stringify({
-            text: trimmedSelection,
-            world_id: worldId
-          })
-        }
-      );
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
-        try {
-          const errorBody = await response.json();
-          if (errorBody == null ? void 0 : errorBody.error) {
-            errorMessage = errorBody.error;
-          }
-        } catch (e) {
-        }
-        throw new Error(errorMessage);
-      }
-      const payload = await response.json();
-      this.extractResult = {
-        text: trimmedSelection,
-        world_id: worldId,
-        entities: (_d = payload.entities) != null ? _d : [],
-        received_at: (/* @__PURE__ */ new Date()).toISOString()
-      };
-      await this.activateView();
-      await this.activateExtractView();
-      this.updateExtractViews();
-      const foundCount = this.extractResult.entities.filter(
-        (entity) => entity.found
-      ).length;
-      new import_obsidian17.Notice(
-        `Extraction complete: ${foundCount}/${this.extractResult.entities.length} matched`,
-        4e3
-      );
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Failed to extract entities";
-      new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
-    }
+    new import_obsidian17.Notice("Starting extraction stream...", 3e3);
+    await this.startExtractStream({
+      tenantId,
+      gatewayUrl,
+      worldId,
+      text: trimmedSelection
+    });
   }
   updateExtractViews() {
     const listLeaf = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
@@ -15358,6 +15387,172 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
     if (extractLeaf) {
       const view = extractLeaf.view;
       view.setResult(this.extractResult);
+      view.setLogs(this.extractLogs, this.extractStatus);
+    }
+  }
+  resetExtractState(text, worldId) {
+    this.cancelExtractStream();
+    this.extractResult = {
+      text,
+      world_id: worldId,
+      entities: [],
+      received_at: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    this.extractLogs = [];
+    this.extractStatus = "running";
+  }
+  cancelExtractStream() {
+    if (this.extractAbortController) {
+      this.extractAbortController.abort();
+      this.extractAbortController = null;
+      this.extractStatus = "canceled";
+      this.appendExtractLog({
+        type: "client.cancel",
+        message: "Extraction canceled by user."
+      });
+      this.updateExtractViews();
+    }
+  }
+  appendExtractLog(event) {
+    const timestamp = event.timestamp ? new Date(event.timestamp).toISOString() : (/* @__PURE__ */ new Date()).toISOString();
+    this.extractLogs.push({
+      id: `${timestamp}-${this.extractLogs.length}`,
+      eventType: event.type,
+      phase: event.phase,
+      message: event.message,
+      data: event.data,
+      timestamp
+    });
+  }
+  async startExtractStream(params) {
+    const { tenantId, gatewayUrl, worldId, text } = params;
+    const controller = new AbortController();
+    this.extractAbortController = controller;
+    this.appendExtractLog({
+      type: "client.start",
+      message: "Opening extraction stream."
+    });
+    this.updateExtractViews();
+    try {
+      const response = await fetch(
+        `${gatewayUrl.replace(/\/$/, "")}/api/v1/entity-extract/stream`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Tenant-ID": tenantId,
+            ...this.settings.apiKey ? { Authorization: `Bearer ${this.settings.apiKey}` } : {}
+          },
+          body: JSON.stringify({
+            text,
+            world_id: worldId
+          }),
+          signal: controller.signal
+        }
+      );
+      if (!response.ok) {
+        let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+        try {
+          const errorBody = await response.json();
+          if (errorBody == null ? void 0 : errorBody.error) {
+            errorMessage = errorBody.error;
+          }
+        } catch (e) {
+        }
+        throw new Error(errorMessage);
+      }
+      if (!response.body) {
+        throw new Error("No response stream available.");
+      }
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8");
+      let buffer = "";
+      let currentEvent = "message";
+      let dataLines = [];
+      const flushEvent = () => {
+        var _a, _b, _c, _d, _e;
+        if (!dataLines.length)
+          return;
+        const rawData = dataLines.join("\n").trim();
+        dataLines = [];
+        if (!rawData)
+          return;
+        let parsed = null;
+        try {
+          parsed = JSON.parse(rawData);
+        } catch (e) {
+          this.appendExtractLog({
+            type: "parse.error",
+            message: "Failed to parse stream event payload.",
+            data: { raw: rawData, event: currentEvent }
+          });
+          this.updateExtractViews();
+          return;
+        }
+        if (!parsed.type) {
+          parsed.type = currentEvent || "message";
+        }
+        this.appendExtractLog(parsed);
+        if (parsed.type === "result" && ((_a = parsed.data) == null ? void 0 : _a.payload)) {
+          const payload = parsed.data.payload;
+          if (this.extractResult) {
+            this.extractResult.entities = (_b = payload.entities) != null ? _b : [];
+            this.extractResult.received_at = (/* @__PURE__ */ new Date()).toISOString();
+          }
+          this.extractStatus = "done";
+          const foundCount = (_c = this.extractResult) == null ? void 0 : _c.entities.filter(
+            (entity) => entity.found
+          ).length;
+          new import_obsidian17.Notice(
+            `Extraction complete: ${foundCount != null ? foundCount : 0}/${(_e = (_d = this.extractResult) == null ? void 0 : _d.entities.length) != null ? _e : 0} matched`,
+            4e3
+          );
+        }
+        if (parsed.type === "error") {
+          this.extractStatus = "error";
+        }
+        this.updateExtractViews();
+      };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done)
+          break;
+        buffer += decoder.decode(value, { stream: true });
+        let lineEnd = buffer.indexOf("\n");
+        while (lineEnd !== -1) {
+          const line = buffer.slice(0, lineEnd).replace(/\r$/, "");
+          buffer = buffer.slice(lineEnd + 1);
+          lineEnd = buffer.indexOf("\n");
+          if (!line) {
+            flushEvent();
+            currentEvent = "message";
+            continue;
+          }
+          if (line.startsWith("event:")) {
+            currentEvent = line.replace("event:", "").trim();
+            continue;
+          }
+          if (line.startsWith("data:")) {
+            dataLines.push(line.replace("data:", "").trim());
+          }
+        }
+      }
+      this.extractAbortController = null;
+      if (this.extractStatus === "running") {
+        this.extractStatus = "done";
+      }
+    } catch (err) {
+      if (err instanceof DOMException && err.name === "AbortError") {
+        return;
+      }
+      const errorMessage = err instanceof Error ? err.message : "Failed to extract entities";
+      this.extractStatus = "error";
+      this.appendExtractLog({
+        type: "error",
+        message: errorMessage
+      });
+      new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
+      this.updateExtractViews();
     }
   }
   openSettings() {

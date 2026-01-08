@@ -12,10 +12,14 @@ export class StoryEngineExtractView extends ItemView {
 	plugin: StoryEnginePlugin;
 	private result: ExtractEntityResult | null = null;
 	private contentRoot!: HTMLElement;
+	private logs = [] as StoryEnginePlugin["extractLogs"];
+	private status: StoryEnginePlugin["extractStatus"] = "idle";
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
 		super(leaf);
 		this.plugin = plugin;
+		this.logs = plugin.extractLogs;
+		this.status = plugin.extractStatus;
 	}
 
 	getViewType(): string {
@@ -36,6 +40,7 @@ export class StoryEngineExtractView extends ItemView {
 		container.addClass("story-engine-extract-container");
 		this.contentRoot = container;
 		this.setResult(this.plugin.extractResult);
+		this.setLogs(this.plugin.extractLogs, this.plugin.extractStatus);
 	}
 
 	setResult(result: ExtractEntityResult | null) {
@@ -43,53 +48,40 @@ export class StoryEngineExtractView extends ItemView {
 		this.render();
 	}
 
+	setLogs(logs: typeof this.logs, status: typeof this.status) {
+		this.logs = logs;
+		this.status = status;
+		this.render();
+	}
+
 	private render() {
 		if (!this.contentRoot) return;
 		this.contentRoot.empty();
 
-		if (!this.result) {
-			const header = this.contentRoot.createDiv({
-				cls: "story-engine-extract-header",
-			});
-			header.createEl("h2", { text: "Extract" });
-
-			const headerActions = header.createDiv({
-				cls: "story-engine-extract-header-actions",
-			});
-			const backButton = headerActions.createEl("button", {
-				text: "Back to Stories",
-				cls: "story-engine-extract-back",
-			});
-			backButton.onclick = () => {
-				this.plugin.activateView();
-			};
-
-			this.contentRoot.createEl("p", {
-				text: "No extraction results yet.",
-				cls: "story-engine-extract-empty",
-			});
-			return;
-		}
-
 		const header = this.contentRoot.createDiv({
 			cls: "story-engine-extract-header",
 		});
-		header.createEl("h2", { text: "Extract Results" });
+		header.createEl("h2", { text: "Extract" });
 
 		const headerMeta = header.createDiv({
 			cls: "story-engine-extract-meta",
 		});
-		const foundCount = this.result.entities.filter((entity) => entity.found)
-			.length;
 		headerMeta.createEl("div", {
-			text: `Entities: ${this.result.entities.length}`,
+			text: `Status: ${this.status}`,
 		});
-		headerMeta.createEl("div", {
-			text: `Found: ${foundCount}`,
-		});
-		headerMeta.createEl("div", {
-			text: `Text length: ${this.result.text.length}`,
-		});
+		if (this.result) {
+			const foundCount = this.result.entities.filter((entity) => entity.found)
+				.length;
+			headerMeta.createEl("div", {
+				text: `Entities: ${this.result.entities.length}`,
+			});
+			headerMeta.createEl("div", {
+				text: `Found: ${foundCount}`,
+			});
+			headerMeta.createEl("div", {
+				text: `Text length: ${this.result.text.length}`,
+			});
+		}
 
 		const headerActions = header.createDiv({
 			cls: "story-engine-extract-header-actions",
@@ -101,6 +93,24 @@ export class StoryEngineExtractView extends ItemView {
 		backButton.onclick = () => {
 			this.plugin.activateView();
 		};
+		if (this.status === "running") {
+			const cancelButton = headerActions.createEl("button", {
+				text: "Cancel",
+				cls: "story-engine-extract-cancel",
+			});
+			cancelButton.onclick = () => {
+				this.plugin.cancelExtractStream();
+			};
+		}
+
+		if (!this.result) {
+			this.renderLogs();
+			this.contentRoot.createEl("p", {
+				text: "No extraction results yet.",
+				cls: "story-engine-extract-empty",
+			});
+			return;
+		}
 
 		const queryBlock = this.contentRoot.createDiv({
 			cls: "story-engine-extract-query",
@@ -113,6 +123,8 @@ export class StoryEngineExtractView extends ItemView {
 			text: this.result.text,
 			cls: "story-engine-extract-query-text",
 		});
+
+		this.renderLogs();
 
 		const actions = this.contentRoot.createDiv({
 			cls: "story-engine-extract-actions",
@@ -141,6 +153,47 @@ export class StoryEngineExtractView extends ItemView {
 
 		this.result.entities.forEach((entity, index) => {
 			this.renderEntity(list, entity, index);
+		});
+	}
+
+	private renderLogs() {
+		const logBlock = this.contentRoot.createDiv({
+			cls: "story-engine-extract-logs",
+		});
+		logBlock.createEl("div", {
+			text: "Progress",
+			cls: "story-engine-extract-label",
+		});
+
+		if (!this.logs.length) {
+			logBlock.createEl("p", {
+				text: "No events yet.",
+				cls: "story-engine-extract-empty",
+			});
+			return;
+		}
+
+		const list = logBlock.createDiv({ cls: "story-engine-extract-log-list" });
+		this.logs.forEach((entry) => {
+			const item = list.createDiv({ cls: "story-engine-extract-log-item" });
+			item.createDiv({
+				text: entry.timestamp,
+				cls: "story-engine-extract-log-time",
+			});
+			item.createDiv({
+				text: entry.phase ? `${entry.phase} · ${entry.eventType}` : entry.eventType,
+				cls: "story-engine-extract-log-type",
+			});
+			item.createDiv({
+				text: entry.message,
+				cls: "story-engine-extract-log-message",
+			});
+			if (entry.data && Object.keys(entry.data).length) {
+				item.createEl("pre", {
+					text: JSON.stringify(entry.data, null, 2),
+					cls: "story-engine-extract-log-data",
+				});
+			}
 		});
 	}
 
@@ -270,6 +323,14 @@ export class StoryEngineExtractView extends ItemView {
 				createdId = created.id;
 				break;
 			}
+			case "event": {
+				const created = await this.plugin.apiClient.createEvent(
+					this.result.world_id,
+					{ name: entity.name, description }
+				);
+				createdId = created.id;
+				break;
+			}
 			default:
 				new Notice(`Unsupported type: ${entity.type}`, 4000);
 				return;
@@ -315,6 +376,12 @@ export class StoryEngineExtractView extends ItemView {
 				break;
 			case "faction":
 				await this.plugin.apiClient.updateFaction(entity.match.source_id, {
+					name: entity.name,
+					description,
+				});
+				break;
+			case "event":
+				await this.plugin.apiClient.updateEvent(entity.match.source_id, {
 					name: entity.name,
 					description,
 				});

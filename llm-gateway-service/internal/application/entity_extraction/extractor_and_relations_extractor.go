@@ -45,6 +45,7 @@ type EntityAndRelationshipsExtractorInput struct {
 	MaxCandidatesPerChunk int
 	MinSimilarity         float64
 	MaxMatchCandidates    int
+	EventLogger           ExtractionEventLogger
 }
 
 type EntityAndRelationshipsExtractorOutput struct {
@@ -65,6 +66,17 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 	if u.router == nil || u.extractor == nil || u.matcher == nil || u.payload == nil {
 		return EntityAndRelationshipsExtractorOutput{}, errors.New("router, extractor, matcher, and payload are required")
 	}
+
+	eventLogger := normalizeEventLogger(input.EventLogger)
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "pipeline.start",
+		Message: "entity extraction started",
+		Data: map[string]interface{}{
+			"tenant_id": uuidString(input.TenantID),
+			"world_id":  uuidString(input.WorldID),
+			"text_len":  len(text),
+		},
+	})
 
 	entityTypes := input.EntityTypes
 	if len(entityTypes) == 0 {
@@ -97,6 +109,17 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 				continue
 			}
 
+			emitEvent(ctx, eventLogger, ExtractionEvent{
+				Type:    "router.chunk",
+				Phase:   "router",
+				Message: "router types identified",
+				Data: map[string]interface{}{
+					"paragraph_id": paragraph.ParagraphID,
+					"chunk_id":     chunk.ChunkID,
+					"types":        types,
+				},
+			})
+
 			routedChunks = append(routedChunks, Phase2RoutedChunk{
 				ParagraphID: paragraph.ParagraphID,
 				ChunkID:     chunk.ChunkID,
@@ -109,18 +132,50 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 	}
 
 	if len(routedChunks) == 0 {
+		emitEvent(ctx, eventLogger, ExtractionEvent{
+			Type:    "pipeline.done",
+			Message: "no routed chunks to extract",
+			Data: map[string]interface{}{
+				"entities": 0,
+			},
+		})
 		return EntityAndRelationshipsExtractorOutput{Payload: PhaseTempPayload{Entities: []PhaseTempEntity{}}}, nil
 	}
 
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.start",
+		Phase:   "extractor",
+		Message: "extractor started",
+		Data: map[string]interface{}{
+			"chunks": len(routedChunks),
+		},
+	})
 	phase2Output, err := u.extractor.Execute(ctx, Phase2EntryInput{
 		Context:               input.Context,
 		MaxCandidatesPerChunk: input.MaxCandidatesPerChunk,
 		Chunks:                routedChunks,
+		EventLogger:           eventLogger,
 	})
 	if err != nil {
 		return EntityAndRelationshipsExtractorOutput{}, err
 	}
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.done",
+		Phase:   "extractor",
+		Message: "extractor finished",
+		Data: map[string]interface{}{
+			"findings": len(phase2Output.Findings),
+		},
+	})
 
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.start",
+		Phase:   "matcher",
+		Message: "matcher started",
+		Data: map[string]interface{}{
+			"findings": len(phase2Output.Findings),
+		},
+	})
 	phase3Output, err := u.matcher.Execute(ctx, Phase3MatchInput{
 		TenantID:      input.TenantID,
 		WorldID:       &input.WorldID,
@@ -128,14 +183,35 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 		Context:       input.Context,
 		MinSimilarity: input.MinSimilarity,
 		MaxCandidates: input.MaxMatchCandidates,
+		EventLogger:   eventLogger,
 	})
 	if err != nil {
 		return EntityAndRelationshipsExtractorOutput{}, err
 	}
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.done",
+		Phase:   "matcher",
+		Message: "matcher finished",
+		Data: map[string]interface{}{
+			"results": len(phase3Output.Results),
+		},
+	})
 
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.start",
+		Phase:   "payload",
+		Message: "payload formatting started",
+	})
 	return EntityAndRelationshipsExtractorOutput{
 		Payload: u.payload.Execute(phase3Output),
 	}, nil
+}
+
+func uuidString(id uuid.UUID) string {
+	if id == uuid.Nil {
+		return ""
+	}
+	return id.String()
 }
 
 func (u *EntityAndRelationshipsExtractor) routeChunkTypes(

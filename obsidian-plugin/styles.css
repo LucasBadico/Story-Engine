@@ -228,6 +228,15 @@
 	background: var(--background-primary);
 }
 
+.story-engine-extract-cancel {
+	font-size: 0.75rem;
+	padding: 0.25rem 0.5rem;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: rgba(180, 60, 60, 0.2);
+	color: #f2a3a3;
+}
+
 .story-engine-extract-query {
 	padding: 0.75rem;
 	border-radius: 6px;
@@ -266,6 +275,57 @@
 	display: flex;
 	flex-direction: column;
 	gap: 0.75rem;
+}
+
+.story-engine-extract-logs {
+	padding: 0.75rem;
+	border-radius: 6px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-secondary);
+}
+
+.story-engine-extract-log-list {
+	display: flex;
+	flex-direction: column;
+	gap: 0.5rem;
+	max-height: 220px;
+	overflow: auto;
+}
+
+.story-engine-extract-log-item {
+	padding: 0.5rem;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-primary);
+	display: flex;
+	flex-direction: column;
+	gap: 0.25rem;
+}
+
+.story-engine-extract-log-time {
+	font-size: 0.7rem;
+	color: var(--text-faint);
+}
+
+.story-engine-extract-log-type {
+	font-size: 0.75rem;
+	color: var(--text-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.03em;
+}
+
+.story-engine-extract-log-message {
+	font-size: 0.85rem;
+	color: var(--text-normal);
+}
+
+.story-engine-extract-log-data {
+	font-size: 0.7rem;
+	color: var(--text-faint);
+	background: var(--background-secondary);
+	border-radius: 4px;
+	padding: 0.35rem 0.5rem;
+	white-space: pre-wrap;
 }
 
 .story-engine-extract-item {

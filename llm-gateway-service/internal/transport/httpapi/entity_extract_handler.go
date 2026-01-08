@@ -1,10 +1,13 @@
 package httpapi
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
@@ -50,29 +53,9 @@ type entityExtractEntity struct {
 }
 
 func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
-	tenantID, err := extractTenantID(r)
+	tenantID, worldID, req, err := decodeEntityExtractRequest(r)
 	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	var req entityExtractRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		writeError(w, http.StatusBadRequest, "invalid JSON body")
-		return
-	}
-
-	if req.Text == "" {
-		writeError(w, http.StatusBadRequest, "text is required")
-		return
-	}
-	if req.WorldID == "" {
-		writeError(w, http.StatusBadRequest, "world_id is required")
-		return
-	}
-	worldID, err := uuid.Parse(req.WorldID)
-	if err != nil {
-		writeError(w, http.StatusBadRequest, "world_id must be a valid UUID")
 		return
 	}
 
@@ -144,6 +127,76 @@ func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, resp)
 }
 
+func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Request) {
+	tenantID, worldID, req, err := decodeEntityExtractRequest(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		writeError(w, http.StatusInternalServerError, "streaming unsupported")
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	eventLogger := &sseEventLogger{
+		writer:  w,
+		flusher: flusher,
+	}
+
+	emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
+		Type:    "request.received",
+		Message: "request received",
+		Data: map[string]interface{}{
+			"tenant_id": tenantID.String(),
+			"world_id":  worldID.String(),
+			"text_len":  len(req.Text),
+		},
+		Timestamp: time.Now().UTC(),
+	})
+
+	output, err := h.useCase.Execute(r.Context(), entity_extraction.EntityAndRelationshipsExtractorInput{
+		TenantID:              tenantID,
+		WorldID:               worldID,
+		Text:                  req.Text,
+		Context:               req.Context,
+		EntityTypes:           req.EntityTypes,
+		MaxChunkChars:         req.MaxChunkChars,
+		OverlapChars:          req.OverlapChars,
+		MaxTypeCandidates:     req.MaxTypeCandidates,
+		MaxCandidatesPerChunk: req.MaxCandidatesPerChunk,
+		MinSimilarity:         req.MinSimilarity,
+		MaxMatchCandidates:    req.MaxMatchCandidates,
+		EventLogger:           eventLogger,
+	})
+	if err != nil {
+		emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
+			Type:    "error",
+			Message: "entity extraction failed",
+			Data: map[string]interface{}{
+				"error": err.Error(),
+			},
+			Timestamp: time.Now().UTC(),
+		})
+		return
+	}
+
+	emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
+		Type:    "result",
+		Message: "entity extraction completed",
+		Data: map[string]interface{}{
+			"payload": output.Payload,
+		},
+		Timestamp: time.Now().UTC(),
+	})
+}
+
 func formatLogBlock(title string, lines []string) string {
 	var builder strings.Builder
 	builder.WriteString("====\n")
@@ -157,4 +210,61 @@ func formatLogBlock(title string, lines []string) string {
 	}
 	builder.WriteString("\n====")
 	return builder.String()
+}
+
+func decodeEntityExtractRequest(r *http.Request) (uuid.UUID, uuid.UUID, entityExtractRequest, error) {
+	tenantID, err := extractTenantID(r)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, entityExtractRequest{}, err
+	}
+
+	var req entityExtractRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return uuid.Nil, uuid.Nil, entityExtractRequest{}, fmt.Errorf("invalid JSON body")
+	}
+
+	if req.Text == "" {
+		return uuid.Nil, uuid.Nil, entityExtractRequest{}, fmt.Errorf("text is required")
+	}
+	if req.WorldID == "" {
+		return uuid.Nil, uuid.Nil, entityExtractRequest{}, fmt.Errorf("world_id is required")
+	}
+	worldID, err := uuid.Parse(req.WorldID)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, entityExtractRequest{}, fmt.Errorf("world_id must be a valid UUID")
+	}
+
+	return tenantID, worldID, req, nil
+}
+
+type sseEventLogger struct {
+	writer  http.ResponseWriter
+	flusher http.Flusher
+	mu      sync.Mutex
+}
+
+func (l *sseEventLogger) Emit(ctx context.Context, event entity_extraction.ExtractionEvent) {
+	if ctx.Err() != nil {
+		return
+	}
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return
+	}
+
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	fmt.Fprintf(l.writer, "event: %s\n", event.Type)
+	fmt.Fprintf(l.writer, "data: %s\n\n", payload)
+	l.flusher.Flush()
+}
+
+func emitEvent(ctx context.Context, logger entity_extraction.ExtractionEventLogger, event entity_extraction.ExtractionEvent) {
+	if logger == nil {
+		return
+	}
+	if event.Timestamp.IsZero() {
+		event.Timestamp = time.Now().UTC()
+	}
+	logger.Emit(ctx, event)
 }

@@ -111,6 +111,7 @@ func main() {
 	mux.HandleFunc("/health", httpapi.Health)
 	mux.HandleFunc("/api/v1/search", searchHandler.Search)
 	mux.HandleFunc("/api/v1/entity-extract", entityExtractHandler.Extract)
+	mux.HandleFunc("/api/v1/entity-extract/stream", entityExtractHandler.ExtractStream)
 
 	handler := middleware.Chain(
 		mux,

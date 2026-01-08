@@ -3,6 +3,7 @@ package entity_extraction
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"sync"
 
@@ -38,6 +39,7 @@ type Phase2EntryInput struct {
 	Context               string
 	MaxCandidatesPerChunk int
 	Chunks                []Phase2RoutedChunk
+	EventLogger           ExtractionEventLogger
 }
 
 type Phase2RoutedChunk struct {
@@ -77,6 +79,8 @@ func (u *Phase2EntryUseCase) Execute(ctx context.Context, input Phase2EntryInput
 	if maxCandidates <= 0 {
 		maxCandidates = 5
 	}
+
+	eventLogger := normalizeEventLogger(input.EventLogger)
 
 	findingsByType := map[string]map[string]*Phase2EntityFinding{}
 
@@ -129,6 +133,20 @@ func (u *Phase2EntryUseCase) Execute(ctx context.Context, input Phase2EntryInput
 			for _, candidate := range output.Candidates {
 				start := candidate.StartOffset + chunk.StartOffset
 				end := candidate.EndOffset + chunk.StartOffset
+
+				emitEvent(ctx, eventLogger, ExtractionEvent{
+					Type:    "extract.candidate",
+					Phase:   "extractor",
+					Message: fmt.Sprintf("candidate found (%s): %s", output.EntityType, candidate.Name),
+					Data: map[string]interface{}{
+						"entity_type": output.EntityType,
+						"name":        candidate.Name,
+						"evidence":    candidate.Evidence,
+						"summary":     candidate.Summary,
+						"paragraph":   chunk.ParagraphID,
+						"chunk":       chunk.ChunkID,
+					},
+				})
 
 				u.mergeFinding(ctx, findingsByType, output.EntityType, candidate.Name, Phase2EntityOccurrence{
 					ParagraphID: chunk.ParagraphID,

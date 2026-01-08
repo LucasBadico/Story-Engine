@@ -51,6 +51,7 @@ type Phase3MatchInput struct {
 	Context       string
 	MinSimilarity float64
 	MaxCandidates int
+	EventLogger   ExtractionEventLogger
 }
 
 type Phase3MatchOutput struct {
@@ -255,6 +256,33 @@ func (u *Phase3MatchUseCase) matchFinding(
 	match := (*Phase3ConfirmedMatch)(nil)
 	if len(candidates) > 0 {
 		match = u.confirmMatch(ctx, finding, candidates, input.Context)
+	}
+
+	eventLogger := normalizeEventLogger(input.EventLogger)
+	if match == nil {
+		emitEvent(ctx, eventLogger, ExtractionEvent{
+			Type:    "match.none",
+			Phase:   "matcher",
+			Message: fmt.Sprintf("no match for %s: %s", finding.EntityType, finding.Name),
+			Data: map[string]interface{}{
+				"entity_type": finding.EntityType,
+				"name":        finding.Name,
+				"candidates":  len(candidates),
+			},
+		})
+	} else {
+		emitEvent(ctx, eventLogger, ExtractionEvent{
+			Type:    "match.found",
+			Phase:   "matcher",
+			Message: fmt.Sprintf("match for %s: %s", finding.EntityType, finding.Name),
+			Data: map[string]interface{}{
+				"entity_type": finding.EntityType,
+				"name":        finding.Name,
+				"source_type": match.Candidate.SourceType,
+				"source_id":   match.Candidate.SourceID.String(),
+				"similarity":  match.Candidate.Similarity,
+			},
+		})
 	}
 
 	return Phase3MatchResult{
