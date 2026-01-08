@@ -8,13 +8,13 @@ import (
 
 // Chunk represents an embedding chunk
 type Chunk struct {
-	ID          uuid.UUID
-	DocumentID  uuid.UUID
-	ChunkIndex  int
-	Content     string
-	Embedding   []float32 // Vector embedding
-	TokenCount  int
-	CreatedAt   time.Time
+	ID         uuid.UUID
+	DocumentID uuid.UUID
+	ChunkIndex int
+	Content    string
+	Embedding  []float32 // Vector embedding
+	TokenCount int
+	CreatedAt  time.Time
 
 	// Metadados estruturais
 	SceneID    *uuid.UUID `json:"scene_id,omitempty"`
@@ -33,6 +33,10 @@ type Chunk struct {
 	ContentType *string `json:"content_type,omitempty"` // text, image, video, etc.
 	ContentKind *string `json:"content_kind,omitempty"` // final, alt_a, draft, etc.
 
+	// Summary metadata
+	ChunkType *string `json:"chunk_type,omitempty"` // raw, summary, relations
+	EmbedText *string `json:"embed_text,omitempty"`
+
 	// World entity metadata
 	WorldID       *uuid.UUID `json:"world_id,omitempty"`
 	WorldName     *string    `json:"world_name,omitempty"`
@@ -50,6 +54,7 @@ type Chunk struct {
 
 // NewChunk creates a new chunk
 func NewChunk(documentID uuid.UUID, chunkIndex int, content string, embedding []float32, tokenCount int) *Chunk {
+	chunkType := "raw"
 	return &Chunk{
 		ID:         uuid.New(),
 		DocumentID: documentID,
@@ -58,6 +63,7 @@ func NewChunk(documentID uuid.UUID, chunkIndex int, content string, embedding []
 		Embedding:  embedding,
 		TokenCount: tokenCount,
 		CreatedAt:  time.Now(),
+		ChunkType:  &chunkType,
 	}
 }
 
@@ -74,4 +80,3 @@ func (c *Chunk) Validate() error {
 	}
 	return nil
 }
-

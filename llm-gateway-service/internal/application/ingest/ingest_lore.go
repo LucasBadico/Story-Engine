@@ -31,6 +31,7 @@ type IngestLoreUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
+	summaryGenerator  SummaryGenerator
 	logger            *logger.Logger
 }
 
@@ -44,11 +45,16 @@ func NewIngestLoreUseCase(
 ) *IngestLoreUseCase {
 	return &IngestLoreUseCase{
 		mainServiceClient: mainServiceClient,
-		documentRepo:     documentRepo,
-		chunkRepo:        chunkRepo,
-		embedder:         embedder,
-		logger:           logger,
+		documentRepo:      documentRepo,
+		chunkRepo:         chunkRepo,
+		embedder:          embedder,
+		summaryGenerator:  nil,
+		logger:            logger,
 	}
+}
+
+func (uc *IngestLoreUseCase) SetSummaryGenerator(generator SummaryGenerator) {
+	uc.summaryGenerator = generator
 }
 
 // Execute ingests a lore by fetching its content and generating embeddings
@@ -105,6 +111,27 @@ func (uc *IngestLoreUseCase) Execute(ctx context.Context, input IngestLoreInput)
 	chunks, err := uc.chunkAndEmbed(ctx, doc.ID, lore, world, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to chunk and embed: %w", err)
+	}
+	summaryContents := collectSummaryContents(
+		ctx,
+		uc.mainServiceClient,
+		memory.SourceTypeLore,
+		input.LoreID,
+		content,
+		uc.logger,
+	)
+	chunks, err = runIngestPipeline(
+		ctx,
+		uc.logger,
+		uc.embedder,
+		uc.summaryGenerator,
+		string(memory.SourceTypeLore),
+		lore.Name,
+		summaryContents,
+		chunks,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run ingest pipeline: %w", err)
 	}
 
 	// Save chunks
@@ -183,4 +210,3 @@ func (uc *IngestLoreUseCase) chunkAndEmbed(ctx context.Context, documentID uuid.
 
 	return chunks, nil
 }
-

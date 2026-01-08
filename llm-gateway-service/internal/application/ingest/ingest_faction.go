@@ -31,6 +31,7 @@ type IngestFactionUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
+	summaryGenerator  SummaryGenerator
 	logger            *logger.Logger
 }
 
@@ -44,11 +45,16 @@ func NewIngestFactionUseCase(
 ) *IngestFactionUseCase {
 	return &IngestFactionUseCase{
 		mainServiceClient: mainServiceClient,
-		documentRepo:     documentRepo,
-		chunkRepo:        chunkRepo,
-		embedder:         embedder,
-		logger:           logger,
+		documentRepo:      documentRepo,
+		chunkRepo:         chunkRepo,
+		embedder:          embedder,
+		summaryGenerator:  nil,
+		logger:            logger,
 	}
+}
+
+func (uc *IngestFactionUseCase) SetSummaryGenerator(generator SummaryGenerator) {
+	uc.summaryGenerator = generator
 }
 
 // Execute ingests a faction by fetching its content and generating embeddings
@@ -105,6 +111,27 @@ func (uc *IngestFactionUseCase) Execute(ctx context.Context, input IngestFaction
 	chunks, err := uc.chunkAndEmbed(ctx, doc.ID, faction, world, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to chunk and embed: %w", err)
+	}
+	summaryContents := collectSummaryContents(
+		ctx,
+		uc.mainServiceClient,
+		memory.SourceTypeFaction,
+		input.FactionID,
+		content,
+		uc.logger,
+	)
+	chunks, err = runIngestPipeline(
+		ctx,
+		uc.logger,
+		uc.embedder,
+		uc.summaryGenerator,
+		string(memory.SourceTypeFaction),
+		faction.Name,
+		summaryContents,
+		chunks,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run ingest pipeline: %w", err)
 	}
 
 	// Save chunks
@@ -183,4 +210,3 @@ func (uc *IngestFactionUseCase) chunkAndEmbed(ctx context.Context, documentID uu
 
 	return chunks, nil
 }
-

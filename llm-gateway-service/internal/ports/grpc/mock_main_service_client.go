@@ -9,37 +9,37 @@ import (
 
 // MockMainServiceClient is a mock implementation of MainServiceClient for testing
 type MockMainServiceClient struct {
-	stories           map[uuid.UUID]*Story
-	chapters          map[uuid.UUID]*Chapter
-	scenes            map[uuid.UUID]*Scene
-	beats             map[uuid.UUID]*Beat
+	stories          map[uuid.UUID]*Story
+	chapters         map[uuid.UUID]*Chapter
+	scenes           map[uuid.UUID]*Scene
+	beats            map[uuid.UUID]*Beat
 	worlds           map[uuid.UUID]*World
 	factions         map[uuid.UUID]*Faction
 	lores            map[uuid.UUID]*Lore
 	contentBlocks    map[uuid.UUID]*ContentBlock
 	contentBlockRefs map[uuid.UUID][]*ContentBlockReference
 	characters       map[uuid.UUID]*Character
-	
+
 	// Error functions
-	getStoryErr              func(uuid.UUID) error
-	getChapterErr            func(uuid.UUID) error
-	getSceneErr              func(uuid.UUID) error
-	getBeatErr               func(uuid.UUID) error
+	getStoryErr   func(uuid.UUID) error
+	getChapterErr func(uuid.UUID) error
+	getSceneErr   func(uuid.UUID) error
+	getBeatErr    func(uuid.UUID) error
 }
 
 // NewMockMainServiceClient creates a new mock main service client
 func NewMockMainServiceClient() *MockMainServiceClient {
 	return &MockMainServiceClient{
-		stories:                make(map[uuid.UUID]*Story),
-		chapters:               make(map[uuid.UUID]*Chapter),
-		scenes:                  make(map[uuid.UUID]*Scene),
-		beats:                   make(map[uuid.UUID]*Beat),
-		worlds:                  make(map[uuid.UUID]*World),
-		factions:                make(map[uuid.UUID]*Faction),
-		lores:                   make(map[uuid.UUID]*Lore),
-		contentBlocks:           make(map[uuid.UUID]*ContentBlock),
-		contentBlockRefs:        make(map[uuid.UUID][]*ContentBlockReference),
-		characters:              make(map[uuid.UUID]*Character),
+		stories:          make(map[uuid.UUID]*Story),
+		chapters:         make(map[uuid.UUID]*Chapter),
+		scenes:           make(map[uuid.UUID]*Scene),
+		beats:            make(map[uuid.UUID]*Beat),
+		worlds:           make(map[uuid.UUID]*World),
+		factions:         make(map[uuid.UUID]*Faction),
+		lores:            make(map[uuid.UUID]*Lore),
+		contentBlocks:    make(map[uuid.UUID]*ContentBlock),
+		contentBlockRefs: make(map[uuid.UUID][]*ContentBlockReference),
+		characters:       make(map[uuid.UUID]*Character),
 	}
 }
 
@@ -222,6 +222,33 @@ func (m *MockMainServiceClient) ListContentBlockReferences(ctx context.Context, 
 	return refs, nil
 }
 
+func (m *MockMainServiceClient) ListContentBlocksByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*ContentBlock, error) {
+	blocks := []*ContentBlock{}
+	seen := make(map[uuid.UUID]struct{})
+
+	for _, refs := range m.contentBlockRefs {
+		for _, ref := range refs {
+			if ref == nil {
+				continue
+			}
+			if ref.EntityType != entityType || ref.EntityID != entityID {
+				continue
+			}
+			if _, ok := seen[ref.ContentBlockID]; ok {
+				continue
+			}
+			block, exists := m.contentBlocks[ref.ContentBlockID]
+			if !exists {
+				continue
+			}
+			seen[ref.ContentBlockID] = struct{}{}
+			blocks = append(blocks, block)
+		}
+	}
+
+	return blocks, nil
+}
+
 // AddCharacter adds a character to the mock
 func (m *MockMainServiceClient) AddCharacter(character *Character) {
 	m.characters[character.ID] = character
@@ -266,4 +293,3 @@ func (m *MockMainServiceClient) GetEventArtifacts(ctx context.Context, eventID u
 func (m *MockMainServiceClient) ListSceneReferences(ctx context.Context, sceneID uuid.UUID) ([]*SceneReference, error) {
 	return nil, fmt.Errorf("not implemented")
 }
-

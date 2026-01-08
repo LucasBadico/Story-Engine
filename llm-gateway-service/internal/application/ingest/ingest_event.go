@@ -31,6 +31,7 @@ type IngestEventUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
+	summaryGenerator  SummaryGenerator
 	logger            *logger.Logger
 }
 
@@ -44,11 +45,16 @@ func NewIngestEventUseCase(
 ) *IngestEventUseCase {
 	return &IngestEventUseCase{
 		mainServiceClient: mainServiceClient,
-		documentRepo:     documentRepo,
-		chunkRepo:        chunkRepo,
-		embedder:         embedder,
-		logger:           logger,
+		documentRepo:      documentRepo,
+		chunkRepo:         chunkRepo,
+		embedder:          embedder,
+		summaryGenerator:  nil,
+		logger:            logger,
 	}
+}
+
+func (uc *IngestEventUseCase) SetSummaryGenerator(generator SummaryGenerator) {
+	uc.summaryGenerator = generator
 }
 
 // Execute ingests an event by fetching its content, relationships, and generating embeddings
@@ -124,6 +130,27 @@ func (uc *IngestEventUseCase) Execute(ctx context.Context, input IngestEventInpu
 	chunks, err := uc.chunkAndEmbed(ctx, doc.ID, event, eventCharacters, eventLocations, eventArtifacts, world, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to chunk and embed: %w", err)
+	}
+	summaryContents := collectSummaryContents(
+		ctx,
+		uc.mainServiceClient,
+		memory.SourceTypeEvent,
+		input.EventID,
+		content,
+		uc.logger,
+	)
+	chunks, err = runIngestPipeline(
+		ctx,
+		uc.logger,
+		uc.embedder,
+		uc.summaryGenerator,
+		string(memory.SourceTypeEvent),
+		event.Name,
+		summaryContents,
+		chunks,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run ingest pipeline: %w", err)
 	}
 
 	// Save chunks
@@ -276,4 +303,3 @@ func (uc *IngestEventUseCase) chunkAndEmbed(ctx context.Context, documentID uuid
 
 	return chunks, nil
 }
-

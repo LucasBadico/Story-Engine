@@ -10,6 +10,7 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/ollama"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/openai"
 	grpcadapter "github.com/story-engine/llm-gateway-service/internal/adapters/grpc"
+	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
 	redisadapter "github.com/story-engine/llm-gateway-service/internal/adapters/redis"
 	"github.com/story-engine/llm-gateway-service/internal/application/ingest"
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
@@ -151,6 +152,28 @@ func main() {
 		embedder,
 		log,
 	)
+
+	var summaryGenerator *ingest.GenerateSummaryUseCase
+	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
+		model := os.Getenv("GEMINI_MODEL")
+		summaryGenerator = ingest.NewGenerateSummaryUseCase(gemini.NewRouterModel(apiKey, model), log)
+		log.Info("Summary generation enabled", "model", model)
+	} else {
+		log.Info("Summary generation disabled (missing GEMINI_API_KEY)")
+	}
+
+	if summaryGenerator != nil {
+		ingestStoryUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestChapterUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestContentBlockUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestWorldUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestCharacterUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestLocationUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestEventUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestArtifactUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestFactionUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestLoreUseCase.SetSummaryGenerator(summaryGenerator)
+	}
 	// searchMemoryUseCase is available for future use (e.g., API endpoints)
 	_ = search.NewSearchMemoryUseCase(
 		chunkRepo,
@@ -202,4 +225,3 @@ func main() {
 
 	log.Info("Shutting down ingestion service worker...")
 }
-

@@ -1,0 +1,19 @@
+You are a JSON repair tool.
+
+Your task: return a VALID JSON object that strictly matches the schema below.
+Use the raw model output as input and fix any JSON issues.
+
+Rules:
+- Output JSON on a single line.
+- Do NOT add extra keys.
+- Do NOT add explanations.
+- Do NOT include code fences.
+- Return at most {{max_items}} summaries.
+
+RAW MODEL OUTPUT:
+"""
+{{raw_output}}
+"""
+
+JSON TEMPLATE (return exactly this shape):
+{"summaries":["...","..."]}

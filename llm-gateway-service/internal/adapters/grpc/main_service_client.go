@@ -166,6 +166,24 @@ func (c *MainServiceClient) ListContentBlockReferences(ctx context.Context, cont
 	return references, nil
 }
 
+// ListContentBlocksByEntity lists content blocks associated with an entity.
+func (c *MainServiceClient) ListContentBlocksByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*grpcclient.ContentBlock, error) {
+	resp, err := c.contentBlockReferenceClient.ListContentBlocksByEntity(ctx, &contentblockpb.ListContentBlocksByEntityRequest{
+		EntityType: entityType,
+		EntityId:   entityID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	contentBlocks := make([]*grpcclient.ContentBlock, len(resp.ContentBlocks))
+	for i, cb := range resp.ContentBlocks {
+		contentBlocks[i] = protoToContentBlock(cb)
+	}
+
+	return contentBlocks, nil
+}
+
 // Helper functions to convert proto to domain models
 
 func protoToStory(s *storypb.Story) *grpcclient.Story {

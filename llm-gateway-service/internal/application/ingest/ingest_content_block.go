@@ -31,6 +31,7 @@ type IngestContentBlockUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
+	summaryGenerator  SummaryGenerator
 	logger            *logger.Logger
 }
 
@@ -44,11 +45,16 @@ func NewIngestContentBlockUseCase(
 ) *IngestContentBlockUseCase {
 	return &IngestContentBlockUseCase{
 		mainServiceClient: mainServiceClient,
-		documentRepo:     documentRepo,
-		chunkRepo:        chunkRepo,
-		embedder:         embedder,
-		logger:           logger,
+		documentRepo:      documentRepo,
+		chunkRepo:         chunkRepo,
+		embedder:          embedder,
+		summaryGenerator:  nil,
+		logger:            logger,
 	}
+}
+
+func (uc *IngestContentBlockUseCase) SetSummaryGenerator(generator SummaryGenerator) {
+	uc.summaryGenerator = generator
 }
 
 // Execute ingests a content block by fetching its content, references, and generating enriched embeddings
@@ -126,17 +132,39 @@ func (uc *IngestContentBlockUseCase) Execute(ctx context.Context, input IngestCo
 	if err != nil {
 		return nil, fmt.Errorf("failed to create chunk: %w", err)
 	}
+	chunks := []*memory.Chunk{chunk}
+	summaryContents := collectSummaryContents(
+		ctx,
+		uc.mainServiceClient,
+		memory.SourceTypeContentBlock,
+		input.ContentBlockID,
+		enrichedContent,
+		uc.logger,
+	)
+	chunks, err = runIngestPipeline(
+		ctx,
+		uc.logger,
+		uc.embedder,
+		uc.summaryGenerator,
+		string(memory.SourceTypeContentBlock),
+		title,
+		summaryContents,
+		chunks,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run ingest pipeline: %w", err)
+	}
 
-	// Save chunk
-	if err := uc.chunkRepo.Create(ctx, chunk); err != nil {
-		return nil, fmt.Errorf("failed to save chunk: %w", err)
+	// Save chunks
+	if err := uc.chunkRepo.CreateBatch(ctx, chunks); err != nil {
+		return nil, fmt.Errorf("failed to save chunks: %w", err)
 	}
 
 	uc.logger.Info("Content block ingested successfully", "content_block_id", input.ContentBlockID, "beat_type", metadata.BeatType)
 
 	return &IngestContentBlockOutput{
 		DocumentID: doc.ID,
-		ChunkCount: 1,
+		ChunkCount: len(chunks),
 	}, nil
 }
 
@@ -199,9 +227,9 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 					loc, err := uc.mainServiceClient.GetLocation(ctx, *scene.LocationID)
 					if err == nil {
 						metadata.LocationName = &loc.Name
-			} else {
-				uc.logger.Error("failed to fetch location", "location_id", *scene.LocationID, "error", err)
-			}
+					} else {
+						uc.logger.Error("failed to fetch location", "location_id", *scene.LocationID, "error", err)
+					}
 				}
 			}
 
@@ -341,7 +369,7 @@ func (uc *IngestContentBlockUseCase) createChunkWithMetadata(ctx context.Context
 	chunk.LocationName = metadata.LocationName
 	chunk.Timeline = metadata.Timeline
 	chunk.POVCharacter = metadata.POVCharacter
-	
+
 	// Set ContentBlock metadata
 	chunk.ContentType = &contentBlock.Type
 	chunk.ContentKind = &contentBlock.Kind
@@ -352,4 +380,3 @@ func (uc *IngestContentBlockUseCase) createChunkWithMetadata(ctx context.Context
 
 	return chunk, nil
 }
-

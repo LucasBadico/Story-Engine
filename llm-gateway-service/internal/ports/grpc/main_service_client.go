@@ -28,6 +28,8 @@ type MainServiceClient interface {
 
 	// ListContentBlockReferences lists references for a content block
 	ListContentBlockReferences(ctx context.Context, contentBlockID uuid.UUID) ([]*ContentBlockReference, error)
+	// ListContentBlocksByEntity lists content blocks referencing an entity
+	ListContentBlocksByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*ContentBlock, error)
 
 	// World entities
 	GetWorld(ctx context.Context, worldID uuid.UUID) (*World, error)
@@ -258,4 +260,3 @@ type Lore struct {
 	CreatedAt      int64
 	UpdatedAt      int64
 }
-

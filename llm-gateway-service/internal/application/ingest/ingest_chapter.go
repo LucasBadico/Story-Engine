@@ -31,6 +31,7 @@ type IngestChapterUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
+	summaryGenerator  SummaryGenerator
 	logger            *logger.Logger
 }
 
@@ -44,11 +45,16 @@ func NewIngestChapterUseCase(
 ) *IngestChapterUseCase {
 	return &IngestChapterUseCase{
 		mainServiceClient: mainServiceClient,
-		documentRepo:     documentRepo,
-		chunkRepo:        chunkRepo,
-		embedder:         embedder,
-		logger:           logger,
+		documentRepo:      documentRepo,
+		chunkRepo:         chunkRepo,
+		embedder:          embedder,
+		summaryGenerator:  nil,
+		logger:            logger,
 	}
+}
+
+func (uc *IngestChapterUseCase) SetSummaryGenerator(generator SummaryGenerator) {
+	uc.summaryGenerator = generator
 }
 
 // Execute ingests a chapter by fetching its content and generating embeddings
@@ -105,6 +111,31 @@ func (uc *IngestChapterUseCase) Execute(ctx context.Context, input IngestChapter
 	chunks, err := uc.chunkAndEmbed(ctx, doc.ID, content)
 	if err != nil {
 		return nil, fmt.Errorf("failed to chunk and embed: %w", err)
+	}
+	entityName := strings.TrimSpace(chapter.Title)
+	if entityName == "" {
+		entityName = fmt.Sprintf("Chapter %d", chapter.Number)
+	}
+	summaryContents := collectSummaryContents(
+		ctx,
+		uc.mainServiceClient,
+		memory.SourceTypeChapter,
+		input.ChapterID,
+		content,
+		uc.logger,
+	)
+	chunks, err = runIngestPipeline(
+		ctx,
+		uc.logger,
+		uc.embedder,
+		uc.summaryGenerator,
+		string(memory.SourceTypeChapter),
+		entityName,
+		summaryContents,
+		chunks,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run ingest pipeline: %w", err)
 	}
 
 	// Save chunks
@@ -169,4 +200,3 @@ func (uc *IngestChapterUseCase) chunkAndEmbed(ctx context.Context, documentID uu
 
 	return chunks, nil
 }
-

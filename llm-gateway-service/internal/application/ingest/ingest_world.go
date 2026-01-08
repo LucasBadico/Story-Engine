@@ -31,6 +31,7 @@ type IngestWorldUseCase struct {
 	documentRepo      repositories.DocumentRepository
 	chunkRepo         repositories.ChunkRepository
 	embedder          embeddings.Embedder
+	summaryGenerator  SummaryGenerator
 	logger            *logger.Logger
 }
 
@@ -44,11 +45,16 @@ func NewIngestWorldUseCase(
 ) *IngestWorldUseCase {
 	return &IngestWorldUseCase{
 		mainServiceClient: mainServiceClient,
-		documentRepo:     documentRepo,
-		chunkRepo:        chunkRepo,
-		embedder:         embedder,
-		logger:           logger,
+		documentRepo:      documentRepo,
+		chunkRepo:         chunkRepo,
+		embedder:          embedder,
+		summaryGenerator:  nil,
+		logger:            logger,
 	}
+}
+
+func (uc *IngestWorldUseCase) SetSummaryGenerator(generator SummaryGenerator) {
+	uc.summaryGenerator = generator
 }
 
 // Execute ingests a world by fetching its content and generating embeddings
@@ -100,6 +106,27 @@ func (uc *IngestWorldUseCase) Execute(ctx context.Context, input IngestWorldInpu
 	if err != nil {
 		return nil, fmt.Errorf("failed to chunk and embed: %w", err)
 	}
+	summaryContents := collectSummaryContents(
+		ctx,
+		uc.mainServiceClient,
+		memory.SourceTypeWorld,
+		input.WorldID,
+		content,
+		uc.logger,
+	)
+	chunks, err = runIngestPipeline(
+		ctx,
+		uc.logger,
+		uc.embedder,
+		uc.summaryGenerator,
+		string(memory.SourceTypeWorld),
+		world.Name,
+		summaryContents,
+		chunks,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("failed to run ingest pipeline: %w", err)
+	}
 
 	// Save chunks
 	if err := uc.chunkRepo.CreateBatch(ctx, chunks); err != nil {
@@ -149,7 +176,7 @@ func (uc *IngestWorldUseCase) chunkAndEmbed(ctx context.Context, documentID uuid
 		tokenCount := len(para) / 4
 
 		chunk := memory.NewChunk(documentID, i, para, embedding, tokenCount)
-		
+
 		// Set world metadata
 		chunk.WorldID = &world.ID
 		chunk.WorldName = &world.Name
@@ -167,4 +194,3 @@ func (uc *IngestWorldUseCase) chunkAndEmbed(ctx context.Context, documentID uuid
 
 	return chunks, nil
 }
-
