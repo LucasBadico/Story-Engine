@@ -9,6 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -17,6 +18,7 @@ type CreateFactionUseCase struct {
 	factionRepo  repositories.FactionRepository
 	worldRepo    repositories.WorldRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger       logger.Logger
 }
 
@@ -31,8 +33,13 @@ func NewCreateFactionUseCase(
 		factionRepo:  factionRepo,
 		worldRepo:    worldRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:       logger,
 	}
+}
+
+func (uc *CreateFactionUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // CreateFactionInput represents the input for creating a faction
@@ -131,9 +138,18 @@ func (uc *CreateFactionUseCase) Execute(ctx context.Context, input CreateFaction
 	}
 
 	uc.logger.Info("faction created", "faction_id", newFaction.ID, "name", newFaction.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, newFaction.ID)
 
 	return &CreateFactionOutput{
 		Faction: newFaction,
 	}, nil
 }
 
+func (uc *CreateFactionUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, factionID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "faction", factionID); err != nil {
+		uc.logger.Error("failed to enqueue faction ingestion", "error", err, "faction_id", factionID, "tenant_id", tenantID)
+	}
+}

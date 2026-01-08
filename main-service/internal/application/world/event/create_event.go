@@ -9,6 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -17,6 +18,7 @@ type CreateEventUseCase struct {
 	eventRepo   repositories.EventRepository
 	worldRepo   repositories.WorldRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger      logger.Logger
 }
 
@@ -31,8 +33,13 @@ func NewCreateEventUseCase(
 		eventRepo:   eventRepo,
 		worldRepo:   worldRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:      logger,
 	}
+}
+
+func (uc *CreateEventUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // CreateEventInput represents the input for creating an event
@@ -157,10 +164,19 @@ func (uc *CreateEventUseCase) Execute(ctx context.Context, input CreateEventInpu
 	}
 
 	uc.logger.Info("event created", "event_id", evt.ID, "world_id", input.WorldID)
+	uc.enqueueIngestion(ctx, input.TenantID, evt.ID)
 
 	return &CreateEventOutput{
 		Event: evt,
 	}, nil
 }
 
+func (uc *CreateEventUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, eventID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "event", eventID); err != nil {
+		uc.logger.Error("failed to enqueue event ingestion", "error", err, "event_id", eventID, "tenant_id", tenantID)
+	}
+}
 

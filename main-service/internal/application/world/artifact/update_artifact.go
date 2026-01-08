@@ -8,6 +8,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -19,6 +20,7 @@ type UpdateArtifactUseCase struct {
 	locationRepo         repositories.LocationRepository
 	worldRepo            repositories.WorldRepository
 	auditLogRepo         repositories.AuditLogRepository
+	ingestionQueue       queue.IngestionQueue
 	logger               logger.Logger
 }
 
@@ -39,8 +41,13 @@ func NewUpdateArtifactUseCase(
 		locationRepo:         locationRepo,
 		worldRepo:            worldRepo,
 		auditLogRepo:         auditLogRepo,
+		ingestionQueue:       nil,
 		logger:               logger,
 	}
+}
+
+func (uc *UpdateArtifactUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // UpdateArtifactInput represents the input for updating an artifact
@@ -183,9 +190,18 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 	}
 
 	uc.logger.Info("artifact updated", "artifact_id", a.ID, "name", a.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, a.ID)
 
 	return &UpdateArtifactOutput{
 		Artifact: a,
 	}, nil
 }
 
+func (uc *UpdateArtifactUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, artifactID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "artifact", artifactID); err != nil {
+		uc.logger.Error("failed to enqueue artifact ingestion", "error", err, "artifact_id", artifactID, "tenant_id", tenantID)
+	}
+}

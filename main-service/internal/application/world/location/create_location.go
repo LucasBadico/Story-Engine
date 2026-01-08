@@ -8,6 +8,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -16,6 +17,7 @@ type CreateLocationUseCase struct {
 	locationRepo repositories.LocationRepository
 	worldRepo    repositories.WorldRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger       logger.Logger
 }
 
@@ -30,8 +32,13 @@ func NewCreateLocationUseCase(
 		locationRepo: locationRepo,
 		worldRepo:    worldRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:       logger,
 	}
+}
+
+func (uc *CreateLocationUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // CreateLocationInput represents the input for creating a location
@@ -115,10 +122,19 @@ func (uc *CreateLocationUseCase) Execute(ctx context.Context, input CreateLocati
 	}
 
 	uc.logger.Info("location created", "location_id", newLocation.ID, "name", newLocation.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, newLocation.ID)
 
 	return &CreateLocationOutput{
 		Location: newLocation,
 	}, nil
 }
 
+func (uc *CreateLocationUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, locationID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "location", locationID); err != nil {
+		uc.logger.Error("failed to enqueue location ingestion", "error", err, "location_id", locationID, "tenant_id", tenantID)
+	}
+}
 

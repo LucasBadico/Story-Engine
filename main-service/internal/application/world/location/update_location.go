@@ -8,6 +8,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -15,6 +16,7 @@ import (
 type UpdateLocationUseCase struct {
 	locationRepo repositories.LocationRepository
 	auditLogRepo  repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger        logger.Logger
 }
 
@@ -27,8 +29,13 @@ func NewUpdateLocationUseCase(
 	return &UpdateLocationUseCase{
 		locationRepo: locationRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:       logger,
 	}
+}
+
+func (uc *UpdateLocationUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // UpdateLocationInput represents the input for updating a location
@@ -94,10 +101,19 @@ func (uc *UpdateLocationUseCase) Execute(ctx context.Context, input UpdateLocati
 	}
 
 	uc.logger.Info("location updated", "location_id", l.ID, "name", l.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, l.ID)
 
 	return &UpdateLocationOutput{
 		Location: l,
 	}, nil
 }
 
+func (uc *UpdateLocationUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, locationID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "location", locationID); err != nil {
+		uc.logger.Error("failed to enqueue location ingestion", "error", err, "location_id", locationID, "tenant_id", tenantID)
+	}
+}
 

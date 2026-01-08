@@ -7,6 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/audit"
 	"github.com/story-engine/main-service/internal/core/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -14,6 +15,7 @@ import (
 type UpdateFactionUseCase struct {
 	factionRepo  repositories.FactionRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger       logger.Logger
 }
 
@@ -26,8 +28,13 @@ func NewUpdateFactionUseCase(
 	return &UpdateFactionUseCase{
 		factionRepo:  factionRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:       logger,
 	}
+}
+
+func (uc *UpdateFactionUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // UpdateFactionInput represents the input for updating a faction
@@ -100,9 +107,18 @@ func (uc *UpdateFactionUseCase) Execute(ctx context.Context, input UpdateFaction
 	}
 
 	uc.logger.Info("faction updated", "faction_id", input.ID)
+	uc.enqueueIngestion(ctx, input.TenantID, faction.ID)
 
 	return &UpdateFactionOutput{
 		Faction: faction,
 	}, nil
 }
 
+func (uc *UpdateFactionUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, factionID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "faction", factionID); err != nil {
+		uc.logger.Error("failed to enqueue faction ingestion", "error", err, "faction_id", factionID, "tenant_id", tenantID)
+	}
+}

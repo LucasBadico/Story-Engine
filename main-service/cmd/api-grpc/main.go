@@ -279,6 +279,21 @@ func main() {
 	deleteInventoryItemUseCase := characterinventoryapp.NewDeleteCharacterInventoryUseCase(inventoryRepo, log)
 	listInventoryUseCase := characterinventoryapp.NewListCharacterInventoryUseCase(inventoryRepo, log)
 
+	createWorldUseCase.SetIngestionQueue(ingestionQueue)
+	updateWorldUseCase.SetIngestionQueue(ingestionQueue)
+	createLocationUseCase.SetIngestionQueue(ingestionQueue)
+	updateLocationUseCase.SetIngestionQueue(ingestionQueue)
+	createCharacterUseCase.SetIngestionQueue(ingestionQueue)
+	updateCharacterUseCase.SetIngestionQueue(ingestionQueue)
+	createArtifactUseCase.SetIngestionQueue(ingestionQueue)
+	updateArtifactUseCase.SetIngestionQueue(ingestionQueue)
+	createEventUseCase.SetIngestionQueue(ingestionQueue)
+	updateEventUseCase.SetIngestionQueue(ingestionQueue)
+	createFactionUseCase.SetIngestionQueue(ingestionQueue)
+	updateFactionUseCase.SetIngestionQueue(ingestionQueue)
+	createLoreUseCase.SetIngestionQueue(ingestionQueue)
+	updateLoreUseCase.SetIngestionQueue(ingestionQueue)
+
 	// Create handlers
 	tenantHandler := handlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := handlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)

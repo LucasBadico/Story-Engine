@@ -9,6 +9,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -17,6 +18,7 @@ type CreateLoreUseCase struct {
 	loreRepo     repositories.LoreRepository
 	worldRepo    repositories.WorldRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger       logger.Logger
 }
 
@@ -31,8 +33,13 @@ func NewCreateLoreUseCase(
 		loreRepo:     loreRepo,
 		worldRepo:    worldRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:       logger,
 	}
+}
+
+func (uc *CreateLoreUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // CreateLoreInput represents the input for creating a lore
@@ -131,9 +138,18 @@ func (uc *CreateLoreUseCase) Execute(ctx context.Context, input CreateLoreInput)
 	}
 
 	uc.logger.Info("lore created", "lore_id", newLore.ID, "name", newLore.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, newLore.ID)
 
 	return &CreateLoreOutput{
 		Lore: newLore,
 	}, nil
 }
 
+func (uc *CreateLoreUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, loreID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "lore", loreID); err != nil {
+		uc.logger.Error("failed to enqueue lore ingestion", "error", err, "lore_id", loreID, "tenant_id", tenantID)
+	}
+}

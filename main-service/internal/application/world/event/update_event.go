@@ -7,6 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/audit"
 	"github.com/story-engine/main-service/internal/core/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -14,6 +15,7 @@ import (
 type UpdateEventUseCase struct {
 	eventRepo   repositories.EventRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger      logger.Logger
 }
 
@@ -26,8 +28,13 @@ func NewUpdateEventUseCase(
 	return &UpdateEventUseCase{
 		eventRepo:   eventRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:      logger,
 	}
+}
+
+func (uc *UpdateEventUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // UpdateEventInput represents the input for updating an event
@@ -104,10 +111,19 @@ func (uc *UpdateEventUseCase) Execute(ctx context.Context, input UpdateEventInpu
 	}
 
 	uc.logger.Info("event updated", "event_id", input.ID)
+	uc.enqueueIngestion(ctx, input.TenantID, event.ID)
 
 	return &UpdateEventOutput{
 		Event: event,
 	}, nil
 }
 
+func (uc *UpdateEventUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, eventID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "event", eventID); err != nil {
+		uc.logger.Error("failed to enqueue event ingestion", "error", err, "event_id", eventID, "tenant_id", tenantID)
+	}
+}
 

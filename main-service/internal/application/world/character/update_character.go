@@ -8,6 +8,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -17,6 +18,7 @@ type UpdateCharacterUseCase struct {
 	archetypeRepo repositories.ArchetypeRepository
 	worldRepo     repositories.WorldRepository
 	auditLogRepo  repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger        logger.Logger
 }
 
@@ -33,8 +35,13 @@ func NewUpdateCharacterUseCase(
 		archetypeRepo: archetypeRepo,
 		worldRepo:     worldRepo,
 		auditLogRepo:  auditLogRepo,
+		ingestionQueue: nil,
 		logger:        logger,
 	}
+}
+
+func (uc *UpdateCharacterUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // UpdateCharacterInput represents the input for updating a character
@@ -108,10 +115,19 @@ func (uc *UpdateCharacterUseCase) Execute(ctx context.Context, input UpdateChara
 	}
 
 	uc.logger.Info("character updated", "character_id", c.ID, "name", c.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, c.ID)
 
 	return &UpdateCharacterOutput{
 		Character: c,
 	}, nil
 }
 
+func (uc *UpdateCharacterUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, characterID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "character", characterID); err != nil {
+		uc.logger.Error("failed to enqueue character ingestion", "error", err, "character_id", characterID, "tenant_id", tenantID)
+	}
+}
 

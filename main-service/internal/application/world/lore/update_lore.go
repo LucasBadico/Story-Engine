@@ -7,6 +7,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/audit"
 	"github.com/story-engine/main-service/internal/core/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -14,6 +15,7 @@ import (
 type UpdateLoreUseCase struct {
 	loreRepo     repositories.LoreRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger       logger.Logger
 }
 
@@ -26,8 +28,13 @@ func NewUpdateLoreUseCase(
 	return &UpdateLoreUseCase{
 		loreRepo:     loreRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:       logger,
 	}
+}
+
+func (uc *UpdateLoreUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // UpdateLoreInput represents the input for updating a lore
@@ -100,9 +107,18 @@ func (uc *UpdateLoreUseCase) Execute(ctx context.Context, input UpdateLoreInput)
 	}
 
 	uc.logger.Info("lore updated", "lore_id", input.ID)
+	uc.enqueueIngestion(ctx, input.TenantID, lore.ID)
 
 	return &UpdateLoreOutput{
 		Lore: lore,
 	}, nil
 }
 
+func (uc *UpdateLoreUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, loreID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "lore", loreID); err != nil {
+		uc.logger.Error("failed to enqueue lore ingestion", "error", err, "lore_id", loreID, "tenant_id", tenantID)
+	}
+}

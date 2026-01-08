@@ -8,6 +8,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -19,6 +20,7 @@ type CreateArtifactUseCase struct {
 	characterRepo        repositories.CharacterRepository
 	locationRepo         repositories.LocationRepository
 	auditLogRepo         repositories.AuditLogRepository
+	ingestionQueue       queue.IngestionQueue
 	logger               logger.Logger
 }
 
@@ -39,8 +41,13 @@ func NewCreateArtifactUseCase(
 		characterRepo:        characterRepo,
 		locationRepo:         locationRepo,
 		auditLogRepo:         auditLogRepo,
+		ingestionQueue:       nil,
 		logger:               logger,
 	}
+}
+
+func (uc *CreateArtifactUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // CreateArtifactInput represents the input for creating an artifact
@@ -162,9 +169,18 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 	}
 
 	uc.logger.Info("artifact created", "artifact_id", newArtifact.ID, "name", newArtifact.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, newArtifact.ID)
 
 	return &CreateArtifactOutput{
 		Artifact: newArtifact,
 	}, nil
 }
 
+func (uc *CreateArtifactUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, artifactID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "artifact", artifactID); err != nil {
+		uc.logger.Error("failed to enqueue artifact ingestion", "error", err, "artifact_id", artifactID, "tenant_id", tenantID)
+	}
+}

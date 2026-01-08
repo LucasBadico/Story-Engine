@@ -8,6 +8,7 @@ import (
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/queue"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
@@ -15,6 +16,7 @@ import (
 type UpdateWorldUseCase struct {
 	worldRepo    repositories.WorldRepository
 	auditLogRepo repositories.AuditLogRepository
+	ingestionQueue queue.IngestionQueue
 	logger       logger.Logger
 }
 
@@ -27,8 +29,13 @@ func NewUpdateWorldUseCase(
 	return &UpdateWorldUseCase{
 		worldRepo:    worldRepo,
 		auditLogRepo: auditLogRepo,
+		ingestionQueue: nil,
 		logger:       logger,
 	}
+}
+
+func (uc *UpdateWorldUseCase) SetIngestionQueue(queue queue.IngestionQueue) {
+	uc.ingestionQueue = queue
 }
 
 // UpdateWorldInput represents the input for updating a world
@@ -110,10 +117,19 @@ func (uc *UpdateWorldUseCase) Execute(ctx context.Context, input UpdateWorldInpu
 	}
 
 	uc.logger.Info("world updated", "world_id", w.ID, "name", w.Name)
+	uc.enqueueIngestion(ctx, input.TenantID, w.ID)
 
 	return &UpdateWorldOutput{
 		World: w,
 	}, nil
 }
 
+func (uc *UpdateWorldUseCase) enqueueIngestion(ctx context.Context, tenantID uuid.UUID, worldID uuid.UUID) {
+	if uc.ingestionQueue == nil {
+		return
+	}
+	if err := uc.ingestionQueue.Push(ctx, tenantID, "world", worldID); err != nil {
+		uc.logger.Error("failed to enqueue world ingestion", "error", err, "world_id", worldID, "tenant_id", tenantID)
+	}
+}
 
