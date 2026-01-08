@@ -11,11 +11,14 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/adapters/db/postgres"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/ollama"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/openai"
+	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
+	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
 	"github.com/story-engine/llm-gateway-service/internal/platform/config"
 	"github.com/story-engine/llm-gateway-service/internal/platform/database"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
+	"github.com/story-engine/llm-gateway-service/internal/ports/llm"
 	"github.com/story-engine/llm-gateway-service/internal/transport/httpapi"
 	"github.com/story-engine/llm-gateway-service/internal/transport/httpapi/middleware"
 )
@@ -60,9 +63,33 @@ func main() {
 
 	searchHandler := httpapi.NewSearchHandler(searchUseCase, log)
 
+	var routerModel llm.RouterModel
+	switch cfg.LLM.Provider {
+	case "gemini":
+		routerModel = gemini.NewRouterModel(cfg.LLM.APIKey, cfg.LLM.Model)
+		log.Info("Using Gemini router model", "model", cfg.LLM.Model)
+	default:
+		log.Error("Unsupported LLM provider", "provider", cfg.LLM.Provider)
+		os.Exit(1)
+	}
+
+	router := entity_extraction.NewPhase1EntityTypeRouterUseCase(routerModel, log)
+	extractor := entity_extraction.NewPhase2EntryUseCase(routerModel, log, nil)
+	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, documentRepo, embedder, routerModel, log)
+	payload := entity_extraction.NewPhaseTempPayloadUseCase()
+	entityExtractUseCase := entity_extraction.NewEntityAndRelationshipsExtractor(
+		router,
+		extractor,
+		matcher,
+		payload,
+		log,
+	)
+	entityExtractHandler := httpapi.NewEntityExtractHandler(entityExtractUseCase, log)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", httpapi.Health)
 	mux.HandleFunc("/api/v1/search", searchHandler.Search)
+	mux.HandleFunc("/api/v1/entity-extract", entityExtractHandler.Extract)
 
 	handler := middleware.Chain(
 		mux,

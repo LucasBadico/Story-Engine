@@ -25,6 +25,11 @@ type Config struct {
 		Model     string
 		Dimension int
 	}
+	LLM struct {
+		Provider string
+		APIKey   string
+		Model    string
+	}
 	Worker struct {
 		DebounceMinutes          int
 		PollSeconds              int
@@ -66,6 +71,11 @@ func Load() *Config {
 	} else {
 		cfg.Embedding.Dimension = 768
 	}
+
+	// LLM Router
+	cfg.LLM.Provider = getEnv("LLM_PROVIDER", "gemini")
+	cfg.LLM.APIKey = getEnv("LLM_API_KEY", getEnv("GEMINI_API_KEY", ""))
+	cfg.LLM.Model = getEnv("LLM_MODEL", getEnv("GEMINI_MODEL", ""))
 
 	// Worker
 	cfg.Worker.DebounceMinutes = getEnvInt("WORKER_DEBOUNCE_MINUTES", 5)

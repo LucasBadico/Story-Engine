@@ -140,6 +140,9 @@ func (m *MockChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.U
 		if len(filters.ChunkTypes) > 0 && !matchesChunkType(chunk, filters.ChunkTypes) {
 			continue
 		}
+		if len(filters.WorldIDs) > 0 && !matchesWorldID(chunk, filters.WorldIDs) {
+			continue
+		}
 		if count >= limit {
 			break
 		}
@@ -161,6 +164,18 @@ func matchesChunkType(chunk *memory.Chunk, types []string) bool {
 	}
 	for _, t := range types {
 		if t == *chunk.ChunkType {
+			return true
+		}
+	}
+	return false
+}
+
+func matchesWorldID(chunk *memory.Chunk, worlds []uuid.UUID) bool {
+	if chunk == nil || chunk.WorldID == nil {
+		return false
+	}
+	for _, wid := range worlds {
+		if wid == *chunk.WorldID {
 			return true
 		}
 	}

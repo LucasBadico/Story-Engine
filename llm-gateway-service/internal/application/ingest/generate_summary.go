@@ -66,7 +66,7 @@ func (uc *GenerateSummaryUseCase) Execute(ctx context.Context, input GenerateSum
 		return GenerateSummaryOutput{}, err
 	}
 
-	uc.logger.Info("====model answer====\n%s\n===================", raw)
+	uc.logger.Info(fmt.Sprintf("====model answer====\n%s\n===================", raw))
 
 	output, err := parseGenerateSummaryOutput(raw)
 	if err != nil {
@@ -116,7 +116,7 @@ func (uc *GenerateSummaryUseCase) repairSummaryOutput(ctx context.Context, raw s
 		return GenerateSummaryOutput{}, err
 	}
 
-	uc.logger.Info("====model answer====\n%s\n===================", repairedRaw)
+	uc.logger.Info(fmt.Sprintf("====model answer====\n%s\n===================", repairedRaw))
 
 	return parseGenerateSummaryOutput(repairedRaw)
 }

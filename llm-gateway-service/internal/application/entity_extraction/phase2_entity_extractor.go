@@ -111,7 +111,7 @@ func (u *Phase2EntityExtractorUseCase) Execute(ctx context.Context, input Phase2
 		return Phase2EntityExtractorOutput{}, err
 	}
 
-	u.logger.Info("====model answer====\n%s\n===================", raw)
+	u.logger.Info(fmt.Sprintf("====model answer====\n%s\n===================", raw))
 
 	parsed, err := parsePhase2EntityExtractorOutput(raw)
 	if err != nil {

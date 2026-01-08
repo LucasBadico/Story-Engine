@@ -16,6 +16,7 @@ type PhaseTempEntity struct {
 	Type       string           `json:"type"`
 	Name       string           `json:"name"`
 	Summary    string           `json:"summary,omitempty"`
+	Found      bool             `json:"found"`
 	Match      *PhaseTempMatch  `json:"match,omitempty"`
 	Candidates []PhaseTempMatch `json:"candidates,omitempty"`
 }
@@ -35,6 +36,7 @@ func (u *PhaseTempPayloadUseCase) Execute(input Phase3MatchOutput) PhaseTempPayl
 			Type:    result.EntityType,
 			Name:    result.Name,
 			Summary: result.Summary,
+			Found:   result.Match != nil,
 		}
 
 		if result.Match != nil {

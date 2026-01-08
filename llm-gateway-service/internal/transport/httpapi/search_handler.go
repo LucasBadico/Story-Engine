@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
@@ -86,7 +87,7 @@ func (h *SearchHandler) Search(w http.ResponseWriter, r *http.Request) {
 		Cursor:   cursor,
 	})
 	if err != nil {
-		h.logger.Error("search failed", "tenant_id", tenantID, "error", err)
+		h.logger.Error(fmt.Sprintf("search failed tenant_id=%s error=%v", tenantID, err))
 		writeError(w, http.StatusInternalServerError, "search failed")
 		return
 	}

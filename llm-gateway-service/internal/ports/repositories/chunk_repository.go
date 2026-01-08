@@ -15,6 +15,7 @@ type SearchFilters struct {
 	SceneIDs    []uuid.UUID
 	Characters  []string
 	LocationIDs []uuid.UUID
+	WorldIDs    []uuid.UUID
 	StoryID     *uuid.UUID
 }
 

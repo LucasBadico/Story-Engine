@@ -70,7 +70,7 @@ func (u *Phase1EntityTypeRouterUseCase) Execute(ctx context.Context, input Phase
 		return Phase1EntityTypeRouterOutput{}, err
 	}
 
-	u.logger.Info("====model answer====\n%s\n===================", raw)
+	u.logger.Info(fmt.Sprintf("====model answer====\n%s\n===================", raw))
 
 	output, err := parsePhase1EntityTypeRouterOutput(raw)
 	if err != nil {
@@ -117,7 +117,7 @@ func (u *Phase1EntityTypeRouterUseCase) repairOutput(ctx context.Context, raw st
 		return Phase1EntityTypeRouterOutput{}, err
 	}
 
-	u.logger.Info("====model answer====\n%s\n===================", repairedRaw)
+	u.logger.Info(fmt.Sprintf("====model answer====\n%s\n===================", repairedRaw))
 
 	return parsePhase1EntityTypeRouterOutput(repairedRaw)
 }

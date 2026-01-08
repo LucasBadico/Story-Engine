@@ -12,6 +12,7 @@
 - [x] mesclar dinamic relations from prose and image. Entities references to prose and image blocks.
 - atualizar postman collections
 - atualizar gateway ingestion
+- [ ] LLM Gateway - sanitizar parâmetros sensíveis do entity extract (chunk size, overlap, thresholds) com limites via env
 - [ ] LLM Gateway - handle deletes from main-service (remove embeddings/docs on entity delete)
 - [ ] LLM Gateway - provider Gemini (embeddings)
   - [ ] definir escopo: embeddings only (sem geração de texto) e modelo alvo

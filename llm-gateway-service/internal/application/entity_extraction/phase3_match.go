@@ -42,6 +42,7 @@ func NewPhase3MatchUseCase(
 
 type Phase3MatchInput struct {
 	TenantID      uuid.UUID
+	WorldID       *uuid.UUID
 	Findings      []Phase2EntityFinding
 	Context       string
 	MinSimilarity float64
@@ -129,10 +130,15 @@ func (u *Phase3MatchUseCase) Execute(ctx context.Context, input Phase3MatchInput
 			return Phase3MatchOutput{}, err
 		}
 
-		scored, err := u.chunkRepo.SearchSimilar(ctx, input.TenantID, embedding, maxCandidates, nil, &repositories.SearchFilters{
+		filters := &repositories.SearchFilters{
 			SourceTypes: []memory.SourceType{sourceType},
 			ChunkTypes:  []string{"summary"},
-		})
+		}
+		if input.WorldID != nil {
+			filters.WorldIDs = []uuid.UUID{*input.WorldID}
+		}
+
+		scored, err := u.chunkRepo.SearchSimilar(ctx, input.TenantID, embedding, maxCandidates, nil, filters)
 		if err != nil {
 			return Phase3MatchOutput{}, err
 		}
@@ -207,7 +213,7 @@ func (u *Phase3MatchUseCase) confirmMatch(
 		return nil
 	}
 
-	u.logger.Info("====model answer====\n%s\n===================", raw)
+	u.logger.Info(fmt.Sprintf("====model answer====\n%s\n===================", raw))
 
 	parsed, err := parsePhase3MatchOutput(raw)
 	if err != nil {
@@ -255,7 +261,7 @@ func (u *Phase3MatchUseCase) repairMatchOutput(
 		return phase3MatchModelOutput{}, err
 	}
 
-	u.logger.Info("====model answer====\n%s\n===================", repairedRaw)
+	u.logger.Info(fmt.Sprintf("====model answer====\n%s\n===================", repairedRaw))
 
 	return parsePhase3MatchOutput(repairedRaw)
 }

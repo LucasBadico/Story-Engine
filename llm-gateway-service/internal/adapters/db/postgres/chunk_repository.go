@@ -252,6 +252,17 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 		query += fmt.Sprintf(" AND c.location_id IN (%s)", strings.Join(placeholders, ","))
 	}
 
+	// Add world filter if provided
+	if len(filters.WorldIDs) > 0 {
+		placeholders := make([]string, len(filters.WorldIDs))
+		for i, wid := range filters.WorldIDs {
+			placeholders[i] = fmt.Sprintf("$%d", argIndex)
+			args = append(args, wid)
+			argIndex++
+		}
+		query += fmt.Sprintf(" AND c.world_id IN (%s)", strings.Join(placeholders, ","))
+	}
+
 	// Add characters filter if provided (using JSONB containment)
 	if len(filters.Characters) > 0 {
 		// Build JSONB array for containment check
