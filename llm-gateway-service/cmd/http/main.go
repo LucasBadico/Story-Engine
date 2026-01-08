@@ -16,9 +16,9 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
 	"github.com/story-engine/llm-gateway-service/internal/platform/config"
 	"github.com/story-engine/llm-gateway-service/internal/platform/database"
+	"github.com/story-engine/llm-gateway-service/internal/platform/llm/executor"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
-	"github.com/story-engine/llm-gateway-service/internal/ports/llm"
 	"github.com/story-engine/llm-gateway-service/internal/transport/httpapi"
 	"github.com/story-engine/llm-gateway-service/internal/transport/httpapi/middleware"
 )
@@ -63,15 +63,36 @@ func main() {
 
 	searchHandler := httpapi.NewSearchHandler(searchUseCase, log)
 
-	var routerModel llm.RouterModel
-	switch cfg.LLM.Provider {
-	case "gemini":
-		routerModel = gemini.NewRouterModel(cfg.LLM.APIKey, cfg.LLM.Model)
-		log.Info("Using Gemini router model", "model", cfg.LLM.Model)
-	default:
-		log.Error("Unsupported LLM provider", "provider", cfg.LLM.Provider)
+	executorConfig := executor.ConfigFromEnv(cfg.LLM.Provider)
+	providers := make([]executor.Provider, 0, len(executorConfig.Providers))
+	for _, providerCfg := range executorConfig.Providers {
+		switch providerCfg.Name {
+		case "gemini":
+			if cfg.LLM.APIKey == "" {
+				log.Error("Missing Gemini API key for LLM executor")
+				os.Exit(1)
+			}
+			providers = append(providers, executor.NewRouterModelProvider(
+				"gemini",
+				gemini.NewRouterModel(cfg.LLM.APIKey, cfg.LLM.Model),
+			))
+			log.Info("LLM executor registered Gemini", "model", cfg.LLM.Model)
+		default:
+			log.Error("Unsupported LLM provider", "provider", providerCfg.Name)
+		}
+	}
+	if len(providers) == 0 {
+		log.Error("No LLM providers registered")
 		os.Exit(1)
 	}
+
+	llmExecutor, err := executor.New(executorConfig, providers)
+	if err != nil {
+		log.Error("Failed to start LLM executor", "error", err)
+		os.Exit(1)
+	}
+
+	routerModel := executor.NewRouterModelAdapter(llmExecutor, cfg.LLM.Provider)
 
 	router := entity_extraction.NewPhase1EntityTypeRouterUseCase(routerModel, log)
 	extractor := entity_extraction.NewPhase2EntryUseCase(routerModel, log, nil)
