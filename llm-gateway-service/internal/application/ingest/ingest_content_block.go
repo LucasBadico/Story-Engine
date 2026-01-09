@@ -75,14 +75,14 @@ func (uc *IngestContentBlockUseCase) Execute(ctx context.Context, input IngestCo
 		}, nil
 	}
 
-	// Fetch references for the content block
-	references, err := uc.mainServiceClient.ListContentBlockReferences(ctx, input.ContentBlockID)
+	// Fetch anchors for the content block
+	anchors, err := uc.mainServiceClient.ListContentAnchors(ctx, input.ContentBlockID)
 	if err != nil {
-		return nil, fmt.Errorf("failed to fetch content block references: %w", err)
+		return nil, fmt.Errorf("failed to fetch content anchors: %w", err)
 	}
 
 	// Fetch related entities and build metadata
-	metadata, err := uc.buildMetadata(ctx, references)
+	metadata, err := uc.buildMetadata(ctx, anchors)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build metadata: %w", err)
 	}
@@ -182,17 +182,17 @@ type ContentBlockMetadata struct {
 }
 
 // buildMetadata fetches related entities and builds metadata
-func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, references []*grpcclient.ContentBlockReference) (*ContentBlockMetadata, error) {
+func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, anchors []*grpcclient.ContentAnchor) (*ContentBlockMetadata, error) {
 	metadata := &ContentBlockMetadata{
 		Characters: []string{},
 	}
 
-	for _, ref := range references {
-		switch ref.EntityType {
+	for _, anchor := range anchors {
+		switch anchor.EntityType {
 		case "beat":
-			beat, err := uc.mainServiceClient.GetBeat(ctx, ref.EntityID)
+			beat, err := uc.mainServiceClient.GetBeat(ctx, anchor.EntityID)
 			if err != nil {
-				uc.logger.Error("failed to fetch beat", "beat_id", ref.EntityID, "error", err)
+				uc.logger.Error("failed to fetch beat", "beat_id", anchor.EntityID, "error", err)
 				continue
 			}
 			metadata.BeatID = &beat.ID
@@ -234,9 +234,9 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 			}
 
 		case "scene":
-			scene, err := uc.mainServiceClient.GetScene(ctx, ref.EntityID)
+			scene, err := uc.mainServiceClient.GetScene(ctx, anchor.EntityID)
 			if err != nil {
-				uc.logger.Error("failed to fetch scene", "scene_id", ref.EntityID, "error", err)
+				uc.logger.Error("failed to fetch scene", "scene_id", anchor.EntityID, "error", err)
 				continue
 			}
 			if metadata.SceneID == nil {
@@ -268,26 +268,25 @@ func (uc *IngestContentBlockUseCase) buildMetadata(ctx context.Context, referenc
 			}
 
 		case "character":
-			// Fetch character name
-			char, err := uc.mainServiceClient.GetCharacter(ctx, ref.EntityID)
+			char, err := uc.mainServiceClient.GetCharacter(ctx, anchor.EntityID)
 			if err == nil {
 				metadata.Characters = append(metadata.Characters, char.Name)
 			} else {
-				uc.logger.Error("failed to fetch character", "character_id", ref.EntityID, "error", err)
-				charID := ref.EntityID.String()
+				uc.logger.Error("failed to fetch character", "character_id", anchor.EntityID, "error", err)
+				charID := anchor.EntityID.String()
 				metadata.Characters = append(metadata.Characters, charID)
 			}
 
 		case "location":
 			if metadata.LocationID == nil {
-				metadata.LocationID = &ref.EntityID
+				metadata.LocationID = &anchor.EntityID
 			}
 			// Fetch location name
-			loc, err := uc.mainServiceClient.GetLocation(ctx, ref.EntityID)
+			loc, err := uc.mainServiceClient.GetLocation(ctx, anchor.EntityID)
 			if err == nil {
 				metadata.LocationName = &loc.Name
 			} else {
-				uc.logger.Error("failed to fetch location", "location_id", ref.EntityID, "error", err)
+				uc.logger.Error("failed to fetch location", "location_id", anchor.EntityID, "error", err)
 			}
 		}
 	}

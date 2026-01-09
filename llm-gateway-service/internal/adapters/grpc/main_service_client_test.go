@@ -223,13 +223,13 @@ func TestProtoToContentBlock(t *testing.T) {
 	}
 }
 
-func TestProtoToContentBlockReference(t *testing.T) {
+func TestProtoToContentAnchor(t *testing.T) {
 	refID := uuid.New()
 	contentBlockID := uuid.New()
 	entityID := uuid.New()
 	now := time.Now()
 
-	pbRef := &contentblockpb.ContentBlockReference{
+	pbRef := &contentblockpb.ContentAnchor{
 		Id:             refID.String(),
 		ContentBlockId: contentBlockID.String(),
 		EntityType:     "character",
@@ -237,7 +237,7 @@ func TestProtoToContentBlockReference(t *testing.T) {
 		CreatedAt:      timestamppb.New(now),
 	}
 
-	result := protoToContentBlockReference(pbRef)
+	result := protoToContentAnchor(pbRef)
 
 	if result.ID != refID {
 		t.Errorf("Expected ID %s, got %s", refID, result.ID)

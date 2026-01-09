@@ -17,7 +17,7 @@ type MockMainServiceClient struct {
 	factions         map[uuid.UUID]*Faction
 	lores            map[uuid.UUID]*Lore
 	contentBlocks    map[uuid.UUID]*ContentBlock
-	contentBlockRefs map[uuid.UUID][]*ContentBlockReference
+	contentAnchors   map[uuid.UUID][]*ContentAnchor
 	characters       map[uuid.UUID]*Character
 
 	// Error functions
@@ -38,7 +38,7 @@ func NewMockMainServiceClient() *MockMainServiceClient {
 		factions:         make(map[uuid.UUID]*Faction),
 		lores:            make(map[uuid.UUID]*Lore),
 		contentBlocks:    make(map[uuid.UUID]*ContentBlock),
-		contentBlockRefs: make(map[uuid.UUID][]*ContentBlockReference),
+		contentAnchors:   make(map[uuid.UUID][]*ContentAnchor),
 		characters:       make(map[uuid.UUID]*Character),
 	}
 }
@@ -186,12 +186,12 @@ func (m *MockMainServiceClient) AddContentBlock(contentBlock *ContentBlock) {
 	m.contentBlocks[contentBlock.ID] = contentBlock
 }
 
-// AddContentBlockReference adds a content block reference to the mock
-func (m *MockMainServiceClient) AddContentBlockReference(ref *ContentBlockReference) {
-	if m.contentBlockRefs[ref.ContentBlockID] == nil {
-		m.contentBlockRefs[ref.ContentBlockID] = []*ContentBlockReference{}
+// AddContentAnchor adds a content anchor to the mock
+func (m *MockMainServiceClient) AddContentAnchor(anchor *ContentAnchor) {
+	if m.contentAnchors[anchor.ContentBlockID] == nil {
+		m.contentAnchors[anchor.ContentBlockID] = []*ContentAnchor{}
 	}
-	m.contentBlockRefs[ref.ContentBlockID] = append(m.contentBlockRefs[ref.ContentBlockID], ref)
+	m.contentAnchors[anchor.ContentBlockID] = append(m.contentAnchors[anchor.ContentBlockID], anchor)
 }
 
 // GetContentBlock retrieves a content block by ID
@@ -214,34 +214,34 @@ func (m *MockMainServiceClient) ListContentBlocksByChapter(ctx context.Context, 
 	return blocks, nil
 }
 
-func (m *MockMainServiceClient) ListContentBlockReferences(ctx context.Context, contentBlockID uuid.UUID) ([]*ContentBlockReference, error) {
-	refs, ok := m.contentBlockRefs[contentBlockID]
+func (m *MockMainServiceClient) ListContentAnchors(ctx context.Context, contentBlockID uuid.UUID) ([]*ContentAnchor, error) {
+	anchors, ok := m.contentAnchors[contentBlockID]
 	if !ok {
-		return []*ContentBlockReference{}, nil
+		return []*ContentAnchor{}, nil
 	}
-	return refs, nil
+	return anchors, nil
 }
 
 func (m *MockMainServiceClient) ListContentBlocksByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*ContentBlock, error) {
 	blocks := []*ContentBlock{}
 	seen := make(map[uuid.UUID]struct{})
 
-	for _, refs := range m.contentBlockRefs {
-		for _, ref := range refs {
-			if ref == nil {
+	for _, anchors := range m.contentAnchors {
+		for _, anchor := range anchors {
+			if anchor == nil {
 				continue
 			}
-			if ref.EntityType != entityType || ref.EntityID != entityID {
+			if anchor.EntityType != entityType || anchor.EntityID != entityID {
 				continue
 			}
-			if _, ok := seen[ref.ContentBlockID]; ok {
+			if _, ok := seen[anchor.ContentBlockID]; ok {
 				continue
 			}
-			block, exists := m.contentBlocks[ref.ContentBlockID]
+			block, exists := m.contentBlocks[anchor.ContentBlockID]
 			if !exists {
 				continue
 			}
-			seen[ref.ContentBlockID] = struct{}{}
+			seen[anchor.ContentBlockID] = struct{}{}
 			blocks = append(blocks, block)
 		}
 	}

@@ -60,7 +60,7 @@ func TestIngestCharacterUseCase_Integration_SummaryChunk(t *testing.T) {
 	worldClient := worldpb.NewWorldServiceClient(conn)
 	characterClient := characterpb.NewCharacterServiceClient(conn)
 	contentBlockClient := contentblockpb.NewContentBlockServiceClient(conn)
-	contentBlockRefClient := contentblockpb.NewContentBlockReferenceServiceClient(conn)
+	contentAnchorClient := contentblockpb.NewContentAnchorServiceClient(conn)
 
 	tenantName := "Ingest Integration Tenant " + uuid.NewString()
 	tenantID := strings.TrimSpace(os.Getenv("TEST_TENANT_ID"))
@@ -94,7 +94,7 @@ func TestIngestCharacterUseCase_Integration_SummaryChunk(t *testing.T) {
 	}
 
 	contentBlockText := "Aria protected the Obsidian Tower during the siege."
-	contentBlockResp, err := contentBlockRefClient.ListContentBlocksByEntity(tenantCtx, &contentblockpb.ListContentBlocksByEntityRequest{
+	contentBlockResp, err := contentAnchorClient.ListContentBlocksByEntity(tenantCtx, &contentblockpb.ListContentBlocksByEntityRequest{
 		EntityType: "character",
 		EntityId:   characterResp.Character.Id,
 	})
@@ -123,7 +123,7 @@ func TestIngestCharacterUseCase_Integration_SummaryChunk(t *testing.T) {
 		}
 		contentBlockID = createdResp.ContentBlock.Id
 
-		_, err = contentBlockRefClient.CreateContentBlockReference(tenantCtx, &contentblockpb.CreateContentBlockReferenceRequest{
+		_, err = contentAnchorClient.CreateContentAnchor(tenantCtx, &contentblockpb.CreateContentAnchorRequest{
 			ContentBlockId: contentBlockID,
 			EntityType:     "character",
 			EntityId:       characterResp.Character.Id,

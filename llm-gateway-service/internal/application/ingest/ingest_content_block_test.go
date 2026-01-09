@@ -127,13 +127,13 @@ func TestIngestContentBlockUseCase_Execute_WithBeatReference(t *testing.T) {
 	}
 	mockClient.AddBeat(beat)
 
-	ref := &grpcclient.ContentBlockReference{
+	ref := &grpcclient.ContentAnchor{
 		ID:            uuid.New(),
 		ContentBlockID: contentBlockID,
 		EntityType:    "beat",
 		EntityID:      beatID,
 	}
-	mockClient.AddContentBlockReference(ref)
+	mockClient.AddContentAnchor(ref)
 
 	useCase := NewIngestContentBlockUseCase(mockClient, mockDocRepo, mockChunkRepo, mockEmbedder, log)
 
@@ -207,21 +207,21 @@ func TestIngestContentBlockUseCase_Execute_WithCharacterReferences(t *testing.T)
 	}
 	mockClient.AddCharacter(char2)
 
-	ref1 := &grpcclient.ContentBlockReference{
+	ref1 := &grpcclient.ContentAnchor{
 		ID:            uuid.New(),
 		ContentBlockID: contentBlockID,
 		EntityType:    "character",
 		EntityID:      characterID1,
 	}
-	mockClient.AddContentBlockReference(ref1)
+	mockClient.AddContentAnchor(ref1)
 
-	ref2 := &grpcclient.ContentBlockReference{
+	ref2 := &grpcclient.ContentAnchor{
 		ID:            uuid.New(),
 		ContentBlockID: contentBlockID,
 		EntityType:    "character",
 		EntityID:      characterID2,
 	}
-	mockClient.AddContentBlockReference(ref2)
+	mockClient.AddContentAnchor(ref2)
 
 	useCase := NewIngestContentBlockUseCase(mockClient, mockDocRepo, mockChunkRepo, mockEmbedder, log)
 

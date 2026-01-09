@@ -31,7 +31,7 @@ type MainServiceClient struct {
 	sceneClient                 scenepb.SceneServiceClient
 	beatClient                  beatpb.BeatServiceClient
 	contentBlockClient          contentblockpb.ContentBlockServiceClient
-	contentBlockReferenceClient contentblockpb.ContentBlockReferenceServiceClient
+	contentAnchorClient         contentblockpb.ContentAnchorServiceClient
 	worldClient                 worldpb.WorldServiceClient
 	characterClient             characterpb.CharacterServiceClient
 	locationClient              locationpb.LocationServiceClient
@@ -55,7 +55,7 @@ func NewMainServiceClient(addr string) (*MainServiceClient, error) {
 		sceneClient:                 scenepb.NewSceneServiceClient(conn),
 		beatClient:                  beatpb.NewBeatServiceClient(conn),
 		contentBlockClient:          contentblockpb.NewContentBlockServiceClient(conn),
-		contentBlockReferenceClient: contentblockpb.NewContentBlockReferenceServiceClient(conn),
+		contentAnchorClient:         contentblockpb.NewContentAnchorServiceClient(conn),
 		worldClient:                 worldpb.NewWorldServiceClient(conn),
 		characterClient:             characterpb.NewCharacterServiceClient(conn),
 		locationClient:              locationpb.NewLocationServiceClient(conn),
@@ -149,26 +149,26 @@ func (c *MainServiceClient) ListContentBlocksByChapter(ctx context.Context, chap
 	return contentBlocks, nil
 }
 
-// ListContentBlockReferences lists references for a content block
-func (c *MainServiceClient) ListContentBlockReferences(ctx context.Context, contentBlockID uuid.UUID) ([]*grpcclient.ContentBlockReference, error) {
-	resp, err := c.contentBlockReferenceClient.ListContentBlockReferencesByContentBlock(ctx, &contentblockpb.ListContentBlockReferencesByContentBlockRequest{
+// ListContentAnchors lists anchors for a content block
+func (c *MainServiceClient) ListContentAnchors(ctx context.Context, contentBlockID uuid.UUID) ([]*grpcclient.ContentAnchor, error) {
+	resp, err := c.contentAnchorClient.ListContentAnchorsByContentBlock(ctx, &contentblockpb.ListContentAnchorsByContentBlockRequest{
 		ContentBlockId: contentBlockID.String(),
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	references := make([]*grpcclient.ContentBlockReference, len(resp.References))
-	for i, ref := range resp.References {
-		references[i] = protoToContentBlockReference(ref)
+	anchors := make([]*grpcclient.ContentAnchor, len(resp.Anchors))
+	for i, anchor := range resp.Anchors {
+		anchors[i] = protoToContentAnchor(anchor)
 	}
 
-	return references, nil
+	return anchors, nil
 }
 
 // ListContentBlocksByEntity lists content blocks associated with an entity.
 func (c *MainServiceClient) ListContentBlocksByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*grpcclient.ContentBlock, error) {
-	resp, err := c.contentBlockReferenceClient.ListContentBlocksByEntity(ctx, &contentblockpb.ListContentBlocksByEntityRequest{
+	resp, err := c.contentAnchorClient.ListContentBlocksByEntity(ctx, &contentblockpb.ListContentBlocksByEntityRequest{
 		EntityType: entityType,
 		EntityId:   entityID.String(),
 	})
@@ -288,17 +288,17 @@ func protoToContentBlock(cb *contentblockpb.ContentBlock) *grpcclient.ContentBlo
 	return contentBlock
 }
 
-func protoToContentBlockReference(ref *contentblockpb.ContentBlockReference) *grpcclient.ContentBlockReference {
-	refID, _ := uuid.Parse(ref.Id)
-	contentBlockID, _ := uuid.Parse(ref.ContentBlockId)
-	entityID, _ := uuid.Parse(ref.EntityId)
+func protoToContentAnchor(anchor *contentblockpb.ContentAnchor) *grpcclient.ContentAnchor {
+	anchorID, _ := uuid.Parse(anchor.Id)
+	contentBlockID, _ := uuid.Parse(anchor.ContentBlockId)
+	entityID, _ := uuid.Parse(anchor.EntityId)
 
-	return &grpcclient.ContentBlockReference{
-		ID:             refID,
+	return &grpcclient.ContentAnchor{
+		ID:             anchorID,
 		ContentBlockID: contentBlockID,
-		EntityType:     ref.EntityType,
+		EntityType:     anchor.EntityType,
 		EntityID:       entityID,
-		CreatedAt:      ref.CreatedAt.Seconds,
+		CreatedAt:      anchor.CreatedAt.Seconds,
 	}
 }
 

@@ -26,8 +26,8 @@ type MainServiceClient interface {
 	// ListContentBlocksByChapter lists content blocks for a chapter
 	ListContentBlocksByChapter(ctx context.Context, chapterID uuid.UUID) ([]*ContentBlock, error)
 
-	// ListContentBlockReferences lists references for a content block
-	ListContentBlockReferences(ctx context.Context, contentBlockID uuid.UUID) ([]*ContentBlockReference, error)
+	// ListContentAnchors lists anchors for a content block
+	ListContentAnchors(ctx context.Context, contentBlockID uuid.UUID) ([]*ContentAnchor, error)
 	// ListContentBlocksByEntity lists content blocks referencing an entity
 	ListContentBlocksByEntity(ctx context.Context, entityType string, entityID uuid.UUID) ([]*ContentBlock, error)
 
@@ -112,8 +112,8 @@ type ContentBlock struct {
 	UpdatedAt int64
 }
 
-// ContentBlockReference represents a reference from a content block to an entity
-type ContentBlockReference struct {
+// ContentAnchor represents a text anchor from a content block to an entity
+type ContentAnchor struct {
 	ID            uuid.UUID
 	ContentBlockID uuid.UUID
 	EntityType    string // "scene", "beat", "chapter", "character", "location", "artifact", "event", "world", etc.
