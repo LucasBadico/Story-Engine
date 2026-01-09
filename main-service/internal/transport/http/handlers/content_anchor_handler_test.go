@@ -10,14 +10,14 @@ import (
 	"testing"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	contentblockapp "github.com/story-engine/main-service/internal/application/story/content_block"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
 
-func TestContentBlockReferenceHandler_Create(t *testing.T) {
+func TestContentAnchorHandler_Create(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
@@ -26,7 +26,7 @@ func TestContentBlockReferenceHandler_Create(t *testing.T) {
 	chapterID := setupTestChapter(t, db, tenantID, storyID)
 	contentBlockRepo := postgres.NewContentBlockRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
-	contentBlockReferenceRepo := postgres.NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := postgres.NewContentAnchorRepository(db)
 	log := logger.New()
 
 	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, nil, log)
@@ -64,11 +64,11 @@ func TestContentBlockReferenceHandler_Create(t *testing.T) {
 		t.Fatalf("content block response missing id: %v", contentBlockObj)
 	}
 
-	createReferenceUC := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	listByContentBlockUC := contentblockapp.NewListContentBlockReferencesByContentBlockUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	listByEntityUC := contentblockapp.NewListContentBlocksByEntityUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	deleteReferenceUC := contentblockapp.NewDeleteContentBlockReferenceUseCase(contentBlockReferenceRepo, log)
-	handler := NewContentBlockReferenceHandler(createReferenceUC, listByContentBlockUC, listByEntityUC, deleteReferenceUC, log)
+	createReferenceUC := contentblockapp.NewCreateContentAnchorUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listByContentBlockUC := contentblockapp.NewListContentAnchorsByContentBlockUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listByEntityUC := contentblockapp.NewListContentBlocksByEntityUseCase(contentAnchorRepo, contentBlockRepo, log)
+	deleteReferenceUC := contentblockapp.NewDeleteContentAnchorUseCase(contentAnchorRepo, log)
+	handler := NewContentAnchorHandler(createReferenceUC, listByContentBlockUC, listByEntityUC, deleteReferenceUC, log)
 
 	t.Run("successful creation", func(t *testing.T) {
 		// Create a character to reference
@@ -131,7 +131,7 @@ func TestContentBlockReferenceHandler_Create(t *testing.T) {
 		}
 
 		body := `{"entity_type": "character", "entity_id": "` + characterID + `"}`
-		req := httptest.NewRequest("POST", "/api/v1/content-blocks/"+contentBlockID+"/references", strings.NewReader(body))
+		req := httptest.NewRequest("POST", "/api/v1/content-blocks/"+contentBlockID+"/anchors", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.Header.Set("X-Tenant-ID", tenantID)
 		req.SetPathValue("id", contentBlockID)
@@ -148,18 +148,18 @@ func TestContentBlockReferenceHandler_Create(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if reference, ok := resp["reference"].(map[string]interface{}); ok {
-			if reference["entity_type"] != "character" {
-				t.Errorf("expected entity_type 'character', got %v", reference["entity_type"])
+		if anchor, ok := resp["anchor"].(map[string]interface{}); ok {
+			if anchor["entity_type"] != "character" {
+				t.Errorf("expected entity_type 'character', got %v", anchor["entity_type"])
 			}
 		} else {
-			t.Error("response missing reference")
+			t.Error("response missing anchor")
 		}
 	})
 
 	t.Run("missing tenant_id", func(t *testing.T) {
 		body := `{"entity_type": "character", "entity_id": "00000000-0000-0000-0000-000000000000"}`
-		req := httptest.NewRequest("POST", "/api/v1/content-blocks/"+contentBlockID+"/references", strings.NewReader(body))
+		req := httptest.NewRequest("POST", "/api/v1/content-blocks/"+contentBlockID+"/anchors", strings.NewReader(body))
 		req.Header.Set("Content-Type", "application/json")
 		req.SetPathValue("id", contentBlockID)
 		w := httptest.NewRecorder()
@@ -172,7 +172,7 @@ func TestContentBlockReferenceHandler_Create(t *testing.T) {
 	})
 }
 
-func TestContentBlockReferenceHandler_ListByContentBlock(t *testing.T) {
+func TestContentAnchorHandler_ListByContentBlock(t *testing.T) {
 	db, cleanup := postgres.SetupTestDB(t)
 	defer cleanup()
 
@@ -181,7 +181,7 @@ func TestContentBlockReferenceHandler_ListByContentBlock(t *testing.T) {
 	chapterID := setupTestChapter(t, db, tenantID, storyID)
 	contentBlockRepo := postgres.NewContentBlockRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
-	contentBlockReferenceRepo := postgres.NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := postgres.NewContentAnchorRepository(db)
 	log := logger.New()
 
 	createContentBlockUseCase := contentblockapp.NewCreateContentBlockUseCase(contentBlockRepo, chapterRepo, nil, log)
@@ -219,14 +219,14 @@ func TestContentBlockReferenceHandler_ListByContentBlock(t *testing.T) {
 		t.Fatalf("content block response missing id: %v", contentBlockObj)
 	}
 
-	createReferenceUC := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	listByContentBlockUC := contentblockapp.NewListContentBlockReferencesByContentBlockUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	listByEntityUC := contentblockapp.NewListContentBlocksByEntityUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	deleteReferenceUC := contentblockapp.NewDeleteContentBlockReferenceUseCase(contentBlockReferenceRepo, log)
-	handler := NewContentBlockReferenceHandler(createReferenceUC, listByContentBlockUC, listByEntityUC, deleteReferenceUC, log)
+	createReferenceUC := contentblockapp.NewCreateContentAnchorUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listByContentBlockUC := contentblockapp.NewListContentAnchorsByContentBlockUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listByEntityUC := contentblockapp.NewListContentBlocksByEntityUseCase(contentAnchorRepo, contentBlockRepo, log)
+	deleteReferenceUC := contentblockapp.NewDeleteContentAnchorUseCase(contentAnchorRepo, log)
+	handler := NewContentAnchorHandler(createReferenceUC, listByContentBlockUC, listByEntityUC, deleteReferenceUC, log)
 
-	t.Run("list references", func(t *testing.T) {
-		req := httptest.NewRequest("GET", "/api/v1/content-blocks/"+contentBlockID+"/references", nil)
+	t.Run("list anchors", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/api/v1/content-blocks/"+contentBlockID+"/anchors", nil)
 		req.Header.Set("X-Tenant-ID", tenantID)
 		req.SetPathValue("id", contentBlockID)
 		w := httptest.NewRecorder()
@@ -242,8 +242,8 @@ func TestContentBlockReferenceHandler_ListByContentBlock(t *testing.T) {
 			t.Fatalf("failed to decode response: %v", err)
 		}
 
-		if _, ok := resp["references"]; !ok {
-			t.Error("response missing references")
+		if _, ok := resp["anchors"]; !ok {
+			t.Error("response missing anchors")
 		}
 	})
 }

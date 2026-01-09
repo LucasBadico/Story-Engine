@@ -267,209 +267,208 @@ var ContentBlockService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	ContentBlockReferenceService_CreateContentBlockReference_FullMethodName              = "/content_block.ContentBlockReferenceService/CreateContentBlockReference"
-	ContentBlockReferenceService_ListContentBlockReferencesByContentBlock_FullMethodName = "/content_block.ContentBlockReferenceService/ListContentBlockReferencesByContentBlock"
-	ContentBlockReferenceService_ListContentBlocksByEntity_FullMethodName                = "/content_block.ContentBlockReferenceService/ListContentBlocksByEntity"
-	ContentBlockReferenceService_DeleteContentBlockReference_FullMethodName              = "/content_block.ContentBlockReferenceService/DeleteContentBlockReference"
+	ContentAnchorService_CreateContentAnchor_FullMethodName              = "/content_block.ContentAnchorService/CreateContentAnchor"
+	ContentAnchorService_ListContentAnchorsByContentBlock_FullMethodName = "/content_block.ContentAnchorService/ListContentAnchorsByContentBlock"
+	ContentAnchorService_ListContentBlocksByEntity_FullMethodName        = "/content_block.ContentAnchorService/ListContentBlocksByEntity"
+	ContentAnchorService_DeleteContentAnchor_FullMethodName              = "/content_block.ContentAnchorService/DeleteContentAnchor"
 )
 
-// ContentBlockReferenceServiceClient is the client API for ContentBlockReferenceService service.
+// ContentAnchorServiceClient is the client API for ContentAnchorService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type ContentBlockReferenceServiceClient interface {
-	// CreateContentBlockReference creates a new reference
-	CreateContentBlockReference(ctx context.Context, in *CreateContentBlockReferenceRequest, opts ...grpc.CallOption) (*CreateContentBlockReferenceResponse, error)
-	// ListContentBlockReferencesByContentBlock lists references for a content block
-	ListContentBlockReferencesByContentBlock(ctx context.Context, in *ListContentBlockReferencesByContentBlockRequest, opts ...grpc.CallOption) (*ListContentBlockReferencesByContentBlockResponse, error)
+type ContentAnchorServiceClient interface {
+	// CreateContentAnchor creates a new anchor
+	CreateContentAnchor(ctx context.Context, in *CreateContentAnchorRequest, opts ...grpc.CallOption) (*CreateContentAnchorResponse, error)
+	// ListContentAnchorsByContentBlock lists anchors for a content block
+	ListContentAnchorsByContentBlock(ctx context.Context, in *ListContentAnchorsByContentBlockRequest, opts ...grpc.CallOption) (*ListContentAnchorsByContentBlockResponse, error)
 	// ListContentBlocksByEntity lists content blocks associated with an entity
 	ListContentBlocksByEntity(ctx context.Context, in *ListContentBlocksByEntityRequest, opts ...grpc.CallOption) (*ListContentBlocksByEntityResponse, error)
-	// DeleteContentBlockReference deletes a reference
-	DeleteContentBlockReference(ctx context.Context, in *DeleteContentBlockReferenceRequest, opts ...grpc.CallOption) (*DeleteContentBlockReferenceResponse, error)
+	// DeleteContentAnchor deletes an anchor
+	DeleteContentAnchor(ctx context.Context, in *DeleteContentAnchorRequest, opts ...grpc.CallOption) (*DeleteContentAnchorResponse, error)
 }
 
-type contentBlockReferenceServiceClient struct {
+type contentAnchorServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewContentBlockReferenceServiceClient(cc grpc.ClientConnInterface) ContentBlockReferenceServiceClient {
-	return &contentBlockReferenceServiceClient{cc}
+func NewContentAnchorServiceClient(cc grpc.ClientConnInterface) ContentAnchorServiceClient {
+	return &contentAnchorServiceClient{cc}
 }
 
-func (c *contentBlockReferenceServiceClient) CreateContentBlockReference(ctx context.Context, in *CreateContentBlockReferenceRequest, opts ...grpc.CallOption) (*CreateContentBlockReferenceResponse, error) {
-	out := new(CreateContentBlockReferenceResponse)
-	err := c.cc.Invoke(ctx, ContentBlockReferenceService_CreateContentBlockReference_FullMethodName, in, out, opts...)
+func (c *contentAnchorServiceClient) CreateContentAnchor(ctx context.Context, in *CreateContentAnchorRequest, opts ...grpc.CallOption) (*CreateContentAnchorResponse, error) {
+	out := new(CreateContentAnchorResponse)
+	err := c.cc.Invoke(ctx, ContentAnchorService_CreateContentAnchor_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *contentBlockReferenceServiceClient) ListContentBlockReferencesByContentBlock(ctx context.Context, in *ListContentBlockReferencesByContentBlockRequest, opts ...grpc.CallOption) (*ListContentBlockReferencesByContentBlockResponse, error) {
-	out := new(ListContentBlockReferencesByContentBlockResponse)
-	err := c.cc.Invoke(ctx, ContentBlockReferenceService_ListContentBlockReferencesByContentBlock_FullMethodName, in, out, opts...)
+func (c *contentAnchorServiceClient) ListContentAnchorsByContentBlock(ctx context.Context, in *ListContentAnchorsByContentBlockRequest, opts ...grpc.CallOption) (*ListContentAnchorsByContentBlockResponse, error) {
+	out := new(ListContentAnchorsByContentBlockResponse)
+	err := c.cc.Invoke(ctx, ContentAnchorService_ListContentAnchorsByContentBlock_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *contentBlockReferenceServiceClient) ListContentBlocksByEntity(ctx context.Context, in *ListContentBlocksByEntityRequest, opts ...grpc.CallOption) (*ListContentBlocksByEntityResponse, error) {
+func (c *contentAnchorServiceClient) ListContentBlocksByEntity(ctx context.Context, in *ListContentBlocksByEntityRequest, opts ...grpc.CallOption) (*ListContentBlocksByEntityResponse, error) {
 	out := new(ListContentBlocksByEntityResponse)
-	err := c.cc.Invoke(ctx, ContentBlockReferenceService_ListContentBlocksByEntity_FullMethodName, in, out, opts...)
+	err := c.cc.Invoke(ctx, ContentAnchorService_ListContentBlocksByEntity_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *contentBlockReferenceServiceClient) DeleteContentBlockReference(ctx context.Context, in *DeleteContentBlockReferenceRequest, opts ...grpc.CallOption) (*DeleteContentBlockReferenceResponse, error) {
-	out := new(DeleteContentBlockReferenceResponse)
-	err := c.cc.Invoke(ctx, ContentBlockReferenceService_DeleteContentBlockReference_FullMethodName, in, out, opts...)
+func (c *contentAnchorServiceClient) DeleteContentAnchor(ctx context.Context, in *DeleteContentAnchorRequest, opts ...grpc.CallOption) (*DeleteContentAnchorResponse, error) {
+	out := new(DeleteContentAnchorResponse)
+	err := c.cc.Invoke(ctx, ContentAnchorService_DeleteContentAnchor_FullMethodName, in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// ContentBlockReferenceServiceServer is the server API for ContentBlockReferenceService service.
-// All implementations must embed UnimplementedContentBlockReferenceServiceServer
+// ContentAnchorServiceServer is the server API for ContentAnchorService service.
+// All implementations must embed UnimplementedContentAnchorServiceServer
 // for forward compatibility
-type ContentBlockReferenceServiceServer interface {
-	// CreateContentBlockReference creates a new reference
-	CreateContentBlockReference(context.Context, *CreateContentBlockReferenceRequest) (*CreateContentBlockReferenceResponse, error)
-	// ListContentBlockReferencesByContentBlock lists references for a content block
-	ListContentBlockReferencesByContentBlock(context.Context, *ListContentBlockReferencesByContentBlockRequest) (*ListContentBlockReferencesByContentBlockResponse, error)
+type ContentAnchorServiceServer interface {
+	// CreateContentAnchor creates a new anchor
+	CreateContentAnchor(context.Context, *CreateContentAnchorRequest) (*CreateContentAnchorResponse, error)
+	// ListContentAnchorsByContentBlock lists anchors for a content block
+	ListContentAnchorsByContentBlock(context.Context, *ListContentAnchorsByContentBlockRequest) (*ListContentAnchorsByContentBlockResponse, error)
 	// ListContentBlocksByEntity lists content blocks associated with an entity
 	ListContentBlocksByEntity(context.Context, *ListContentBlocksByEntityRequest) (*ListContentBlocksByEntityResponse, error)
-	// DeleteContentBlockReference deletes a reference
-	DeleteContentBlockReference(context.Context, *DeleteContentBlockReferenceRequest) (*DeleteContentBlockReferenceResponse, error)
-	mustEmbedUnimplementedContentBlockReferenceServiceServer()
+	// DeleteContentAnchor deletes an anchor
+	DeleteContentAnchor(context.Context, *DeleteContentAnchorRequest) (*DeleteContentAnchorResponse, error)
+	mustEmbedUnimplementedContentAnchorServiceServer()
 }
 
-// UnimplementedContentBlockReferenceServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedContentBlockReferenceServiceServer struct {
+// UnimplementedContentAnchorServiceServer must be embedded to have forward compatible implementations.
+type UnimplementedContentAnchorServiceServer struct {
 }
 
-func (UnimplementedContentBlockReferenceServiceServer) CreateContentBlockReference(context.Context, *CreateContentBlockReferenceRequest) (*CreateContentBlockReferenceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method CreateContentBlockReference not implemented")
+func (UnimplementedContentAnchorServiceServer) CreateContentAnchor(context.Context, *CreateContentAnchorRequest) (*CreateContentAnchorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CreateContentAnchor not implemented")
 }
-func (UnimplementedContentBlockReferenceServiceServer) ListContentBlockReferencesByContentBlock(context.Context, *ListContentBlockReferencesByContentBlockRequest) (*ListContentBlockReferencesByContentBlockResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method ListContentBlockReferencesByContentBlock not implemented")
+func (UnimplementedContentAnchorServiceServer) ListContentAnchorsByContentBlock(context.Context, *ListContentAnchorsByContentBlockRequest) (*ListContentAnchorsByContentBlockResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListContentAnchorsByContentBlock not implemented")
 }
-func (UnimplementedContentBlockReferenceServiceServer) ListContentBlocksByEntity(context.Context, *ListContentBlocksByEntityRequest) (*ListContentBlocksByEntityResponse, error) {
+func (UnimplementedContentAnchorServiceServer) ListContentBlocksByEntity(context.Context, *ListContentBlocksByEntityRequest) (*ListContentBlocksByEntityResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListContentBlocksByEntity not implemented")
 }
-func (UnimplementedContentBlockReferenceServiceServer) DeleteContentBlockReference(context.Context, *DeleteContentBlockReferenceRequest) (*DeleteContentBlockReferenceResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method DeleteContentBlockReference not implemented")
+func (UnimplementedContentAnchorServiceServer) DeleteContentAnchor(context.Context, *DeleteContentAnchorRequest) (*DeleteContentAnchorResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method DeleteContentAnchor not implemented")
 }
-func (UnimplementedContentBlockReferenceServiceServer) mustEmbedUnimplementedContentBlockReferenceServiceServer() {
-}
+func (UnimplementedContentAnchorServiceServer) mustEmbedUnimplementedContentAnchorServiceServer() {}
 
-// UnsafeContentBlockReferenceServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to ContentBlockReferenceServiceServer will
+// UnsafeContentAnchorServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to ContentAnchorServiceServer will
 // result in compilation errors.
-type UnsafeContentBlockReferenceServiceServer interface {
-	mustEmbedUnimplementedContentBlockReferenceServiceServer()
+type UnsafeContentAnchorServiceServer interface {
+	mustEmbedUnimplementedContentAnchorServiceServer()
 }
 
-func RegisterContentBlockReferenceServiceServer(s grpc.ServiceRegistrar, srv ContentBlockReferenceServiceServer) {
-	s.RegisterService(&ContentBlockReferenceService_ServiceDesc, srv)
+func RegisterContentAnchorServiceServer(s grpc.ServiceRegistrar, srv ContentAnchorServiceServer) {
+	s.RegisterService(&ContentAnchorService_ServiceDesc, srv)
 }
 
-func _ContentBlockReferenceService_CreateContentBlockReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(CreateContentBlockReferenceRequest)
+func _ContentAnchorService_CreateContentAnchor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateContentAnchorRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ContentBlockReferenceServiceServer).CreateContentBlockReference(ctx, in)
+		return srv.(ContentAnchorServiceServer).CreateContentAnchor(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ContentBlockReferenceService_CreateContentBlockReference_FullMethodName,
+		FullMethod: ContentAnchorService_CreateContentAnchor_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ContentBlockReferenceServiceServer).CreateContentBlockReference(ctx, req.(*CreateContentBlockReferenceRequest))
+		return srv.(ContentAnchorServiceServer).CreateContentAnchor(ctx, req.(*CreateContentAnchorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ContentBlockReferenceService_ListContentBlockReferencesByContentBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ListContentBlockReferencesByContentBlockRequest)
+func _ContentAnchorService_ListContentAnchorsByContentBlock_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListContentAnchorsByContentBlockRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ContentBlockReferenceServiceServer).ListContentBlockReferencesByContentBlock(ctx, in)
+		return srv.(ContentAnchorServiceServer).ListContentAnchorsByContentBlock(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ContentBlockReferenceService_ListContentBlockReferencesByContentBlock_FullMethodName,
+		FullMethod: ContentAnchorService_ListContentAnchorsByContentBlock_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ContentBlockReferenceServiceServer).ListContentBlockReferencesByContentBlock(ctx, req.(*ListContentBlockReferencesByContentBlockRequest))
+		return srv.(ContentAnchorServiceServer).ListContentAnchorsByContentBlock(ctx, req.(*ListContentAnchorsByContentBlockRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ContentBlockReferenceService_ListContentBlocksByEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _ContentAnchorService_ListContentBlocksByEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(ListContentBlocksByEntityRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ContentBlockReferenceServiceServer).ListContentBlocksByEntity(ctx, in)
+		return srv.(ContentAnchorServiceServer).ListContentBlocksByEntity(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ContentBlockReferenceService_ListContentBlocksByEntity_FullMethodName,
+		FullMethod: ContentAnchorService_ListContentBlocksByEntity_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ContentBlockReferenceServiceServer).ListContentBlocksByEntity(ctx, req.(*ListContentBlocksByEntityRequest))
+		return srv.(ContentAnchorServiceServer).ListContentBlocksByEntity(ctx, req.(*ListContentBlocksByEntityRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _ContentBlockReferenceService_DeleteContentBlockReference_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(DeleteContentBlockReferenceRequest)
+func _ContentAnchorService_DeleteContentAnchor_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteContentAnchorRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(ContentBlockReferenceServiceServer).DeleteContentBlockReference(ctx, in)
+		return srv.(ContentAnchorServiceServer).DeleteContentAnchor(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: ContentBlockReferenceService_DeleteContentBlockReference_FullMethodName,
+		FullMethod: ContentAnchorService_DeleteContentAnchor_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(ContentBlockReferenceServiceServer).DeleteContentBlockReference(ctx, req.(*DeleteContentBlockReferenceRequest))
+		return srv.(ContentAnchorServiceServer).DeleteContentAnchor(ctx, req.(*DeleteContentAnchorRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// ContentBlockReferenceService_ServiceDesc is the grpc.ServiceDesc for ContentBlockReferenceService service.
+// ContentAnchorService_ServiceDesc is the grpc.ServiceDesc for ContentAnchorService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var ContentBlockReferenceService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "content_block.ContentBlockReferenceService",
-	HandlerType: (*ContentBlockReferenceServiceServer)(nil),
+var ContentAnchorService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "content_block.ContentAnchorService",
+	HandlerType: (*ContentAnchorServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "CreateContentBlockReference",
-			Handler:    _ContentBlockReferenceService_CreateContentBlockReference_Handler,
+			MethodName: "CreateContentAnchor",
+			Handler:    _ContentAnchorService_CreateContentAnchor_Handler,
 		},
 		{
-			MethodName: "ListContentBlockReferencesByContentBlock",
-			Handler:    _ContentBlockReferenceService_ListContentBlockReferencesByContentBlock_Handler,
+			MethodName: "ListContentAnchorsByContentBlock",
+			Handler:    _ContentAnchorService_ListContentAnchorsByContentBlock_Handler,
 		},
 		{
 			MethodName: "ListContentBlocksByEntity",
-			Handler:    _ContentBlockReferenceService_ListContentBlocksByEntity_Handler,
+			Handler:    _ContentAnchorService_ListContentBlocksByEntity_Handler,
 		},
 		{
-			MethodName: "DeleteContentBlockReference",
-			Handler:    _ContentBlockReferenceService_DeleteContentBlockReference_Handler,
+			MethodName: "DeleteContentAnchor",
+			Handler:    _ContentAnchorService_DeleteContentAnchor_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

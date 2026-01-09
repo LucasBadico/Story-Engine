@@ -32,7 +32,7 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	sceneRepo := postgres.NewSceneRepository(db)
 	beatRepo := postgres.NewBeatRepository(db)
 	contentBlockRepo := postgres.NewContentBlockRepository(db)
-	contentBlockRefRepo := postgres.NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := postgres.NewContentAnchorRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 	transactionRepo := postgres.NewTransactionRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
@@ -95,10 +95,10 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	deleteContentBlockUseCase := contentblockapp.NewDeleteContentBlockUseCase(contentBlockRepo, log)
 	listContentBlocksUseCase := contentblockapp.NewListContentBlocksUseCase(contentBlockRepo, log)
 
-	createContentBlockReferenceUseCase := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockRefRepo, contentBlockRepo, log)
-	listContentBlockReferencesByContentBlockUseCase := contentblockapp.NewListContentBlockReferencesByContentBlockUseCase(contentBlockRefRepo, contentBlockRepo, log)
-	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentBlockRefRepo, contentBlockRepo, log)
-	deleteContentBlockReferenceUseCase := contentblockapp.NewDeleteContentBlockReferenceUseCase(contentBlockRefRepo, log)
+	createContentAnchorUseCase := contentblockapp.NewCreateContentAnchorUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listContentAnchorsByContentBlockUseCase := contentblockapp.NewListContentAnchorsByContentBlockUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentAnchorRepo, contentBlockRepo, log)
+	deleteContentAnchorUseCase := contentblockapp.NewDeleteContentAnchorUseCase(contentAnchorRepo, log)
 
 	// Create handlers
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -148,11 +148,11 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 		listContentBlocksUseCase,
 		log,
 	)
-	contentBlockRefHandler := NewContentBlockReferenceHandler(
-		createContentBlockReferenceUseCase,
-		listContentBlockReferencesByContentBlockUseCase,
+	contentAnchorHandler := NewContentAnchorHandler(
+		createContentAnchorUseCase,
+		listContentAnchorsByContentBlockUseCase,
 		listContentBlocksByEntityUseCase,
-		deleteContentBlockReferenceUseCase,
+		deleteContentAnchorUseCase,
 		log,
 	)
 
@@ -164,7 +164,7 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 		SceneHandler:                 sceneHandler,
 		BeatHandler:                  beatHandler,
 		ContentBlockHandler:          contentBlockHandler,
-		ContentBlockReferenceHandler: contentBlockRefHandler,
+		ContentAnchorHandler: contentAnchorHandler,
 	})
 
 	cleanup := func() {

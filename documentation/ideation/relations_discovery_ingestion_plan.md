@@ -951,45 +951,45 @@ On relation delete → delete corresponding embedding chunk.
 **Rationale**: `content_block_references` are NOT semantic entity relations. They are **text anchors** (mentions within prose content). Renaming clarifies this distinction.
 
 #### 11.1 Database Migration
-- [ ] **11.1a** Create Postgres migration to rename table: `content_block_references` → `content_anchors`
-- [ ] **11.1b** Create SQLite migration to rename table: `content_block_references` → `content_anchors`
-- [ ] **11.1c** Update indexes and constraints accordingly
+- [x] **11.1a** Create Postgres migration to rename table: `content_block_references` → `content_anchors`
+- [x] **11.1b** Create SQLite migration to rename table: `content_block_references` → `content_anchors`
+- [x] **11.1c** Update indexes and constraints accordingly
 
 #### 11.2 Domain Layer
-- [ ] **11.2a** Rename `internal/core/story/content_block_reference.go` → `content_anchor.go`
-- [ ] **11.2b** Rename struct `ContentBlockReference` → `ContentAnchor`
-- [ ] **11.2c** Update all type references in core
+- [x] **11.2a** Rename `internal/core/story/content_block_reference.go` → `content_anchor.go`
+- [x] **11.2b** Rename struct `ContentBlockReference` → `ContentAnchor`
+- [x] **11.2c** Update all type references in core
 
 #### 11.3 Repository Layer
-- [ ] **11.3a** Rename `ContentBlockReferenceRepository` interface → `ContentAnchorRepository`
-- [ ] **11.3b** Rename Postgres implementation file and struct
-- [ ] **11.3c** Rename SQLite implementation file and struct
-- [ ] **11.3d** Update table name in all queries
+- [x] **11.3a** Rename `ContentBlockReferenceRepository` interface → `ContentAnchorRepository`
+- [x] **11.3b** Rename Postgres implementation file and struct
+- [x] **11.3c** Rename SQLite implementation file and struct
+- [x] **11.3d** Update table name in all queries
 
 #### 11.4 Application Layer
-- [ ] **11.4a** Rename use cases in `application/story/content_block/`:
+- [x] **11.4a** Rename use cases in `application/story/content_block/`:
   - `create_content_block_reference.go` → `create_content_anchor.go`
   - `list_content_block_references_by_content_block.go` → `list_content_anchors_by_content_block.go`
   - `list_content_blocks_by_entity.go` (uses anchors internally)
   - `delete_content_block_reference.go` → `delete_content_anchor.go`
-- [ ] **11.4b** Update use case struct names and methods
+- [x] **11.4b** Update use case struct names and methods
 
 #### 11.5 Transport Layer
-- [ ] **11.5a** Rename HTTP handler: `content_block_reference_handler.go` → `content_anchor_handler.go`
-- [ ] **11.5b** Update HTTP routes (keep old routes as aliases for backwards compatibility):
+- [x] **11.5a** Rename HTTP handler: `content_block_reference_handler.go` → `content_anchor_handler.go`
+- [x] **11.5b** Update HTTP routes (keep old routes as aliases for backwards compatibility):
   - `POST /api/v1/content-blocks/{id}/anchors` (new)
   - `POST /api/v1/content-blocks/{id}/references` (deprecated alias)
-- [ ] **11.5c** Rename gRPC proto messages if applicable
-- [ ] **11.5d** Update gRPC handlers
+- [x] **11.5c** Rename gRPC proto messages if applicable
+- [x] **11.5d** Update gRPC handlers
 
 #### 11.6 Main Entrypoints
-- [ ] **11.6a** Update `cmd/api-http/main.go` with new handler names
-- [ ] **11.6b** Update `cmd/api-grpc/main.go` with new handler names
-- [ ] **11.6c** Update `cmd/api-offline/main.go` with new handler names
+- [x] **11.6a** Update `cmd/api-http/main.go` with new handler names
+- [x] **11.6b** Update `cmd/api-grpc/main.go` with new handler names
+- [x] **11.6c** Update `cmd/api-offline/main.go` with new handler names
 
 #### 11.7 Tests
-- [ ] **11.7a** Rename test files to match new names
-- [ ] **11.7b** Update test assertions and mocks
+- [x] **11.7a** Rename test files to match new names
+- [x] **11.7b** Update test assertions and mocks
 
 ### Phase 12: API Simplification - Remove LLM-only fields from main-service ✅ COMPLETED
 **Rationale**: Os campos `source_ref`/`target_ref`, `confidence`, `evidence_spans`, e `status` existiam para o pipeline de LLM/entity extraction onde entidades podem não existir ainda. Mas na API pública de criar relações, ambas entidades já devem existir. Manter esses campos na API cria inconsistências.

@@ -387,19 +387,19 @@ func TestContentBlockHandler_ListContentBlocksByChapter(t *testing.T) {
 	})
 }
 
-func TestContentBlockReferenceHandler_CreateAndList(t *testing.T) {
+func TestContentAnchorHandler_CreateAndList(t *testing.T) {
 	conn, cleanup := setupTestServer(t)
 	defer cleanup()
 
 	contentClient := contentblockpb.NewContentBlockServiceClient(conn)
-	refClient := contentblockpb.NewContentBlockReferenceServiceClient(conn)
+	refClient := contentblockpb.NewContentAnchorServiceClient(conn)
 	chapterClient := chapterpb.NewChapterServiceClient(conn)
 	storyClient := storypb.NewStoryServiceClient(conn)
 	tenantClient := tenantpb.NewTenantServiceClient(conn)
 
 	// Setup
 	tenantResp, err := tenantClient.CreateTenant(context.Background(), &tenantpb.CreateTenantRequest{
-		Name: "Test Tenant for ContentBlockReference",
+		Name: "Test Tenant for ContentAnchor",
 	})
 	if err != nil {
 		t.Fatalf("failed to create tenant: %v", err)
@@ -428,10 +428,10 @@ func TestContentBlockReferenceHandler_CreateAndList(t *testing.T) {
 		t.Fatalf("failed to create content block: %v", err)
 	}
 
-	t.Run("create and list references", func(t *testing.T) {
-		// Create a reference (using a fake scene ID for testing)
+	t.Run("create and list anchors", func(t *testing.T) {
+		// Create an anchor (using a fake scene ID for testing)
 		fakeSceneID := uuid.New().String()
-		createResp, err := refClient.CreateContentBlockReference(ctx, &contentblockpb.CreateContentBlockReferenceRequest{
+		createResp, err := refClient.CreateContentAnchor(ctx, &contentblockpb.CreateContentAnchorRequest{
 			ContentBlockId: contentResp.ContentBlock.Id,
 			EntityType:     "scene",
 			EntityId:       fakeSceneID,
@@ -439,24 +439,24 @@ func TestContentBlockReferenceHandler_CreateAndList(t *testing.T) {
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if createResp.Reference.EntityType != "scene" {
-			t.Errorf("expected entity_type 'scene', got '%s'", createResp.Reference.EntityType)
+		if createResp.Anchor.EntityType != "scene" {
+			t.Errorf("expected entity_type 'scene', got '%s'", createResp.Anchor.EntityType)
 		}
 
-		// List references by content block
-		listResp, err := refClient.ListContentBlockReferencesByContentBlock(ctx, &contentblockpb.ListContentBlockReferencesByContentBlockRequest{
+		// List anchors by content block
+		listResp, err := refClient.ListContentAnchorsByContentBlock(ctx, &contentblockpb.ListContentAnchorsByContentBlockRequest{
 			ContentBlockId: contentResp.ContentBlock.Id,
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
-		if len(listResp.References) != 1 {
-			t.Errorf("expected 1 reference, got %d", len(listResp.References))
+		if len(listResp.Anchors) != 1 {
+			t.Errorf("expected 1 anchor, got %d", len(listResp.Anchors))
 		}
 
-		// Delete reference
-		deleteResp, err := refClient.DeleteContentBlockReference(ctx, &contentblockpb.DeleteContentBlockReferenceRequest{
-			Id: createResp.Reference.Id,
+		// Delete anchor
+		deleteResp, err := refClient.DeleteContentAnchor(ctx, &contentblockpb.DeleteContentAnchorRequest{
+			Id: createResp.Anchor.Id,
 		})
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
@@ -466,8 +466,8 @@ func TestContentBlockReferenceHandler_CreateAndList(t *testing.T) {
 		}
 	})
 
-	t.Run("invalid content block for reference", func(t *testing.T) {
-		_, err := refClient.CreateContentBlockReference(ctx, &contentblockpb.CreateContentBlockReferenceRequest{
+	t.Run("invalid content block for anchor", func(t *testing.T) {
+		_, err := refClient.CreateContentAnchor(ctx, &contentblockpb.CreateContentAnchorRequest{
 			ContentBlockId: uuid.New().String(),
 			EntityType:     "scene",
 			EntityId:       uuid.New().String(),
@@ -481,5 +481,3 @@ func TestContentBlockReferenceHandler_CreateAndList(t *testing.T) {
 		}
 	})
 }
-
-

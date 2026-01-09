@@ -18,8 +18,8 @@ message ContentBlock {
   google.protobuf.Timestamp updated_at = 9;
 }
 
-// ContentBlockReference represents a reference from an entity to a content block
-message ContentBlockReference {
+// ContentAnchor represents an entity mention anchored within a content block
+message ContentAnchor {
   string id = 1;
   string content_block_id = 2;
   string entity_type = 3; // scene, beat, chapter, character, location, artifact, event, world, rpg_system, rpg_skill, rpg_class, inventory_item
@@ -88,26 +88,26 @@ message ListContentBlocksByChapterResponse {
   int32 total_count = 2;
 }
 
-// CreateContentBlockReferenceRequest is the request to create a reference
-message CreateContentBlockReferenceRequest {
+// CreateContentAnchorRequest is the request to create an anchor
+message CreateContentAnchorRequest {
   string content_block_id = 1;
   string entity_type = 2;
   string entity_id = 3;
 }
 
-// CreateContentBlockReferenceResponse is the response after creating a reference
-message CreateContentBlockReferenceResponse {
-  ContentBlockReference reference = 1;
+// CreateContentAnchorResponse is the response after creating an anchor
+message CreateContentAnchorResponse {
+  ContentAnchor anchor = 1;
 }
 
-// ListContentBlockReferencesByContentBlockRequest lists references for a content block
-message ListContentBlockReferencesByContentBlockRequest {
+// ListContentAnchorsByContentBlockRequest lists anchors for a content block
+message ListContentAnchorsByContentBlockRequest {
   string content_block_id = 1;
 }
 
-// ListContentBlockReferencesByContentBlockResponse contains references for a content block
-message ListContentBlockReferencesByContentBlockResponse {
-  repeated ContentBlockReference references = 1;
+// ListContentAnchorsByContentBlockResponse contains anchors for a content block
+message ListContentAnchorsByContentBlockResponse {
+  repeated ContentAnchor anchors = 1;
   int32 total_count = 2;
 }
 
@@ -123,13 +123,13 @@ message ListContentBlocksByEntityResponse {
   int32 total_count = 2;
 }
 
-// DeleteContentBlockReferenceRequest is the request to delete a reference
-message DeleteContentBlockReferenceRequest {
+// DeleteContentAnchorRequest is the request to delete an anchor
+message DeleteContentAnchorRequest {
   string id = 1;
 }
 
-// DeleteContentBlockReferenceResponse is the response after deleting a reference
-message DeleteContentBlockReferenceResponse {
+// DeleteContentAnchorResponse is the response after deleting an anchor
+message DeleteContentAnchorResponse {
   bool success = 1;
 }
 
@@ -147,15 +147,15 @@ service ContentBlockService {
   rpc ListContentBlocksByChapter(ListContentBlocksByChapterRequest) returns (ListContentBlocksByChapterResponse);
 }
 
-// ContentBlockReferenceService provides content block reference management operations
-service ContentBlockReferenceService {
-  // CreateContentBlockReference creates a new reference
-  rpc CreateContentBlockReference(CreateContentBlockReferenceRequest) returns (CreateContentBlockReferenceResponse);
-  // ListContentBlockReferencesByContentBlock lists references for a content block
-  rpc ListContentBlockReferencesByContentBlock(ListContentBlockReferencesByContentBlockRequest) returns (ListContentBlockReferencesByContentBlockResponse);
+// ContentAnchorService provides content anchor management operations
+service ContentAnchorService {
+  // CreateContentAnchor creates a new anchor
+  rpc CreateContentAnchor(CreateContentAnchorRequest) returns (CreateContentAnchorResponse);
+  // ListContentAnchorsByContentBlock lists anchors for a content block
+  rpc ListContentAnchorsByContentBlock(ListContentAnchorsByContentBlockRequest) returns (ListContentAnchorsByContentBlockResponse);
   // ListContentBlocksByEntity lists content blocks associated with an entity
   rpc ListContentBlocksByEntity(ListContentBlocksByEntityRequest) returns (ListContentBlocksByEntityResponse);
-  // DeleteContentBlockReference deletes a reference
-  rpc DeleteContentBlockReference(DeleteContentBlockReferenceRequest) returns (DeleteContentBlockReferenceResponse);
+  // DeleteContentAnchor deletes an anchor
+  rpc DeleteContentAnchor(DeleteContentAnchorRequest) returns (DeleteContentAnchorResponse);
 }
 

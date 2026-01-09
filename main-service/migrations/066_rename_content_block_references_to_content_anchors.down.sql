@@ -1,0 +1,16 @@
+-- Revert table rename back to content_block_references
+ALTER TABLE content_anchors RENAME TO content_block_references;
+
+-- Restore original constraint names
+ALTER TABLE content_block_references RENAME CONSTRAINT content_anchors_content_block_fk TO content_block_references_content_block_fk;
+ALTER TABLE content_block_references RENAME CONSTRAINT content_anchors_entity_type_check TO content_block_references_entity_type_check;
+ALTER TABLE content_block_references RENAME CONSTRAINT content_anchors_unique TO content_block_references_unique;
+ALTER TABLE content_block_references RENAME CONSTRAINT content_anchors_tenant_fk TO content_block_references_tenant_fk;
+
+-- Restore original index names
+ALTER INDEX idx_content_anchors_content_block_id RENAME TO idx_content_block_references_content_block_id;
+ALTER INDEX idx_content_anchors_tenant_id RENAME TO idx_content_block_references_tenant_id;
+ALTER INDEX idx_content_anchors_entity RENAME TO idx_content_block_references_entity;
+ALTER INDEX idx_content_anchors_entity_id RENAME TO idx_content_block_references_entity_id;
+
+

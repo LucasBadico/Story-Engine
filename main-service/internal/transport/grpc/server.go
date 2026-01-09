@@ -163,10 +163,10 @@ func (s *Server) RegisterContentBlockService(handler contentblockpb.ContentBlock
 	s.logger.Info("ContentBlockService registered")
 }
 
-// RegisterContentBlockReferenceService registers the ContentBlockReferenceService handler
-func (s *Server) RegisterContentBlockReferenceService(handler contentblockpb.ContentBlockReferenceServiceServer) {
-	contentblockpb.RegisterContentBlockReferenceServiceServer(s.grpcServer, handler)
-	s.logger.Info("ContentBlockReferenceService registered")
+// RegisterContentAnchorService registers the ContentAnchorService handler
+func (s *Server) RegisterContentAnchorService(handler contentblockpb.ContentAnchorServiceServer) {
+	contentblockpb.RegisterContentAnchorServiceServer(s.grpcServer, handler)
+	s.logger.Info("ContentAnchorService registered")
 }
 
 // RegisterRPGSystemService registers the RPGSystemService handler

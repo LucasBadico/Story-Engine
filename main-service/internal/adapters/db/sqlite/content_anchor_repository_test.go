@@ -13,7 +13,7 @@ import (
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 )
 
-func TestContentBlockReferenceRepository_Create(t *testing.T) {
+func TestContentAnchorRepository_Create(t *testing.T) {
 	db, cleanup := SetupTestSQLiteDB(t)
 	defer cleanup()
 
@@ -26,7 +26,7 @@ func TestContentBlockReferenceRepository_Create(t *testing.T) {
 	locationRepo := NewLocationRepository(db)
 	artifactRepo := NewArtifactRepository(db)
 	contentBlockRepo := NewContentBlockRepository(db)
-	contentBlockRefRepo := NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := NewContentAnchorRepository(db)
 
 	// Create tenant and story first
 	testTenant, err := tenant.NewTenant("test-tenant", nil)
@@ -86,21 +86,21 @@ func TestContentBlockReferenceRepository_Create(t *testing.T) {
 			t.Fatalf("failed to create character: %v", err)
 		}
 
-		// Create content block reference
-		contentBlockRef, err := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeCharacter, testCharacter.ID)
+		// Create content anchor
+		contentBlockRef, err := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeCharacter, testCharacter.ID)
 		if err != nil {
-			t.Fatalf("failed to create content block reference: %v", err)
+			t.Fatalf("failed to create content anchor: %v", err)
 		}
 
-		err = contentBlockRefRepo.Create(ctx, contentBlockRef)
+		err = contentAnchorRepo.Create(ctx, contentBlockRef)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		// Verify content block reference can be retrieved
-		retrieved, err := contentBlockRefRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
+		// Verify content anchor can be retrieved
+		retrieved, err := contentAnchorRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
 		if err != nil {
-			t.Fatalf("failed to retrieve content block reference: %v", err)
+			t.Fatalf("failed to retrieve content anchor: %v", err)
 		}
 
 		if retrieved.ContentBlockID != testContentBlock.ID {
@@ -124,15 +124,15 @@ func TestContentBlockReferenceRepository_Create(t *testing.T) {
 		testLocation, _ := world.NewLocation(testTenant.ID, testWorld.ID, "Test Location", nil)
 		locationRepo.Create(ctx, testLocation)
 
-		contentBlockRef, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeLocation, testLocation.ID)
-		err = contentBlockRefRepo.Create(ctx, contentBlockRef)
+		contentBlockRef, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeLocation, testLocation.ID)
+		err = contentAnchorRepo.Create(ctx, contentBlockRef)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		retrieved, err := contentBlockRefRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
+		retrieved, err := contentAnchorRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
 		if err != nil {
-			t.Fatalf("failed to retrieve content block reference: %v", err)
+			t.Fatalf("failed to retrieve content anchor: %v", err)
 		}
 
 		if retrieved.EntityType != story.EntityTypeLocation {
@@ -148,15 +148,15 @@ func TestContentBlockReferenceRepository_Create(t *testing.T) {
 		testArtifact, _ := world.NewArtifact(testTenant.ID, testWorld.ID, "Test Artifact")
 		artifactRepo.Create(ctx, testArtifact)
 
-		contentBlockRef, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeArtifact, testArtifact.ID)
-		err = contentBlockRefRepo.Create(ctx, contentBlockRef)
+		contentBlockRef, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeArtifact, testArtifact.ID)
+		err = contentAnchorRepo.Create(ctx, contentBlockRef)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
 
-		retrieved, err := contentBlockRefRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
+		retrieved, err := contentAnchorRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
 		if err != nil {
-			t.Fatalf("failed to retrieve content block reference: %v", err)
+			t.Fatalf("failed to retrieve content anchor: %v", err)
 		}
 
 		if retrieved.EntityType != story.EntityTypeArtifact {
@@ -165,7 +165,7 @@ func TestContentBlockReferenceRepository_Create(t *testing.T) {
 	})
 }
 
-func TestContentBlockReferenceRepository_GetByID(t *testing.T) {
+func TestContentAnchorRepository_GetByID(t *testing.T) {
 	db, cleanup := SetupTestSQLiteDB(t)
 	defer cleanup()
 
@@ -176,7 +176,7 @@ func TestContentBlockReferenceRepository_GetByID(t *testing.T) {
 	worldRepo := NewWorldRepository(db)
 	characterRepo := NewCharacterRepository(db)
 	contentBlockRepo := NewContentBlockRepository(db)
-	contentBlockRefRepo := NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := NewContentAnchorRepository(db)
 
 	// Create tenant and story first
 	testTenant, err := tenant.NewTenant("test-tenant", nil)
@@ -209,7 +209,7 @@ func TestContentBlockReferenceRepository_GetByID(t *testing.T) {
 	testChapter, _ := story.NewChapter(testTenant.ID, testStory.ID, 1, "Chapter 1")
 	chapterRepo.Create(ctx, testChapter)
 
-	t.Run("existing content block reference", func(t *testing.T) {
+	t.Run("existing content anchor", func(t *testing.T) {
 		orderNum := 1
 		testContentBlock, _ := story.NewContentBlock(testTenant.ID, &testChapter.ID, &orderNum, story.ContentTypeText, story.ContentKindFinal, "Test Content")
 		contentBlockRepo.Create(ctx, testContentBlock)
@@ -217,12 +217,12 @@ func TestContentBlockReferenceRepository_GetByID(t *testing.T) {
 		testCharacter, _ := world.NewCharacter(testTenant.ID, testWorld.ID, "Test Character")
 		characterRepo.Create(ctx, testCharacter)
 
-		contentBlockRef, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeCharacter, testCharacter.ID)
-		contentBlockRefRepo.Create(ctx, contentBlockRef)
+		contentBlockRef, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeCharacter, testCharacter.ID)
+		contentAnchorRepo.Create(ctx, contentBlockRef)
 
-		retrieved, err := contentBlockRefRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
+		retrieved, err := contentAnchorRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
 		if err != nil {
-			t.Fatalf("failed to get content block reference: %v", err)
+			t.Fatalf("failed to get content anchor: %v", err)
 		}
 
 		if retrieved.ID != contentBlockRef.ID {
@@ -230,12 +230,12 @@ func TestContentBlockReferenceRepository_GetByID(t *testing.T) {
 		}
 	})
 
-	t.Run("non-existent content block reference", func(t *testing.T) {
+	t.Run("non-existent content anchor", func(t *testing.T) {
 		nonExistentID := uuid.New()
 
-		_, err := contentBlockRefRepo.GetByID(ctx, testTenant.ID, nonExistentID)
+		_, err := contentAnchorRepo.GetByID(ctx, testTenant.ID, nonExistentID)
 		if err == nil {
-			t.Fatal("expected error for non-existent content block reference")
+			t.Fatal("expected error for non-existent content anchor")
 		}
 
 		notFoundErr, ok := err.(*platformerrors.NotFoundError)
@@ -243,13 +243,13 @@ func TestContentBlockReferenceRepository_GetByID(t *testing.T) {
 			t.Fatalf("expected NotFoundError, got %T: %v", err, err)
 		}
 
-		if notFoundErr.Resource != "content_block_reference" {
-			t.Errorf("expected resource to be 'content_block_reference', got '%s'", notFoundErr.Resource)
+		if notFoundErr.Resource != "content_anchor" {
+			t.Errorf("expected resource to be 'content_anchor', got '%s'", notFoundErr.Resource)
 		}
 	})
 }
 
-func TestContentBlockReferenceRepository_ListByContentBlock(t *testing.T) {
+func TestContentAnchorRepository_ListByContentBlock(t *testing.T) {
 	db, cleanup := SetupTestSQLiteDB(t)
 	defer cleanup()
 
@@ -261,7 +261,7 @@ func TestContentBlockReferenceRepository_ListByContentBlock(t *testing.T) {
 	characterRepo := NewCharacterRepository(db)
 	locationRepo := NewLocationRepository(db)
 	contentBlockRepo := NewContentBlockRepository(db)
-	contentBlockRefRepo := NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := NewContentAnchorRepository(db)
 
 	// Create tenant and story first
 	testTenant, err := tenant.NewTenant("test-tenant", nil)
@@ -307,15 +307,15 @@ func TestContentBlockReferenceRepository_ListByContentBlock(t *testing.T) {
 		characterRepo.Create(ctx, char2)
 		locationRepo.Create(ctx, location1)
 
-		// Create content block references
-		ref1, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeCharacter, char1.ID)
-		ref2, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeCharacter, char2.ID)
-		ref3, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeLocation, location1.ID)
-		contentBlockRefRepo.Create(ctx, ref1)
-		contentBlockRefRepo.Create(ctx, ref2)
-		contentBlockRefRepo.Create(ctx, ref3)
+		// Create content anchors
+		ref1, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeCharacter, char1.ID)
+		ref2, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeCharacter, char2.ID)
+		ref3, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeLocation, location1.ID)
+		contentAnchorRepo.Create(ctx, ref1)
+		contentAnchorRepo.Create(ctx, ref2)
+		contentAnchorRepo.Create(ctx, ref3)
 
-		refs, err := contentBlockRefRepo.ListByContentBlock(ctx, testTenant.ID, testContentBlock.ID)
+		refs, err := contentAnchorRepo.ListByContentBlock(ctx, testTenant.ID, testContentBlock.ID)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -332,7 +332,7 @@ func TestContentBlockReferenceRepository_ListByContentBlock(t *testing.T) {
 	})
 }
 
-func TestContentBlockReferenceRepository_ListByEntity(t *testing.T) {
+func TestContentAnchorRepository_ListByEntity(t *testing.T) {
 	db, cleanup := SetupTestSQLiteDB(t)
 	defer cleanup()
 
@@ -343,7 +343,7 @@ func TestContentBlockReferenceRepository_ListByEntity(t *testing.T) {
 	worldRepo := NewWorldRepository(db)
 	characterRepo := NewCharacterRepository(db)
 	contentBlockRepo := NewContentBlockRepository(db)
-	contentBlockRefRepo := NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := NewContentAnchorRepository(db)
 
 	// Create tenant and story first
 	testTenant, err := tenant.NewTenant("test-tenant", nil)
@@ -389,12 +389,12 @@ func TestContentBlockReferenceRepository_ListByEntity(t *testing.T) {
 		contentBlockRepo.Create(ctx, block2)
 
 		// Create references from different content blocks to same character
-		ref1, _ := story.NewContentBlockReference(block1.ID, story.EntityTypeCharacter, testCharacter.ID)
-		ref2, _ := story.NewContentBlockReference(block2.ID, story.EntityTypeCharacter, testCharacter.ID)
-		contentBlockRefRepo.Create(ctx, ref1)
-		contentBlockRefRepo.Create(ctx, ref2)
+		ref1, _ := story.NewContentAnchor(block1.ID, story.EntityTypeCharacter, testCharacter.ID)
+		ref2, _ := story.NewContentAnchor(block2.ID, story.EntityTypeCharacter, testCharacter.ID)
+		contentAnchorRepo.Create(ctx, ref1)
+		contentAnchorRepo.Create(ctx, ref2)
 
-		refs, err := contentBlockRefRepo.ListByEntity(ctx, testTenant.ID, story.EntityTypeCharacter, testCharacter.ID)
+		refs, err := contentAnchorRepo.ListByEntity(ctx, testTenant.ID, story.EntityTypeCharacter, testCharacter.ID)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -415,7 +415,7 @@ func TestContentBlockReferenceRepository_ListByEntity(t *testing.T) {
 	})
 }
 
-func TestContentBlockReferenceRepository_Delete(t *testing.T) {
+func TestContentAnchorRepository_Delete(t *testing.T) {
 	db, cleanup := SetupTestSQLiteDB(t)
 	defer cleanup()
 
@@ -426,7 +426,7 @@ func TestContentBlockReferenceRepository_Delete(t *testing.T) {
 	worldRepo := NewWorldRepository(db)
 	characterRepo := NewCharacterRepository(db)
 	contentBlockRepo := NewContentBlockRepository(db)
-	contentBlockRefRepo := NewContentBlockReferenceRepository(db)
+	contentAnchorRepo := NewContentAnchorRepository(db)
 
 	// Create tenant and story first
 	testTenant, err := tenant.NewTenant("test-tenant", nil)
@@ -467,18 +467,18 @@ func TestContentBlockReferenceRepository_Delete(t *testing.T) {
 		testCharacter, _ := world.NewCharacter(testTenant.ID, testWorld.ID, "Test Character")
 		characterRepo.Create(ctx, testCharacter)
 
-		contentBlockRef, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeCharacter, testCharacter.ID)
-		contentBlockRefRepo.Create(ctx, contentBlockRef)
+		contentBlockRef, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeCharacter, testCharacter.ID)
+		contentAnchorRepo.Create(ctx, contentBlockRef)
 
-		err = contentBlockRefRepo.Delete(ctx, testTenant.ID, contentBlockRef.ID)
+		err = contentAnchorRepo.Delete(ctx, testTenant.ID, contentBlockRef.ID)
 		if err != nil {
-			t.Fatalf("failed to delete content block reference: %v", err)
+			t.Fatalf("failed to delete content anchor: %v", err)
 		}
 
 		// Verify deletion
-		_, err = contentBlockRefRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
+		_, err = contentAnchorRepo.GetByID(ctx, testTenant.ID, contentBlockRef.ID)
 		if err == nil {
-			t.Fatal("expected error for deleted content block reference")
+			t.Fatal("expected error for deleted content anchor")
 		}
 
 		notFoundErr, ok := err.(*platformerrors.NotFoundError)
@@ -486,8 +486,8 @@ func TestContentBlockReferenceRepository_Delete(t *testing.T) {
 			t.Fatalf("expected NotFoundError, got %T: %v", err, err)
 		}
 
-		if notFoundErr.Resource != "content_block_reference" {
-			t.Errorf("expected resource to be 'content_block_reference', got '%s'", notFoundErr.Resource)
+		if notFoundErr.Resource != "content_anchor" {
+			t.Errorf("expected resource to be 'content_anchor', got '%s'", notFoundErr.Resource)
 		}
 	})
 
@@ -501,18 +501,18 @@ func TestContentBlockReferenceRepository_Delete(t *testing.T) {
 		characterRepo.Create(ctx, char1)
 		characterRepo.Create(ctx, char2)
 
-		ref1, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeCharacter, char1.ID)
-		ref2, _ := story.NewContentBlockReference(testContentBlock.ID, story.EntityTypeCharacter, char2.ID)
-		contentBlockRefRepo.Create(ctx, ref1)
-		contentBlockRefRepo.Create(ctx, ref2)
+		ref1, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeCharacter, char1.ID)
+		ref2, _ := story.NewContentAnchor(testContentBlock.ID, story.EntityTypeCharacter, char2.ID)
+		contentAnchorRepo.Create(ctx, ref1)
+		contentAnchorRepo.Create(ctx, ref2)
 
-		err = contentBlockRefRepo.DeleteByContentBlock(ctx, testTenant.ID, testContentBlock.ID)
+		err = contentAnchorRepo.DeleteByContentBlock(ctx, testTenant.ID, testContentBlock.ID)
 		if err != nil {
 			t.Fatalf("failed to delete by content block: %v", err)
 		}
 
 		// Verify all references deleted
-		refs, err := contentBlockRefRepo.ListByContentBlock(ctx, testTenant.ID, testContentBlock.ID)
+		refs, err := contentAnchorRepo.ListByContentBlock(ctx, testTenant.ID, testContentBlock.ID)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}

@@ -36,7 +36,7 @@
 - [x] `scene_reference_repository.go` - Scene References
 - [x] `beat_repository.go` - Beats
 - [x] `content_block_repository.go` - Content blocks (prose/images/video/etc)
-- [x] `content_block_reference_repository.go` - Referências de content blocks
+- [x] `content_anchor_repository.go` - Referências de content blocks
 
 #### World Building Domain
 - [x] `world_repository.go` - Worlds
@@ -121,7 +121,7 @@
 - [x] `scene_reference_repository_test.go` - SceneReferenceRepository
 - [x] `beat_repository_test.go` - BeatRepository
 - [x] `content_block_repository_test.go` - ContentBlockRepository
-- [x] `content_block_reference_repository_test.go` - ContentBlockReferenceRepository
+- [x] `content_anchor_repository_test.go` - ContentAnchorRepository
 
 #### Instruções para Criar Testes
 

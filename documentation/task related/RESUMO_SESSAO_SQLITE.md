@@ -10,7 +10,7 @@
 5. `scene_repository.go` - Scenes
 6. `beat_repository.go` - Beats
 7. `content_block_repository.go` - Content blocks
-8. `content_block_reference_repository.go` - Referências de content blocks
+8. `content_anchor_repository.go` - Referências de content blocks
 9. `noop_audit_log_repository.go` - No-op para audit logs (offline mode)
 10. `transaction.go` - Transaction repository
 

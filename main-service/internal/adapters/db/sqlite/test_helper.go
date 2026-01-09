@@ -103,7 +103,7 @@ func TruncateTables(ctx context.Context, db *DB) error {
 	tables := []string{
 		"entity_relations",
 		"scene_references",
-		"content_block_references",
+		"content_anchors",
 		"beats",
 		"scenes",
 		"chapters",

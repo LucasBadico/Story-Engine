@@ -1,0 +1,16 @@
+-- Rename content_block_references table to content_anchors
+ALTER TABLE content_block_references RENAME TO content_anchors;
+
+-- Rename constraints to match new table name
+ALTER TABLE content_anchors RENAME CONSTRAINT content_block_references_content_block_fk TO content_anchors_content_block_fk;
+ALTER TABLE content_anchors RENAME CONSTRAINT content_block_references_entity_type_check TO content_anchors_entity_type_check;
+ALTER TABLE content_anchors RENAME CONSTRAINT content_block_references_unique TO content_anchors_unique;
+ALTER TABLE content_anchors RENAME CONSTRAINT content_block_references_tenant_fk TO content_anchors_tenant_fk;
+
+-- Rename indexes to match new table name
+ALTER INDEX idx_content_block_references_content_block_id RENAME TO idx_content_anchors_content_block_id;
+ALTER INDEX idx_content_block_references_tenant_id RENAME TO idx_content_anchors_tenant_id;
+ALTER INDEX idx_content_block_references_entity RENAME TO idx_content_anchors_entity;
+ALTER INDEX idx_content_block_references_entity_id RENAME TO idx_content_anchors_entity_id;
+
+

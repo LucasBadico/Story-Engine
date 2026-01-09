@@ -12,19 +12,19 @@ import (
 
 // ListContentBlocksByEntityUseCase handles listing content blocks by entity
 type ListContentBlocksByEntityUseCase struct {
-	refRepo         repositories.ContentBlockReferenceRepository
+	anchorRepo      repositories.ContentAnchorRepository
 	contentBlockRepo repositories.ContentBlockRepository
 	logger          logger.Logger
 }
 
 // NewListContentBlocksByEntityUseCase creates a new ListContentBlocksByEntityUseCase
 func NewListContentBlocksByEntityUseCase(
-	refRepo repositories.ContentBlockReferenceRepository,
+	anchorRepo repositories.ContentAnchorRepository,
 	contentBlockRepo repositories.ContentBlockRepository,
 	logger logger.Logger,
 ) *ListContentBlocksByEntityUseCase {
 	return &ListContentBlocksByEntityUseCase{
-		refRepo:         refRepo,
+		anchorRepo:      anchorRepo,
 		contentBlockRepo: contentBlockRepo,
 		logger:          logger,
 	}
@@ -52,18 +52,18 @@ func (uc *ListContentBlocksByEntityUseCase) Execute(ctx context.Context, input L
 		}
 	}
 
-	references, err := uc.refRepo.ListByEntity(ctx, input.TenantID, input.EntityType, input.EntityID)
+	anchors, err := uc.anchorRepo.ListByEntity(ctx, input.TenantID, input.EntityType, input.EntityID)
 	if err != nil {
-		uc.logger.Error("failed to list content block references by entity", "error", err, "entity_type", input.EntityType, "entity_id", input.EntityID, "tenant_id", input.TenantID)
+		uc.logger.Error("failed to list content anchors by entity", "error", err, "entity_type", input.EntityType, "entity_id", input.EntityID, "tenant_id", input.TenantID)
 		return nil, err
 	}
 
 	// Get content blocks for each reference
-	contentBlocks := make([]*story.ContentBlock, 0, len(references))
-	for _, ref := range references {
-		contentBlock, err := uc.contentBlockRepo.GetByID(ctx, input.TenantID, ref.ContentBlockID)
+	contentBlocks := make([]*story.ContentBlock, 0, len(anchors))
+	for _, anchor := range anchors {
+		contentBlock, err := uc.contentBlockRepo.GetByID(ctx, input.TenantID, anchor.ContentBlockID)
 		if err != nil {
-			uc.logger.Error("failed to get content block", "content_block_id", ref.ContentBlockID, "error", err)
+			uc.logger.Error("failed to get content block", "content_block_id", anchor.ContentBlockID, "error", err)
 			continue
 		}
 		contentBlocks = append(contentBlocks, contentBlock)

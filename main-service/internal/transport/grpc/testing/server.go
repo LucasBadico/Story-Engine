@@ -41,7 +41,7 @@ type TestHandlers struct {
 	SceneHandler               scenepb.SceneServiceServer
 	BeatHandler                beatpb.BeatServiceServer
 	ContentBlockHandler          contentblockpb.ContentBlockServiceServer
-	ContentBlockReferenceHandler contentblockpb.ContentBlockReferenceServiceServer
+	ContentAnchorHandler contentblockpb.ContentAnchorServiceServer
 	WorldHandler               worldpb.WorldServiceServer
 	TraitHandler               traitpb.TraitServiceServer
 	ArchetypeHandler           archetypepb.ArchetypeServiceServer
@@ -94,8 +94,8 @@ func SetupTestServerWithHandlers(t *testing.T, handlers TestHandlers) (*grpc.Cli
 	if handlers.ContentBlockHandler != nil {
 		grpcServer.RegisterContentBlockService(handlers.ContentBlockHandler)
 	}
-	if handlers.ContentBlockReferenceHandler != nil {
-		grpcServer.RegisterContentBlockReferenceService(handlers.ContentBlockReferenceHandler)
+	if handlers.ContentAnchorHandler != nil {
+		grpcServer.RegisterContentAnchorService(handlers.ContentAnchorHandler)
 	}
 	if handlers.WorldHandler != nil {
 		grpcServer.RegisterWorldService(handlers.WorldHandler)

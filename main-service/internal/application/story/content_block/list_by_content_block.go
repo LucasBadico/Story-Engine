@@ -9,55 +9,55 @@ import (
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
-// ListContentBlockReferencesByContentBlockUseCase handles listing references for a content block
-type ListContentBlockReferencesByContentBlockUseCase struct {
-	refRepo         repositories.ContentBlockReferenceRepository
+// ListContentAnchorsByContentBlockUseCase handles listing anchors for a content block
+type ListContentAnchorsByContentBlockUseCase struct {
+	anchorRepo      repositories.ContentAnchorRepository
 	contentBlockRepo repositories.ContentBlockRepository
 	logger          logger.Logger
 }
 
-// NewListContentBlockReferencesByContentBlockUseCase creates a new ListContentBlockReferencesByContentBlockUseCase
-func NewListContentBlockReferencesByContentBlockUseCase(
-	refRepo repositories.ContentBlockReferenceRepository,
+// NewListContentAnchorsByContentBlockUseCase creates a new ListContentAnchorsByContentBlockUseCase
+func NewListContentAnchorsByContentBlockUseCase(
+	anchorRepo repositories.ContentAnchorRepository,
 	contentBlockRepo repositories.ContentBlockRepository,
 	logger logger.Logger,
-) *ListContentBlockReferencesByContentBlockUseCase {
-	return &ListContentBlockReferencesByContentBlockUseCase{
-		refRepo:         refRepo,
+) *ListContentAnchorsByContentBlockUseCase {
+	return &ListContentAnchorsByContentBlockUseCase{
+		anchorRepo:      anchorRepo,
 		contentBlockRepo: contentBlockRepo,
 		logger:          logger,
 	}
 }
 
-// ListContentBlockReferencesByContentBlockInput represents the input for listing references
-type ListContentBlockReferencesByContentBlockInput struct {
+// ListContentAnchorsByContentBlockInput represents the input for listing anchors
+type ListContentAnchorsByContentBlockInput struct {
 	TenantID      uuid.UUID
 	ContentBlockID uuid.UUID
 }
 
-// ListContentBlockReferencesByContentBlockOutput represents the output of listing references
-type ListContentBlockReferencesByContentBlockOutput struct {
-	References []*story.ContentBlockReference
+// ListContentAnchorsByContentBlockOutput represents the output of listing anchors
+type ListContentAnchorsByContentBlockOutput struct {
+	Anchors []*story.ContentAnchor
 	Total      int
 }
 
-// Execute lists references for a content block
-func (uc *ListContentBlockReferencesByContentBlockUseCase) Execute(ctx context.Context, input ListContentBlockReferencesByContentBlockInput) (*ListContentBlockReferencesByContentBlockOutput, error) {
+// Execute lists anchors for a content block
+func (uc *ListContentAnchorsByContentBlockUseCase) Execute(ctx context.Context, input ListContentAnchorsByContentBlockInput) (*ListContentAnchorsByContentBlockOutput, error) {
 	// Validate content block exists
 	_, err := uc.contentBlockRepo.GetByID(ctx, input.TenantID, input.ContentBlockID)
 	if err != nil {
 		return nil, err
 	}
 
-	references, err := uc.refRepo.ListByContentBlock(ctx, input.TenantID, input.ContentBlockID)
+	anchors, err := uc.anchorRepo.ListByContentBlock(ctx, input.TenantID, input.ContentBlockID)
 	if err != nil {
-		uc.logger.Error("failed to list content block references", "error", err, "content_block_id", input.ContentBlockID, "tenant_id", input.TenantID)
+		uc.logger.Error("failed to list content anchors", "error", err, "content_block_id", input.ContentBlockID, "tenant_id", input.TenantID)
 		return nil, err
 	}
 
-	return &ListContentBlockReferencesByContentBlockOutput{
-		References: references,
-		Total:      len(references),
+	return &ListContentAnchorsByContentBlockOutput{
+		Anchors: anchors,
+		Total:   len(anchors),
 	}, nil
 }
 

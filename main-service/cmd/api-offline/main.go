@@ -83,7 +83,7 @@ func main() {
 	sceneRepo := sqlite.NewSceneRepository(sqliteDBWrapper)
 	beatRepo := sqlite.NewBeatRepository(sqliteDBWrapper)
 	contentBlockRepo := sqlite.NewContentBlockRepository(sqliteDBWrapper)
-	contentBlockReferenceRepo := sqlite.NewContentBlockReferenceRepository(sqliteDBWrapper)
+	contentAnchorRepo := sqlite.NewContentAnchorRepository(sqliteDBWrapper)
 	auditLogRepo := sqlite.NewNoopAuditLogRepository() // No-op for offline mode
 	transactionRepo := sqlite.NewTransactionRepository(sqliteDBWrapper)
 
@@ -224,10 +224,10 @@ func main() {
 	updateContentBlockUseCase := contentblockapp.NewUpdateContentBlockUseCase(contentBlockRepo, nil, log)
 	deleteContentBlockUseCase := contentblockapp.NewDeleteContentBlockUseCase(contentBlockRepo, log)
 	listContentBlocksUseCase := contentblockapp.NewListContentBlocksUseCase(contentBlockRepo, log)
-	createContentBlockReferenceUseCase := contentblockapp.NewCreateContentBlockReferenceUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	listContentBlockReferencesByContentBlockUseCase := contentblockapp.NewListContentBlockReferencesByContentBlockUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentBlockReferenceRepo, contentBlockRepo, log)
-	deleteContentBlockReferenceUseCase := contentblockapp.NewDeleteContentBlockReferenceUseCase(contentBlockReferenceRepo, log)
+	createContentAnchorUseCase := contentblockapp.NewCreateContentAnchorUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listContentAnchorsByContentBlockUseCase := contentblockapp.NewListContentAnchorsByContentBlockUseCase(contentAnchorRepo, contentBlockRepo, log)
+	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentAnchorRepo, contentBlockRepo, log)
+	deleteContentAnchorUseCase := contentblockapp.NewDeleteContentAnchorUseCase(contentAnchorRepo, log)
 
 	// Create handlers (only Story + World Building)
 	worldHandler := httphandlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
@@ -264,7 +264,7 @@ func main() {
 	sceneHandler := httphandlers.NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addSceneReferenceUseCase, removeSceneReferenceUseCase, getSceneReferencesUseCase, log)
 	beatHandler := httphandlers.NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
 	contentBlockHandler := httphandlers.NewContentBlockHandler(createContentBlockUseCase, getContentBlockUseCase, updateContentBlockUseCase, deleteContentBlockUseCase, listContentBlocksUseCase, log)
-	contentBlockReferenceHandler := httphandlers.NewContentBlockReferenceHandler(createContentBlockReferenceUseCase, listContentBlockReferencesByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentBlockReferenceUseCase, log)
+	contentAnchorHandler := httphandlers.NewContentAnchorHandler(createContentAnchorUseCase, listContentAnchorsByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentAnchorUseCase, log)
 
 	// Create router
 	router := http.NewServeMux()
@@ -404,11 +404,14 @@ func main() {
 	router.HandleFunc("PUT /api/v1/content-blocks/{id}", contentBlockHandler.Update)
 	router.HandleFunc("DELETE /api/v1/content-blocks/{id}", contentBlockHandler.Delete)
 
-	router.HandleFunc("POST /api/v1/content-blocks/{id}/references", contentBlockReferenceHandler.Create)
-	router.HandleFunc("GET /api/v1/content-blocks/{id}/references", contentBlockReferenceHandler.ListByContentBlock)
-	router.HandleFunc("GET /api/v1/scenes/{id}/content-blocks", contentBlockReferenceHandler.ListByScene)
-	router.HandleFunc("GET /api/v1/beats/{id}/content-blocks", contentBlockReferenceHandler.ListByBeat)
-	router.HandleFunc("DELETE /api/v1/content-block-references/{id}", contentBlockReferenceHandler.Delete)
+	router.HandleFunc("POST /api/v1/content-blocks/{id}/anchors", contentAnchorHandler.Create)
+	router.HandleFunc("GET /api/v1/content-blocks/{id}/anchors", contentAnchorHandler.ListByContentBlock)
+	router.HandleFunc("POST /api/v1/content-blocks/{id}/references", contentAnchorHandler.Create)   // deprecated alias
+	router.HandleFunc("GET /api/v1/content-blocks/{id}/references", contentAnchorHandler.ListByContentBlock) // deprecated alias
+	router.HandleFunc("GET /api/v1/scenes/{id}/content-blocks", contentAnchorHandler.ListByScene)
+	router.HandleFunc("GET /api/v1/beats/{id}/content-blocks", contentAnchorHandler.ListByBeat)
+	router.HandleFunc("DELETE /api/v1/content-anchors/{id}", contentAnchorHandler.Delete)
+	router.HandleFunc("DELETE /api/v1/content-block-references/{id}", contentAnchorHandler.Delete) // deprecated alias
 
 	router.HandleFunc("GET /health", httphandlers.HealthCheck)
 

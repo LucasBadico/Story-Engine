@@ -12,34 +12,34 @@ import (
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
-// ContentBlockReferenceHandler handles HTTP requests for content block references
-type ContentBlockReferenceHandler struct {
-	createReferenceUC      *contentblockapp.CreateContentBlockReferenceUseCase
-	listByContentBlockUC   *contentblockapp.ListContentBlockReferencesByContentBlockUseCase
-	listByEntityUC         *contentblockapp.ListContentBlocksByEntityUseCase
-	deleteReferenceUC      *contentblockapp.DeleteContentBlockReferenceUseCase
-	logger                  logger.Logger
+// ContentAnchorHandler handles HTTP requests for content anchors
+type ContentAnchorHandler struct {
+	createAnchorUC       *contentblockapp.CreateContentAnchorUseCase
+	listByContentBlockUC *contentblockapp.ListContentAnchorsByContentBlockUseCase
+	listByEntityUC       *contentblockapp.ListContentBlocksByEntityUseCase
+	deleteAnchorUC       *contentblockapp.DeleteContentAnchorUseCase
+	logger               logger.Logger
 }
 
-// NewContentBlockReferenceHandler creates a new ContentBlockReferenceHandler
-func NewContentBlockReferenceHandler(
-	createReferenceUC *contentblockapp.CreateContentBlockReferenceUseCase,
-	listByContentBlockUC *contentblockapp.ListContentBlockReferencesByContentBlockUseCase,
+// NewContentAnchorHandler creates a new ContentAnchorHandler
+func NewContentAnchorHandler(
+	createAnchorUC *contentblockapp.CreateContentAnchorUseCase,
+	listByContentBlockUC *contentblockapp.ListContentAnchorsByContentBlockUseCase,
 	listByEntityUC *contentblockapp.ListContentBlocksByEntityUseCase,
-	deleteReferenceUC *contentblockapp.DeleteContentBlockReferenceUseCase,
+	deleteAnchorUC *contentblockapp.DeleteContentAnchorUseCase,
 	logger logger.Logger,
-) *ContentBlockReferenceHandler {
-	return &ContentBlockReferenceHandler{
-		createReferenceUC:    createReferenceUC,
+) *ContentAnchorHandler {
+	return &ContentAnchorHandler{
+		createAnchorUC:       createAnchorUC,
 		listByContentBlockUC: listByContentBlockUC,
 		listByEntityUC:       listByEntityUC,
-		deleteReferenceUC:    deleteReferenceUC,
+		deleteAnchorUC:       deleteAnchorUC,
 		logger:               logger,
 	}
 }
 
-// Create handles POST /api/v1/content-blocks/{id}/references
-func (h *ContentBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Request) {
+// Create handles POST /api/v1/content-blocks/{id}/anchors
+func (h *ContentAnchorHandler) Create(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	contentBlockIDStr := r.PathValue("id")
 
@@ -74,11 +74,11 @@ func (h *ContentBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	output, err := h.createReferenceUC.Execute(r.Context(), contentblockapp.CreateContentBlockReferenceInput{
-		TenantID:      tenantID,
+	output, err := h.createAnchorUC.Execute(r.Context(), contentblockapp.CreateContentAnchorInput{
+		TenantID:       tenantID,
 		ContentBlockID: contentBlockID,
-		EntityType:    story.EntityType(req.EntityType),
-		EntityID:      entityID,
+		EntityType:     story.EntityType(req.EntityType),
+		EntityID:       entityID,
 	})
 	if err != nil {
 		WriteError(w, err, http.StatusInternalServerError)
@@ -88,12 +88,12 @@ func (h *ContentBlockReferenceHandler) Create(w http.ResponseWriter, r *http.Req
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"reference": output.Reference,
+		"anchor": output.Anchor,
 	})
 }
 
-// ListByContentBlock handles GET /api/v1/content-blocks/{id}/references
-func (h *ContentBlockReferenceHandler) ListByContentBlock(w http.ResponseWriter, r *http.Request) {
+// ListByContentBlock handles GET /api/v1/content-blocks/{id}/anchors
+func (h *ContentAnchorHandler) ListByContentBlock(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	contentBlockIDStr := r.PathValue("id")
 
@@ -106,8 +106,8 @@ func (h *ContentBlockReferenceHandler) ListByContentBlock(w http.ResponseWriter,
 		return
 	}
 
-	output, err := h.listByContentBlockUC.Execute(r.Context(), contentblockapp.ListContentBlockReferencesByContentBlockInput{
-		TenantID:      tenantID,
+	output, err := h.listByContentBlockUC.Execute(r.Context(), contentblockapp.ListContentAnchorsByContentBlockInput{
+		TenantID:       tenantID,
 		ContentBlockID: contentBlockID,
 	})
 	if err != nil {
@@ -117,13 +117,13 @@ func (h *ContentBlockReferenceHandler) ListByContentBlock(w http.ResponseWriter,
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"references": output.References,
-		"total":      output.Total,
+		"anchors": output.Anchors,
+		"total":   output.Total,
 	})
 }
 
 // ListByScene handles GET /api/v1/scenes/{id}/content-blocks
-func (h *ContentBlockReferenceHandler) ListByScene(w http.ResponseWriter, r *http.Request) {
+func (h *ContentAnchorHandler) ListByScene(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	entityIDStr := r.PathValue("id")
 	entityTypeStr := "scene"
@@ -150,12 +150,12 @@ func (h *ContentBlockReferenceHandler) ListByScene(w http.ResponseWriter, r *htt
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"content_blocks": output.ContentBlocks,
-		"total":         output.Total,
+		"total":          output.Total,
 	})
 }
 
 // ListByBeat handles GET /api/v1/beats/{id}/content-blocks
-func (h *ContentBlockReferenceHandler) ListByBeat(w http.ResponseWriter, r *http.Request) {
+func (h *ContentAnchorHandler) ListByBeat(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	entityIDStr := r.PathValue("id")
 	entityTypeStr := "beat"
@@ -182,12 +182,12 @@ func (h *ContentBlockReferenceHandler) ListByBeat(w http.ResponseWriter, r *http
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"content_blocks": output.ContentBlocks,
-		"total":         output.Total,
+		"total":          output.Total,
 	})
 }
 
-// Delete handles DELETE /api/v1/content-block-references/{id}
-func (h *ContentBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Request) {
+// Delete handles DELETE /api/v1/content-anchors/{id}
+func (h *ContentAnchorHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
 
@@ -200,7 +200,7 @@ func (h *ContentBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	if err := h.deleteReferenceUC.Execute(r.Context(), contentblockapp.DeleteContentBlockReferenceInput{
+	if err := h.deleteAnchorUC.Execute(r.Context(), contentblockapp.DeleteContentAnchorInput{
 		TenantID: tenantID,
 		ID:       refID,
 	}); err != nil {
@@ -210,3 +210,5 @@ func (h *ContentBlockReferenceHandler) Delete(w http.ResponseWriter, r *http.Req
 
 	w.WriteHeader(http.StatusNoContent)
 }
+
+

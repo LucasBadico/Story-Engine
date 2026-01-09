@@ -42,18 +42,18 @@ func ContentBlockToProto(c *story.ContentBlock) *contentblockpb.ContentBlock {
 	return pb
 }
 
-// ContentBlockReferenceToProto converts a content block reference domain entity to a protobuf message
-func ContentBlockReferenceToProto(ref *story.ContentBlockReference) *contentblockpb.ContentBlockReference {
-	if ref == nil {
+// ContentAnchorToProto converts a content anchor domain entity to a protobuf message
+func ContentAnchorToProto(anchor *story.ContentAnchor) *contentblockpb.ContentAnchor {
+	if anchor == nil {
 		return nil
 	}
 
-	return &contentblockpb.ContentBlockReference{
-		Id:              ref.ID.String(),
-		ContentBlockId:  ref.ContentBlockID.String(),
-		EntityType:      string(ref.EntityType),
-		EntityId:        ref.EntityID.String(),
-		CreatedAt:       timestamppb.New(ref.CreatedAt),
+	return &contentblockpb.ContentAnchor{
+		Id:             anchor.ID.String(),
+		ContentBlockId: anchor.ContentBlockID.String(),
+		EntityType:     string(anchor.EntityType),
+		EntityId:       anchor.EntityID.String(),
+		CreatedAt:      timestamppb.New(anchor.CreatedAt),
 	}
 }
 

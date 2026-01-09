@@ -14,36 +14,35 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-// ContentBlockReferenceHandler implements the ContentBlockReferenceService gRPC service
-type ContentBlockReferenceHandler struct {
-	contentblockpb.UnimplementedContentBlockReferenceServiceServer
-	createReferenceUC        *contentblockapp.CreateContentBlockReferenceUseCase
-	listByContentBlockUC     *contentblockapp.ListContentBlockReferencesByContentBlockUseCase
-	listByEntityUC           *contentblockapp.ListContentBlocksByEntityUseCase
-	deleteReferenceUC        *contentblockapp.DeleteContentBlockReferenceUseCase
-	logger                    logger.Logger
+// ContentAnchorHandler implements the ContentAnchorService gRPC service
+type ContentAnchorHandler struct {
+	contentblockpb.UnimplementedContentAnchorServiceServer
+	createAnchorUC       *contentblockapp.CreateContentAnchorUseCase
+	listByContentBlockUC *contentblockapp.ListContentAnchorsByContentBlockUseCase
+	listByEntityUC       *contentblockapp.ListContentBlocksByEntityUseCase
+	deleteAnchorUC       *contentblockapp.DeleteContentAnchorUseCase
+	logger               logger.Logger
 }
 
-// NewContentBlockReferenceHandler creates a new ContentBlockReferenceHandler
-func NewContentBlockReferenceHandler(
-	createReferenceUC *contentblockapp.CreateContentBlockReferenceUseCase,
-	listByContentBlockUC *contentblockapp.ListContentBlockReferencesByContentBlockUseCase,
+// NewContentAnchorHandler creates a new ContentAnchorHandler
+func NewContentAnchorHandler(
+	createAnchorUC *contentblockapp.CreateContentAnchorUseCase,
+	listByContentBlockUC *contentblockapp.ListContentAnchorsByContentBlockUseCase,
 	listByEntityUC *contentblockapp.ListContentBlocksByEntityUseCase,
-	deleteReferenceUC *contentblockapp.DeleteContentBlockReferenceUseCase,
+	deleteAnchorUC *contentblockapp.DeleteContentAnchorUseCase,
 	logger logger.Logger,
-) *ContentBlockReferenceHandler {
-	return &ContentBlockReferenceHandler{
-		createReferenceUC:    createReferenceUC,
+) *ContentAnchorHandler {
+	return &ContentAnchorHandler{
+		createAnchorUC:       createAnchorUC,
 		listByContentBlockUC: listByContentBlockUC,
 		listByEntityUC:       listByEntityUC,
-		deleteReferenceUC:    deleteReferenceUC,
+		deleteAnchorUC:       deleteAnchorUC,
 		logger:               logger,
 	}
 }
 
-// CreateContentBlockReference creates a new reference
-func (h *ContentBlockReferenceHandler) CreateContentBlockReference(ctx context.Context, req *contentblockpb.CreateContentBlockReferenceRequest) (*contentblockpb.CreateContentBlockReferenceResponse, error) {
-	// Extract tenant_id from context (set by auth interceptor)
+// CreateContentAnchor creates a new anchor
+func (h *ContentAnchorHandler) CreateContentAnchor(ctx context.Context, req *contentblockpb.CreateContentAnchorRequest) (*contentblockpb.CreateContentAnchorResponse, error) {
 	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
@@ -64,24 +63,23 @@ func (h *ContentBlockReferenceHandler) CreateContentBlockReference(ctx context.C
 		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
 	}
 
-	output, err := h.createReferenceUC.Execute(ctx, contentblockapp.CreateContentBlockReferenceInput{
-		TenantID:      tenantUUID,
+	output, err := h.createAnchorUC.Execute(ctx, contentblockapp.CreateContentAnchorInput{
+		TenantID:       tenantUUID,
 		ContentBlockID: contentBlockID,
-		EntityType:    story.EntityType(req.EntityType),
-		EntityID:      entityID,
+		EntityType:     story.EntityType(req.EntityType),
+		EntityID:       entityID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	return &contentblockpb.CreateContentBlockReferenceResponse{
-		Reference: mappers.ContentBlockReferenceToProto(output.Reference),
+	return &contentblockpb.CreateContentAnchorResponse{
+		Anchor: mappers.ContentAnchorToProto(output.Anchor),
 	}, nil
 }
 
-// ListContentBlockReferencesByContentBlock lists references for a content block
-func (h *ContentBlockReferenceHandler) ListContentBlockReferencesByContentBlock(ctx context.Context, req *contentblockpb.ListContentBlockReferencesByContentBlockRequest) (*contentblockpb.ListContentBlockReferencesByContentBlockResponse, error) {
-	// Extract tenant_id from context (set by auth interceptor)
+// ListContentAnchorsByContentBlock lists anchors for a content block
+func (h *ContentAnchorHandler) ListContentAnchorsByContentBlock(ctx context.Context, req *contentblockpb.ListContentAnchorsByContentBlockRequest) (*contentblockpb.ListContentAnchorsByContentBlockResponse, error) {
 	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
@@ -97,28 +95,27 @@ func (h *ContentBlockReferenceHandler) ListContentBlockReferencesByContentBlock(
 		return nil, status.Errorf(codes.InvalidArgument, "invalid content_block_id: %v", err)
 	}
 
-	output, err := h.listByContentBlockUC.Execute(ctx, contentblockapp.ListContentBlockReferencesByContentBlockInput{
-		TenantID:      tenantUUID,
+	output, err := h.listByContentBlockUC.Execute(ctx, contentblockapp.ListContentAnchorsByContentBlockInput{
+		TenantID:       tenantUUID,
 		ContentBlockID: contentBlockID,
 	})
 	if err != nil {
 		return nil, err
 	}
 
-	protoRefs := make([]*contentblockpb.ContentBlockReference, len(output.References))
-	for i, ref := range output.References {
-		protoRefs[i] = mappers.ContentBlockReferenceToProto(ref)
+	protoAnchors := make([]*contentblockpb.ContentAnchor, len(output.Anchors))
+	for i, anchor := range output.Anchors {
+		protoAnchors[i] = mappers.ContentAnchorToProto(anchor)
 	}
 
-	return &contentblockpb.ListContentBlockReferencesByContentBlockResponse{
-		References: protoRefs,
+	return &contentblockpb.ListContentAnchorsByContentBlockResponse{
+		Anchors:    protoAnchors,
 		TotalCount: int32(output.Total),
 	}, nil
 }
 
 // ListContentBlocksByEntity lists content blocks associated with an entity
-func (h *ContentBlockReferenceHandler) ListContentBlocksByEntity(ctx context.Context, req *contentblockpb.ListContentBlocksByEntityRequest) (*contentblockpb.ListContentBlocksByEntityResponse, error) {
-	// Extract tenant_id from context (set by auth interceptor)
+func (h *ContentAnchorHandler) ListContentBlocksByEntity(ctx context.Context, req *contentblockpb.ListContentBlocksByEntityRequest) (*contentblockpb.ListContentBlocksByEntityResponse, error) {
 	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
@@ -144,8 +141,8 @@ func (h *ContentBlockReferenceHandler) ListContentBlocksByEntity(ctx context.Con
 	}
 
 	protoContentBlocks := make([]*contentblockpb.ContentBlock, len(output.ContentBlocks))
-	for i, c := range output.ContentBlocks {
-		protoContentBlocks[i] = mappers.ContentBlockToProto(c)
+	for i, block := range output.ContentBlocks {
+		protoContentBlocks[i] = mappers.ContentBlockToProto(block)
 	}
 
 	return &contentblockpb.ListContentBlocksByEntityResponse{
@@ -154,9 +151,8 @@ func (h *ContentBlockReferenceHandler) ListContentBlocksByEntity(ctx context.Con
 	}, nil
 }
 
-// DeleteContentBlockReference deletes a reference
-func (h *ContentBlockReferenceHandler) DeleteContentBlockReference(ctx context.Context, req *contentblockpb.DeleteContentBlockReferenceRequest) (*contentblockpb.DeleteContentBlockReferenceResponse, error) {
-	// Extract tenant_id from context (set by auth interceptor)
+// DeleteContentAnchor deletes an anchor
+func (h *ContentAnchorHandler) DeleteContentAnchor(ctx context.Context, req *contentblockpb.DeleteContentAnchorRequest) (*contentblockpb.DeleteContentAnchorResponse, error) {
 	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
 	if !ok {
 		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
@@ -172,14 +168,16 @@ func (h *ContentBlockReferenceHandler) DeleteContentBlockReference(ctx context.C
 		return nil, status.Errorf(codes.InvalidArgument, "invalid id: %v", err)
 	}
 
-	if err := h.deleteReferenceUC.Execute(ctx, contentblockapp.DeleteContentBlockReferenceInput{
+	if err := h.deleteAnchorUC.Execute(ctx, contentblockapp.DeleteContentAnchorInput{
 		TenantID: tenantUUID,
 		ID:       id,
 	}); err != nil {
 		return nil, err
 	}
 
-	return &contentblockpb.DeleteContentBlockReferenceResponse{
+	return &contentblockpb.DeleteContentAnchorResponse{
 		Success: true,
 	}, nil
 }
+
+
