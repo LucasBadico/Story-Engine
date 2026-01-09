@@ -31,9 +31,12 @@ func (r *ChunkRepository) Create(ctx context.Context, chunk *memory.Chunk) error
 		INSERT INTO embedding_chunks (
 			id, document_id, chunk_index, content, embedding, token_count, created_at,
 			scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-			timeline, pov_character, content_kind, type, embed_text
+			timeline, pov_character, content_type, content_kind, type, embed_text,
+			world_id, world_name, world_genre, entity_name, event_timeline, importance,
+			related_characters, related_locations, related_artifacts, related_events
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+		        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
 	`
 	charactersJSON, err := json.Marshal(chunk.Characters)
 	if err != nil {
@@ -43,10 +46,44 @@ func (r *ChunkRepository) Create(ctx context.Context, chunk *memory.Chunk) error
 		charactersJSON = []byte("[]")
 	}
 
+	relatedCharactersJSON, err := json.Marshal(chunk.RelatedCharacters)
+	if err != nil {
+		return fmt.Errorf("failed to marshal related characters: %w", err)
+	}
+	if len(chunk.RelatedCharacters) == 0 {
+		relatedCharactersJSON = []byte("[]")
+	}
+
+	relatedLocationsJSON, err := json.Marshal(chunk.RelatedLocations)
+	if err != nil {
+		return fmt.Errorf("failed to marshal related locations: %w", err)
+	}
+	if len(chunk.RelatedLocations) == 0 {
+		relatedLocationsJSON = []byte("[]")
+	}
+
+	relatedArtifactsJSON, err := json.Marshal(chunk.RelatedArtifacts)
+	if err != nil {
+		return fmt.Errorf("failed to marshal related artifacts: %w", err)
+	}
+	if len(chunk.RelatedArtifacts) == 0 {
+		relatedArtifactsJSON = []byte("[]")
+	}
+
+	relatedEventsJSON, err := json.Marshal(chunk.RelatedEvents)
+	if err != nil {
+		return fmt.Errorf("failed to marshal related events: %w", err)
+	}
+	if len(chunk.RelatedEvents) == 0 {
+		relatedEventsJSON = []byte("[]")
+	}
+
 	_, err = r.db.Exec(ctx, query,
 		chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt,
 		chunk.SceneID, chunk.BeatID, chunk.BeatType, chunk.BeatIntent, string(charactersJSON), chunk.LocationID, chunk.LocationName,
-		chunk.Timeline, chunk.POVCharacter, chunk.ContentKind, chunk.ChunkType, chunk.EmbedText)
+		chunk.Timeline, chunk.POVCharacter, chunk.ContentType, chunk.ContentKind, chunk.ChunkType, chunk.EmbedText,
+		chunk.WorldID, chunk.WorldName, chunk.WorldGenre, chunk.EntityName, chunk.EventTimeline, chunk.Importance,
+		string(relatedCharactersJSON), string(relatedLocationsJSON), string(relatedArtifactsJSON), string(relatedEventsJSON))
 	return err
 }
 
@@ -66,9 +103,12 @@ func (r *ChunkRepository) CreateBatch(ctx context.Context, chunks []*memory.Chun
 		INSERT INTO embedding_chunks (
 			id, document_id, chunk_index, content, embedding, token_count, created_at,
 			scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-			timeline, pov_character, content_kind, type, embed_text
+			timeline, pov_character, content_type, content_kind, type, embed_text,
+			world_id, world_name, world_genre, entity_name, event_timeline, importance,
+			related_characters, related_locations, related_artifacts, related_events
 		)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
+		        $21, $22, $23, $24, $25, $26, $27, $28, $29, $30)
 	`
 
 	for _, chunk := range chunks {
@@ -80,10 +120,44 @@ func (r *ChunkRepository) CreateBatch(ctx context.Context, chunks []*memory.Chun
 			charactersJSON = []byte("[]")
 		}
 
+		relatedCharactersJSON, err := json.Marshal(chunk.RelatedCharacters)
+		if err != nil {
+			return fmt.Errorf("failed to marshal related characters: %w", err)
+		}
+		if len(chunk.RelatedCharacters) == 0 {
+			relatedCharactersJSON = []byte("[]")
+		}
+
+		relatedLocationsJSON, err := json.Marshal(chunk.RelatedLocations)
+		if err != nil {
+			return fmt.Errorf("failed to marshal related locations: %w", err)
+		}
+		if len(chunk.RelatedLocations) == 0 {
+			relatedLocationsJSON = []byte("[]")
+		}
+
+		relatedArtifactsJSON, err := json.Marshal(chunk.RelatedArtifacts)
+		if err != nil {
+			return fmt.Errorf("failed to marshal related artifacts: %w", err)
+		}
+		if len(chunk.RelatedArtifacts) == 0 {
+			relatedArtifactsJSON = []byte("[]")
+		}
+
+		relatedEventsJSON, err := json.Marshal(chunk.RelatedEvents)
+		if err != nil {
+			return fmt.Errorf("failed to marshal related events: %w", err)
+		}
+		if len(chunk.RelatedEvents) == 0 {
+			relatedEventsJSON = []byte("[]")
+		}
+
 		_, err = tx.Exec(ctx, query,
 			chunk.ID, chunk.DocumentID, chunk.ChunkIndex, chunk.Content, formatVector(chunk.Embedding), chunk.TokenCount, chunk.CreatedAt,
 			chunk.SceneID, chunk.BeatID, chunk.BeatType, chunk.BeatIntent, string(charactersJSON), chunk.LocationID, chunk.LocationName,
-			chunk.Timeline, chunk.POVCharacter, chunk.ContentKind, chunk.ChunkType, chunk.EmbedText)
+			chunk.Timeline, chunk.POVCharacter, chunk.ContentType, chunk.ContentKind, chunk.ChunkType, chunk.EmbedText,
+			chunk.WorldID, chunk.WorldName, chunk.WorldGenre, chunk.EntityName, chunk.EventTimeline, chunk.Importance,
+			string(relatedCharactersJSON), string(relatedLocationsJSON), string(relatedArtifactsJSON), string(relatedEventsJSON))
 		if err != nil {
 			return err
 		}
@@ -97,18 +171,26 @@ func (r *ChunkRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory.Ch
 	query := `
 		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at,
 		       scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-		       timeline, pov_character, content_kind, type, embed_text
+		       timeline, pov_character, content_type, content_kind, type, embed_text,
+		       world_id, world_name, world_genre, entity_name, event_timeline, importance,
+		       related_characters, related_locations, related_artifacts, related_events
 		FROM embedding_chunks
 		WHERE id = $1
 	`
 	var chunk memory.Chunk
 	var embeddingStr string
 	var charactersJSON string
+	var relatedCharactersJSON string
+	var relatedLocationsJSON string
+	var relatedArtifactsJSON string
+	var relatedEventsJSON string
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
 		&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
 		&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
-		&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind, &chunk.ChunkType, &chunk.EmbedText)
+		&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentType, &chunk.ContentKind, &chunk.ChunkType, &chunk.EmbedText,
+		&chunk.WorldID, &chunk.WorldName, &chunk.WorldGenre, &chunk.EntityName, &chunk.EventTimeline, &chunk.Importance,
+		&relatedCharactersJSON, &relatedLocationsJSON, &relatedArtifactsJSON, &relatedEventsJSON)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("chunk not found")
@@ -122,6 +204,26 @@ func (r *ChunkRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory.Ch
 			return nil, fmt.Errorf("failed to unmarshal characters: %w", err)
 		}
 	}
+	if relatedCharactersJSON != "" {
+		if err := json.Unmarshal([]byte(relatedCharactersJSON), &chunk.RelatedCharacters); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal related characters: %w", err)
+		}
+	}
+	if relatedLocationsJSON != "" {
+		if err := json.Unmarshal([]byte(relatedLocationsJSON), &chunk.RelatedLocations); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal related locations: %w", err)
+		}
+	}
+	if relatedArtifactsJSON != "" {
+		if err := json.Unmarshal([]byte(relatedArtifactsJSON), &chunk.RelatedArtifacts); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal related artifacts: %w", err)
+		}
+	}
+	if relatedEventsJSON != "" {
+		if err := json.Unmarshal([]byte(relatedEventsJSON), &chunk.RelatedEvents); err != nil {
+			return nil, fmt.Errorf("failed to unmarshal related events: %w", err)
+		}
+	}
 	return &chunk, nil
 }
 
@@ -130,7 +232,9 @@ func (r *ChunkRepository) ListByDocument(ctx context.Context, documentID uuid.UU
 	query := `
 		SELECT id, document_id, chunk_index, content, embedding, token_count, created_at,
 		       scene_id, beat_id, beat_type, beat_intent, characters, location_id, location_name,
-		       timeline, pov_character, content_kind, type, embed_text
+		       timeline, pov_character, content_type, content_kind, type, embed_text,
+		       world_id, world_name, world_genre, entity_name, event_timeline, importance,
+		       related_characters, related_locations, related_artifacts, related_events
 		FROM embedding_chunks
 		WHERE document_id = $1
 		ORDER BY chunk_index ASC
@@ -146,15 +250,41 @@ func (r *ChunkRepository) ListByDocument(ctx context.Context, documentID uuid.UU
 		var chunk memory.Chunk
 		var embeddingStr string
 		var charactersJSON string
+		var relatedCharactersJSON string
+		var relatedLocationsJSON string
+		var relatedArtifactsJSON string
+		var relatedEventsJSON string
 		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
 			&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
-			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind, &chunk.ChunkType, &chunk.EmbedText); err != nil {
+			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentType, &chunk.ContentKind, &chunk.ChunkType, &chunk.EmbedText,
+			&chunk.WorldID, &chunk.WorldName, &chunk.WorldGenre, &chunk.EntityName, &chunk.EventTimeline, &chunk.Importance,
+			&relatedCharactersJSON, &relatedLocationsJSON, &relatedArtifactsJSON, &relatedEventsJSON); err != nil {
 			return nil, err
 		}
 		chunk.Embedding = parseVector(embeddingStr)
 		if charactersJSON != "" {
 			if err := json.Unmarshal([]byte(charactersJSON), &chunk.Characters); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal characters: %w", err)
+			}
+		}
+		if relatedCharactersJSON != "" {
+			if err := json.Unmarshal([]byte(relatedCharactersJSON), &chunk.RelatedCharacters); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related characters: %w", err)
+			}
+		}
+		if relatedLocationsJSON != "" {
+			if err := json.Unmarshal([]byte(relatedLocationsJSON), &chunk.RelatedLocations); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related locations: %w", err)
+			}
+		}
+		if relatedArtifactsJSON != "" {
+			if err := json.Unmarshal([]byte(relatedArtifactsJSON), &chunk.RelatedArtifacts); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related artifacts: %w", err)
+			}
+		}
+		if relatedEventsJSON != "" {
+			if err := json.Unmarshal([]byte(relatedEventsJSON), &chunk.RelatedEvents); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related events: %w", err)
 			}
 		}
 		chunks = append(chunks, &chunk)
@@ -180,7 +310,9 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 	query := `
 		SELECT c.id, c.document_id, c.chunk_index, c.content, c.embedding, c.token_count, c.created_at,
 		       c.scene_id, c.beat_id, c.beat_type, c.beat_intent, c.characters, c.location_id, c.location_name,
-		       c.timeline, c.pov_character, c.content_kind, c.type, c.embed_text,
+		       c.timeline, c.pov_character, c.content_type, c.content_kind, c.type, c.embed_text,
+		       c.world_id, c.world_name, c.world_genre, c.entity_name, c.event_timeline, c.importance,
+		       c.related_characters, c.related_locations, c.related_artifacts, c.related_events,
 		       (c.embedding <=> $%d::vector) AS distance
 		FROM embedding_chunks c
 		INNER JOIN embedding_documents d ON c.document_id = d.id
@@ -312,16 +444,43 @@ func (r *ChunkRepository) SearchSimilar(ctx context.Context, tenantID uuid.UUID,
 		var chunk memory.Chunk
 		var embeddingStr string
 		var charactersJSON string
+		var relatedCharactersJSON string
+		var relatedLocationsJSON string
+		var relatedArtifactsJSON string
+		var relatedEventsJSON string
 		var distance float64
 		if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.ChunkIndex, &chunk.Content, &embeddingStr, &chunk.TokenCount, &chunk.CreatedAt,
 			&chunk.SceneID, &chunk.BeatID, &chunk.BeatType, &chunk.BeatIntent, &charactersJSON, &chunk.LocationID, &chunk.LocationName,
-			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentKind, &chunk.ChunkType, &chunk.EmbedText, &distance); err != nil {
+			&chunk.Timeline, &chunk.POVCharacter, &chunk.ContentType, &chunk.ContentKind, &chunk.ChunkType, &chunk.EmbedText,
+			&chunk.WorldID, &chunk.WorldName, &chunk.WorldGenre, &chunk.EntityName, &chunk.EventTimeline, &chunk.Importance,
+			&relatedCharactersJSON, &relatedLocationsJSON, &relatedArtifactsJSON, &relatedEventsJSON,
+			&distance); err != nil {
 			return nil, err
 		}
 		chunk.Embedding = parseVector(embeddingStr)
 		if charactersJSON != "" {
 			if err := json.Unmarshal([]byte(charactersJSON), &chunk.Characters); err != nil {
 				return nil, fmt.Errorf("failed to unmarshal characters: %w", err)
+			}
+		}
+		if relatedCharactersJSON != "" {
+			if err := json.Unmarshal([]byte(relatedCharactersJSON), &chunk.RelatedCharacters); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related characters: %w", err)
+			}
+		}
+		if relatedLocationsJSON != "" {
+			if err := json.Unmarshal([]byte(relatedLocationsJSON), &chunk.RelatedLocations); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related locations: %w", err)
+			}
+		}
+		if relatedArtifactsJSON != "" {
+			if err := json.Unmarshal([]byte(relatedArtifactsJSON), &chunk.RelatedArtifacts); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related artifacts: %w", err)
+			}
+		}
+		if relatedEventsJSON != "" {
+			if err := json.Unmarshal([]byte(relatedEventsJSON), &chunk.RelatedEvents); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal related events: %w", err)
 			}
 		}
 		chunks = append(chunks, &repositories.ScoredChunk{

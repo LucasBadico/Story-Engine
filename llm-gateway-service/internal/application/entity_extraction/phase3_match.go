@@ -206,7 +206,6 @@ func (u *Phase3MatchUseCase) matchFinding(
 
 	filters := &repositories.SearchFilters{
 		SourceTypes: []memory.SourceType{sourceType},
-		ChunkTypes:  []string{"summary"},
 	}
 	if input.WorldID != nil {
 		filters.WorldIDs = []uuid.UUID{*input.WorldID}
@@ -252,6 +251,17 @@ func (u *Phase3MatchUseCase) matchFinding(
 			Similarity: similarity,
 		})
 	}
+	if u.logger != nil {
+		u.logger.Info(
+			"phase3 candidates",
+			"entity_type", finding.EntityType,
+			"name", finding.Name,
+			"count", len(candidates),
+			"min_similarity", minSimilarity,
+			"world_id", input.WorldID,
+			"top", formatPhase3CandidateLog(candidates),
+		)
+	}
 
 	match := (*Phase3ConfirmedMatch)(nil)
 	if len(candidates) > 0 {
@@ -292,6 +302,28 @@ func (u *Phase3MatchUseCase) matchFinding(
 		Candidates: candidates,
 		Match:      match,
 	}, nil
+}
+
+func formatPhase3CandidateLog(candidates []Phase3MatchCandidate) string {
+	if len(candidates) == 0 {
+		return "none"
+	}
+	limit := 3
+	if len(candidates) < limit {
+		limit = len(candidates)
+	}
+	parts := make([]string, 0, limit)
+	for _, candidate := range candidates[:limit] {
+		name := candidate.EntityName
+		if name == "" {
+			name = candidate.Summary
+		}
+		if len(name) > 80 {
+			name = name[:80] + "..."
+		}
+		parts = append(parts, fmt.Sprintf("source_type: %s\nname: %s\nsimilarity: %.3f", candidate.SourceType, name, candidate.Similarity))
+	}
+	return strings.Join(parts, "\n\n")
 }
 
 func (u *Phase3MatchUseCase) confirmMatch(
