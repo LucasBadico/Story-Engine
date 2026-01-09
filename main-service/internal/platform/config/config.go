@@ -12,6 +12,7 @@ type Config struct {
 	GRPC     GRPCConfig
 	HTTP     HTTPConfig
 	LLM      LLMConfig
+	Cleanup  CleanupConfig
 }
 
 // DatabaseConfig holds database connection settings
@@ -50,6 +51,18 @@ type RedisConfig struct {
 	Addr     string
 	Password string
 	DB       int
+}
+
+// CleanupConfig holds cleanup job settings
+type CleanupConfig struct {
+	// Draft relations cleanup settings
+	DraftTTLHours int // Time-to-live for draft relations with temp refs (default: 24 hours)
+
+	// Orphan relations cleanup settings
+	OrphanRetentionDays int // Days to retain orphan relations before deletion (default: 30 days)
+
+	// Cleanup job intervals (in hours)
+	CleanupIntervalHours int // How often to run cleanup jobs (default: 24 hours)
 }
 
 // DSN returns the database connection string based on the driver
@@ -98,6 +111,11 @@ func Load() *Config {
 				Password: getEnv("LLM_GATEWAY_REDIS_PASSWORD", ""),
 				DB:       getEnvInt("LLM_GATEWAY_REDIS_DB", 0),
 			},
+		},
+		Cleanup: CleanupConfig{
+			DraftTTLHours:        getEnvInt("CLEANUP_DRAFT_TTL_HOURS", 24),
+			OrphanRetentionDays:  getEnvInt("CLEANUP_ORPHAN_RETENTION_DAYS", 30),
+			CleanupIntervalHours: getEnvInt("CLEANUP_INTERVAL_HOURS", 24),
 		},
 	}
 }

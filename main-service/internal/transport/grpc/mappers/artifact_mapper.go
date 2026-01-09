@@ -1,6 +1,9 @@
 package mappers
 
 import (
+	"time"
+
+	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	"github.com/story-engine/main-service/internal/core/world"
 	artifactpb "github.com/story-engine/main-service/proto/artifact"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -23,18 +26,26 @@ func ArtifactToProto(a *world.Artifact) *artifactpb.Artifact {
 	}
 }
 
-// ArtifactReferenceToProto converts an artifact reference domain entity to a protobuf message
-func ArtifactReferenceToProto(ref *world.ArtifactReference) *artifactpb.ArtifactReference {
-	if ref == nil {
+// ArtifactReferenceDTOToProto converts an ArtifactReferenceDTO (compatibility layer) to a protobuf message
+func ArtifactReferenceDTOToProto(dto *artifactapp.ArtifactReferenceDTO) *artifactpb.ArtifactReference {
+	if dto == nil {
 		return nil
 	}
 
-	return &artifactpb.ArtifactReference{
-		Id:         ref.ID.String(),
-		ArtifactId: ref.ArtifactID.String(),
-		EntityType: string(ref.EntityType),
-		EntityId:   ref.EntityID.String(),
-		CreatedAt:  timestamppb.New(ref.CreatedAt),
+	pb := &artifactpb.ArtifactReference{
+		Id:         dto.ID.String(),
+		ArtifactId: dto.ArtifactID.String(),
+		EntityType: dto.EntityType,
+		EntityId:   dto.EntityID.String(),
 	}
+
+	// Parse CreatedAt string to timestamp
+	if dto.CreatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, dto.CreatedAt); err == nil {
+			pb.CreatedAt = timestamppb.New(t)
+		}
+	}
+
+	return pb
 }
 

@@ -6,7 +6,6 @@ import (
 
 	"github.com/google/uuid"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
-	"github.com/story-engine/main-service/internal/core/story"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
@@ -347,7 +346,7 @@ func (h *SceneHandler) AddReference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entityType := story.SceneReferenceEntityType(req.EntityType)
+	entityType := req.EntityType
 	if !isValidSceneReferenceEntityType(entityType) {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "entity_type",
@@ -394,7 +393,7 @@ func (h *SceneHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entityType := story.SceneReferenceEntityType(entityTypeStr)
+	entityType := entityTypeStr
 	if !isValidSceneReferenceEntityType(entityType) {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "entity_type",
@@ -425,10 +424,10 @@ func (h *SceneHandler) RemoveReference(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func isValidSceneReferenceEntityType(entityType story.SceneReferenceEntityType) bool {
-	return entityType == story.SceneReferenceEntityTypeCharacter ||
-		entityType == story.SceneReferenceEntityTypeLocation ||
-		entityType == story.SceneReferenceEntityTypeArtifact
+func isValidSceneReferenceEntityType(entityType string) bool {
+	return entityType == "character" ||
+		entityType == "location" ||
+		entityType == "artifact"
 }
 
 // ListByStory handles GET /api/v1/stories/{id}/scenes

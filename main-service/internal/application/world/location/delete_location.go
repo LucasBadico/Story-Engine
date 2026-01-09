@@ -12,6 +12,7 @@ import (
 // DeleteLocationUseCase handles location deletion
 type DeleteLocationUseCase struct {
 	locationRepo repositories.LocationRepository
+	relationRepo repositories.EntityRelationRepository
 	auditLogRepo repositories.AuditLogRepository
 	logger       logger.Logger
 }
@@ -19,11 +20,13 @@ type DeleteLocationUseCase struct {
 // NewDeleteLocationUseCase creates a new DeleteLocationUseCase
 func NewDeleteLocationUseCase(
 	locationRepo repositories.LocationRepository,
+	relationRepo repositories.EntityRelationRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *DeleteLocationUseCase {
 	return &DeleteLocationUseCase{
 		locationRepo: locationRepo,
+		relationRepo: relationRepo,
 		auditLogRepo: auditLogRepo,
 		logger:       logger,
 	}
@@ -40,6 +43,12 @@ func (uc *DeleteLocationUseCase) Execute(ctx context.Context, input DeleteLocati
 	l, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.ID)
 	if err != nil {
 		return err
+	}
+
+	// Delete relations where location is source or target
+	if err := uc.relationRepo.DeleteByEntity(ctx, input.TenantID, "location", input.ID); err != nil {
+		uc.logger.Error("failed to delete location relations", "error", err)
+		// Continue anyway
 	}
 
 	if err := uc.locationRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
@@ -65,5 +74,3 @@ func (uc *DeleteLocationUseCase) Execute(ctx context.Context, input DeleteLocati
 
 	return nil
 }
-
-

@@ -7,7 +7,6 @@ import (
 
 	"github.com/google/uuid"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
-	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
@@ -374,8 +373,8 @@ func (h *ArtifactHandler) AddReference(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	entityType := world.ArtifactReferenceEntityType(req.EntityType)
-	if entityType != world.ArtifactReferenceEntityTypeCharacter && entityType != world.ArtifactReferenceEntityTypeLocation {
+	entityType := req.EntityType
+	if entityType != "character" && entityType != "location" {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "entity_type",
 			Message: "must be 'character' or 'location'",
@@ -422,8 +421,8 @@ func (h *ArtifactHandler) RemoveReference(w http.ResponseWriter, r *http.Request
 		return
 	}
 
-	entityType := world.ArtifactReferenceEntityType(entityTypeStr)
-	if entityType != world.ArtifactReferenceEntityTypeCharacter && entityType != world.ArtifactReferenceEntityTypeLocation {
+	entityType := entityTypeStr
+	if entityType != "character" && entityType != "location" {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "entity_type",
 			Message: "must be 'character' or 'location'",

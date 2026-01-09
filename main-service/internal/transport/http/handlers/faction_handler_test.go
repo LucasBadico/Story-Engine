@@ -12,7 +12,7 @@ import (
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -25,27 +25,34 @@ func TestFactionHandler_Create(t *testing.T) {
 	worldID := setupTestWorld(t, db, tenantID)
 
 	factionRepo := postgres.NewFactionRepository(db)
-	factionReferenceRepo := postgres.NewFactionReferenceRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
 	eventRepo := postgres.NewEventRepository(db)
 	loreRepo := postgres.NewLoreRepository(db)
-	loreReferenceRepo := postgres.NewLoreReferenceRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	log := logger.New()
+
+	// Create relation use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	getRelationUseCase := relationapp.NewGetRelationUseCase(entityRelationRepo, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	updateRelationUseCase := relationapp.NewUpdateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	createFactionUseCase := factionapp.NewCreateFactionUseCase(factionRepo, worldRepo, auditLogRepo, log)
 	getFactionUseCase := factionapp.NewGetFactionUseCase(factionRepo, log)
 	listFactionsUseCase := factionapp.NewListFactionsUseCase(factionRepo, log)
 	updateFactionUseCase := factionapp.NewUpdateFactionUseCase(factionRepo, auditLogRepo, log)
-	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, factionReferenceRepo, auditLogRepo, log)
+	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, entityRelationRepo, auditLogRepo, log)
 	getFactionChildrenUseCase := factionapp.NewGetChildrenUseCase(factionRepo, log)
-	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, factionReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, loreReferenceRepo, log)
-	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(factionReferenceRepo, log)
-	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(factionReferenceRepo, log)
-	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(factionReferenceRepo, log)
+	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, log)
+	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(listRelationsBySourceUseCase, log)
+	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(getRelationUseCase, updateRelationUseCase, log)
 
 	handler := NewFactionHandler(
 		createFactionUseCase,
@@ -113,27 +120,34 @@ func TestFactionHandler_AddReference(t *testing.T) {
 	worldID := setupTestWorld(t, db, tenantID)
 
 	factionRepo := postgres.NewFactionRepository(db)
-	factionReferenceRepo := postgres.NewFactionReferenceRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
 	eventRepo := postgres.NewEventRepository(db)
 	loreRepo := postgres.NewLoreRepository(db)
-	loreReferenceRepo := postgres.NewLoreReferenceRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	log := logger.New()
+
+	// Create relation use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	getRelationUseCase := relationapp.NewGetRelationUseCase(entityRelationRepo, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	updateRelationUseCase := relationapp.NewUpdateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	createFactionUseCase := factionapp.NewCreateFactionUseCase(factionRepo, worldRepo, auditLogRepo, log)
 	getFactionUseCase := factionapp.NewGetFactionUseCase(factionRepo, log)
 	listFactionsUseCase := factionapp.NewListFactionsUseCase(factionRepo, log)
 	updateFactionUseCase := factionapp.NewUpdateFactionUseCase(factionRepo, auditLogRepo, log)
-	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, factionReferenceRepo, auditLogRepo, log)
+	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, entityRelationRepo, auditLogRepo, log)
 	getFactionChildrenUseCase := factionapp.NewGetChildrenUseCase(factionRepo, log)
-	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, factionReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, loreReferenceRepo, log)
-	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(factionReferenceRepo, log)
-	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(factionReferenceRepo, log)
-	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(factionReferenceRepo, log)
+	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, log)
+	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(listRelationsBySourceUseCase, log)
+	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(getRelationUseCase, updateRelationUseCase, log)
 
 	handler := NewFactionHandler(
 		createFactionUseCase,
@@ -184,25 +198,19 @@ func TestFactionHandler_AddReference(t *testing.T) {
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
 	traitRepo := postgres.NewTraitRepository(db)
 	addTraitUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
 	removeTraitUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
 	updateTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	getTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
-	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
-	getEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
-	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
-	createRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
-	getRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
-	listRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
-	updateRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
-	deleteRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
+	listRelationsByTargetUseCase := relationapp.NewListRelationsByTargetUseCase(entityRelationRepo, log)
+	getEventsUseCase := characterapp.NewGetCharacterEventsUseCase(listRelationsByTargetUseCase, log)
 	rpgClassRepo := postgres.NewRPGClassRepository(db)
 	rpgSystemRepo := postgres.NewRPGSystemRepository(db)
 	changeClassUseCase := rpgcharacterapp.NewChangeCharacterClassUseCase(characterRepo, rpgClassRepo, log)
 	getAvailableClassesUseCase := rpgcharacterapp.NewGetAvailableClassesUseCase(characterRepo, rpgClassRepo, rpgSystemRepo, log)
-	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, getEventsUseCase, createRelationshipUseCase, getRelationshipUseCase, listRelationshipsUseCase, updateRelationshipUseCase, deleteRelationshipUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
+	characterHandler := NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitUseCase, removeTraitUseCase, updateTraitUseCase, getTraitsUseCase, getEventsUseCase, createRelationUseCase, getRelationUseCase, listRelationsBySourceUseCase, listRelationsByTargetUseCase, updateRelationUseCase, deleteRelationUseCase, changeClassUseCase, getAvailableClassesUseCase, log)
 
 	characterBody := `{"name": "Test Character"}`
 	characterReq := httptest.NewRequest("POST", "/api/v1/worlds/"+worldID+"/characters", strings.NewReader(characterBody))

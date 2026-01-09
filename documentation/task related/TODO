@@ -1,17 +1,8 @@
 
-- [x] make the scenes/beats possible not have a chapter_id
-- [x] make the scenes/beats move between chapters.scenes 
-- [x] add character/locations 
-- [x] update prose/text entity
 - [ ] upload image endpoint
-- revisar tennat id: Atualizar Membership e AuditLog (requer mudança de interface)
+- [ ] revisar tennat id: Atualizar Membership e AuditLog (requer mudança de interface)
 
-- [x] revisar handlers q usam repo direto, provavelmente ta havendo duplicacao pq tem 2 tipos de handlers
 # Easy wins
-- [x] add tag date
-- [x] mesclar dinamic relations from prose and image. Entities references to prose and image blocks.
-- atualizar postman collections
-- atualizar gateway ingestion
 - [ ] LLM Gateway - sanitizar parâmetros sensíveis do entity extract (chunk size, overlap, thresholds) com limites via env
 - [ ] LLM Gateway - handle deletes from main-service (remove embeddings/docs on entity delete)
 - [ ] LLM Gateway - provider Gemini (embeddings)
@@ -21,7 +12,6 @@
   - [ ] wire-up no factory/config para selecionar o provider Gemini
   - [ ] testes unitários do adapter (mock HTTP) e smoke test no worker
   - [ ] atualizar docs de setup com exemplo de envs do Gemini
-- [x] add content to view  com  image from url, busca naquele servico aberto de imagem free, e em breve upload.
 - [ ] world entities -  
   - [ ] view
     - [ ] evento- continua errado
@@ -30,10 +20,10 @@
     - [ ] character - associacao a evento nao ta funcionando
     - [ ] character - sem associacao a story/chapter/scene/beat
     - [ ] character - add grahp the relationships
-    - [x] story - falta character list
+    - [ ] story - falta character list
     
     - [ ] world - faction create relations
-      - [x] missing faction as type of relations.
+      - [ ] missing faction as type of relations.
       - erro na hora de criar relacao 
     - validar 
     - [ ] 
@@ -48,50 +38,21 @@ Complementa naturalmente o inventário
 Essencial para compra/venda/trade
 Base para futuras features (shops, quests com rewards)
 
-Próximos passos
-Instalar dependências: pnpm install na raiz
-Build dos packages: pnpm build
-Testar Storybook: pnpm --filter ui-package storybook
-Rodar web-app: pnpm --filter web-app dev
-Build do plugin: pnpm --filter obsidian-plugin-v2 build
-A estrutura está pronta para desenvolvimento. Os imports usam os nomes dos pacotes (@story-engine/ui-package, @story-engine/shared-ts, @story-engine/tokens) que funcionarão após a instalação das dependências com pnpm.
+Próximos passos frontend v2
+  Instalar dependências: pnpm install na raiz
+  Build dos packages: pnpm build
+  Testar Storybook: pnpm --filter ui-package storybook
+  Rodar web-app: pnpm --filter web-app dev
+  Build do plugin: pnpm --filter obsidian-plugin-v2 build
+  A estrutura está pronta para desenvolvimento. Os imports usam os nomes dos pacotes (@story-engine/ui-package, @story-engine/shared-ts, @story-engine/tokens) que funcionarão após a instalação das dependências com pnpm.
 
 
-SQLLITE IMPLEMENTATION
-Estado atual
-Completo:
-Infraestrutura base (interfaces, config, database abstraction)
-6 migrations SQLite
-10 repositórios SQLite (tenant, world, story, chapter, scene, beat, content_block, content_block_reference, audit_log, transaction)
-Próximos passos:
-Repositórios World Building Core (location, character, artifact, event)
-Funcionalidades Offline Mode (default tenant, middleware, entry point)
-Como retomar
-Ler documentation/STATUS_SQLITE_IMPLEMENTATION.md
-Escolher um repositório da lista "O QUE AINDA PRECISA SER IMPLEMENTADO"
-Seguir o padrão dos repositórios já criados (ex: story_repository.go)
-Atualizar o documento de status ao completar cada repositório
-Os documentos estão salvos e podem ser consultados na próxima sessão. O trabalho está organizado e documentado para continuidade.
 
 - [ ] pattern to import
 - story {title}
 - world {title}* dont duplicate the word world in the title
 - rpg {title}* dont duplicate the word rpg in the title
 
-- [x] main hub  - plugin
-  - create story need choose an world or create one for this story
-  - sync all should pull worlds and rpg
-  - create RPG world 
-  - create RPG system
-  - view world details
-  - view RPG system details
-
-- [x] config - plugin
-- local or remote mode - Local not require an tenant id, remote require an tenant id
-- conflict resolution - in localmode local wins, in remote it opens options.
-- in local shows link to video how to setup.
-- both modes suggest endpoint, but allow edition.
-- flag to enable/disable info/help box in the md files
 
 
 World documents with lists of entities
@@ -115,3 +76,13 @@ World documents with lists of entities
   - criar um modo de importar historia de um tenant para outro tenant.
 
 - [ ] Criar um flag/revision para quando algo estiver "errado/incongruente".
+
+
+- corrigir ingestion de scene
+
+
+- revisar world
+ - esta faltando magia/power, tech/veihicle/knowledge
+
+
+ - criar um lugar centralizado pra buildar as injecoes

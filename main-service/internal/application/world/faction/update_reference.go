@@ -4,24 +4,27 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/platform/logger"
-	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 // UpdateReferenceUseCase handles updating a faction reference
 type UpdateReferenceUseCase struct {
-	factionReferenceRepo repositories.FactionReferenceRepository
-	logger               logger.Logger
+	getRelationUseCase    *relationapp.GetRelationUseCase
+	updateRelationUseCase *relationapp.UpdateRelationUseCase
+	logger                logger.Logger
 }
 
 // NewUpdateReferenceUseCase creates a new UpdateReferenceUseCase
 func NewUpdateReferenceUseCase(
-	factionReferenceRepo repositories.FactionReferenceRepository,
+	getRelationUseCase *relationapp.GetRelationUseCase,
+	updateRelationUseCase *relationapp.UpdateRelationUseCase,
 	logger logger.Logger,
 ) *UpdateReferenceUseCase {
 	return &UpdateReferenceUseCase{
-		factionReferenceRepo: factionReferenceRepo,
-		logger:               logger,
+		getRelationUseCase:    getRelationUseCase,
+		updateRelationUseCase: updateRelationUseCase,
+		logger:                logger,
 	}
 }
 
@@ -35,21 +38,41 @@ type UpdateReferenceInput struct {
 
 // Execute updates a faction reference
 func (uc *UpdateReferenceUseCase) Execute(ctx context.Context, input UpdateReferenceInput) error {
-	// Get existing reference
-	ref, err := uc.factionReferenceRepo.GetByID(ctx, input.TenantID, input.ID)
+	// Get existing relation
+	output, err := uc.getRelationUseCase.Execute(ctx, relationapp.GetRelationInput{
+		TenantID: input.TenantID,
+		ID:       input.ID,
+	})
 	if err != nil {
 		return err
 	}
 
+	rel := output.Relation
+
 	// Update fields if provided
-	if input.Role != nil {
-		ref.UpdateRole(input.Role)
-	}
-	if input.Notes != nil {
-		ref.UpdateNotes(*input.Notes)
+	attributes := make(map[string]interface{})
+	if rel.Attributes != nil {
+		for k, v := range rel.Attributes {
+			attributes[k] = v
+		}
 	}
 
-	if err := uc.factionReferenceRepo.Update(ctx, ref); err != nil {
+	if input.Notes != nil {
+		attributes["notes"] = *input.Notes
+	}
+
+	relationType := rel.RelationType
+	if input.Role != nil {
+		relationType = *input.Role
+	}
+
+	_, err = uc.updateRelationUseCase.Execute(ctx, relationapp.UpdateRelationInput{
+		TenantID:     input.TenantID,
+		ID:           input.ID,
+		RelationType: &relationType,
+		Attributes:   &attributes,
+	})
+	if err != nil {
 		uc.logger.Error("failed to update faction reference", "error", err, "reference_id", input.ID)
 		return err
 	}

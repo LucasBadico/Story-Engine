@@ -101,6 +101,7 @@ func NewDBFromSQL(db *sql.DB) *DB {
 func TruncateTables(ctx context.Context, db *DB) error {
 	// Get all table names
 	tables := []string{
+		"entity_relations",
 		"scene_references",
 		"content_block_references",
 		"beats",

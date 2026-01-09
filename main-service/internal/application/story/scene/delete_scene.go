@@ -10,18 +10,21 @@ import (
 
 // DeleteSceneUseCase handles scene deletion
 type DeleteSceneUseCase struct {
-	sceneRepo repositories.SceneRepository
-	logger    logger.Logger
+	sceneRepo    repositories.SceneRepository
+	relationRepo repositories.EntityRelationRepository
+	logger       logger.Logger
 }
 
 // NewDeleteSceneUseCase creates a new DeleteSceneUseCase
 func NewDeleteSceneUseCase(
 	sceneRepo repositories.SceneRepository,
+	relationRepo repositories.EntityRelationRepository,
 	logger logger.Logger,
 ) *DeleteSceneUseCase {
 	return &DeleteSceneUseCase{
-		sceneRepo: sceneRepo,
-		logger:    logger,
+		sceneRepo:    sceneRepo,
+		relationRepo: relationRepo,
+		logger:       logger,
 	}
 }
 
@@ -39,6 +42,12 @@ func (uc *DeleteSceneUseCase) Execute(ctx context.Context, input DeleteSceneInpu
 		return err
 	}
 
+	// Delete relations where scene is source or target
+	if err := uc.relationRepo.DeleteByEntity(ctx, input.TenantID, "scene", input.ID); err != nil {
+		uc.logger.Error("failed to delete scene relations", "error", err)
+		// Continue anyway
+	}
+
 	if err := uc.sceneRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Error("failed to delete scene", "error", err, "scene_id", input.ID, "tenant_id", input.TenantID)
 		return err
@@ -48,4 +57,3 @@ func (uc *DeleteSceneUseCase) Execute(ctx context.Context, input DeleteSceneInpu
 
 	return nil
 }
-

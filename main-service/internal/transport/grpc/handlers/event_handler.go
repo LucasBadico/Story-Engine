@@ -355,7 +355,7 @@ func (h *EventHandler) AddEventReference(ctx context.Context, req *eventpb.AddEv
 	for _, ref := range output.References {
 		if ref.EntityType == req.EntityType && ref.EntityID == entityID {
 			return &eventpb.AddEventReferenceResponse{
-				Reference: mappers.EventReferenceToProto(ref),
+				Reference: mappers.EventReferenceDTOToProto(ref),
 			}, nil
 		}
 	}
@@ -425,7 +425,7 @@ func (h *EventHandler) GetEventReferences(ctx context.Context, req *eventpb.GetE
 
 	references := make([]*eventpb.EventReference, len(output.References))
 	for i, ref := range output.References {
-		references[i] = mappers.EventReferenceToProto(ref)
+		references[i] = mappers.EventReferenceDTOToProto(ref)
 	}
 
 	return &eventpb.GetEventReferencesResponse{

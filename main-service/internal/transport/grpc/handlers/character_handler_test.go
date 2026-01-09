@@ -11,7 +11,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	commonpb "github.com/story-engine/main-service/proto/common"
 	characterpb "github.com/story-engine/main-service/proto/character"
@@ -410,7 +410,12 @@ func TestCharacterHandler_GetCharacterEvents(t *testing.T) {
 	})
 }
 
+// TestCharacterHandler_CreateCharacterRelationship is deprecated
+// Character relationships now use entity_relations - use EntityRelationService instead
+// See: TestEntityRelationHandler tests for character relationship functionality
 func TestCharacterHandler_CreateCharacterRelationship(t *testing.T) {
+	t.Skip("Character relationships now use entity_relations - use EntityRelationService instead")
+	
 	conn, cleanup := setupTestServerWithCharacter(t)
 	defer cleanup()
 
@@ -552,7 +557,12 @@ func TestCharacterHandler_CreateCharacterRelationship(t *testing.T) {
 	})
 }
 
+// TestCharacterHandler_GetCharacterRelationship is deprecated
+// Character relationships now use entity_relations - use EntityRelationService instead
+// See: TestEntityRelationHandler tests for character relationship functionality
 func TestCharacterHandler_GetCharacterRelationship(t *testing.T) {
+	t.Skip("Character relationships now use entity_relations - use EntityRelationService instead")
+	
 	conn, cleanup := setupTestServerWithCharacter(t)
 	defer cleanup()
 
@@ -642,7 +652,12 @@ func TestCharacterHandler_GetCharacterRelationship(t *testing.T) {
 	})
 }
 
+// TestCharacterHandler_ListCharacterRelationships is deprecated
+// Character relationships now use entity_relations - use EntityRelationService instead
+// See: TestEntityRelationHandler tests for character relationship functionality
 func TestCharacterHandler_ListCharacterRelationships(t *testing.T) {
+	t.Skip("Character relationships now use entity_relations - use EntityRelationService instead")
+	
 	conn, cleanup := setupTestServerWithCharacter(t)
 	defer cleanup()
 
@@ -778,7 +793,12 @@ func TestCharacterHandler_ListCharacterRelationships(t *testing.T) {
 	})
 }
 
+// TestCharacterHandler_UpdateCharacterRelationship is deprecated
+// Character relationships now use entity_relations - use EntityRelationService instead
+// See: TestEntityRelationHandler tests for character relationship functionality
 func TestCharacterHandler_UpdateCharacterRelationship(t *testing.T) {
+	t.Skip("Character relationships now use entity_relations - use EntityRelationService instead")
+	
 	conn, cleanup := setupTestServerWithCharacter(t)
 	defer cleanup()
 
@@ -916,7 +936,12 @@ func TestCharacterHandler_UpdateCharacterRelationship(t *testing.T) {
 	})
 }
 
+// TestCharacterHandler_DeleteCharacterRelationship is deprecated
+// Character relationships now use entity_relations - use EntityRelationService instead
+// See: TestEntityRelationHandler tests for character relationship functionality
 func TestCharacterHandler_DeleteCharacterRelationship(t *testing.T) {
+	t.Skip("Character relationships now use entity_relations - use EntityRelationService instead")
+	
 	conn, cleanup := setupTestServerWithCharacter(t)
 	defer cleanup()
 
@@ -998,8 +1023,7 @@ func setupTestServerWithCharacter(t *testing.T) (*grpc.ClientConn, func()) {
 	archetypeRepo := postgres.NewArchetypeRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
-	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
-	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 
 	log := logger.New()
@@ -1013,21 +1037,16 @@ func setupTestServerWithCharacter(t *testing.T) (*grpc.ClientConn, func()) {
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
 	getCharacterTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
-	getCharacterEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
+	listRelationsByTargetUseCase := relationapp.NewListRelationsByTargetUseCase(entityRelationRepo, log)
+	getCharacterEventsUseCase := characterapp.NewGetCharacterEventsUseCase(listRelationsByTargetUseCase, log)
 	traitRepo := postgres.NewTraitRepository(db)
 	addTraitToCharacterUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
 	updateCharacterTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	removeTraitFromCharacterUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
 	
-	// Character relationship use cases
-	createCharacterRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
-	getCharacterRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
-	listCharacterRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
-	updateCharacterRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
-	deleteCharacterRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
-
+	// Character relationship use cases - using entity_relations (not yet implemented in gRPC)
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	characterHandler := NewCharacterHandler(
@@ -1041,11 +1060,11 @@ func setupTestServerWithCharacter(t *testing.T) (*grpc.ClientConn, func()) {
 		addTraitToCharacterUseCase, 
 		updateCharacterTraitUseCase, 
 		removeTraitFromCharacterUseCase,
-		createCharacterRelationshipUseCase,
-		getCharacterRelationshipUseCase,
-		listCharacterRelationshipsUseCase,
-		updateCharacterRelationshipUseCase,
-		deleteCharacterRelationshipUseCase,
+		nil, // createCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // getCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // listCharacterRelationshipsUseCase - not implemented in gRPC yet
+		nil, // updateCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // deleteCharacterRelationshipUseCase - not implemented in gRPC yet
 		log,
 	)
 

@@ -4,36 +4,41 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/google/uuid"
-	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	"github.com/story-engine/main-service/internal/core/relation"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	"github.com/story-engine/main-service/internal/ports/repositories"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
 )
 
 // CharacterHandler handles HTTP requests for characters
 type CharacterHandler struct {
-	createCharacterUseCase          *characterapp.CreateCharacterUseCase
-	getCharacterUseCase             *characterapp.GetCharacterUseCase
-	listCharactersUseCase           *characterapp.ListCharactersUseCase
-	updateCharacterUseCase          *characterapp.UpdateCharacterUseCase
-	deleteCharacterUseCase          *characterapp.DeleteCharacterUseCase
-	addTraitUseCase                 *characterapp.AddTraitToCharacterUseCase
-	removeTraitUseCase              *characterapp.RemoveTraitFromCharacterUseCase
-	updateTraitUseCase              *characterapp.UpdateCharacterTraitUseCase
-	getTraitsUseCase                *characterapp.GetCharacterTraitsUseCase
-	getEventsUseCase                *characterapp.GetCharacterEventsUseCase
-	createRelationshipUseCase       *characterrelationshipapp.CreateCharacterRelationshipUseCase
-	getRelationshipUseCase          *characterrelationshipapp.GetCharacterRelationshipUseCase
-	listRelationshipsUseCase        *characterrelationshipapp.ListCharacterRelationshipsUseCase
-	updateRelationshipUseCase       *characterrelationshipapp.UpdateCharacterRelationshipUseCase
-	deleteRelationshipUseCase       *characterrelationshipapp.DeleteCharacterRelationshipUseCase
-	changeClassUseCase              *rpgcharacterapp.ChangeCharacterClassUseCase
-	getAvailableClassesUseCase      *rpgcharacterapp.GetAvailableClassesUseCase
-	logger                          logger.Logger
+	createCharacterUseCase *characterapp.CreateCharacterUseCase
+	getCharacterUseCase    *characterapp.GetCharacterUseCase
+	listCharactersUseCase  *characterapp.ListCharactersUseCase
+	updateCharacterUseCase *characterapp.UpdateCharacterUseCase
+	deleteCharacterUseCase *characterapp.DeleteCharacterUseCase
+	addTraitUseCase        *characterapp.AddTraitToCharacterUseCase
+	removeTraitUseCase     *characterapp.RemoveTraitFromCharacterUseCase
+	updateTraitUseCase     *characterapp.UpdateCharacterTraitUseCase
+	getTraitsUseCase       *characterapp.GetCharacterTraitsUseCase
+	getEventsUseCase       *characterapp.GetCharacterEventsUseCase
+	// Character relationship use cases - using entity_relations
+	createRelationUseCase        *relationapp.CreateRelationUseCase
+	getRelationUseCase           *relationapp.GetRelationUseCase
+	listRelationsBySourceUseCase *relationapp.ListRelationsBySourceUseCase
+	listRelationsByTargetUseCase *relationapp.ListRelationsByTargetUseCase
+	updateRelationUseCase        *relationapp.UpdateRelationUseCase
+	deleteRelationUseCase        *relationapp.DeleteRelationUseCase
+	changeClassUseCase           *rpgcharacterapp.ChangeCharacterClassUseCase
+	getAvailableClassesUseCase   *rpgcharacterapp.GetAvailableClassesUseCase
+	logger                       logger.Logger
 }
 
 // NewCharacterHandler creates a new CharacterHandler
@@ -48,34 +53,36 @@ func NewCharacterHandler(
 	updateTraitUseCase *characterapp.UpdateCharacterTraitUseCase,
 	getTraitsUseCase *characterapp.GetCharacterTraitsUseCase,
 	getEventsUseCase *characterapp.GetCharacterEventsUseCase,
-	createRelationshipUseCase *characterrelationshipapp.CreateCharacterRelationshipUseCase,
-	getRelationshipUseCase *characterrelationshipapp.GetCharacterRelationshipUseCase,
-	listRelationshipsUseCase *characterrelationshipapp.ListCharacterRelationshipsUseCase,
-	updateRelationshipUseCase *characterrelationshipapp.UpdateCharacterRelationshipUseCase,
-	deleteRelationshipUseCase *characterrelationshipapp.DeleteCharacterRelationshipUseCase,
+	createRelationUseCase *relationapp.CreateRelationUseCase,
+	getRelationUseCase *relationapp.GetRelationUseCase,
+	listRelationsBySourceUseCase *relationapp.ListRelationsBySourceUseCase,
+	listRelationsByTargetUseCase *relationapp.ListRelationsByTargetUseCase,
+	updateRelationUseCase *relationapp.UpdateRelationUseCase,
+	deleteRelationUseCase *relationapp.DeleteRelationUseCase,
 	changeClassUseCase *rpgcharacterapp.ChangeCharacterClassUseCase,
 	getAvailableClassesUseCase *rpgcharacterapp.GetAvailableClassesUseCase,
 	logger logger.Logger,
 ) *CharacterHandler {
 	return &CharacterHandler{
-		createCharacterUseCase:     createCharacterUseCase,
-		getCharacterUseCase:        getCharacterUseCase,
-		listCharactersUseCase:      listCharactersUseCase,
-		updateCharacterUseCase:     updateCharacterUseCase,
-		deleteCharacterUseCase:     deleteCharacterUseCase,
-		addTraitUseCase:            addTraitUseCase,
-		removeTraitUseCase:         removeTraitUseCase,
-		updateTraitUseCase:         updateTraitUseCase,
-		getTraitsUseCase:           getTraitsUseCase,
-		getEventsUseCase:           getEventsUseCase,
-		createRelationshipUseCase:  createRelationshipUseCase,
-		getRelationshipUseCase:     getRelationshipUseCase,
-		listRelationshipsUseCase:   listRelationshipsUseCase,
-		updateRelationshipUseCase:  updateRelationshipUseCase,
-		deleteRelationshipUseCase:  deleteRelationshipUseCase,
-		changeClassUseCase:         changeClassUseCase,
-		getAvailableClassesUseCase: getAvailableClassesUseCase,
-		logger:                     logger,
+		createCharacterUseCase:       createCharacterUseCase,
+		getCharacterUseCase:          getCharacterUseCase,
+		listCharactersUseCase:        listCharactersUseCase,
+		updateCharacterUseCase:       updateCharacterUseCase,
+		deleteCharacterUseCase:       deleteCharacterUseCase,
+		addTraitUseCase:              addTraitUseCase,
+		removeTraitUseCase:           removeTraitUseCase,
+		updateTraitUseCase:           updateTraitUseCase,
+		getTraitsUseCase:             getTraitsUseCase,
+		getEventsUseCase:             getEventsUseCase,
+		createRelationUseCase:        createRelationUseCase,
+		getRelationUseCase:           getRelationUseCase,
+		listRelationsBySourceUseCase: listRelationsBySourceUseCase,
+		listRelationsByTargetUseCase: listRelationsByTargetUseCase,
+		updateRelationUseCase:        updateRelationUseCase,
+		deleteRelationUseCase:        deleteRelationUseCase,
+		changeClassUseCase:           changeClassUseCase,
+		getAvailableClassesUseCase:   getAvailableClassesUseCase,
+		logger:                       logger,
 	}
 }
 
@@ -583,10 +590,71 @@ func (h *CharacterHandler) GetEvents(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// CharacterRelationshipDTO is a compatibility DTO for CharacterRelationship (deprecated)
+// Maps from EntityRelation to maintain handler compatibility
+type CharacterRelationshipDTO struct {
+	ID               string    `json:"id"`
+	Character1ID     string    `json:"character1_id"`
+	Character2ID     string    `json:"character2_id"`
+	RelationshipType string    `json:"relationship_type"`
+	Description      string    `json:"description"`
+	Bidirectional    bool      `json:"bidirectional"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
+}
+
+// entityRelationToCharacterRelationshipDTO converts EntityRelation to CharacterRelationshipDTO
+func entityRelationToCharacterRelationshipDTO(rel *relation.EntityRelation, characterID uuid.UUID) *CharacterRelationshipDTO {
+	// Determine character1_id and character2_id based on source/target
+	var char1ID, char2ID uuid.UUID
+	if rel.SourceType == "character" && rel.SourceID == characterID {
+		char1ID = characterID
+		if rel.TargetType == "character" {
+			char2ID = rel.TargetID
+		}
+	} else if rel.TargetType == "character" && rel.TargetID == characterID {
+		char1ID = characterID
+		if rel.SourceType == "character" {
+			char2ID = rel.SourceID
+		}
+	} else {
+		// Fallback: use source/target as-is
+		if rel.SourceType == "character" {
+			char1ID = rel.SourceID
+		}
+		if rel.TargetType == "character" {
+			char2ID = rel.TargetID
+		}
+	}
+
+	// Extract description from attributes or summary
+	description := rel.Summary
+	if rel.Attributes != nil {
+		if desc, ok := rel.Attributes["description"].(string); ok && desc != "" {
+			description = desc
+		}
+	}
+
+	// Check if bidirectional (has mirror)
+	bidirectional := rel.MirrorID != nil
+
+	return &CharacterRelationshipDTO{
+		ID:               rel.ID.String(),
+		Character1ID:     char1ID.String(),
+		Character2ID:     char2ID.String(),
+		RelationshipType: rel.RelationType,
+		Description:      description,
+		Bidirectional:    bidirectional,
+		CreatedAt:        rel.CreatedAt,
+		UpdatedAt:        rel.UpdatedAt,
+	}
+}
+
 // ListRelationships handles GET /api/v1/characters/{id}/relationships
 func (h *CharacterHandler) ListRelationships(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
+
 	characterID, err := uuid.Parse(id)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
@@ -596,18 +664,73 @@ func (h *CharacterHandler) ListRelationships(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	output, err := h.listRelationshipsUseCase.Execute(r.Context(), characterrelationshipapp.ListCharacterRelationshipsInput{
-		TenantID:    tenantID,
-		CharacterID: characterID,
+	// Get character to retrieve world_id
+	charOutput, err := h.getCharacterUseCase.Execute(r.Context(), characterapp.GetCharacterInput{
+		TenantID: tenantID,
+		ID:       characterID,
 	})
 	if err != nil {
+		WriteError(w, err, http.StatusNotFound)
+		return
+	}
+
+	_ = charOutput // Character retrieved but world_id not needed for listing
+
+	// List relations where character is source
+	sourceOutput, err := h.listRelationsBySourceUseCase.Execute(r.Context(), relationapp.ListRelationsBySourceInput{
+		TenantID:   tenantID,
+		SourceType: "character",
+		SourceID:   characterID,
+		Options: repositories.ListOptions{
+			Limit:          100,
+			ExcludeMirrors: true, // Only get primary relations
+		},
+	})
+	if err != nil {
+		h.logger.Error("failed to list relations by source", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
+	// List relations where character is target (for bidirectional relationships)
+	targetOutput, err := h.listRelationsByTargetUseCase.Execute(r.Context(), relationapp.ListRelationsByTargetInput{
+		TenantID:   tenantID,
+		TargetType: "character",
+		TargetID:   characterID,
+		Options: repositories.ListOptions{
+			Limit:          100,
+			ExcludeMirrors: true, // Only get primary relations
+		},
+	})
+	if err != nil {
+		h.logger.Error("failed to list relations by target", "error", err)
+		WriteError(w, err, http.StatusInternalServerError)
+		return
+	}
+
+	// Combine and convert to DTOs
+	allRelations := make([]*relation.EntityRelation, 0)
+	allRelations = append(allRelations, sourceOutput.Relations.Items...)
+	// Only include target relations if they are bidirectional (have a mirror)
+	for _, rel := range targetOutput.Relations.Items {
+		if rel.MirrorID != nil {
+			allRelations = append(allRelations, rel)
+		}
+	}
+
+	// Filter to only character-to-character relations and convert
+	relationships := make([]*CharacterRelationshipDTO, 0)
+	for _, rel := range allRelations {
+		if (rel.SourceType == "character" && rel.TargetType == "character") ||
+			(rel.TargetType == "character" && rel.SourceType == "character") {
+			dto := entityRelationToCharacterRelationshipDTO(rel, characterID)
+			relationships = append(relationships, dto)
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"relationships": output.Relationships,
+		"relationships": relationships,
 	})
 }
 
@@ -615,7 +738,8 @@ func (h *CharacterHandler) ListRelationships(w http.ResponseWriter, r *http.Requ
 func (h *CharacterHandler) CreateRelationship(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
-	character1ID, err := uuid.Parse(id)
+
+	characterID, err := uuid.Parse(id)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "id",
@@ -624,8 +748,18 @@ func (h *CharacterHandler) CreateRelationship(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// Get character to retrieve world_id
+	charOutput, err := h.getCharacterUseCase.Execute(r.Context(), characterapp.GetCharacterInput{
+		TenantID: tenantID,
+		ID:       characterID,
+	})
+	if err != nil {
+		WriteError(w, err, http.StatusNotFound)
+		return
+	}
+
 	var req struct {
-		Character2ID     string `json:"character2_id"`
+		OtherCharacterID string `json:"other_character_id"`
 		RelationshipType string `json:"relationship_type"`
 		Description      string `json:"description"`
 		Bidirectional    bool   `json:"bidirectional"`
@@ -639,40 +773,68 @@ func (h *CharacterHandler) CreateRelationship(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	character2ID, err := uuid.Parse(req.Character2ID)
+	otherCharacterID, err := uuid.Parse(req.OtherCharacterID)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
-			Field:   "character2_id",
+			Field:   "other_character_id",
 			Message: "invalid UUID format",
 		}, http.StatusBadRequest)
 		return
 	}
 
-	output, err := h.createRelationshipUseCase.Execute(r.Context(), characterrelationshipapp.CreateCharacterRelationshipInput{
-		TenantID:         tenantID,
-		Character1ID:     character1ID,
-		Character2ID:     character2ID,
-		RelationshipType: req.RelationshipType,
-		Description:      req.Description,
-		Bidirectional:    req.Bidirectional,
+	if req.RelationshipType == "" {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "relationship_type",
+			Message: "relationship_type is required",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	if characterID == otherCharacterID {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "other_character_id",
+			Message: "cannot create relationship with self",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Create attributes map
+	attributes := make(map[string]interface{})
+	if req.Description != "" {
+		attributes["description"] = req.Description
+	}
+
+	// Create relation
+	output, err := h.createRelationUseCase.Execute(r.Context(), relationapp.CreateRelationInput{
+		TenantID:     tenantID,
+		WorldID:      charOutput.Character.WorldID,
+		SourceType:   "character",
+		SourceID:     characterID,
+		TargetType:   "character",
+		TargetID:     otherCharacterID,
+		RelationType: req.RelationshipType,
+		Attributes:   attributes,
+		Summary:      req.Description,
+		CreateMirror: req.Bidirectional,
 	})
 	if err != nil {
+		h.logger.Error("failed to create relationship", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
+	dto := entityRelationToCharacterRelationshipDTO(output.Relation, characterID)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"relationship": output.Relationship,
-	})
+	json.NewEncoder(w).Encode(dto)
 }
 
 // UpdateRelationship handles PUT /api/v1/character-relationships/{id}
 func (h *CharacterHandler) UpdateRelationship(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
-	relationshipID, err := uuid.Parse(id)
+
+	relationID, err := uuid.Parse(id)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "id",
@@ -695,29 +857,77 @@ func (h *CharacterHandler) UpdateRelationship(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	output, err := h.updateRelationshipUseCase.Execute(r.Context(), characterrelationshipapp.UpdateCharacterRelationshipInput{
-		TenantID:         tenantID,
-		ID:               relationshipID,
-		RelationshipType: req.RelationshipType,
-		Description:      req.Description,
-		Bidirectional:    req.Bidirectional,
+	// Get existing relation
+	relOutput, err := h.getRelationUseCase.Execute(r.Context(), relationapp.GetRelationInput{
+		TenantID: tenantID,
+		ID:       relationID,
 	})
 	if err != nil {
+		WriteError(w, err, http.StatusNotFound)
+		return
+	}
+
+	rel := relOutput.Relation
+
+	// Validate it's a character-to-character relation
+	if rel.SourceType != "character" || rel.TargetType != "character" {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "relation is not a character relationship",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Prepare update input
+	updateInput := relationapp.UpdateRelationInput{
+		TenantID: tenantID,
+		ID:       relationID,
+	}
+
+	// Update attributes
+	attributes := make(map[string]interface{})
+	if rel.Attributes != nil {
+		for k, v := range rel.Attributes {
+			attributes[k] = v
+		}
+	}
+
+	if req.Description != nil {
+		attributes["description"] = *req.Description
+		summary := *req.Description
+		updateInput.Summary = &summary
+	}
+
+	if req.RelationshipType != nil {
+		updateInput.RelationType = req.RelationshipType
+	}
+
+	if len(attributes) > 0 {
+		updateInput.Attributes = &attributes
+	}
+
+	// Update relation
+	updateOutput, err := h.updateRelationUseCase.Execute(r.Context(), updateInput)
+	if err != nil {
+		h.logger.Error("failed to update relationship", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
+	// Determine character_id for DTO conversion (use source)
+	characterID := updateOutput.Relation.SourceID
+
+	dto := entityRelationToCharacterRelationshipDTO(updateOutput.Relation, characterID)
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"relationship": output.Relationship,
-	})
+	json.NewEncoder(w).Encode(dto)
 }
 
 // DeleteRelationship handles DELETE /api/v1/character-relationships/{id}
 func (h *CharacterHandler) DeleteRelationship(w http.ResponseWriter, r *http.Request) {
 	tenantID := middleware.GetTenantID(r.Context())
 	id := r.PathValue("id")
-	relationshipID, err := uuid.Parse(id)
+
+	relationID, err := uuid.Parse(id)
 	if err != nil {
 		WriteError(w, &platformerrors.ValidationError{
 			Field:   "id",
@@ -726,15 +936,35 @@ func (h *CharacterHandler) DeleteRelationship(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	err = h.deleteRelationshipUseCase.Execute(r.Context(), characterrelationshipapp.DeleteCharacterRelationshipInput{
+	// Verify relation exists and is a character relationship
+	relOutput, err := h.getRelationUseCase.Execute(r.Context(), relationapp.GetRelationInput{
 		TenantID: tenantID,
-		ID:       relationshipID,
+		ID:       relationID,
 	})
 	if err != nil {
+		WriteError(w, err, http.StatusNotFound)
+		return
+	}
+
+	rel := relOutput.Relation
+	if rel.SourceType != "character" || rel.TargetType != "character" {
+		WriteError(w, &platformerrors.ValidationError{
+			Field:   "id",
+			Message: "relation is not a character relationship",
+		}, http.StatusBadRequest)
+		return
+	}
+
+	// Delete relation (this will also delete mirror if exists)
+	err = h.deleteRelationUseCase.Execute(r.Context(), relationapp.DeleteRelationInput{
+		TenantID: tenantID,
+		ID:       relationID,
+	})
+	if err != nil {
+		h.logger.Error("failed to delete relationship", "error", err)
 		WriteError(w, err, http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
 }
-

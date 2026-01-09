@@ -11,24 +11,24 @@ import (
 
 // DeleteLoreUseCase handles lore deletion
 type DeleteLoreUseCase struct {
-	loreRepo          repositories.LoreRepository
-	loreReferenceRepo repositories.LoreReferenceRepository
-	auditLogRepo      repositories.AuditLogRepository
-	logger            logger.Logger
+	loreRepo     repositories.LoreRepository
+	relationRepo repositories.EntityRelationRepository
+	auditLogRepo repositories.AuditLogRepository
+	logger       logger.Logger
 }
 
 // NewDeleteLoreUseCase creates a new DeleteLoreUseCase
 func NewDeleteLoreUseCase(
 	loreRepo repositories.LoreRepository,
-	loreReferenceRepo repositories.LoreReferenceRepository,
+	relationRepo repositories.EntityRelationRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *DeleteLoreUseCase {
 	return &DeleteLoreUseCase{
-		loreRepo:          loreRepo,
-		loreReferenceRepo: loreReferenceRepo,
-		auditLogRepo:      auditLogRepo,
-		logger:            logger,
+		loreRepo:     loreRepo,
+		relationRepo: relationRepo,
+		auditLogRepo: auditLogRepo,
+		logger:       logger,
 	}
 }
 
@@ -46,9 +46,9 @@ func (uc *DeleteLoreUseCase) Execute(ctx context.Context, input DeleteLoreInput)
 		return err
 	}
 
-	// Delete references (will be handled by CASCADE, but explicit for clarity)
-	if err := uc.loreReferenceRepo.DeleteByLore(ctx, input.TenantID, input.ID); err != nil {
-		uc.logger.Error("failed to delete lore references", "error", err)
+	// Delete relations where lore is source or target
+	if err := uc.relationRepo.DeleteByEntity(ctx, input.TenantID, "lore", input.ID); err != nil {
+		uc.logger.Error("failed to delete lore relations", "error", err)
 		// Continue anyway
 	}
 
@@ -75,4 +75,3 @@ func (uc *DeleteLoreUseCase) Execute(ctx context.Context, input DeleteLoreInput)
 
 	return nil
 }
-

@@ -369,7 +369,7 @@ func (h *SceneHandler) GetSceneReferences(ctx context.Context, req *scenepb.GetS
 
 	references := make([]*scenepb.SceneReference, len(output.References))
 	for i, ref := range output.References {
-		references[i] = mappers.SceneReferenceToProto(ref)
+		references[i] = mappers.SceneReferenceDTOToProto(ref)
 	}
 
 	return &scenepb.GetSceneReferencesResponse{
@@ -390,10 +390,8 @@ func (h *SceneHandler) AddSceneReference(ctx context.Context, req *scenepb.AddSc
 		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
 	}
 
-	entityType := story.SceneReferenceEntityType(req.EntityType)
-	if entityType != story.SceneReferenceEntityTypeCharacter &&
-		entityType != story.SceneReferenceEntityTypeLocation &&
-		entityType != story.SceneReferenceEntityTypeArtifact {
+	entityType := req.EntityType
+	if entityType != "character" && entityType != "location" && entityType != "artifact" {
 		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character', 'location', or 'artifact'")
 	}
 
@@ -428,7 +426,7 @@ func (h *SceneHandler) AddSceneReference(ctx context.Context, req *scenepb.AddSc
 	}
 
 	// Find the reference we just created
-	var createdRef *story.SceneReference
+	var createdRef *scene.SceneReferenceDTO
 	for _, ref := range output.References {
 		if ref.EntityType == entityType && ref.EntityID == entityID {
 			createdRef = ref
@@ -441,7 +439,7 @@ func (h *SceneHandler) AddSceneReference(ctx context.Context, req *scenepb.AddSc
 	}
 
 	return &scenepb.AddSceneReferenceResponse{
-		Reference: mappers.SceneReferenceToProto(createdRef),
+		Reference: mappers.SceneReferenceDTOToProto(createdRef),
 	}, nil
 }
 
@@ -457,10 +455,8 @@ func (h *SceneHandler) RemoveSceneReference(ctx context.Context, req *scenepb.Re
 		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
 	}
 
-	entityType := story.SceneReferenceEntityType(req.EntityType)
-	if entityType != story.SceneReferenceEntityTypeCharacter &&
-		entityType != story.SceneReferenceEntityTypeLocation &&
-		entityType != story.SceneReferenceEntityTypeArtifact {
+	entityType := req.EntityType
+	if entityType != "character" && entityType != "location" && entityType != "artifact" {
 		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character', 'location', or 'artifact'")
 	}
 

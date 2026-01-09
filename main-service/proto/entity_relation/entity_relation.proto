@@ -1,0 +1,122 @@
+syntax = "proto3";
+package entity_relation;
+option go_package = "github.com/story-engine/main-service/proto/entity_relation";
+
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/empty.proto";
+import "proto/common/common.proto";
+
+// EntityRelation represents a relation between two entities
+// Both source and target entities must exist (IDs are required)
+message EntityRelation {
+  string id = 1;
+  string tenant_id = 2;
+  string world_id = 3;
+  string source_type = 4;
+  string source_id = 5;     // Required - entity must exist
+  string target_type = 6;
+  string target_id = 7;     // Required - entity must exist
+  string relation_type = 8;
+  optional string context_type = 9;
+  optional string context_id = 10;
+  string attributes_json = 11; // JSON string for flexible metadata
+  string summary = 12;
+  optional string mirror_id = 13;
+  optional string created_by_user_id = 14;
+  google.protobuf.Timestamp created_at = 15;
+  google.protobuf.Timestamp updated_at = 16;
+}
+
+// CreateRelationRequest is the request to create a new relation
+// Both source_id and target_id are required - entities must exist
+message CreateRelationRequest {
+  string world_id = 1;
+  string source_type = 2;
+  string source_id = 3;     // Required - entity must exist
+  string target_type = 4;
+  string target_id = 5;     // Required - entity must exist
+  string relation_type = 6;
+  optional string context_type = 7;
+  optional string context_id = 8;
+  string attributes_json = 9; // JSON string for flexible metadata
+  string summary = 10;
+  optional string created_by_user_id = 11;
+  bool create_mirror = 12; // If true, creates the inverse relation
+}
+
+// CreateRelationResponse is the response after creating a relation
+message CreateRelationResponse {
+  EntityRelation relation = 1;
+  optional EntityRelation mirror = 2; // Only set if create_mirror is true
+}
+
+// GetRelationRequest is the request to get a relation by ID
+message GetRelationRequest {
+  string id = 1;
+}
+
+// GetRelationResponse is the response containing a relation
+message GetRelationResponse {
+  EntityRelation relation = 1;
+}
+
+// ListRelationsBySourceRequest is the request to list relations by source
+message ListRelationsBySourceRequest {
+  string source_type = 1;
+  string source_id = 2;
+  common.PaginationRequest pagination = 3;
+  optional string relation_type = 4;
+  bool exclude_mirrors = 5;
+}
+
+// ListRelationsByTargetRequest is the request to list relations by target
+message ListRelationsByTargetRequest {
+  string target_type = 1;
+  string target_id = 2;
+  common.PaginationRequest pagination = 3;
+  optional string relation_type = 4;
+  bool exclude_mirrors = 5;
+}
+
+// ListRelationsByWorldRequest is the request to list relations by world
+message ListRelationsByWorldRequest {
+  string world_id = 1;
+  common.PaginationRequest pagination = 2;
+  optional string relation_type = 3;
+  bool exclude_mirrors = 4;
+}
+
+// ListRelationsResponse is the response containing a list of relations
+message ListRelationsResponse {
+  repeated EntityRelation relations = 1;
+  int32 total_count = 2;
+}
+
+// UpdateRelationRequest is the request to update a relation
+message UpdateRelationRequest {
+  string id = 1;
+  optional string relation_type = 2;
+  optional string attributes_json = 3; // JSON string
+  optional string summary = 4;
+}
+
+// UpdateRelationResponse is the response after updating a relation
+message UpdateRelationResponse {
+  EntityRelation relation = 1;
+}
+
+// DeleteRelationRequest is the request to delete a relation
+message DeleteRelationRequest {
+  string id = 1;
+}
+
+// EntityRelationService provides entity relation management operations
+service EntityRelationService {
+  rpc CreateRelation(CreateRelationRequest) returns (CreateRelationResponse);
+  rpc GetRelation(GetRelationRequest) returns (GetRelationResponse);
+  rpc ListRelationsBySource(ListRelationsBySourceRequest) returns (ListRelationsResponse);
+  rpc ListRelationsByTarget(ListRelationsByTargetRequest) returns (ListRelationsResponse);
+  rpc ListRelationsByWorld(ListRelationsByWorldRequest) returns (ListRelationsResponse);
+  rpc UpdateRelation(UpdateRelationRequest) returns (UpdateRelationResponse);
+  rpc DeleteRelation(DeleteRelationRequest) returns (google.protobuf.Empty);
+}

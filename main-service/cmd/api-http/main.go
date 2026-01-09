@@ -9,8 +9,10 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/redis/go-redis/v9"
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
 	redisadapter "github.com/story-engine/main-service/internal/adapters/redis"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
 	rpgcharacterapp "github.com/story-engine/main-service/internal/application/rpg/character"
 	characterinventoryapp "github.com/story-engine/main-service/internal/application/rpg/character_inventory"
@@ -32,7 +34,6 @@ import (
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
@@ -44,7 +45,6 @@ import (
 	"github.com/story-engine/main-service/internal/ports/queue"
 	httphandlers "github.com/story-engine/main-service/internal/transport/http/handlers"
 	"github.com/story-engine/main-service/internal/transport/http/middleware"
-	"github.com/redis/go-redis/v9"
 )
 
 func main() {
@@ -90,15 +90,10 @@ func main() {
 	archetypeTraitRepo := postgres.NewArchetypeTraitRepository(pgDB)
 	characterRepo := postgres.NewCharacterRepository(pgDB)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(pgDB)
-	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(pgDB)
 	artifactRepo := postgres.NewArtifactRepository(pgDB)
-	artifactReferenceRepo := postgres.NewArtifactReferenceRepository(pgDB)
 	eventRepo := postgres.NewEventRepository(pgDB)
-	eventReferenceRepo := postgres.NewEventReferenceRepository(pgDB)
 	factionRepo := postgres.NewFactionRepository(pgDB)
-	factionReferenceRepo := postgres.NewFactionReferenceRepository(pgDB)
 	loreRepo := postgres.NewLoreRepository(pgDB)
-	loreReferenceRepo := postgres.NewLoreReferenceRepository(pgDB)
 	rpgSystemRepo := postgres.NewRPGSystemRepository(pgDB)
 	characterRPGStatsRepo := postgres.NewCharacterRPGStatsRepository(pgDB)
 	artifactRPGStatsRepo := postgres.NewArtifactRPGStatsRepository(pgDB)
@@ -112,12 +107,22 @@ func main() {
 	storyRepo := postgres.NewStoryRepository(pgDB)
 	chapterRepo := postgres.NewChapterRepository(pgDB)
 	sceneRepo := postgres.NewSceneRepository(pgDB)
-	sceneReferenceRepo := postgres.NewSceneReferenceRepository(pgDB)
 	beatRepo := postgres.NewBeatRepository(pgDB)
 	contentBlockRepo := postgres.NewContentBlockRepository(pgDB)
 	contentBlockReferenceRepo := postgres.NewContentBlockReferenceRepository(pgDB)
+	entityRelationRepo := postgres.NewEntityRelationRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
 	transactionRepo := postgres.NewTransactionRepository(pgDB)
+
+	// Entity relation use cases (created early because they're used by other use cases)
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, ingestionQueue, log)
+	getRelationUseCase := relationapp.NewGetRelationUseCase(entityRelationRepo, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	listRelationsByTargetUseCase := relationapp.NewListRelationsByTargetUseCase(entityRelationRepo, log)
+	listRelationsByWorldUseCase := relationapp.NewListRelationsByWorldUseCase(entityRelationRepo, log)
+	updateRelationUseCase := relationapp.NewUpdateRelationUseCase(entityRelationRepo, summaryGenerator, ingestionQueue, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	// Initialize use cases
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
@@ -130,7 +135,7 @@ func main() {
 	getLocationUseCase := locationapp.NewGetLocationUseCase(locationRepo, log)
 	listLocationsUseCase := locationapp.NewListLocationsUseCase(locationRepo, log)
 	updateLocationUseCase := locationapp.NewUpdateLocationUseCase(locationRepo, auditLogRepo, log)
-	deleteLocationUseCase := locationapp.NewDeleteLocationUseCase(locationRepo, auditLogRepo, log)
+	deleteLocationUseCase := locationapp.NewDeleteLocationUseCase(locationRepo, entityRelationRepo, auditLogRepo, log)
 	getChildrenUseCase := locationapp.NewGetChildrenUseCase(locationRepo, log)
 	getAncestorsUseCase := locationapp.NewGetAncestorsUseCase(locationRepo, log)
 	getDescendantsUseCase := locationapp.NewGetDescendantsUseCase(locationRepo, log)
@@ -139,34 +144,29 @@ func main() {
 	getCharacterUseCase := characterapp.NewGetCharacterUseCase(characterRepo, log)
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
 	addTraitToCharacterUseCase := characterapp.NewAddTraitToCharacterUseCase(characterRepo, traitRepo, characterTraitRepo, log)
 	removeTraitFromCharacterUseCase := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
 	updateCharacterTraitUseCase := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, traitRepo, log)
 	getCharacterTraitsUseCase := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
-	getCharacterEventsUseCase := characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log)
-	createCharacterRelationshipUseCase := characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log)
-	getCharacterRelationshipUseCase := characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log)
-	listCharacterRelationshipsUseCase := characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log)
-	updateCharacterRelationshipUseCase := characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log)
-	deleteCharacterRelationshipUseCase := characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log)
-	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
+	getCharacterEventsUseCase := characterapp.NewGetCharacterEventsUseCase(listRelationsByTargetUseCase, log)
+	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, createRelationUseCase, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
 	getArtifactUseCase := artifactapp.NewGetArtifactUseCase(artifactRepo, log)
 	listArtifactsUseCase := artifactapp.NewListArtifactsUseCase(artifactRepo, log)
-	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
-	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, auditLogRepo, log)
-	getArtifactReferencesUseCase := artifactapp.NewGetArtifactReferencesUseCase(artifactReferenceRepo, log)
-	addArtifactReferenceUseCase := artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, log)
-	removeArtifactReferenceUseCase := artifactapp.NewRemoveArtifactReferenceUseCase(artifactReferenceRepo, log)
+	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, createRelationUseCase, listRelationsBySourceUseCase, deleteRelationUseCase, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
+	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
+	getArtifactReferencesUseCase := artifactapp.NewGetArtifactReferencesUseCase(listRelationsBySourceUseCase, log)
+	addArtifactReferenceUseCase := artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, log)
+	removeArtifactReferenceUseCase := artifactapp.NewRemoveArtifactReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
 	createEventUseCase := eventapp.NewCreateEventUseCase(eventRepo, worldRepo, auditLogRepo, log)
 	getEventUseCase := eventapp.NewGetEventUseCase(eventRepo, log)
 	listEventsUseCase := eventapp.NewListEventsUseCase(eventRepo, log)
 	updateEventUseCase := eventapp.NewUpdateEventUseCase(eventRepo, auditLogRepo, log)
-	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, eventReferenceRepo, auditLogRepo, log)
-	addEventReferenceUseCase := eventapp.NewAddReferenceUseCase(eventRepo, eventReferenceRepo, characterRepo, locationRepo, artifactRepo, factionRepo, loreRepo, factionReferenceRepo, loreReferenceRepo, log)
-	removeEventReferenceUseCase := eventapp.NewRemoveReferenceUseCase(eventReferenceRepo, log)
-	getEventReferencesUseCase := eventapp.NewGetReferencesUseCase(eventReferenceRepo, log)
-	updateEventReferenceUseCase := eventapp.NewUpdateReferenceUseCase(eventReferenceRepo, log)
+	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, entityRelationRepo, auditLogRepo, log)
+	addEventReferenceUseCase := eventapp.NewAddReferenceUseCase(eventRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, artifactRepo, factionRepo, loreRepo, log)
+	removeEventReferenceUseCase := eventapp.NewRemoveReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getEventReferencesUseCase := eventapp.NewGetReferencesUseCase(listRelationsBySourceUseCase, log)
+	updateEventReferenceUseCase := eventapp.NewUpdateReferenceUseCase(getRelationUseCase, updateRelationUseCase, log)
 	getEventChildrenUseCase := eventapp.NewGetChildrenUseCase(eventRepo, log)
 	getEventAncestorsUseCase := eventapp.NewGetAncestorsUseCase(eventRepo, log)
 	getEventDescendantsUseCase := eventapp.NewGetDescendantsUseCase(eventRepo, log)
@@ -178,22 +178,22 @@ func main() {
 	getFactionUseCase := factionapp.NewGetFactionUseCase(factionRepo, log)
 	listFactionsUseCase := factionapp.NewListFactionsUseCase(factionRepo, log)
 	updateFactionUseCase := factionapp.NewUpdateFactionUseCase(factionRepo, auditLogRepo, log)
-	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, factionReferenceRepo, auditLogRepo, log)
+	deleteFactionUseCase := factionapp.NewDeleteFactionUseCase(factionRepo, entityRelationRepo, auditLogRepo, log)
 	getFactionChildrenUseCase := factionapp.NewGetChildrenUseCase(factionRepo, log)
-	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, factionReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, loreReferenceRepo, log)
-	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(factionReferenceRepo, log)
-	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(factionReferenceRepo, log)
-	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(factionReferenceRepo, log)
+	addFactionReferenceUseCase := factionapp.NewAddReferenceUseCase(factionRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, artifactRepo, eventRepo, loreRepo, log)
+	removeFactionReferenceUseCase := factionapp.NewRemoveReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getFactionReferencesUseCase := factionapp.NewGetReferencesUseCase(listRelationsBySourceUseCase, log)
+	updateFactionReferenceUseCase := factionapp.NewUpdateReferenceUseCase(getRelationUseCase, updateRelationUseCase, log)
 	createLoreUseCase := loreapp.NewCreateLoreUseCase(loreRepo, worldRepo, auditLogRepo, log)
 	getLoreUseCase := loreapp.NewGetLoreUseCase(loreRepo, log)
 	listLoresUseCase := loreapp.NewListLoresUseCase(loreRepo, log)
 	updateLoreUseCase := loreapp.NewUpdateLoreUseCase(loreRepo, auditLogRepo, log)
-	deleteLoreUseCase := loreapp.NewDeleteLoreUseCase(loreRepo, loreReferenceRepo, auditLogRepo, log)
+	deleteLoreUseCase := loreapp.NewDeleteLoreUseCase(loreRepo, entityRelationRepo, auditLogRepo, log)
 	getLoreChildrenUseCase := loreapp.NewGetChildrenUseCase(loreRepo, log)
-	addLoreReferenceUseCase := loreapp.NewAddReferenceUseCase(loreRepo, loreReferenceRepo, characterRepo, locationRepo, artifactRepo, eventRepo, factionRepo, factionReferenceRepo, log)
-	removeLoreReferenceUseCase := loreapp.NewRemoveReferenceUseCase(loreReferenceRepo, log)
-	getLoreReferencesUseCase := loreapp.NewGetReferencesUseCase(loreReferenceRepo, log)
-	updateLoreReferenceUseCase := loreapp.NewUpdateReferenceUseCase(loreReferenceRepo, log)
+	addLoreReferenceUseCase := loreapp.NewAddReferenceUseCase(loreRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, artifactRepo, eventRepo, factionRepo, log)
+	removeLoreReferenceUseCase := loreapp.NewRemoveReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getLoreReferencesUseCase := loreapp.NewGetReferencesUseCase(listRelationsBySourceUseCase, log)
+	updateLoreReferenceUseCase := loreapp.NewUpdateReferenceUseCase(getRelationUseCase, updateRelationUseCase, log)
 	createTraitUseCase := traitapp.NewCreateTraitUseCase(traitRepo, tenantRepo, auditLogRepo, log)
 	getTraitUseCase := traitapp.NewGetTraitUseCase(traitRepo, log)
 	listTraitsUseCase := traitapp.NewListTraitsUseCase(traitRepo, log)
@@ -229,12 +229,12 @@ func main() {
 	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, ingestionQueue, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, ingestionQueue, log)
-	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, entityRelationRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
-	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
-	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	addSceneReferenceUseCase := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, storyRepo, createRelationUseCase, listRelationsBySourceUseCase, characterRepo, locationRepo, artifactRepo, log)
+	removeSceneReferenceUseCase := sceneapp.NewRemoveSceneReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getSceneReferencesUseCase := sceneapp.NewGetSceneReferencesUseCase(listRelationsBySourceUseCase, log)
 	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, ingestionQueue, log)
 	getBeatUseCase := beatapp.NewGetBeatUseCase(beatRepo, log)
 	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, ingestionQueue, log)
@@ -317,7 +317,27 @@ func main() {
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := httphandlers.NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
 	locationHandler := httphandlers.NewLocationHandler(createLocationUseCase, getLocationUseCase, listLocationsUseCase, updateLocationUseCase, deleteLocationUseCase, getChildrenUseCase, getAncestorsUseCase, getDescendantsUseCase, moveLocationUseCase, log)
-	characterHandler := httphandlers.NewCharacterHandler(createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase, addTraitToCharacterUseCase, removeTraitFromCharacterUseCase, updateCharacterTraitUseCase, getCharacterTraitsUseCase, getCharacterEventsUseCase, createCharacterRelationshipUseCase, getCharacterRelationshipUseCase, listCharacterRelationshipsUseCase, updateCharacterRelationshipUseCase, deleteCharacterRelationshipUseCase, changeCharacterClassUseCase, getAvailableClassesUseCase, log)
+	characterHandler := httphandlers.NewCharacterHandler(
+		createCharacterUseCase,
+		getCharacterUseCase,
+		listCharactersUseCase,
+		updateCharacterUseCase,
+		deleteCharacterUseCase,
+		addTraitToCharacterUseCase,
+		removeTraitFromCharacterUseCase,
+		updateCharacterTraitUseCase,
+		getCharacterTraitsUseCase,
+		getCharacterEventsUseCase,
+		createRelationUseCase,
+		getRelationUseCase,
+		listRelationsBySourceUseCase,
+		listRelationsByTargetUseCase,
+		updateRelationUseCase,
+		deleteRelationUseCase,
+		changeCharacterClassUseCase,
+		getAvailableClassesUseCase,
+		log,
+	)
 	rpgClassHandler := httphandlers.NewRPGClassHandler(createRPGClassUseCase, getRPGClassUseCase, listRPGClassesUseCase, updateRPGClassUseCase, deleteRPGClassUseCase, addSkillToClassUseCase, listClassSkillsUseCase, log)
 	inventoryHandler := httphandlers.NewInventoryHandler(createInventorySlotUseCase, listInventorySlotsUseCase, createInventoryItemUseCase, getInventoryItemUseCase, listInventoryItemsUseCase, updateInventoryItemUseCase, deleteInventoryItemUseCase, addItemToInventoryUseCase, listCharacterInventoryUseCase, updateCharacterInventoryUseCase, equipItemUseCase, unequipItemUseCase, deleteCharacterInventoryUseCase, transferItemUseCase, log)
 	artifactHandler := httphandlers.NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)
@@ -337,6 +357,7 @@ func main() {
 	beatHandler := httphandlers.NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
 	contentBlockHandler := httphandlers.NewContentBlockHandler(createContentBlockUseCase, getContentBlockUseCase, updateContentBlockUseCase, deleteContentBlockUseCase, listContentBlocksUseCase, log)
 	contentBlockReferenceHandler := httphandlers.NewContentBlockReferenceHandler(createContentBlockReferenceUseCase, listContentBlockReferencesByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentBlockReferenceUseCase, log)
+	entityRelationHandler := httphandlers.NewEntityRelationHandler(createRelationUseCase, getRelationUseCase, listRelationsBySourceUseCase, listRelationsByTargetUseCase, listRelationsByWorldUseCase, updateRelationUseCase, deleteRelationUseCase, log)
 
 	// Create router
 	mux := http.NewServeMux()
@@ -538,6 +559,15 @@ func main() {
 	mux.HandleFunc("PUT /api/v1/character-inventory/{id}/unequip", inventoryHandler.UnequipItem)
 	mux.HandleFunc("DELETE /api/v1/character-inventory/{id}", inventoryHandler.DeleteInventory)
 	mux.HandleFunc("POST /api/v1/character-inventory/{id}/transfer", inventoryHandler.TransferItem)
+
+	// Entity relations routes
+	mux.HandleFunc("POST /api/v1/relations", entityRelationHandler.Create)
+	mux.HandleFunc("GET /api/v1/relations/{id}", entityRelationHandler.Get)
+	mux.HandleFunc("PUT /api/v1/relations/{id}", entityRelationHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/relations/{id}", entityRelationHandler.Delete)
+	mux.HandleFunc("GET /api/v1/worlds/{world_id}/relations", entityRelationHandler.ListByWorld)
+	mux.HandleFunc("GET /api/v1/relations/source", entityRelationHandler.ListBySource)
+	mux.HandleFunc("GET /api/v1/relations/target", entityRelationHandler.ListByTarget)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 

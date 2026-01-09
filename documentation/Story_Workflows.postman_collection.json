@@ -3474,7 +3474,7 @@
 			"type": "string"
 		},
 		{
-			"key": "content_block_reference_id",
+			"key": "content_anchor_id",
 			"value": "",
 			"type": "string"
 		},

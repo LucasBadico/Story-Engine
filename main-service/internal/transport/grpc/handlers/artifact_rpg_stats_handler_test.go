@@ -8,16 +8,17 @@ import (
 	"testing"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
+	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
-	artifactstatsapp "github.com/story-engine/main-service/internal/application/rpg/artifact_stats"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	artifactpb "github.com/story-engine/main-service/proto/artifact"
 	artifactrpgstatspb "github.com/story-engine/main-service/proto/artifact_rpg_stats"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	worldpb "github.com/story-engine/main-service/proto/world"
-	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -79,7 +80,7 @@ func setupTestServerWithArtifactRPGStats(t *testing.T) (*grpc.ClientConn, func()
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
-	artifactReferenceRepo := postgres.NewArtifactReferenceRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(db)
 	eventRepo := postgres.NewEventRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
@@ -91,14 +92,19 @@ func setupTestServerWithArtifactRPGStats(t *testing.T) (*grpc.ClientConn, func()
 	listWorldsUseCase := world.NewListWorldsUseCase(worldRepo, log)
 	updateWorldUseCase := world.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
 	deleteWorldUseCase := world.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
-	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
+	// Entity relations use cases for artifact references
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
+	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, createRelationUseCase, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
 	getArtifactUseCase := artifactapp.NewGetArtifactUseCase(artifactRepo, log)
 	listArtifactsUseCase := artifactapp.NewListArtifactsUseCase(artifactRepo, log)
-	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
-	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, auditLogRepo, log)
-	getArtifactReferencesUseCase := artifactapp.NewGetArtifactReferencesUseCase(artifactReferenceRepo, log)
-	addArtifactReferenceUseCase := artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, log)
-	removeArtifactReferenceUseCase := artifactapp.NewRemoveArtifactReferenceUseCase(artifactReferenceRepo, log)
+	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, createRelationUseCase, listRelationsBySourceUseCase, deleteRelationUseCase, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
+	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
+	getArtifactReferencesUseCase := artifactapp.NewGetArtifactReferencesUseCase(listRelationsBySourceUseCase, log)
+	addArtifactReferenceUseCase := artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, log)
+	removeArtifactReferenceUseCase := artifactapp.NewRemoveArtifactReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
 	createStatsUseCase := artifactstatsapp.NewCreateArtifactStatsUseCase(artifactStatsRepo, artifactRepo, eventRepo, log)
 	getActiveStatsUseCase := artifactstatsapp.NewGetActiveArtifactStatsUseCase(artifactStatsRepo, log)
 	listStatsHistoryUseCase := artifactstatsapp.NewListArtifactStatsHistoryUseCase(artifactStatsRepo, log)

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/main-service/internal/core/story"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
@@ -12,30 +12,36 @@ import (
 
 // AddSceneReferenceUseCase handles adding a reference to a scene
 type AddSceneReferenceUseCase struct {
-	sceneRepo         repositories.SceneRepository
-	sceneReferenceRepo repositories.SceneReferenceRepository
-	characterRepo     repositories.CharacterRepository
-	locationRepo      repositories.LocationRepository
-	artifactRepo      repositories.ArtifactRepository
-	logger            logger.Logger
+	sceneRepo             repositories.SceneRepository
+	storyRepo             repositories.StoryRepository
+	createRelationUseCase *relationapp.CreateRelationUseCase
+	listRelationsUseCase  *relationapp.ListRelationsBySourceUseCase
+	characterRepo         repositories.CharacterRepository
+	locationRepo          repositories.LocationRepository
+	artifactRepo          repositories.ArtifactRepository
+	logger                logger.Logger
 }
 
 // NewAddSceneReferenceUseCase creates a new AddSceneReferenceUseCase
 func NewAddSceneReferenceUseCase(
 	sceneRepo repositories.SceneRepository,
-	sceneReferenceRepo repositories.SceneReferenceRepository,
+	storyRepo repositories.StoryRepository,
+	createRelationUseCase *relationapp.CreateRelationUseCase,
+	listRelationsUseCase *relationapp.ListRelationsBySourceUseCase,
 	characterRepo repositories.CharacterRepository,
 	locationRepo repositories.LocationRepository,
 	artifactRepo repositories.ArtifactRepository,
 	logger logger.Logger,
 ) *AddSceneReferenceUseCase {
 	return &AddSceneReferenceUseCase{
-		sceneRepo:         sceneRepo,
-		sceneReferenceRepo: sceneReferenceRepo,
-		characterRepo:     characterRepo,
-		locationRepo:      locationRepo,
-		artifactRepo:      artifactRepo,
-		logger:            logger,
+		sceneRepo:             sceneRepo,
+		storyRepo:             storyRepo,
+		createRelationUseCase: createRelationUseCase,
+		listRelationsUseCase:  listRelationsUseCase,
+		characterRepo:         characterRepo,
+		locationRepo:          locationRepo,
+		artifactRepo:          artifactRepo,
+		logger:                logger,
 	}
 }
 
@@ -43,7 +49,7 @@ func NewAddSceneReferenceUseCase(
 type AddSceneReferenceInput struct {
 	TenantID   uuid.UUID
 	SceneID    uuid.UUID
-	EntityType story.SceneReferenceEntityType
+	EntityType string // "character", "location", or "artifact"
 	EntityID   uuid.UUID
 }
 
@@ -59,19 +65,19 @@ func (uc *AddSceneReferenceUseCase) Execute(ctx context.Context, input AddSceneR
 	// We need to get the story to get the world_id
 	// For now, we'll just validate the entity exists
 	switch input.EntityType {
-	case story.SceneReferenceEntityTypeCharacter:
+	case "character":
 		_, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
 		}
 		// TODO: Validate character belongs to same world as scene's story
-	case story.SceneReferenceEntityTypeLocation:
+	case "location":
 		_, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
 		}
 		// TODO: Validate location belongs to same world as scene's story
-	case story.SceneReferenceEntityTypeArtifact:
+	case "artifact":
 		_, err := uc.artifactRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
@@ -80,15 +86,35 @@ func (uc *AddSceneReferenceUseCase) Execute(ctx context.Context, input AddSceneR
 	default:
 		return &platformerrors.ValidationError{
 			Field:   "entity_type",
-			Message: "invalid entity type",
+			Message: "invalid entity type (must be 'character', 'location', or 'artifact')",
+		}
+	}
+
+	// Get story to get world_id
+	st, err := uc.storyRepo.GetByID(ctx, input.TenantID, s.StoryID)
+	if err != nil {
+		return err
+	}
+
+	if st.WorldID == nil {
+		return &platformerrors.ValidationError{
+			Field:   "story",
+			Message: "story must have a world_id to create scene references",
 		}
 	}
 
 	// Prevent duplicate references
-	existingRefs, err := uc.sceneReferenceRepo.ListByScene(ctx, input.TenantID, input.SceneID)
+	output, err := uc.listRelationsUseCase.Execute(ctx, relationapp.ListRelationsBySourceInput{
+		TenantID:   input.TenantID,
+		SourceType: "scene",
+		SourceID:   input.SceneID,
+		Options: repositories.ListOptions{
+			Limit: 100,
+		},
+	})
 	if err == nil {
-		for _, ref := range existingRefs {
-			if ref.EntityType == input.EntityType && ref.EntityID == input.EntityID {
+		for _, rel := range output.Relations.Items {
+			if rel.TargetType == input.EntityType && rel.TargetID == input.EntityID {
 				return &platformerrors.ValidationError{
 					Field:   "entity_id",
 					Message: "reference already exists",
@@ -97,12 +123,19 @@ func (uc *AddSceneReferenceUseCase) Execute(ctx context.Context, input AddSceneR
 		}
 	}
 
-	ref, err := story.NewSceneReference(input.SceneID, input.EntityType, input.EntityID)
+	// Create relation using entity_relations
+	_, err = uc.createRelationUseCase.Execute(ctx, relationapp.CreateRelationInput{
+		TenantID:     input.TenantID,
+		WorldID:      *st.WorldID,
+		SourceType:   "scene",
+		SourceID:     input.SceneID,
+		TargetType:   input.EntityType,
+		TargetID:     input.EntityID,
+		RelationType: "mentions",
+		Attributes:   make(map[string]interface{}),
+		CreateMirror: false, // Scene references are one-way
+	})
 	if err != nil {
-		return err
-	}
-
-	if err := uc.sceneReferenceRepo.Create(ctx, ref); err != nil {
 		uc.logger.Error("failed to add scene reference", "error", err, "scene_id", input.SceneID)
 		return err
 	}
@@ -111,5 +144,3 @@ func (uc *AddSceneReferenceUseCase) Execute(ctx context.Context, input AddSceneR
 
 	return nil
 }
-
-

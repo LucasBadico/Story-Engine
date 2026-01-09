@@ -11,27 +11,27 @@ import (
 
 // DeleteArtifactUseCase handles artifact deletion
 type DeleteArtifactUseCase struct {
-	artifactRepo         repositories.ArtifactRepository
-	artifactReferenceRepo repositories.ArtifactReferenceRepository
-	worldRepo            repositories.WorldRepository
-	auditLogRepo         repositories.AuditLogRepository
-	logger               logger.Logger
+	artifactRepo repositories.ArtifactRepository
+	relationRepo repositories.EntityRelationRepository
+	worldRepo    repositories.WorldRepository
+	auditLogRepo repositories.AuditLogRepository
+	logger       logger.Logger
 }
 
 // NewDeleteArtifactUseCase creates a new DeleteArtifactUseCase
 func NewDeleteArtifactUseCase(
 	artifactRepo repositories.ArtifactRepository,
-	artifactReferenceRepo repositories.ArtifactReferenceRepository,
+	relationRepo repositories.EntityRelationRepository,
 	worldRepo repositories.WorldRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *DeleteArtifactUseCase {
 	return &DeleteArtifactUseCase{
-		artifactRepo:         artifactRepo,
-		artifactReferenceRepo: artifactReferenceRepo,
-		worldRepo:            worldRepo,
-		auditLogRepo:         auditLogRepo,
-		logger:               logger,
+		artifactRepo: artifactRepo,
+		relationRepo: relationRepo,
+		worldRepo:    worldRepo,
+		auditLogRepo: auditLogRepo,
+		logger:       logger,
 	}
 }
 
@@ -48,9 +48,9 @@ func (uc *DeleteArtifactUseCase) Execute(ctx context.Context, input DeleteArtifa
 		return err
 	}
 
-	// Delete all references (CASCADE should handle this, but being explicit)
-	if err := uc.artifactReferenceRepo.DeleteByArtifact(ctx, input.TenantID, input.ID); err != nil {
-		uc.logger.Warn("failed to delete artifact references", "error", err)
+	// Delete relations where artifact is source or target
+	if err := uc.relationRepo.DeleteByEntity(ctx, input.TenantID, "artifact", input.ID); err != nil {
+		uc.logger.Warn("failed to delete artifact relations", "error", err)
 	}
 
 	if err := uc.artifactRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
@@ -77,4 +77,3 @@ func (uc *DeleteArtifactUseCase) Execute(ctx context.Context, input DeleteArtifa
 
 	return nil
 }
-

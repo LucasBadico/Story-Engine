@@ -11,24 +11,24 @@ import (
 
 // DeleteFactionUseCase handles faction deletion
 type DeleteFactionUseCase struct {
-	factionRepo            repositories.FactionRepository
-	factionReferenceRepo   repositories.FactionReferenceRepository
-	auditLogRepo           repositories.AuditLogRepository
-	logger                 logger.Logger
+	factionRepo  repositories.FactionRepository
+	relationRepo repositories.EntityRelationRepository
+	auditLogRepo repositories.AuditLogRepository
+	logger       logger.Logger
 }
 
 // NewDeleteFactionUseCase creates a new DeleteFactionUseCase
 func NewDeleteFactionUseCase(
 	factionRepo repositories.FactionRepository,
-	factionReferenceRepo repositories.FactionReferenceRepository,
+	relationRepo repositories.EntityRelationRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *DeleteFactionUseCase {
 	return &DeleteFactionUseCase{
-		factionRepo:          factionRepo,
-		factionReferenceRepo: factionReferenceRepo,
-		auditLogRepo:         auditLogRepo,
-		logger:               logger,
+		factionRepo:  factionRepo,
+		relationRepo: relationRepo,
+		auditLogRepo: auditLogRepo,
+		logger:       logger,
 	}
 }
 
@@ -46,9 +46,9 @@ func (uc *DeleteFactionUseCase) Execute(ctx context.Context, input DeleteFaction
 		return err
 	}
 
-	// Delete references (will be handled by CASCADE, but explicit for clarity)
-	if err := uc.factionReferenceRepo.DeleteByFaction(ctx, input.TenantID, input.ID); err != nil {
-		uc.logger.Error("failed to delete faction references", "error", err)
+	// Delete relations where faction is source or target
+	if err := uc.relationRepo.DeleteByEntity(ctx, input.TenantID, "faction", input.ID); err != nil {
+		uc.logger.Error("failed to delete faction relations", "error", err)
 		// Continue anyway
 	}
 
@@ -75,4 +75,3 @@ func (uc *DeleteFactionUseCase) Execute(ctx context.Context, input DeleteFaction
 
 	return nil
 }
-

@@ -303,7 +303,7 @@
 					"response": []
 				},
 				{
-					"name": "Create Content Block Reference",
+					"name": "Create Content Anchor",
 					"event": [
 						{
 							"listen": "test",
@@ -311,8 +311,8 @@
 								"exec": [
 									"if (pm.response.code === 201) {",
 									"    const jsonData = pm.response.json();",
-									"    pm.collectionVariables.set(\"content_block_reference_id\", jsonData.reference.id);",
-									"    console.log(\"Content Block Reference ID saved:\", jsonData.reference.id);",
+									"    pm.collectionVariables.set(\"content_anchor_id\", jsonData.anchor.id);",
+									"    console.log(\"Content Anchor ID saved:\", jsonData.anchor.id);",
 									"}"
 								],
 								"type": "text/javascript"
@@ -332,7 +332,7 @@
 							"raw": "{\n  \"entity_type\": \"scene\",\n  \"entity_id\": \"{{scene_id}}\"\n}"
 						},
 						"url": {
-							"raw": "{{base_url}}/api/v1/content-blocks/{{content_block_id}}/references",
+							"raw": "{{base_url}}/api/v1/content-blocks/{{content_block_id}}/anchors",
 							"host": [
 								"{{base_url}}"
 							],
@@ -341,27 +341,27 @@
 								"v1",
 								"content-blocks",
 								"{{content_block_id}}",
-								"references"
+								"anchors"
 							]
 						}
 					},
 					"response": []
 				},
 				{
-					"name": "Delete Content Block Reference",
+					"name": "Delete Content Anchor",
 					"request": {
 						"method": "DELETE",
 						"header": [],
 						"url": {
-							"raw": "{{base_url}}/api/v1/content-block-references/{{content_block_reference_id}}",
+							"raw": "{{base_url}}/api/v1/content-anchors/{{content_anchor_id}}",
 							"host": [
 								"{{base_url}}"
 							],
 							"path": [
 								"api",
 								"v1",
-								"content-block-references",
-								"{{content_block_reference_id}}"
+								"content-anchors",
+								"{{content_anchor_id}}"
 							]
 						}
 					},
@@ -2919,8 +2919,475 @@
 								}
 							},
 							"response": []
+						},
+						{
+							"name": "List Character Relationships",
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/relationships",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"relationships"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Create Character Relationship",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"if (pm.response.code === 201) {",
+											"    const jsonData = pm.response.json();",
+											"    pm.collectionVariables.set(\"character_relationship_id\", jsonData.id);",
+											"    console.log(\"Character Relationship ID saved:\", jsonData.id);",
+											"}"
+										],
+										"type": "text/javascript"
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"other_character_id\": \"{{character_id}}\",\n  \"relationship_type\": \"friend\",\n  \"description\": \"They are friends\",\n  \"bidirectional\": false\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/characters/{{character_id}}/relationships",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"characters",
+										"{{character_id}}",
+										"relationships"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Update Character Relationship",
+							"request": {
+								"method": "PUT",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": "{\n  \"relationship_type\": \"ally\",\n  \"description\": \"They are allies\",\n  \"bidirectional\": true\n}"
+								},
+								"url": {
+									"raw": "{{base_url}}/api/v1/character-relationships/{{character_relationship_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"character-relationships",
+										"{{character_relationship_id}}"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Delete Character Relationship",
+							"request": {
+								"method": "DELETE",
+								"header": [],
+								"url": {
+									"raw": "{{base_url}}/api/v1/character-relationships/{{character_relationship_id}}",
+									"host": [
+										"{{base_url}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"character-relationships",
+										"{{character_relationship_id}}"
+									]
+								}
+							},
+							"response": []
 						}
 					]
+				}
+			]
+		},
+		{
+			"name": "Entity Relations",
+			"item": [
+				{
+					"name": "Create Entity Relation",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const jsonData = pm.response.json();",
+									"    pm.collectionVariables.set(\"relation_id\", jsonData.relation.id);",
+									"    console.log(\"Relation ID saved:\", jsonData.relation.id);",
+									"}"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"world_id\": \"{{world_id}}\",\n  \"source_type\": \"character\",\n  \"source_id\": \"{{character_id}}\",\n  \"source_ref\": \"{{character_id}}\",\n  \"target_type\": \"location\",\n  \"target_id\": \"{{location_id}}\",\n  \"target_ref\": \"{{location_id}}\",\n  \"relation_type\": \"located_in\",\n  \"attributes\": {\n    \"since\": \"2024-01-01\"\n  },\n  \"confidence\": 0.95,\n  \"summary\": \"Character is located in Location\",\n  \"status\": \"confirmed\",\n  \"create_mirror\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/relations",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"relations"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Entity Relation",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/relations/{{relation_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"relations",
+								"{{relation_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Entity Relation",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"relation_type\": \"member_of\",\n  \"attributes\": {\n    \"role\": \"resident\",\n    \"since\": \"2024-01-01\"\n  },\n  \"confidence\": 0.99,\n  \"summary\": \"Character is a member of Location\",\n  \"status\": \"confirmed\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/relations/{{relation_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"relations",
+								"{{relation_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Delete Entity Relation",
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/relations/{{relation_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"relations",
+								"{{relation_id}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Relations by World",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/worlds/{{world_id}}/relations?limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"worlds",
+								"{{world_id}}",
+								"relations"
+							],
+							"query": [
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Max items per page (default 50, max 100)"
+								},
+								{
+									"key": "cursor",
+									"value": "",
+									"description": "Pagination cursor from previous response",
+									"disabled": true
+								},
+								{
+									"key": "relation_type",
+									"value": "",
+									"description": "Filter by relation type (e.g., parent_of, ally_of)",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Filter by status (draft, confirmed, orphan)",
+									"disabled": true
+								},
+								{
+									"key": "confidence_min",
+									"value": "",
+									"description": "Minimum confidence threshold (0.0 - 1.0)",
+									"disabled": true
+								},
+								{
+									"key": "exclude_mirrors",
+									"value": "true",
+									"description": "Exclude auto-created mirror relations",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Relations by Source",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/relations/source?source_type=character&source_id={{character_id}}&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"relations",
+								"source"
+							],
+							"query": [
+								{
+									"key": "source_type",
+									"value": "character",
+									"description": "Entity type (character, location, event, lore, faction, artifact, scene)"
+								},
+								{
+									"key": "source_id",
+									"value": "{{character_id}}",
+									"description": "Source entity UUID"
+								},
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Max items per page (default 50, max 100)"
+								},
+								{
+									"key": "cursor",
+									"value": "",
+									"description": "Pagination cursor from previous response",
+									"disabled": true
+								},
+								{
+									"key": "relation_type",
+									"value": "",
+									"description": "Filter by relation type",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Filter by status",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "List Relations by Target",
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"url": {
+							"raw": "{{base_url}}/api/v1/relations/target?target_type=location&target_id={{location_id}}&limit=50",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"relations",
+								"target"
+							],
+							"query": [
+								{
+									"key": "target_type",
+									"value": "location",
+									"description": "Entity type (character, location, event, lore, faction, artifact, scene)"
+								},
+								{
+									"key": "target_id",
+									"value": "{{location_id}}",
+									"description": "Target entity UUID"
+								},
+								{
+									"key": "limit",
+									"value": "50",
+									"description": "Max items per page (default 50, max 100)"
+								},
+								{
+									"key": "cursor",
+									"value": "",
+									"description": "Pagination cursor from previous response",
+									"disabled": true
+								},
+								{
+									"key": "relation_type",
+									"value": "",
+									"description": "Filter by relation type",
+									"disabled": true
+								},
+								{
+									"key": "status",
+									"value": "",
+									"description": "Filter by status",
+									"disabled": true
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Resolve Temporary IDs",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "X-Tenant-ID",
+								"value": "{{tenant_id}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"mappings\": [\n    {\n      \"temp_ref\": \"tmp:550e8400-e29b-41d4-a716-446655440000\",\n      \"real_id\": \"{{character_id}}\"\n    }\n  ]\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/v1/relations/resolve-temp",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"relations",
+								"resolve-temp"
+							]
+						},
+						"description": "Resolve temporary IDs (tmp:<uuid>) to real entity IDs. Used after entity creation to update pending relations."
+					},
+					"response": []
 				}
 			]
 		},
@@ -4329,7 +4796,7 @@
 			"type": "string"
 		},
 		{
-			"key": "content_block_reference_id",
+			"key": "content_anchor_id",
 			"value": "",
 			"type": "string"
 		},
@@ -4435,6 +4902,16 @@
 		},
 		{
 			"key": "target_character_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "relation_id",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "character_relationship_id",
 			"value": "",
 			"type": "string"
 		}

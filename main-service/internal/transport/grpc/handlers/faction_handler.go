@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
-	"github.com/story-engine/main-service/internal/core/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
@@ -287,7 +286,7 @@ func (h *FactionHandler) AddReferenceToFaction(ctx context.Context, req *faction
 	}
 
 	// Find the newly created reference
-	var ref *world.FactionReference
+	var ref *factionapp.FactionReferenceDTO
 	for _, r := range output.References {
 		if r.EntityType == req.EntityType && r.EntityID == entityID {
 			ref = r
@@ -300,7 +299,7 @@ func (h *FactionHandler) AddReferenceToFaction(ctx context.Context, req *faction
 	}
 
 	return &factionpb.AddReferenceToFactionResponse{
-		FactionReference: mappers.FactionReferenceToProto(ref),
+		FactionReference: mappers.FactionReferenceDTOToProto(ref),
 	}, nil
 }
 
@@ -366,7 +365,7 @@ func (h *FactionHandler) GetFactionReferences(ctx context.Context, req *factionp
 
 	references := make([]*factionpb.FactionReference, len(output.References))
 	for i, ref := range output.References {
-		references[i] = mappers.FactionReferenceToProto(ref)
+		references[i] = mappers.FactionReferenceDTOToProto(ref)
 	}
 
 	return &factionpb.GetFactionReferencesResponse{

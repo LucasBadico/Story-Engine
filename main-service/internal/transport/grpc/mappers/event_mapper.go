@@ -1,6 +1,9 @@
 package mappers
 
 import (
+	"time"
+
+	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	"github.com/story-engine/main-service/internal/core/world"
 	eventpb "github.com/story-engine/main-service/proto/event"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -41,26 +44,31 @@ func EventToProto(e *world.Event) *eventpb.Event {
 	return pb
 }
 
-// EventReferenceToProto converts an event-reference relationship to a protobuf message
-func EventReferenceToProto(er *world.EventReference) *eventpb.EventReference {
-	if er == nil {
+// EventReferenceDTOToProto converts an EventReferenceDTO (compatibility layer) to a protobuf message
+func EventReferenceDTOToProto(dto *eventapp.EventReferenceDTO) *eventpb.EventReference {
+	if dto == nil {
 		return nil
 	}
 
 	pb := &eventpb.EventReference{
-		Id:         er.ID.String(),
-		EventId:    er.EventID.String(),
-		EntityType: er.EntityType,
-		EntityId:   er.EntityID.String(),
-		Notes:      er.Notes,
-		CreatedAt:  timestamppb.New(er.CreatedAt),
+		Id:         dto.ID.String(),
+		EventId:    dto.EventID.String(),
+		EntityType: dto.EntityType,
+		EntityId:   dto.EntityID.String(),
+		Notes:      dto.Notes,
 	}
 
-	if er.RelationshipType != nil {
-		pb.RelationshipType = er.RelationshipType
+	if dto.RelationshipType != nil {
+		pb.RelationshipType = dto.RelationshipType
+	}
+
+	// Parse CreatedAt string to timestamp
+	if dto.CreatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, dto.CreatedAt); err == nil {
+			pb.CreatedAt = timestamppb.New(t)
+		}
 	}
 
 	return pb
 }
-
 

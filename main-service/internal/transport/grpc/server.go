@@ -29,6 +29,7 @@ import (
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	traitpb "github.com/story-engine/main-service/proto/trait"
 	worldpb "github.com/story-engine/main-service/proto/world"
+	entityrelationpb "github.com/story-engine/main-service/proto/entity_relation"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -208,6 +209,12 @@ func (s *Server) RegisterArtifactRPGStatsService(handler artifactrpgstatspb.Arti
 func (s *Server) RegisterInventoryService(handler inventorypb.InventoryServiceServer) {
 	inventorypb.RegisterInventoryServiceServer(s.grpcServer, handler)
 	s.logger.Info("InventoryService registered")
+}
+
+// RegisterEntityRelationService registers the EntityRelationService handler
+func (s *Server) RegisterEntityRelationService(handler entityrelationpb.EntityRelationServiceServer) {
+	entityrelationpb.RegisterEntityRelationServiceServer(s.grpcServer, handler)
+	s.logger.Info("EntityRelationService registered")
 }
 
 // Start starts the gRPC server

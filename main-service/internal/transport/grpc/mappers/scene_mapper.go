@@ -1,24 +1,33 @@
 package mappers
 
 import (
-	"github.com/story-engine/main-service/internal/core/story"
+	"time"
+
+	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	scenepb "github.com/story-engine/main-service/proto/scene"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// SceneReferenceToProto converts a scene reference domain entity to a protobuf message
-func SceneReferenceToProto(ref *story.SceneReference) *scenepb.SceneReference {
-	if ref == nil {
+// SceneReferenceDTOToProto converts a SceneReferenceDTO (compatibility layer) to a protobuf message
+func SceneReferenceDTOToProto(dto *sceneapp.SceneReferenceDTO) *scenepb.SceneReference {
+	if dto == nil {
 		return nil
 	}
 
-	return &scenepb.SceneReference{
-		Id:         ref.ID.String(),
-		SceneId:    ref.SceneID.String(),
-		EntityType: string(ref.EntityType),
-		EntityId:   ref.EntityID.String(),
-		CreatedAt:  timestamppb.New(ref.CreatedAt),
+	pb := &scenepb.SceneReference{
+		Id:         dto.ID.String(),
+		SceneId:    dto.SceneID.String(),
+		EntityType: dto.EntityType,
+		EntityId:   dto.EntityID.String(),
 	}
-}
 
+	// Parse CreatedAt string to timestamp
+	if dto.CreatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, dto.CreatedAt); err == nil {
+			pb.CreatedAt = timestamppb.New(t)
+		}
+	}
+
+	return pb
+}
 

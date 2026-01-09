@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/core/audit"
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
@@ -14,20 +15,24 @@ import (
 
 // UpdateArtifactUseCase handles artifact updates
 type UpdateArtifactUseCase struct {
-	artifactRepo         repositories.ArtifactRepository
-	artifactReferenceRepo repositories.ArtifactReferenceRepository
-	characterRepo        repositories.CharacterRepository
-	locationRepo         repositories.LocationRepository
-	worldRepo            repositories.WorldRepository
-	auditLogRepo         repositories.AuditLogRepository
-	ingestionQueue       queue.IngestionQueue
-	logger               logger.Logger
+	artifactRepo          repositories.ArtifactRepository
+	createRelationUseCase *relationapp.CreateRelationUseCase
+	listRelationsUseCase  *relationapp.ListRelationsBySourceUseCase
+	deleteRelationUseCase *relationapp.DeleteRelationUseCase
+	characterRepo         repositories.CharacterRepository
+	locationRepo          repositories.LocationRepository
+	worldRepo             repositories.WorldRepository
+	auditLogRepo          repositories.AuditLogRepository
+	ingestionQueue        queue.IngestionQueue
+	logger                logger.Logger
 }
 
 // NewUpdateArtifactUseCase creates a new UpdateArtifactUseCase
 func NewUpdateArtifactUseCase(
 	artifactRepo repositories.ArtifactRepository,
-	artifactReferenceRepo repositories.ArtifactReferenceRepository,
+	createRelationUseCase *relationapp.CreateRelationUseCase,
+	listRelationsUseCase *relationapp.ListRelationsBySourceUseCase,
+	deleteRelationUseCase *relationapp.DeleteRelationUseCase,
 	characterRepo repositories.CharacterRepository,
 	locationRepo repositories.LocationRepository,
 	worldRepo repositories.WorldRepository,
@@ -35,14 +40,16 @@ func NewUpdateArtifactUseCase(
 	logger logger.Logger,
 ) *UpdateArtifactUseCase {
 	return &UpdateArtifactUseCase{
-		artifactRepo:         artifactRepo,
-		artifactReferenceRepo: artifactReferenceRepo,
-		characterRepo:        characterRepo,
-		locationRepo:         locationRepo,
-		worldRepo:            worldRepo,
-		auditLogRepo:         auditLogRepo,
-		ingestionQueue:       nil,
-		logger:               logger,
+		artifactRepo:          artifactRepo,
+		createRelationUseCase: createRelationUseCase,
+		listRelationsUseCase:  listRelationsUseCase,
+		deleteRelationUseCase: deleteRelationUseCase,
+		characterRepo:         characterRepo,
+		locationRepo:          locationRepo,
+		worldRepo:             worldRepo,
+		auditLogRepo:          auditLogRepo,
+		ingestionQueue:        nil,
+		logger:                logger,
 	}
 }
 
@@ -100,14 +107,24 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 		return nil, err
 	}
 
-	// Update character references
+	// Update character references using entity_relations
 	if input.CharacterIDs != nil {
 		// Delete all existing character references
-		existingRefs, err := uc.artifactReferenceRepo.ListByArtifact(ctx, input.TenantID, a.ID)
+		output, err := uc.listRelationsUseCase.Execute(ctx, relationapp.ListRelationsBySourceInput{
+			TenantID:   input.TenantID,
+			SourceType: "artifact",
+			SourceID:   a.ID,
+			Options: repositories.ListOptions{
+				Limit: 100,
+			},
+		})
 		if err == nil {
-			for _, ref := range existingRefs {
-				if ref.EntityType == world.ArtifactReferenceEntityTypeCharacter {
-					if err := uc.artifactReferenceRepo.Delete(ctx, input.TenantID, ref.ID); err != nil {
+			for _, rel := range output.Relations.Items {
+				if rel.TargetType == "character" {
+					if err := uc.deleteRelationUseCase.Execute(ctx, relationapp.DeleteRelationInput{
+						TenantID: input.TenantID,
+						ID:       rel.ID,
+					}); err != nil {
 						uc.logger.Warn("failed to delete character reference", "error", err)
 					}
 				}
@@ -126,25 +143,42 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 					Message: "all characters must belong to the same world",
 				}
 			}
-			ref, err := world.NewArtifactReference(a.ID, world.ArtifactReferenceEntityTypeCharacter, characterID)
+			_, err = uc.createRelationUseCase.Execute(ctx, relationapp.CreateRelationInput{
+				TenantID:     input.TenantID,
+				WorldID:      a.WorldID,
+				SourceType:   "artifact",
+				SourceID:     a.ID,
+				TargetType:   "character",
+				TargetID:     characterID,
+				RelationType: "mentions",
+				Attributes:   make(map[string]interface{}),
+				CreateMirror: false,
+			})
 			if err != nil {
-				return nil, err
-			}
-			if err := uc.artifactReferenceRepo.Create(ctx, ref); err != nil {
 				uc.logger.Error("failed to create character reference", "error", err)
 				return nil, err
 			}
 		}
 	}
 
-	// Update location references
+	// Update location references using entity_relations
 	if input.LocationIDs != nil {
 		// Delete all existing location references
-		existingRefs, err := uc.artifactReferenceRepo.ListByArtifact(ctx, input.TenantID, a.ID)
+		output, err := uc.listRelationsUseCase.Execute(ctx, relationapp.ListRelationsBySourceInput{
+			TenantID:   input.TenantID,
+			SourceType: "artifact",
+			SourceID:   a.ID,
+			Options: repositories.ListOptions{
+				Limit: 100,
+			},
+		})
 		if err == nil {
-			for _, ref := range existingRefs {
-				if ref.EntityType == world.ArtifactReferenceEntityTypeLocation {
-					if err := uc.artifactReferenceRepo.Delete(ctx, input.TenantID, ref.ID); err != nil {
+			for _, rel := range output.Relations.Items {
+				if rel.TargetType == "location" {
+					if err := uc.deleteRelationUseCase.Execute(ctx, relationapp.DeleteRelationInput{
+						TenantID: input.TenantID,
+						ID:       rel.ID,
+					}); err != nil {
 						uc.logger.Warn("failed to delete location reference", "error", err)
 					}
 				}
@@ -163,11 +197,18 @@ func (uc *UpdateArtifactUseCase) Execute(ctx context.Context, input UpdateArtifa
 					Message: "all locations must belong to the same world",
 				}
 			}
-			ref, err := world.NewArtifactReference(a.ID, world.ArtifactReferenceEntityTypeLocation, locationID)
+			_, err = uc.createRelationUseCase.Execute(ctx, relationapp.CreateRelationInput{
+				TenantID:     input.TenantID,
+				WorldID:      a.WorldID,
+				SourceType:   "artifact",
+				SourceID:     a.ID,
+				TargetType:   "location",
+				TargetID:     locationID,
+				RelationType: "mentions",
+				Attributes:   make(map[string]interface{}),
+				CreateMirror: false,
+			})
 			if err != nil {
-				return nil, err
-			}
-			if err := uc.artifactReferenceRepo.Create(ctx, ref); err != nil {
 				uc.logger.Error("failed to create location reference", "error", err)
 				return nil, err
 			}

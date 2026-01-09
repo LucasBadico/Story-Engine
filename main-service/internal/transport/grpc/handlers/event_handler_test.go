@@ -8,15 +8,16 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	"github.com/story-engine/main-service/internal/platform/logger"
+	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	commonpb "github.com/story-engine/main-service/proto/common"
 	eventpb "github.com/story-engine/main-service/proto/event"
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	worldpb "github.com/story-engine/main-service/proto/world"
-	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -347,17 +348,23 @@ func setupTestServerWithEvent(t *testing.T) (*grpc.ClientConn, func()) {
 	tenantRepo := postgres.NewTenantRepository(db)
 	worldRepo := postgres.NewWorldRepository(db)
 	eventRepo := postgres.NewEventRepository(db)
-	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
 	factionRepo := postgres.NewFactionRepository(db)
 	loreRepo := postgres.NewLoreRepository(db)
-	factionReferenceRepo := postgres.NewFactionReferenceRepository(db)
-	loreReferenceRepo := postgres.NewLoreReferenceRepository(db)
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 
 	log := logger.New()
+	// Entity relations use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	getRelationUseCase := relationapp.NewGetRelationUseCase(entityRelationRepo, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	updateRelationUseCase := relationapp.NewUpdateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
+
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
 	getWorldUseCase := world.NewGetWorldUseCase(worldRepo, log)
@@ -368,11 +375,11 @@ func setupTestServerWithEvent(t *testing.T) (*grpc.ClientConn, func()) {
 	getEventUseCase := eventapp.NewGetEventUseCase(eventRepo, log)
 	listEventsUseCase := eventapp.NewListEventsUseCase(eventRepo, log)
 	updateEventUseCase := eventapp.NewUpdateEventUseCase(eventRepo, auditLogRepo, log)
-	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, eventReferenceRepo, auditLogRepo, log)
-	addReferenceUseCase := eventapp.NewAddReferenceUseCase(eventRepo, eventReferenceRepo, characterRepo, locationRepo, artifactRepo, factionRepo, loreRepo, factionReferenceRepo, loreReferenceRepo, log)
-	removeReferenceUseCase := eventapp.NewRemoveReferenceUseCase(eventReferenceRepo, log)
-	getReferencesUseCase := eventapp.NewGetReferencesUseCase(eventReferenceRepo, log)
-	updateReferenceUseCase := eventapp.NewUpdateReferenceUseCase(eventReferenceRepo, log)
+	deleteEventUseCase := eventapp.NewDeleteEventUseCase(eventRepo, entityRelationRepo, auditLogRepo, log)
+	addReferenceUseCase := eventapp.NewAddReferenceUseCase(eventRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, artifactRepo, factionRepo, loreRepo, log)
+	removeReferenceUseCase := eventapp.NewRemoveReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getReferencesUseCase := eventapp.NewGetReferencesUseCase(listRelationsBySourceUseCase, log)
+	updateReferenceUseCase := eventapp.NewUpdateReferenceUseCase(getRelationUseCase, updateRelationUseCase, log)
 	getChildrenUseCase := eventapp.NewGetChildrenUseCase(eventRepo, log)
 	getAncestorsUseCase := eventapp.NewGetAncestorsUseCase(eventRepo, log)
 	getDescendantsUseCase := eventapp.NewGetDescendantsUseCase(eventRepo, log)

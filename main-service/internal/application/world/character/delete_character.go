@@ -13,6 +13,7 @@ import (
 type DeleteCharacterUseCase struct {
 	characterRepo      repositories.CharacterRepository
 	characterTraitRepo repositories.CharacterTraitRepository
+	relationRepo       repositories.EntityRelationRepository
 	worldRepo          repositories.WorldRepository
 	auditLogRepo       repositories.AuditLogRepository
 	logger             logger.Logger
@@ -22,6 +23,7 @@ type DeleteCharacterUseCase struct {
 func NewDeleteCharacterUseCase(
 	characterRepo repositories.CharacterRepository,
 	characterTraitRepo repositories.CharacterTraitRepository,
+	relationRepo repositories.EntityRelationRepository,
 	worldRepo repositories.WorldRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
@@ -29,6 +31,7 @@ func NewDeleteCharacterUseCase(
 	return &DeleteCharacterUseCase{
 		characterRepo:      characterRepo,
 		characterTraitRepo: characterTraitRepo,
+		relationRepo:       relationRepo,
 		worldRepo:          worldRepo,
 		auditLogRepo:       auditLogRepo,
 		logger:             logger,
@@ -51,6 +54,12 @@ func (uc *DeleteCharacterUseCase) Execute(ctx context.Context, input DeleteChara
 	// Delete all character traits first (CASCADE should handle this, but being explicit)
 	if err := uc.characterTraitRepo.DeleteByCharacter(ctx, input.TenantID, input.ID); err != nil {
 		uc.logger.Warn("failed to delete character traits", "error", err)
+	}
+
+	// Delete relations where character is source or target
+	if err := uc.relationRepo.DeleteByEntity(ctx, input.TenantID, "character", input.ID); err != nil {
+		uc.logger.Error("failed to delete character relations", "error", err)
+		// Continue anyway
 	}
 
 	if err := uc.characterRepo.Delete(ctx, input.TenantID, input.ID); err != nil {
@@ -77,5 +86,3 @@ func (uc *DeleteCharacterUseCase) Execute(ctx context.Context, input DeleteChara
 
 	return nil
 }
-
-

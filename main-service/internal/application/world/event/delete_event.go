@@ -11,24 +11,24 @@ import (
 
 // DeleteEventUseCase handles event deletion
 type DeleteEventUseCase struct {
-	eventRepo          repositories.EventRepository
-	eventReferenceRepo repositories.EventReferenceRepository
-	auditLogRepo       repositories.AuditLogRepository
-	logger             logger.Logger
+	eventRepo    repositories.EventRepository
+	relationRepo repositories.EntityRelationRepository
+	auditLogRepo repositories.AuditLogRepository
+	logger       logger.Logger
 }
 
 // NewDeleteEventUseCase creates a new DeleteEventUseCase
 func NewDeleteEventUseCase(
 	eventRepo repositories.EventRepository,
-	eventReferenceRepo repositories.EventReferenceRepository,
+	relationRepo repositories.EntityRelationRepository,
 	auditLogRepo repositories.AuditLogRepository,
 	logger logger.Logger,
 ) *DeleteEventUseCase {
 	return &DeleteEventUseCase{
-		eventRepo:          eventRepo,
-		eventReferenceRepo: eventReferenceRepo,
-		auditLogRepo:       auditLogRepo,
-		logger:             logger,
+		eventRepo:    eventRepo,
+		relationRepo: relationRepo,
+		auditLogRepo: auditLogRepo,
+		logger:       logger,
 	}
 }
 
@@ -46,9 +46,9 @@ func (uc *DeleteEventUseCase) Execute(ctx context.Context, input DeleteEventInpu
 		return err
 	}
 
-	// Delete event references (will be handled by CASCADE, but explicit for clarity)
-	if err := uc.eventReferenceRepo.DeleteByEvent(ctx, input.TenantID, input.ID); err != nil {
-		uc.logger.Error("failed to delete event references", "error", err)
+	// Delete relations where event is source or target
+	if err := uc.relationRepo.DeleteByEntity(ctx, input.TenantID, "event", input.ID); err != nil {
+		uc.logger.Error("failed to delete event relations", "error", err)
 		// Continue anyway
 	}
 
@@ -75,5 +75,3 @@ func (uc *DeleteEventUseCase) Execute(ctx context.Context, input DeleteEventInpu
 
 	return nil
 }
-
-

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/main-service/internal/core/world"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
@@ -12,27 +12,30 @@ import (
 
 // AddArtifactReferenceUseCase handles adding a reference to an artifact
 type AddArtifactReferenceUseCase struct {
-	artifactRepo         repositories.ArtifactRepository
-	artifactReferenceRepo repositories.ArtifactReferenceRepository
-	characterRepo        repositories.CharacterRepository
-	locationRepo         repositories.LocationRepository
-	logger               logger.Logger
+	artifactRepo          repositories.ArtifactRepository
+	relationRepo          repositories.EntityRelationRepository
+	createRelationUseCase *relationapp.CreateRelationUseCase
+	characterRepo         repositories.CharacterRepository
+	locationRepo          repositories.LocationRepository
+	logger                logger.Logger
 }
 
 // NewAddArtifactReferenceUseCase creates a new AddArtifactReferenceUseCase
 func NewAddArtifactReferenceUseCase(
 	artifactRepo repositories.ArtifactRepository,
-	artifactReferenceRepo repositories.ArtifactReferenceRepository,
+	relationRepo repositories.EntityRelationRepository,
+	createRelationUseCase *relationapp.CreateRelationUseCase,
 	characterRepo repositories.CharacterRepository,
 	locationRepo repositories.LocationRepository,
 	logger logger.Logger,
 ) *AddArtifactReferenceUseCase {
 	return &AddArtifactReferenceUseCase{
-		artifactRepo:         artifactRepo,
-		artifactReferenceRepo: artifactReferenceRepo,
-		characterRepo:        characterRepo,
-		locationRepo:         locationRepo,
-		logger:               logger,
+		artifactRepo:          artifactRepo,
+		relationRepo:          relationRepo,
+		createRelationUseCase: createRelationUseCase,
+		characterRepo:         characterRepo,
+		locationRepo:          locationRepo,
+		logger:                logger,
 	}
 }
 
@@ -40,7 +43,7 @@ func NewAddArtifactReferenceUseCase(
 type AddArtifactReferenceInput struct {
 	TenantID   uuid.UUID
 	ArtifactID uuid.UUID
-	EntityType world.ArtifactReferenceEntityType
+	EntityType string // "character" or "location"
 	EntityID   uuid.UUID
 }
 
@@ -54,7 +57,7 @@ func (uc *AddArtifactReferenceUseCase) Execute(ctx context.Context, input AddArt
 
 	// Validate entity exists and belongs to same world
 	switch input.EntityType {
-	case world.ArtifactReferenceEntityTypeCharacter:
+	case "character":
 		c, err := uc.characterRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
@@ -65,7 +68,7 @@ func (uc *AddArtifactReferenceUseCase) Execute(ctx context.Context, input AddArt
 				Message: "character must belong to the same world as artifact",
 			}
 		}
-	case world.ArtifactReferenceEntityTypeLocation:
+	case "location":
 		l, err := uc.locationRepo.GetByID(ctx, input.TenantID, input.EntityID)
 		if err != nil {
 			return err
@@ -79,16 +82,23 @@ func (uc *AddArtifactReferenceUseCase) Execute(ctx context.Context, input AddArt
 	default:
 		return &platformerrors.ValidationError{
 			Field:   "entity_type",
-			Message: "invalid entity type",
+			Message: "invalid entity type (must be 'character' or 'location')",
 		}
 	}
 
-	ref, err := world.NewArtifactReference(input.ArtifactID, input.EntityType, input.EntityID)
+	// Create relation using entity_relations
+	_, err = uc.createRelationUseCase.Execute(ctx, relationapp.CreateRelationInput{
+		TenantID:     input.TenantID,
+		WorldID:      a.WorldID,
+		SourceType:   "artifact",
+		SourceID:     input.ArtifactID,
+		TargetType:   input.EntityType,
+		TargetID:     input.EntityID,
+		RelationType: "mentions",
+		Attributes:   make(map[string]interface{}),
+		CreateMirror: false, // Artifact references are one-way
+	})
 	if err != nil {
-		return err
-	}
-
-	if err := uc.artifactReferenceRepo.Create(ctx, ref); err != nil {
 		uc.logger.Error("failed to add artifact reference", "error", err, "artifact_id", input.ArtifactID)
 		return err
 	}
@@ -97,5 +107,3 @@ func (uc *AddArtifactReferenceUseCase) Execute(ctx context.Context, input AddArt
 
 	return nil
 }
-
-

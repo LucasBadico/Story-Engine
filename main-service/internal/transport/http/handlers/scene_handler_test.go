@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/story-engine/main-service/internal/adapters/db/postgres"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
 	"github.com/story-engine/main-service/internal/platform/logger"
 )
@@ -24,21 +25,27 @@ func TestSceneHandler_Create(t *testing.T) {
 	sceneRepo := postgres.NewSceneRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
-	sceneReferenceRepo := postgres.NewSceneReferenceRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	log := logger.New()
+
+	// Create relation use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
-	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, entityRelationRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
-	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
-	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, storyRepo, createRelationUseCase, listRelationsBySourceUseCase, characterRepo, locationRepo, artifactRepo, log)
+	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(listRelationsBySourceUseCase, log)
 	handler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addReferenceUC, removeReferenceUC, getReferencesUC, log)
 
 	t.Run("successful creation", func(t *testing.T) {
@@ -91,21 +98,27 @@ func TestSceneHandler_Get(t *testing.T) {
 	sceneRepo := postgres.NewSceneRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
-	sceneReferenceRepo := postgres.NewSceneReferenceRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	log := logger.New()
+
+	// Create relation use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
-	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, entityRelationRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
-	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
-	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, storyRepo, createRelationUseCase, listRelationsBySourceUseCase, characterRepo, locationRepo, artifactRepo, log)
+	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(listRelationsBySourceUseCase, log)
 	handler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addReferenceUC, removeReferenceUC, getReferencesUC, log)
 
 	// Create scene
@@ -184,21 +197,27 @@ func TestSceneHandler_List(t *testing.T) {
 	sceneRepo := postgres.NewSceneRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
-	sceneReferenceRepo := postgres.NewSceneReferenceRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	log := logger.New()
+
+	// Create relation use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
-	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, entityRelationRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
-	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
-	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, storyRepo, createRelationUseCase, listRelationsBySourceUseCase, characterRepo, locationRepo, artifactRepo, log)
+	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(listRelationsBySourceUseCase, log)
 	handler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addReferenceUC, removeReferenceUC, getReferencesUC, log)
 
 	// Create multiple scenes
@@ -251,21 +270,27 @@ func TestSceneHandler_Update(t *testing.T) {
 	sceneRepo := postgres.NewSceneRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
-	sceneReferenceRepo := postgres.NewSceneReferenceRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	log := logger.New()
+
+	// Create relation use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
-	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, entityRelationRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
-	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
-	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, storyRepo, createRelationUseCase, listRelationsBySourceUseCase, characterRepo, locationRepo, artifactRepo, log)
+	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(listRelationsBySourceUseCase, log)
 	handler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addReferenceUC, removeReferenceUC, getReferencesUC, log)
 
 	// Create scene
@@ -348,21 +373,27 @@ func TestSceneHandler_Delete(t *testing.T) {
 	sceneRepo := postgres.NewSceneRepository(db)
 	chapterRepo := postgres.NewChapterRepository(db)
 	storyRepo := postgres.NewStoryRepository(db)
-	sceneReferenceRepo := postgres.NewSceneReferenceRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	log := logger.New()
+
+	// Create relation use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
 
 	createSceneUseCase := sceneapp.NewCreateSceneUseCase(sceneRepo, chapterRepo, storyRepo, nil, log)
 	getSceneUseCase := sceneapp.NewGetSceneUseCase(sceneRepo, log)
 	updateSceneUseCase := sceneapp.NewUpdateSceneUseCase(sceneRepo, nil, log)
-	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, log)
+	deleteSceneUseCase := sceneapp.NewDeleteSceneUseCase(sceneRepo, entityRelationRepo, log)
 	listScenesUseCase := sceneapp.NewListScenesUseCase(sceneRepo, log)
 	moveSceneUseCase := sceneapp.NewMoveSceneUseCase(sceneRepo, chapterRepo, log)
-	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, sceneReferenceRepo, characterRepo, locationRepo, artifactRepo, log)
-	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(sceneReferenceRepo, log)
-	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(sceneReferenceRepo, log)
+	addReferenceUC := sceneapp.NewAddSceneReferenceUseCase(sceneRepo, storyRepo, createRelationUseCase, listRelationsBySourceUseCase, characterRepo, locationRepo, artifactRepo, log)
+	removeReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
+	getReferencesUC := sceneapp.NewGetSceneReferencesUseCase(listRelationsBySourceUseCase, log)
 	handler := NewSceneHandler(createSceneUseCase, getSceneUseCase, updateSceneUseCase, deleteSceneUseCase, listScenesUseCase, moveSceneUseCase, addReferenceUC, removeReferenceUC, getReferencesUC, log)
 
 	// Create scene

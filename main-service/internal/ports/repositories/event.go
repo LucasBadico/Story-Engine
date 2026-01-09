@@ -23,16 +23,3 @@ type EventRepository interface {
 	ListByTimeline(ctx context.Context, tenantID, worldID uuid.UUID, fromPos, toPos *float64) ([]*world.Event, error)
 }
 
-// EventReferenceRepository defines the interface for event-reference relationships
-type EventReferenceRepository interface {
-	Create(ctx context.Context, er *world.EventReference) error
-	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.EventReference, error)
-	ListByEvent(ctx context.Context, tenantID, eventID uuid.UUID) ([]*world.EventReference, error)
-	ListByEntity(ctx context.Context, tenantID uuid.UUID, entityType string, entityID uuid.UUID) ([]*world.EventReference, error)
-	Update(ctx context.Context, er *world.EventReference) error
-	Delete(ctx context.Context, tenantID, id uuid.UUID) error
-	DeleteByEventAndEntity(ctx context.Context, tenantID, eventID uuid.UUID, entityType string, entityID uuid.UUID) error
-	DeleteByEvent(ctx context.Context, tenantID, eventID uuid.UUID) error
-}
-
-

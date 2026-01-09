@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
-	"github.com/story-engine/main-service/internal/core/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
@@ -324,7 +323,7 @@ func (h *ArtifactHandler) GetArtifactReferences(ctx context.Context, req *artifa
 
 	references := make([]*artifactpb.ArtifactReference, len(output.References))
 	for i, ref := range output.References {
-		references[i] = mappers.ArtifactReferenceToProto(ref)
+		references[i] = mappers.ArtifactReferenceDTOToProto(ref)
 	}
 
 	return &artifactpb.GetArtifactReferencesResponse{
@@ -354,8 +353,8 @@ func (h *ArtifactHandler) AddArtifactReference(ctx context.Context, req *artifac
 		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
 	}
 
-	entityType := world.ArtifactReferenceEntityType(req.EntityType)
-	if entityType != world.ArtifactReferenceEntityTypeCharacter && entityType != world.ArtifactReferenceEntityTypeLocation {
+	entityType := req.EntityType
+	if entityType != "character" && entityType != "location" {
 		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character' or 'location'")
 	}
 
@@ -394,8 +393,8 @@ func (h *ArtifactHandler) RemoveArtifactReference(ctx context.Context, req *arti
 		return nil, status.Errorf(codes.InvalidArgument, "invalid entity_id: %v", err)
 	}
 
-	entityType := world.ArtifactReferenceEntityType(req.EntityType)
-	if entityType != world.ArtifactReferenceEntityTypeCharacter && entityType != world.ArtifactReferenceEntityTypeLocation {
+	entityType := req.EntityType
+	if entityType != "character" && entityType != "location" {
 		return nil, status.Errorf(codes.InvalidArgument, "entity_type must be 'character' or 'location'")
 	}
 

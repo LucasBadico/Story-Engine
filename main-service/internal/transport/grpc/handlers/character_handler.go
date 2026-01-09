@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
@@ -18,22 +17,18 @@ import (
 // CharacterHandler implements the CharacterService gRPC service
 type CharacterHandler struct {
 	characterpb.UnimplementedCharacterServiceServer
-	createCharacterUseCase      *characterapp.CreateCharacterUseCase
-	getCharacterUseCase         *characterapp.GetCharacterUseCase
-	listCharactersUseCase        *characterapp.ListCharactersUseCase
-	updateCharacterUseCase       *characterapp.UpdateCharacterUseCase
-	deleteCharacterUseCase       *characterapp.DeleteCharacterUseCase
-	getCharacterTraitsUseCase    *characterapp.GetCharacterTraitsUseCase
-	getCharacterEventsUseCase   *characterapp.GetCharacterEventsUseCase
-	addTraitToCharacterUseCase   *characterapp.AddTraitToCharacterUseCase
-	updateCharacterTraitUseCase  *characterapp.UpdateCharacterTraitUseCase
+	createCharacterUseCase          *characterapp.CreateCharacterUseCase
+	getCharacterUseCase             *characterapp.GetCharacterUseCase
+	listCharactersUseCase           *characterapp.ListCharactersUseCase
+	updateCharacterUseCase          *characterapp.UpdateCharacterUseCase
+	deleteCharacterUseCase          *characterapp.DeleteCharacterUseCase
+	getCharacterTraitsUseCase       *characterapp.GetCharacterTraitsUseCase
+	getCharacterEventsUseCase       *characterapp.GetCharacterEventsUseCase
+	addTraitToCharacterUseCase      *characterapp.AddTraitToCharacterUseCase
+	updateCharacterTraitUseCase     *characterapp.UpdateCharacterTraitUseCase
 	removeTraitFromCharacterUseCase *characterapp.RemoveTraitFromCharacterUseCase
-	createCharacterRelationshipUseCase *characterrelationshipapp.CreateCharacterRelationshipUseCase
-	getCharacterRelationshipUseCase *characterrelationshipapp.GetCharacterRelationshipUseCase
-	listCharacterRelationshipsUseCase *characterrelationshipapp.ListCharacterRelationshipsUseCase
-	updateCharacterRelationshipUseCase *characterrelationshipapp.UpdateCharacterRelationshipUseCase
-	deleteCharacterRelationshipUseCase *characterrelationshipapp.DeleteCharacterRelationshipUseCase
-	logger                       logger.Logger
+	// Character relationship methods use entity_relations - TODO: implement
+	logger logger.Logger
 }
 
 // NewCharacterHandler creates a new CharacterHandler
@@ -48,30 +43,26 @@ func NewCharacterHandler(
 	addTraitToCharacterUseCase *characterapp.AddTraitToCharacterUseCase,
 	updateCharacterTraitUseCase *characterapp.UpdateCharacterTraitUseCase,
 	removeTraitFromCharacterUseCase *characterapp.RemoveTraitFromCharacterUseCase,
-	createCharacterRelationshipUseCase *characterrelationshipapp.CreateCharacterRelationshipUseCase,
-	getCharacterRelationshipUseCase *characterrelationshipapp.GetCharacterRelationshipUseCase,
-	listCharacterRelationshipsUseCase *characterrelationshipapp.ListCharacterRelationshipsUseCase,
-	updateCharacterRelationshipUseCase *characterrelationshipapp.UpdateCharacterRelationshipUseCase,
-	deleteCharacterRelationshipUseCase *characterrelationshipapp.DeleteCharacterRelationshipUseCase,
+	// Character relationship use cases removed - using entity_relations instead
+	createCharacterRelationshipUseCase interface{}, // nil for now - TODO: implement with entity_relations
+	getCharacterRelationshipUseCase interface{}, // nil for now - TODO: implement with entity_relations
+	listCharacterRelationshipsUseCase interface{}, // nil for now - TODO: implement with entity_relations
+	updateCharacterRelationshipUseCase interface{}, // nil for now - TODO: implement with entity_relations
+	deleteCharacterRelationshipUseCase interface{}, // nil for now - TODO: implement with entity_relations
 	logger logger.Logger,
 ) *CharacterHandler {
 	return &CharacterHandler{
-		createCharacterUseCase:      createCharacterUseCase,
-		getCharacterUseCase:         getCharacterUseCase,
-		listCharactersUseCase:       listCharactersUseCase,
-		updateCharacterUseCase:      updateCharacterUseCase,
-		deleteCharacterUseCase:      deleteCharacterUseCase,
-		getCharacterTraitsUseCase:   getCharacterTraitsUseCase,
-		getCharacterEventsUseCase:   getCharacterEventsUseCase,
-		addTraitToCharacterUseCase:  addTraitToCharacterUseCase,
-		updateCharacterTraitUseCase: updateCharacterTraitUseCase,
+		createCharacterUseCase:          createCharacterUseCase,
+		getCharacterUseCase:             getCharacterUseCase,
+		listCharactersUseCase:           listCharactersUseCase,
+		updateCharacterUseCase:          updateCharacterUseCase,
+		deleteCharacterUseCase:          deleteCharacterUseCase,
+		getCharacterTraitsUseCase:       getCharacterTraitsUseCase,
+		getCharacterEventsUseCase:       getCharacterEventsUseCase,
+		addTraitToCharacterUseCase:      addTraitToCharacterUseCase,
+		updateCharacterTraitUseCase:     updateCharacterTraitUseCase,
 		removeTraitFromCharacterUseCase: removeTraitFromCharacterUseCase,
-		createCharacterRelationshipUseCase: createCharacterRelationshipUseCase,
-		getCharacterRelationshipUseCase: getCharacterRelationshipUseCase,
-		listCharacterRelationshipsUseCase: listCharacterRelationshipsUseCase,
-		updateCharacterRelationshipUseCase: updateCharacterRelationshipUseCase,
-		deleteCharacterRelationshipUseCase: deleteCharacterRelationshipUseCase,
-		logger:                      logger,
+		logger:                          logger,
 	}
 }
 
@@ -481,183 +472,31 @@ func (h *CharacterHandler) GetCharacterEvents(ctx context.Context, req *characte
 }
 
 // CreateCharacterRelationship creates a new relationship between two characters
+// TODO: Implement using entity_relations instead of character_relationship use case
 func (h *CharacterHandler) CreateCharacterRelationship(ctx context.Context, req *characterpb.CreateCharacterRelationshipRequest) (*characterpb.CreateCharacterRelationshipResponse, error) {
-	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
-	}
-
-	tenantUUID, err := uuid.Parse(tenantID)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
-	}
-
-	character1ID, err := uuid.Parse(req.CharacterId)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
-	}
-
-	character2ID, err := uuid.Parse(req.OtherCharacterId)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid other_character_id: %v", err)
-	}
-
-	output, err := h.createCharacterRelationshipUseCase.Execute(ctx, characterrelationshipapp.CreateCharacterRelationshipInput{
-		TenantID:         tenantUUID,
-		Character1ID:     character1ID,
-		Character2ID:     character2ID,
-		RelationshipType: req.RelationshipType,
-		Description:      req.Description,
-		Bidirectional:    req.Bidirectional,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &characterpb.CreateCharacterRelationshipResponse{
-		Relationship: mappers.CharacterRelationshipToProto(output.Relationship),
-	}, nil
+	return nil, status.Errorf(codes.Unimplemented, "character relationships now use entity_relations - use EntityRelationService instead")
 }
 
 // GetCharacterRelationship retrieves a character relationship by ID
+// TODO: Implement using entity_relations instead of character_relationship use case
 func (h *CharacterHandler) GetCharacterRelationship(ctx context.Context, req *characterpb.GetCharacterRelationshipRequest) (*characterpb.GetCharacterRelationshipResponse, error) {
-	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
-	}
-
-	tenantUUID, err := uuid.Parse(tenantID)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
-	}
-
-	relationshipID, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid relationship id: %v", err)
-	}
-
-	output, err := h.getCharacterRelationshipUseCase.Execute(ctx, characterrelationshipapp.GetCharacterRelationshipInput{
-		TenantID:       tenantUUID,
-		ID:             relationshipID,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &characterpb.GetCharacterRelationshipResponse{
-		Relationship: mappers.CharacterRelationshipToProto(output.Relationship),
-	}, nil
+	return nil, status.Errorf(codes.Unimplemented, "character relationships now use entity_relations - use EntityRelationService instead")
 }
 
 // ListCharacterRelationships retrieves all relationships for a character
+// TODO: Implement using entity_relations instead of character_relationship use case
 func (h *CharacterHandler) ListCharacterRelationships(ctx context.Context, req *characterpb.ListCharacterRelationshipsRequest) (*characterpb.ListCharacterRelationshipsResponse, error) {
-	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
-	}
-
-	tenantUUID, err := uuid.Parse(tenantID)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
-	}
-
-	characterID, err := uuid.Parse(req.CharacterId)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid character_id: %v", err)
-	}
-
-	output, err := h.listCharacterRelationshipsUseCase.Execute(ctx, characterrelationshipapp.ListCharacterRelationshipsInput{
-		TenantID:    tenantUUID,
-		CharacterID: characterID,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	relationships := make([]*characterpb.CharacterRelationship, len(output.Relationships))
-	for i, r := range output.Relationships {
-		relationships[i] = mappers.CharacterRelationshipToProto(r)
-	}
-
-	return &characterpb.ListCharacterRelationshipsResponse{
-		Relationships: relationships,
-	}, nil
+	return nil, status.Errorf(codes.Unimplemented, "character relationships now use entity_relations - use EntityRelationService instead")
 }
 
 // UpdateCharacterRelationship updates a character relationship
+// TODO: Implement using entity_relations instead of character_relationship use case
 func (h *CharacterHandler) UpdateCharacterRelationship(ctx context.Context, req *characterpb.UpdateCharacterRelationshipRequest) (*characterpb.UpdateCharacterRelationshipResponse, error) {
-	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
-	}
-
-	tenantUUID, err := uuid.Parse(tenantID)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
-	}
-
-	relationshipID, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid relationship id: %v", err)
-	}
-
-	var relationshipType *string
-	if req.RelationshipType != nil {
-		relationshipType = req.RelationshipType
-	}
-
-	var description *string
-	if req.Description != nil {
-		description = req.Description
-	}
-
-	var bidirectional *bool
-	if req.Bidirectional != nil {
-		bidirectional = req.Bidirectional
-	}
-
-	output, err := h.updateCharacterRelationshipUseCase.Execute(ctx, characterrelationshipapp.UpdateCharacterRelationshipInput{
-		TenantID:         tenantUUID,
-		ID:               relationshipID,
-		RelationshipType: relationshipType,
-		Description:      description,
-		Bidirectional:    bidirectional,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &characterpb.UpdateCharacterRelationshipResponse{
-		Relationship: mappers.CharacterRelationshipToProto(output.Relationship),
-	}, nil
+	return nil, status.Errorf(codes.Unimplemented, "character relationships now use entity_relations - use EntityRelationService instead")
 }
 
 // DeleteCharacterRelationship deletes a character relationship
+// TODO: Implement using entity_relations instead of character_relationship use case
 func (h *CharacterHandler) DeleteCharacterRelationship(ctx context.Context, req *characterpb.DeleteCharacterRelationshipRequest) (*characterpb.DeleteCharacterRelationshipResponse, error) {
-	tenantID, ok := grpcctx.TenantIDFromContext(ctx)
-	if !ok {
-		return nil, status.Errorf(codes.Unauthenticated, "tenant_id is required")
-	}
-
-	tenantUUID, err := uuid.Parse(tenantID)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid tenant_id: %v", err)
-	}
-
-	relationshipID, err := uuid.Parse(req.Id)
-	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, "invalid relationship id: %v", err)
-	}
-
-	err = h.deleteCharacterRelationshipUseCase.Execute(ctx, characterrelationshipapp.DeleteCharacterRelationshipInput{
-		TenantID: tenantUUID,
-		ID:       relationshipID,
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return &characterpb.DeleteCharacterRelationshipResponse{}, nil
+	return nil, status.Errorf(codes.Unimplemented, "character relationships now use entity_relations - use EntityRelationService instead")
 }
-
-

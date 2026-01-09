@@ -1,6 +1,9 @@
 package mappers
 
 import (
+	"time"
+
+	loreapp "github.com/story-engine/main-service/internal/application/world/lore"
 	"github.com/story-engine/main-service/internal/core/world"
 	lorepb "github.com/story-engine/main-service/proto/lore"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -36,23 +39,29 @@ func LoreToProto(l *world.Lore) *lorepb.Lore {
 	return pb
 }
 
-// LoreReferenceToProto converts a lore-reference relationship to a protobuf message
-func LoreReferenceToProto(lr *world.LoreReference) *lorepb.LoreReference {
-	if lr == nil {
+// LoreReferenceDTOToProto converts a LoreReferenceDTO (compatibility layer) to a protobuf message
+func LoreReferenceDTOToProto(dto *loreapp.LoreReferenceDTO) *lorepb.LoreReference {
+	if dto == nil {
 		return nil
 	}
 
 	pb := &lorepb.LoreReference{
-		Id:         lr.ID.String(),
-		LoreId:     lr.LoreID.String(),
-		EntityType: lr.EntityType,
-		EntityId:   lr.EntityID.String(),
-		Notes:      lr.Notes,
-		CreatedAt:  timestamppb.New(lr.CreatedAt),
+		Id:         dto.ID.String(),
+		LoreId:     dto.LoreID.String(),
+		EntityType: dto.EntityType,
+		EntityId:   dto.EntityID.String(),
+		Notes:      dto.Notes,
 	}
 
-	if lr.RelationshipType != nil {
-		pb.RelationshipType = lr.RelationshipType
+	if dto.RelationshipType != nil {
+		pb.RelationshipType = dto.RelationshipType
+	}
+
+	// Parse CreatedAt string to timestamp
+	if dto.CreatedAt != "" {
+		if t, err := time.Parse(time.RFC3339, dto.CreatedAt); err == nil {
+			pb.CreatedAt = timestamppb.New(t)
+		}
 	}
 
 	return pb

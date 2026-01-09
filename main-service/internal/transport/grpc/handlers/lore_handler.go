@@ -5,7 +5,6 @@ import (
 
 	"github.com/google/uuid"
 	loreapp "github.com/story-engine/main-service/internal/application/world/lore"
-	"github.com/story-engine/main-service/internal/core/world"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/transport/grpc/grpcctx"
 	"github.com/story-engine/main-service/internal/transport/grpc/mappers"
@@ -287,7 +286,7 @@ func (h *LoreHandler) AddReferenceToLore(ctx context.Context, req *lorepb.AddRef
 	}
 
 	// Find the newly created reference
-	var ref *world.LoreReference
+	var ref *loreapp.LoreReferenceDTO
 	for _, r := range output.References {
 		if r.EntityType == req.EntityType && r.EntityID == entityID {
 			ref = r
@@ -300,7 +299,7 @@ func (h *LoreHandler) AddReferenceToLore(ctx context.Context, req *lorepb.AddRef
 	}
 
 	return &lorepb.AddReferenceToLoreResponse{
-		LoreReference: mappers.LoreReferenceToProto(ref),
+		LoreReference: mappers.LoreReferenceDTOToProto(ref),
 	}, nil
 }
 
@@ -366,7 +365,7 @@ func (h *LoreHandler) GetLoreReferences(ctx context.Context, req *lorepb.GetLore
 
 	references := make([]*lorepb.LoreReference, len(output.References))
 	for i, ref := range output.References {
-		references[i] = mappers.LoreReferenceToProto(ref)
+		references[i] = mappers.LoreReferenceDTOToProto(ref)
 	}
 
 	return &lorepb.GetLoreReferencesResponse{

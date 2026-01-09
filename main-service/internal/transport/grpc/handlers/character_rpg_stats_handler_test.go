@@ -11,7 +11,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	characterstatsapp "github.com/story-engine/main-service/internal/application/rpg/character_stats"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	characterpb "github.com/story-engine/main-service/proto/character"
@@ -95,7 +95,8 @@ func setupTestServerWithCharacterRPGStats(t *testing.T) (*grpc.ClientConn, func(
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
 	createStatsUseCase := characterstatsapp.NewCreateCharacterStatsUseCase(characterStatsRepo, characterRepo, eventRepo, log)
 	getActiveStatsUseCase := characterstatsapp.NewGetActiveCharacterStatsUseCase(characterStatsRepo, log)
 	listStatsHistoryUseCase := characterstatsapp.NewListCharacterStatsHistoryUseCase(characterStatsRepo, log)
@@ -104,20 +105,19 @@ func setupTestServerWithCharacterRPGStats(t *testing.T) (*grpc.ClientConn, func(
 
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
-	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
-	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
+	listRelationsByTargetUseCase := relationapp.NewListRelationsByTargetUseCase(entityRelationRepo, log)
 	characterHandler := NewCharacterHandler(
 		createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase,
 		characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log),
-		characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log),
+		characterapp.NewGetCharacterEventsUseCase(listRelationsByTargetUseCase, log),
 		characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), characterTraitRepo, log),
 		characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, postgres.NewTraitRepository(db), log),
 		characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log),
-		characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log),
-		characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log),
-		characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log),
-		characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log),
-		characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		nil, // createCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // getCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // listCharacterRelationshipsUseCase - not implemented in gRPC yet
+		nil, // updateCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // deleteCharacterRelationshipUseCase - not implemented in gRPC yet
 		log,
 	)
 	characterStatsHandler := NewCharacterRPGStatsHandler(createStatsUseCase, getActiveStatsUseCase, listStatsHistoryUseCase, activateVersionUseCase, deleteAllStatsUseCase, log)

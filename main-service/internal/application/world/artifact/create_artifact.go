@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/core/audit"
 	"github.com/story-engine/main-service/internal/core/world"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
@@ -14,20 +15,20 @@ import (
 
 // CreateArtifactUseCase handles artifact creation
 type CreateArtifactUseCase struct {
-	artifactRepo         repositories.ArtifactRepository
-	artifactReferenceRepo repositories.ArtifactReferenceRepository
-	worldRepo            repositories.WorldRepository
-	characterRepo        repositories.CharacterRepository
-	locationRepo         repositories.LocationRepository
-	auditLogRepo         repositories.AuditLogRepository
-	ingestionQueue       queue.IngestionQueue
-	logger               logger.Logger
+	artifactRepo          repositories.ArtifactRepository
+	createRelationUseCase *relationapp.CreateRelationUseCase
+	worldRepo             repositories.WorldRepository
+	characterRepo         repositories.CharacterRepository
+	locationRepo          repositories.LocationRepository
+	auditLogRepo          repositories.AuditLogRepository
+	ingestionQueue        queue.IngestionQueue
+	logger                logger.Logger
 }
 
 // NewCreateArtifactUseCase creates a new CreateArtifactUseCase
 func NewCreateArtifactUseCase(
 	artifactRepo repositories.ArtifactRepository,
-	artifactReferenceRepo repositories.ArtifactReferenceRepository,
+	createRelationUseCase *relationapp.CreateRelationUseCase,
 	worldRepo repositories.WorldRepository,
 	characterRepo repositories.CharacterRepository,
 	locationRepo repositories.LocationRepository,
@@ -35,14 +36,14 @@ func NewCreateArtifactUseCase(
 	logger logger.Logger,
 ) *CreateArtifactUseCase {
 	return &CreateArtifactUseCase{
-		artifactRepo:         artifactRepo,
-		artifactReferenceRepo: artifactReferenceRepo,
-		worldRepo:            worldRepo,
-		characterRepo:        characterRepo,
-		locationRepo:         locationRepo,
-		auditLogRepo:         auditLogRepo,
-		ingestionQueue:       nil,
-		logger:               logger,
+		artifactRepo:          artifactRepo,
+		createRelationUseCase: createRelationUseCase,
+		worldRepo:             worldRepo,
+		characterRepo:         characterRepo,
+		locationRepo:          locationRepo,
+		auditLogRepo:          auditLogRepo,
+		ingestionQueue:        nil,
+		logger:                logger,
 	}
 }
 
@@ -129,25 +130,39 @@ func (uc *CreateArtifactUseCase) Execute(ctx context.Context, input CreateArtifa
 		return nil, err
 	}
 
-	// Create character references
+	// Create character references using entity_relations
 	for _, characterID := range input.CharacterIDs {
-		ref, err := world.NewArtifactReference(newArtifact.ID, world.ArtifactReferenceEntityTypeCharacter, characterID)
+		_, err = uc.createRelationUseCase.Execute(ctx, relationapp.CreateRelationInput{
+			TenantID:     input.TenantID,
+			WorldID:      newArtifact.WorldID,
+			SourceType:   "artifact",
+			SourceID:     newArtifact.ID,
+			TargetType:   "character",
+			TargetID:     characterID,
+			RelationType: "mentions",
+			Attributes:   make(map[string]interface{}),
+			CreateMirror: false,
+		})
 		if err != nil {
-			return nil, err
-		}
-		if err := uc.artifactReferenceRepo.Create(ctx, ref); err != nil {
 			uc.logger.Error("failed to create character reference", "error", err)
 			return nil, err
 		}
 	}
 
-	// Create location references
+	// Create location references using entity_relations
 	for _, locationID := range input.LocationIDs {
-		ref, err := world.NewArtifactReference(newArtifact.ID, world.ArtifactReferenceEntityTypeLocation, locationID)
+		_, err = uc.createRelationUseCase.Execute(ctx, relationapp.CreateRelationInput{
+			TenantID:     input.TenantID,
+			WorldID:      newArtifact.WorldID,
+			SourceType:   "artifact",
+			SourceID:     newArtifact.ID,
+			TargetType:   "location",
+			TargetID:     locationID,
+			RelationType: "mentions",
+			Attributes:   make(map[string]interface{}),
+			CreateMirror: false,
+		})
 		if err != nil {
-			return nil, err
-		}
-		if err := uc.artifactReferenceRepo.Create(ctx, ref); err != nil {
 			uc.logger.Error("failed to create location reference", "error", err)
 			return nil, err
 		}

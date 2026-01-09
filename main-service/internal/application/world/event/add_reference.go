@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/main-service/internal/core/world"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	platformerrors "github.com/story-engine/main-service/internal/platform/errors"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
@@ -12,42 +12,39 @@ import (
 
 // AddReferenceUseCase handles adding a reference to an event
 type AddReferenceUseCase struct {
-	eventRepo            repositories.EventRepository
-	eventReferenceRepo   repositories.EventReferenceRepository
-	characterRepo        repositories.CharacterRepository
-	locationRepo         repositories.LocationRepository
-	artifactRepo         repositories.ArtifactRepository
-	factionRepo          repositories.FactionRepository
-	loreRepo             repositories.LoreRepository
-	factionReferenceRepo repositories.FactionReferenceRepository
-	loreReferenceRepo    repositories.LoreReferenceRepository
-	logger               logger.Logger
+	eventRepo             repositories.EventRepository
+	relationRepo          repositories.EntityRelationRepository
+	createRelationUseCase *relationapp.CreateRelationUseCase
+	characterRepo         repositories.CharacterRepository
+	locationRepo          repositories.LocationRepository
+	artifactRepo          repositories.ArtifactRepository
+	factionRepo           repositories.FactionRepository
+	loreRepo              repositories.LoreRepository
+	logger                logger.Logger
 }
 
 // NewAddReferenceUseCase creates a new AddReferenceUseCase
 func NewAddReferenceUseCase(
 	eventRepo repositories.EventRepository,
-	eventReferenceRepo repositories.EventReferenceRepository,
+	relationRepo repositories.EntityRelationRepository,
+	createRelationUseCase *relationapp.CreateRelationUseCase,
 	characterRepo repositories.CharacterRepository,
 	locationRepo repositories.LocationRepository,
 	artifactRepo repositories.ArtifactRepository,
 	factionRepo repositories.FactionRepository,
 	loreRepo repositories.LoreRepository,
-	factionReferenceRepo repositories.FactionReferenceRepository,
-	loreReferenceRepo repositories.LoreReferenceRepository,
 	logger logger.Logger,
 ) *AddReferenceUseCase {
 	return &AddReferenceUseCase{
-		eventRepo:            eventRepo,
-		eventReferenceRepo:   eventReferenceRepo,
-		characterRepo:        characterRepo,
-		locationRepo:         locationRepo,
-		artifactRepo:         artifactRepo,
-		factionRepo:          factionRepo,
-		loreRepo:             loreRepo,
-		factionReferenceRepo: factionReferenceRepo,
-		loreReferenceRepo:    loreReferenceRepo,
-		logger:               logger,
+		eventRepo:             eventRepo,
+		relationRepo:          relationRepo,
+		createRelationUseCase: createRelationUseCase,
+		characterRepo:         characterRepo,
+		locationRepo:          locationRepo,
+		artifactRepo:          artifactRepo,
+		factionRepo:           factionRepo,
+		loreRepo:              loreRepo,
+		logger:                logger,
 	}
 }
 
@@ -128,24 +125,9 @@ func (uc *AddReferenceUseCase) Execute(ctx context.Context, input AddReferenceIn
 				Message: "lore must belong to the same world as event",
 			}
 		}
-	case "faction_reference":
-		// Cross-reference: validate the faction_reference exists
-		_, err := uc.factionReferenceRepo.GetByID(ctx, input.TenantID, input.EntityID)
-		if err != nil {
-			return &platformerrors.ValidationError{
-				Field:   "entity_id",
-				Message: "faction_reference not found",
-			}
-		}
-	case "lore_reference":
-		// Cross-reference: validate the lore_reference exists
-		_, err := uc.loreReferenceRepo.GetByID(ctx, input.TenantID, input.EntityID)
-		if err != nil {
-			return &platformerrors.ValidationError{
-				Field:   "entity_id",
-				Message: "lore_reference not found",
-			}
-		}
+	case "faction_reference", "lore_reference":
+		// Cross-references are now handled as regular entity_relations
+		// No special validation needed - they will be validated when the relation is created
 	default:
 		return &platformerrors.ValidationError{
 			Field:   "entity_type",
@@ -153,13 +135,29 @@ func (uc *AddReferenceUseCase) Execute(ctx context.Context, input AddReferenceIn
 		}
 	}
 
-	// Create relationship
-	er := world.NewEventReference(input.EventID, input.EntityType, input.EntityID, input.RelationshipType)
-	if input.Notes != "" {
-		er.UpdateNotes(input.Notes)
+	// Create relation using entity_relations
+	relationType := "mentions"
+	if input.RelationshipType != nil && *input.RelationshipType != "" {
+		relationType = *input.RelationshipType
 	}
 
-	if err := uc.eventReferenceRepo.Create(ctx, er); err != nil {
+	attributes := make(map[string]interface{})
+	if input.Notes != "" {
+		attributes["notes"] = input.Notes
+	}
+
+	_, err = uc.createRelationUseCase.Execute(ctx, relationapp.CreateRelationInput{
+		TenantID:     input.TenantID,
+		WorldID:      event.WorldID,
+		SourceType:   "event",
+		SourceID:     input.EventID,
+		TargetType:   input.EntityType,
+		TargetID:     input.EntityID,
+		RelationType: relationType,
+		Attributes:   attributes,
+		CreateMirror: false, // Event references are one-way
+	})
+	if err != nil {
 		uc.logger.Error("failed to add event reference", "error", err, "event_id", input.EventID)
 		return err
 	}
@@ -167,4 +165,3 @@ func (uc *AddReferenceUseCase) Execute(ctx context.Context, input AddReferenceIn
 	uc.logger.Info("event reference added", "event_id", input.EventID, "entity_type", input.EntityType, "entity_id", input.EntityID)
 	return nil
 }
-

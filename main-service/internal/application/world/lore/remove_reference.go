@@ -4,24 +4,28 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	"github.com/story-engine/main-service/internal/ports/repositories"
 )
 
 // RemoveReferenceUseCase handles removing a reference from a lore
 type RemoveReferenceUseCase struct {
-	loreReferenceRepo repositories.LoreReferenceRepository
-	logger            logger.Logger
+	listRelationsUseCase  *relationapp.ListRelationsBySourceUseCase
+	deleteRelationUseCase *relationapp.DeleteRelationUseCase
+	logger                logger.Logger
 }
 
 // NewRemoveReferenceUseCase creates a new RemoveReferenceUseCase
 func NewRemoveReferenceUseCase(
-	loreReferenceRepo repositories.LoreReferenceRepository,
+	listRelationsUseCase *relationapp.ListRelationsBySourceUseCase,
+	deleteRelationUseCase *relationapp.DeleteRelationUseCase,
 	logger logger.Logger,
 ) *RemoveReferenceUseCase {
 	return &RemoveReferenceUseCase{
-		loreReferenceRepo: loreReferenceRepo,
-		logger:            logger,
+		listRelationsUseCase:  listRelationsUseCase,
+		deleteRelationUseCase: deleteRelationUseCase,
+		logger:                logger,
 	}
 }
 
@@ -35,7 +39,38 @@ type RemoveReferenceInput struct {
 
 // Execute removes a reference from a lore
 func (uc *RemoveReferenceUseCase) Execute(ctx context.Context, input RemoveReferenceInput) error {
-	err := uc.loreReferenceRepo.DeleteByLoreAndEntity(ctx, input.TenantID, input.LoreID, input.EntityType, input.EntityID)
+	// Find the relation by source (lore) and target (entity)
+	output, err := uc.listRelationsUseCase.Execute(ctx, relationapp.ListRelationsBySourceInput{
+		TenantID:   input.TenantID,
+		SourceType: "lore",
+		SourceID:   input.LoreID,
+		Options: repositories.ListOptions{
+			Limit: 100,
+		},
+	})
+	if err != nil {
+		uc.logger.Error("failed to find lore reference", "error", err, "lore_id", input.LoreID)
+		return err
+	}
+
+	var relationID *uuid.UUID
+	for _, rel := range output.Relations.Items {
+		if rel.TargetType == input.EntityType && rel.TargetID == input.EntityID {
+			id := rel.ID
+			relationID = &id
+			break
+		}
+	}
+
+	if relationID == nil {
+		uc.logger.Info("lore reference not found", "lore_id", input.LoreID, "entity_type", input.EntityType, "entity_id", input.EntityID)
+		return nil // Not found, but not an error
+	}
+
+	err = uc.deleteRelationUseCase.Execute(ctx, relationapp.DeleteRelationInput{
+		TenantID: input.TenantID,
+		ID:       *relationID,
+	})
 	if err != nil {
 		uc.logger.Error("failed to remove lore reference", "error", err, "lore_id", input.LoreID)
 		return err
@@ -44,4 +79,3 @@ func (uc *RemoveReferenceUseCase) Execute(ctx context.Context, input RemoveRefer
 	uc.logger.Info("lore reference removed", "lore_id", input.LoreID, "entity_type", input.EntityType, "entity_id", input.EntityID)
 	return nil
 }
-

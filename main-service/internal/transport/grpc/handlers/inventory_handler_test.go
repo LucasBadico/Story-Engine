@@ -15,7 +15,7 @@ import (
 	"github.com/story-engine/main-service/internal/application/world"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
-	characterrelationshipapp "github.com/story-engine/main-service/internal/application/world/character_relationship"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/core/rpg"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
@@ -391,7 +391,7 @@ func setupTestServerWithInventory(t *testing.T) (*grpc.ClientConn, *postgres.DB,
 	worldRepo := postgres.NewWorldRepository(db)
 	characterRepo := postgres.NewCharacterRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
-	artifactReferenceRepo := postgres.NewArtifactReferenceRepository(db)
+	entityRelationRepo := postgres.NewEntityRelationRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	inventoryRepo := postgres.NewCharacterInventoryRepository(db)
 	inventoryItemRepo := postgres.NewInventoryItemRepository(db)
@@ -399,6 +399,12 @@ func setupTestServerWithInventory(t *testing.T) (*grpc.ClientConn, *postgres.DB,
 	auditLogRepo := postgres.NewAuditLogRepository(db)
 
 	log := logger.New()
+	// Entity relations use cases
+	summaryGenerator := relationapp.NewSummaryGenerator()
+	createRelationUseCase := relationapp.NewCreateRelationUseCase(entityRelationRepo, summaryGenerator, nil, log)
+	listRelationsBySourceUseCase := relationapp.NewListRelationsBySourceUseCase(entityRelationRepo, log)
+	deleteRelationUseCase := relationapp.NewDeleteRelationUseCase(entityRelationRepo, log)
+
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
 	getWorldUseCase := world.NewGetWorldUseCase(worldRepo, log)
@@ -411,15 +417,15 @@ func setupTestServerWithInventory(t *testing.T) (*grpc.ClientConn, *postgres.DB,
 	listCharactersUseCase := characterapp.NewListCharactersUseCase(characterRepo, log)
 	updateCharacterUseCase := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
 	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
-	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, worldRepo, auditLogRepo, log)
-	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
+	deleteCharacterUseCase := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
+	createArtifactUseCase := artifactapp.NewCreateArtifactUseCase(artifactRepo, createRelationUseCase, worldRepo, characterRepo, locationRepo, auditLogRepo, log)
 	getArtifactUseCase := artifactapp.NewGetArtifactUseCase(artifactRepo, log)
 	listArtifactsUseCase := artifactapp.NewListArtifactsUseCase(artifactRepo, log)
-	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
-	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, artifactReferenceRepo, worldRepo, auditLogRepo, log)
-	getArtifactReferencesUseCase := artifactapp.NewGetArtifactReferencesUseCase(artifactReferenceRepo, log)
-	addArtifactReferenceUseCase := artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, artifactReferenceRepo, characterRepo, locationRepo, log)
-	removeArtifactReferenceUseCase := artifactapp.NewRemoveArtifactReferenceUseCase(artifactReferenceRepo, log)
+	updateArtifactUseCase := artifactapp.NewUpdateArtifactUseCase(artifactRepo, createRelationUseCase, listRelationsBySourceUseCase, deleteRelationUseCase, characterRepo, locationRepo, worldRepo, auditLogRepo, log)
+	deleteArtifactUseCase := artifactapp.NewDeleteArtifactUseCase(artifactRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
+	getArtifactReferencesUseCase := artifactapp.NewGetArtifactReferencesUseCase(listRelationsBySourceUseCase, log)
+	addArtifactReferenceUseCase := artifactapp.NewAddArtifactReferenceUseCase(artifactRepo, entityRelationRepo, createRelationUseCase, characterRepo, locationRepo, log)
+	removeArtifactReferenceUseCase := artifactapp.NewRemoveArtifactReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
 	addItemUseCase := inventoryapp.NewAddItemToInventoryUseCase(inventoryRepo, characterRepo, inventoryItemRepo, log)
 	updateItemUseCase := inventoryapp.NewUpdateCharacterInventoryUseCase(inventoryRepo, log)
 	deleteItemUseCase := inventoryapp.NewDeleteCharacterInventoryUseCase(inventoryRepo, log)
@@ -432,20 +438,19 @@ func setupTestServerWithInventory(t *testing.T) (*grpc.ClientConn, *postgres.DB,
 
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
 	worldHandler := NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
-	eventReferenceRepo := postgres.NewEventReferenceRepository(db)
-	characterRelationshipRepo := postgres.NewCharacterRelationshipRepository(db)
+	listRelationsByTargetUseCase := relationapp.NewListRelationsByTargetUseCase(entityRelationRepo, log)
 	characterHandler := NewCharacterHandler(
 		createCharacterUseCase, getCharacterUseCase, listCharactersUseCase, updateCharacterUseCase, deleteCharacterUseCase,
 		characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log),
-		characterapp.NewGetCharacterEventsUseCase(eventReferenceRepo, log),
+		characterapp.NewGetCharacterEventsUseCase(listRelationsByTargetUseCase, log),
 		characterapp.NewAddTraitToCharacterUseCase(characterRepo, postgres.NewTraitRepository(db), characterTraitRepo, log),
 		characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, postgres.NewTraitRepository(db), log),
 		characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log),
-		characterrelationshipapp.NewCreateCharacterRelationshipUseCase(characterRelationshipRepo, characterRepo, log),
-		characterrelationshipapp.NewGetCharacterRelationshipUseCase(characterRelationshipRepo, log),
-		characterrelationshipapp.NewListCharacterRelationshipsUseCase(characterRelationshipRepo, log),
-		characterrelationshipapp.NewUpdateCharacterRelationshipUseCase(characterRelationshipRepo, log),
-		characterrelationshipapp.NewDeleteCharacterRelationshipUseCase(characterRelationshipRepo, log),
+		nil, // createCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // getCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // listCharacterRelationshipsUseCase - not implemented in gRPC yet
+		nil, // updateCharacterRelationshipUseCase - not implemented in gRPC yet
+		nil, // deleteCharacterRelationshipUseCase - not implemented in gRPC yet
 		log,
 	)
 	artifactHandler := NewArtifactHandler(createArtifactUseCase, getArtifactUseCase, listArtifactsUseCase, updateArtifactUseCase, deleteArtifactUseCase, getArtifactReferencesUseCase, addArtifactReferenceUseCase, removeArtifactReferenceUseCase, log)

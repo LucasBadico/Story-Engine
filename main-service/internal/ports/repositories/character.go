@@ -28,13 +28,3 @@ type CharacterTraitRepository interface {
 	DeleteByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) error
 }
 
-// CharacterRelationshipRepository defines the interface for character-relationship persistence
-type CharacterRelationshipRepository interface {
-	Create(ctx context.Context, cr *world.CharacterRelationship) error
-	GetByID(ctx context.Context, tenantID, id uuid.UUID) (*world.CharacterRelationship, error)
-	ListByCharacter(ctx context.Context, tenantID, characterID uuid.UUID) ([]*world.CharacterRelationship, error)
-	Update(ctx context.Context, cr *world.CharacterRelationship) error
-	Delete(ctx context.Context, tenantID, id uuid.UUID) error
-}
-
-
