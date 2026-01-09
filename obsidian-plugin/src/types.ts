@@ -235,7 +235,7 @@ export interface ContentBlock {
 	updated_at: string;
 }
 
-export interface ContentBlockReference {
+export interface ContentAnchor {
 	id: string;
 	content_block_id: string;
 	entity_type: string;

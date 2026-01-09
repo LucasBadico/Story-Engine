@@ -1,6 +1,6 @@
 import { ItemView, WorkspaceLeaf, Notice, Modal, setIcon } from "obsidian";
 import StoryEnginePlugin from "../main";
-import { Story, Chapter, Scene, Beat, ContentBlock, ContentBlockReference, World, RPGSystem, Character, Location, Artifact, WorldEvent, Trait, Archetype, Faction, Lore, TimeConfig, CharacterTrait, CharacterRelationship, EventCharacter, SceneReference } from "../types";
+import { Story, Chapter, Scene, Beat, ContentBlock, ContentAnchor, World, RPGSystem, Character, Location, Artifact, WorldEvent, Trait, Archetype, Faction, Lore, TimeConfig, CharacterTrait, CharacterRelationship, EventCharacter, SceneReference } from "../types";
 import { ChapterModal } from "./modals/ChapterModal";
 import { SceneModal } from "./modals/SceneModal";
 import { BeatModal } from "./modals/BeatModal";
@@ -38,7 +38,7 @@ export class StoryListView extends ItemView {
 	scenes: Scene[] = [];
 	beats: Beat[] = [];
 	contentBlocks: ContentBlock[] = [];
-	contentBlockRefs: ContentBlockReference[] = [];
+	contentBlockRefs: ContentAnchor[] = [];
 	loadingHierarchy: boolean = false;
 	// World entities
 	characters: Character[] = [];
@@ -686,7 +686,7 @@ export class StoryListView extends ItemView {
 			
 			// Load references for all content blocks
 			for (const block of this.contentBlocks) {
-				const refs = await this.plugin.apiClient.getContentBlockReferences(block.id);
+				const refs = await this.plugin.apiClient.getContentAnchors(block.id);
 				this.contentBlockRefs.push(...refs);
 			}
 		} catch (err) {
@@ -2278,14 +2278,14 @@ export class StoryListView extends ItemView {
 						r.entity_id === currentEntityId
 					);
 					if (currentRef) {
-						await this.plugin.apiClient.deleteContentBlockReference(currentRef.id);
+						await this.plugin.apiClient.deleteContentAnchor(currentRef.id);
 					}
 				}
 
 				// Create new reference
 				if (selectedValue) {
 					const [entityType, entityId] = selectedValue.split(":");
-					await this.plugin.apiClient.createContentBlockReference(contentBlock.id, entityType, entityId);
+					await this.plugin.apiClient.createContentAnchor(contentBlock.id, entityType, entityId);
 				}
 
 				await this.loadHierarchy();
@@ -2337,7 +2337,7 @@ export class StoryListView extends ItemView {
 			try {
 				contentBlock.order_num = nextOrderNum;
 				const created = await this.plugin.apiClient.createContentBlock(chapterId, contentBlock);
-				await this.plugin.apiClient.createContentBlockReference(created.id, entityType, entityId);
+				await this.plugin.apiClient.createContentAnchor(created.id, entityType, entityId);
 				await this.loadHierarchy();
 				this.renderTabContent();
 				new Notice("Content block created successfully");

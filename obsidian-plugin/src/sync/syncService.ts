@@ -1,7 +1,7 @@
 import { App, Notice, TFile, TFolder } from "obsidian";
 import { StoryEngineClient } from "../api/client";
 import { FileManager } from "./fileManager";
-import { StoryEngineSettings, ContentBlock, ContentBlockReference, Scene, Beat, Chapter, SceneWithBeats } from "../types";
+import { StoryEngineSettings, ContentBlock, ContentAnchor, Scene, Beat, Chapter, SceneWithBeats } from "../types";
 import { parseHierarchicalProse, parseChapterProse, compareContentBlocks, ParsedParagraph, ContentBlockComparison, HierarchicalProse, parseSceneBeatList, ParsedSceneBeatListItem, parseChapterList, ParsedChapterListItem, ParsedChapterList, parseBeatList, ParsedBeatList, ParsedBeatListItem, parseOrphanScenesList, parseOrphanBeatsList, parseStoryProse, parseSceneProse, parseBeatProse } from "./contentBlockParser";
 import { ConflictModal, ConflictResolutionResult } from "../views/modals/ConflictModal";
 
@@ -56,12 +56,12 @@ export class SyncService {
 			orphanBeats.sort((a, b) => a.order_num - b.order_num);
 			
 			// Fetch prose blocks for all chapters to include in story.md
-			const chapterContentData = new Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentBlockReference[] }>();
+			const chapterContentData = new Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentAnchor[] }>();
 			for (const chapterWithContent of storyData.chapters) {
 				const contentBlocks = await this.apiClient.getContentBlocks(chapterWithContent.chapter.id);
-				const contentBlockRefs: ContentBlockReference[] = [];
+				const contentBlockRefs: ContentAnchor[] = [];
 				for (const contentBlock of contentBlocks) {
-					const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+					const refs = await this.apiClient.getContentAnchors(contentBlock.id);
 					contentBlockRefs.push(...refs);
 				}
 				chapterContentData.set(chapterWithContent.chapter.id, { contentBlocks, contentBlockRefs });
@@ -285,9 +285,9 @@ export class SyncService {
 					const contentBlocks = await this.apiClient.getContentBlocks(chapterWithContent.chapter.id);
 
 					// Fetch prose block references for all prose blocks
-					const contentBlockRefs: ContentBlockReference[] = [];
+					const contentBlockRefs: ContentAnchor[] = [];
 					for (const contentBlock of contentBlocks) {
-						const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
+						const refs = await this.apiClient.getContentAnchors(contentBlock.id);
 						contentBlockRefs.push(...refs);
 					}
 
@@ -729,10 +729,10 @@ export class SyncService {
 
 						// Create references if needed
 						if (currentScene) {
-							await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
+							await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", currentScene.id);
 						}
 						if (currentBeat) {
-							await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
+							await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", currentBeat.id);
 						}
 
 						// Add link to paragraph
@@ -768,15 +768,15 @@ export class SyncService {
 
 						// Update references if needed
 						if (finalContentBlock) {
-							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
+							const existingRefs = await this.apiClient.getContentAnchors(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
@@ -804,15 +804,15 @@ export class SyncService {
 
 						// Update references if needed
 						if (finalContentBlock) {
-							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
+							const existingRefs = await this.apiClient.getContentAnchors(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
@@ -829,15 +829,15 @@ export class SyncService {
 
 						// Update references if needed
 						if (finalContentBlock) {
-							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
+							const existingRefs = await this.apiClient.getContentAnchors(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
@@ -873,15 +873,15 @@ export class SyncService {
 
 						// Update references if needed
 						if (finalContentBlock) {
-							const existingRefs = await this.apiClient.getContentBlockReferences(finalContentBlock.id);
+							const existingRefs = await this.apiClient.getContentAnchors(finalContentBlock.id);
 							const hasSceneRef = existingRefs.some(r => r.entity_type === "scene" && r.entity_id === currentScene?.id);
 							const hasBeatRef = existingRefs.some(r => r.entity_type === "beat" && r.entity_id === currentBeat?.id);
 							
 							if (currentScene && !hasSceneRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", currentScene.id);
 							}
 							if (currentBeat && !hasBeatRef) {
-								await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
+								await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", currentBeat.id);
 							}
 						}
 
@@ -909,16 +909,16 @@ export class SyncService {
 		chapterId: string
 	): Promise<void> {
 		// Get prose block references to determine which scenes/02-beats have prose
-		const allContentBlockRefs: ContentBlockReference[] = [];
+		const allContentAnchors: ContentAnchor[] = [];
 		for (const contentBlock of contentBlocks) {
-			const refs = await this.apiClient.getContentBlockReferences(contentBlock.id);
-			allContentBlockRefs.push(...refs);
+			const refs = await this.apiClient.getContentAnchors(contentBlock.id);
+			allContentAnchors.push(...refs);
 		}
 
 		// Create maps for quick lookup
-		const proseRefsByScene = new Map<string, ContentBlockReference[]>();
-		const proseRefsByBeat = new Map<string, ContentBlockReference[]>();
-		for (const ref of allContentBlockRefs) {
+		const proseRefsByScene = new Map<string, ContentAnchor[]>();
+		const proseRefsByBeat = new Map<string, ContentAnchor[]>();
+		for (const ref of allContentAnchors) {
 			if (ref.entity_type === "scene") {
 				if (!proseRefsByScene.has(ref.entity_id)) {
 					proseRefsByScene.set(ref.entity_id, []);
@@ -943,11 +943,11 @@ export class SyncService {
 			
 			// Check if scene has prose blocks (not associated with beats)
 			const sceneProseRefs = proseRefsByScene.get(scene.id) || [];
-			const sceneContentBlockIds = new Set(sceneProseRefs.map((r: ContentBlockReference) => r.content_block_id));
+			const sceneContentBlockIds = new Set(sceneProseRefs.map((r: ContentAnchor) => r.content_block_id));
 			// Check if any prose block is not also associated with a beat
 			const hasSceneProse = Array.from(sceneContentBlockIds).some((contentBlockId: string) => {
-				const blockRefs = allContentBlockRefs.filter((r: ContentBlockReference) => r.content_block_id === contentBlockId);
-				return !blockRefs.some((r: ContentBlockReference) => r.entity_type === "beat");
+				const blockRefs = allContentAnchors.filter((r: ContentAnchor) => r.content_block_id === contentBlockId);
+				return !blockRefs.some((r: ContentAnchor) => r.entity_type === "beat");
 			});
 			const sceneMarker = hasSceneProse ? "+" : "-";
 			
@@ -1596,10 +1596,10 @@ export class SyncService {
 
 						// Create references
 						if (currentScene) {
-							await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", currentScene.id);
+							await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", currentScene.id);
 						}
 						if (currentBeat) {
-							await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
+							await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", currentBeat.id);
 						}
 						break;
 					}
@@ -1800,11 +1800,11 @@ export class SyncService {
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create reference to scene
-						await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
+						await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", sceneId);
 						
 						// Also create reference to beat if we're under one
 						if (currentBeat) {
-							await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", currentBeat.id);
+							await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", currentBeat.id);
 						}
 
 						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
@@ -2047,8 +2047,8 @@ export class SyncService {
 						await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, undefined);
 
 						// Create reference to scene and beat
-						await this.apiClient.createContentBlockReference(finalContentBlock.id, "scene", sceneId);
-						await this.apiClient.createContentBlockReference(finalContentBlock.id, "beat", beatId);
+						await this.apiClient.createContentAnchor(finalContentBlock.id, "scene", sceneId);
+						await this.apiClient.createContentAnchor(finalContentBlock.id, "beat", beatId);
 
 						const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
 						updatedSections.push(`[[${linkName}|${paragraph.content}]]`);

@@ -9,7 +9,7 @@ import {
 	ChapterWithContent,
 	SceneWithBeats,
 	ContentBlock,
-	ContentBlockReference,
+	ContentAnchor,
 	World,
 	RPGSystem,
 	Character,
@@ -411,12 +411,12 @@ export class StoryEngineClient {
 		await this.request("DELETE", `/api/v1/content-blocks/${id}`);
 	}
 
-	async getContentBlockReferences(contentBlockId: string): Promise<ContentBlockReference[]> {
-		const response = await this.request<{ references: ContentBlockReference[] }>(
+	async getContentAnchors(contentBlockId: string): Promise<ContentAnchor[]> {
+		const response = await this.request<{ anchors: ContentAnchor[] }>(
 			"GET",
-			`/api/v1/content-blocks/${contentBlockId}/references`
+			`/api/v1/content-blocks/${contentBlockId}/anchors`
 		);
-		return response.references || [];
+		return response.anchors || [];
 	}
 
 	async getContentBlocksByScene(sceneId: string): Promise<ContentBlock[]> {
@@ -435,20 +435,20 @@ export class StoryEngineClient {
 		return response.content_blocks || [];
 	}
 
-	async createContentBlockReference(contentBlockId: string, entityType: string, entityId: string): Promise<ContentBlockReference> {
-		const response = await this.request<{ reference: ContentBlockReference }>(
+	async createContentAnchor(contentBlockId: string, entityType: string, entityId: string): Promise<ContentAnchor> {
+		const response = await this.request<{ anchor: ContentAnchor }>(
 			"POST",
-			`/api/v1/content-blocks/${contentBlockId}/references`,
+			`/api/v1/content-blocks/${contentBlockId}/anchors`,
 			{
 				entity_type: entityType,
 				entity_id: entityId,
 			}
 		);
-		return response.reference;
+		return response.anchor;
 	}
 
-	async deleteContentBlockReference(id: string): Promise<void> {
-		await this.request("DELETE", `/api/v1/content-block-references/${id}`);
+	async deleteContentAnchor(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/content-anchors/${id}`);
 	}
 
 	async getWorlds(): Promise<World[]> {

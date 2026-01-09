@@ -1,5 +1,5 @@
 import { Notice, TFile, TFolder, Vault } from "obsidian";
-import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats, ContentBlock, ContentBlockReference } from "../types";
+import { Story, Chapter, ChapterWithContent, StoryMetadata, Scene, Beat, SceneWithBeats, ContentBlock, ContentAnchor } from "../types";
 
 // Structure to organize content blocks by their associations
 export interface ContentBlockOrganization {
@@ -124,7 +124,7 @@ export class FileManager {
 		chapters?: ChapterWithContent[], 
 		orphanScenes?: SceneWithBeats[], 
 		orphanBeats?: Beat[],
-		chapterContentData?: Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentBlockReference[] }>
+		chapterContentData?: Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentAnchor[] }>
 	): Promise<void> {
 		await this.ensureFolderExists(folderPath);
 
@@ -397,7 +397,7 @@ export class FileManager {
 		filePath: string,
 		storyName?: string,
 		contentBlocks?: ContentBlock[],
-		contentBlockRefs?: ContentBlockReference[],
+		contentBlockRefs?: ContentAnchor[],
 		orphanScenes?: SceneWithBeats[] // Include orphan scenes for easy association
 	): Promise<void> {
 		const { chapter, scenes } = chapterWithContent;
@@ -1070,7 +1070,7 @@ export class FileManager {
 	// Organize content blocks by their associations (chapter, scene, beat)
 	organizeContentBlocks(
 		contentBlocks: ContentBlock[],
-		contentBlockRefs: ContentBlockReference[],
+		contentBlockRefs: ContentAnchor[],
 		scenes: SceneWithBeats[]
 	): ContentBlockOrganization {
 		const organization: ContentBlockOrganization = {
@@ -1080,7 +1080,7 @@ export class FileManager {
 		};
 
 		// Create maps for quick lookup
-		const contentBlockRefsByContentBlock = new Map<string, ContentBlockReference[]>();
+		const contentBlockRefsByContentBlock = new Map<string, ContentAnchor[]>();
 		for (const ref of contentBlockRefs) {
 			if (!contentBlockRefsByContentBlock.has(ref.content_block_id)) {
 				contentBlockRefsByContentBlock.set(ref.content_block_id, []);
