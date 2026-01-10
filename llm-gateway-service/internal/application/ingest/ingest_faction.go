@@ -82,6 +82,9 @@ func (uc *IngestFactionUseCase) Execute(ctx context.Context, input IngestFaction
 		faction.Name,
 		content,
 	)
+	if faction.Type != nil && strings.TrimSpace(*faction.Type) != "" {
+		doc.Metadata["type"] = strings.TrimSpace(*faction.Type)
+	}
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)

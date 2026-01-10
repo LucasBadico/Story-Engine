@@ -1,0 +1,2 @@
+ALTER TABLE embedding_documents
+ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}';

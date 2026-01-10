@@ -97,7 +97,7 @@ func main() {
 	router := entity_extraction.NewPhase1EntityTypeRouterUseCase(routerModel, log)
 	extractor := entity_extraction.NewPhase2EntryUseCase(routerModel, log, nil)
 	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, documentRepo, embedder, routerModel, log)
-	payload := entity_extraction.NewPhaseTempPayloadUseCase()
+	payload := entity_extraction.NewPhase4EntitiesPayloadUseCase()
 	entityExtractUseCase := entity_extraction.NewEntityAndRelationshipsExtractor(
 		router,
 		extractor,

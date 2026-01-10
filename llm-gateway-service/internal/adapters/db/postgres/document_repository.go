@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 
 	"github.com/google/uuid"
@@ -24,27 +25,32 @@ func NewDocumentRepository(db *DB) *DocumentRepository {
 
 // Create creates a new document
 func (r *DocumentRepository) Create(ctx context.Context, doc *memory.Document) error {
+	metadataJSON, err := doc.MetadataJSON()
+	if err != nil {
+		return err
+	}
 	query := `
-		INSERT INTO embedding_documents (id, tenant_id, source_type, source_id, title, content, created_at, updated_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		INSERT INTO embedding_documents (id, tenant_id, source_type, source_id, title, content, metadata, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
 	`
-	_, err := r.db.Exec(ctx, query,
-		doc.ID, doc.TenantID, string(doc.SourceType), doc.SourceID, doc.Title, doc.Content, doc.CreatedAt, doc.UpdatedAt)
+	_, err = r.db.Exec(ctx, query,
+		doc.ID, doc.TenantID, string(doc.SourceType), doc.SourceID, doc.Title, doc.Content, metadataJSON, doc.CreatedAt, doc.UpdatedAt)
 	return err
 }
 
 // GetByID retrieves a document by ID
 func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory.Document, error) {
 	query := `
-		SELECT id, tenant_id, source_type, source_id, title, content, created_at, updated_at
+		SELECT id, tenant_id, source_type, source_id, title, content, metadata, created_at, updated_at
 		FROM embedding_documents
 		WHERE id = $1
 	`
 	var doc memory.Document
 	var sourceType string
+	var metadataJSON []byte
 
 	err := r.db.QueryRow(ctx, query, id).Scan(
-		&doc.ID, &doc.TenantID, &sourceType, &doc.SourceID, &doc.Title, &doc.Content, &doc.CreatedAt, &doc.UpdatedAt)
+		&doc.ID, &doc.TenantID, &sourceType, &doc.SourceID, &doc.Title, &doc.Content, &metadataJSON, &doc.CreatedAt, &doc.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("document not found")
@@ -53,21 +59,28 @@ func (r *DocumentRepository) GetByID(ctx context.Context, id uuid.UUID) (*memory
 	}
 
 	doc.SourceType = memory.SourceType(sourceType)
+	doc.Metadata = map[string]string{}
+	if len(metadataJSON) > 0 {
+		if err := json.Unmarshal(metadataJSON, &doc.Metadata); err != nil {
+			return nil, err
+		}
+	}
 	return &doc, nil
 }
 
 // GetBySource retrieves a document by source
 func (r *DocumentRepository) GetBySource(ctx context.Context, tenantID uuid.UUID, sourceType memory.SourceType, sourceID uuid.UUID) (*memory.Document, error) {
 	query := `
-		SELECT id, tenant_id, source_type, source_id, title, content, created_at, updated_at
+		SELECT id, tenant_id, source_type, source_id, title, content, metadata, created_at, updated_at
 		FROM embedding_documents
 		WHERE tenant_id = $1 AND source_type = $2 AND source_id = $3
 	`
 	var doc memory.Document
 	var st string
+	var metadataJSON []byte
 
 	err := r.db.QueryRow(ctx, query, tenantID, string(sourceType), sourceID).Scan(
-		&doc.ID, &doc.TenantID, &st, &doc.SourceID, &doc.Title, &doc.Content, &doc.CreatedAt, &doc.UpdatedAt)
+		&doc.ID, &doc.TenantID, &st, &doc.SourceID, &doc.Title, &doc.Content, &metadataJSON, &doc.CreatedAt, &doc.UpdatedAt)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, errors.New("document not found")
@@ -76,17 +89,27 @@ func (r *DocumentRepository) GetBySource(ctx context.Context, tenantID uuid.UUID
 	}
 
 	doc.SourceType = memory.SourceType(st)
+	doc.Metadata = map[string]string{}
+	if len(metadataJSON) > 0 {
+		if err := json.Unmarshal(metadataJSON, &doc.Metadata); err != nil {
+			return nil, err
+		}
+	}
 	return &doc, nil
 }
 
 // Update updates an existing document
 func (r *DocumentRepository) Update(ctx context.Context, doc *memory.Document) error {
+	metadataJSON, err := doc.MetadataJSON()
+	if err != nil {
+		return err
+	}
 	query := `
 		UPDATE embedding_documents
-		SET title = $1, content = $2, updated_at = $3
-		WHERE id = $4
+		SET title = $1, content = $2, metadata = $3, updated_at = $4
+		WHERE id = $5
 	`
-	_, err := r.db.Exec(ctx, query, doc.Title, doc.Content, doc.UpdatedAt, doc.ID)
+	_, err = r.db.Exec(ctx, query, doc.Title, doc.Content, metadataJSON, doc.UpdatedAt, doc.ID)
 	return err
 }
 
@@ -100,7 +123,7 @@ func (r *DocumentRepository) Delete(ctx context.Context, id uuid.UUID) error {
 // ListByTenant lists documents for a tenant
 func (r *DocumentRepository) ListByTenant(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*memory.Document, error) {
 	query := `
-		SELECT id, tenant_id, source_type, source_id, title, content, created_at, updated_at
+		SELECT id, tenant_id, source_type, source_id, title, content, metadata, created_at, updated_at
 		FROM embedding_documents
 		WHERE tenant_id = $1
 		ORDER BY created_at DESC
@@ -116,13 +139,19 @@ func (r *DocumentRepository) ListByTenant(ctx context.Context, tenantID uuid.UUI
 	for rows.Next() {
 		var doc memory.Document
 		var sourceType string
-		if err := rows.Scan(&doc.ID, &doc.TenantID, &sourceType, &doc.SourceID, &doc.Title, &doc.Content, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
+		var metadataJSON []byte
+		if err := rows.Scan(&doc.ID, &doc.TenantID, &sourceType, &doc.SourceID, &doc.Title, &doc.Content, &metadataJSON, &doc.CreatedAt, &doc.UpdatedAt); err != nil {
 			return nil, err
 		}
 		doc.SourceType = memory.SourceType(sourceType)
+		doc.Metadata = map[string]string{}
+		if len(metadataJSON) > 0 {
+			if err := json.Unmarshal(metadataJSON, &doc.Metadata); err != nil {
+				return nil, err
+			}
+		}
 		documents = append(documents, &doc)
 	}
 
 	return documents, rows.Err()
 }
-

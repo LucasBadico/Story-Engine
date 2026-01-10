@@ -13,7 +13,7 @@ type EntityAndRelationshipsExtractor struct {
 	router    *Phase1EntityTypeRouterUseCase
 	extractor *Phase2EntryUseCase
 	matcher   *Phase3MatchUseCase
-	payload   *PhaseTempPayloadUseCase
+	payload   *Phase4EntitiesPayloadUseCase
 	logger    *logger.Logger
 }
 
@@ -21,7 +21,7 @@ func NewEntityAndRelationshipsExtractor(
 	router *Phase1EntityTypeRouterUseCase,
 	extractor *Phase2EntryUseCase,
 	matcher *Phase3MatchUseCase,
-	payload *PhaseTempPayloadUseCase,
+	payload *Phase4EntitiesPayloadUseCase,
 	logger *logger.Logger,
 ) *EntityAndRelationshipsExtractor {
 	return &EntityAndRelationshipsExtractor{
@@ -49,7 +49,7 @@ type EntityAndRelationshipsExtractorInput struct {
 }
 
 type EntityAndRelationshipsExtractorOutput struct {
-	Payload PhaseTempPayload
+	Payload Phase4EntitiesPayload
 }
 
 func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input EntityAndRelationshipsExtractorInput) (EntityAndRelationshipsExtractorOutput, error) {
@@ -139,7 +139,7 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 				"entities": 0,
 			},
 		})
-		return EntityAndRelationshipsExtractorOutput{Payload: PhaseTempPayload{Entities: []PhaseTempEntity{}}}, nil
+		return EntityAndRelationshipsExtractorOutput{Payload: Phase4EntitiesPayload{Entities: []Phase4Entity{}}}, nil
 	}
 
 	emitEvent(ctx, eventLogger, ExtractionEvent{

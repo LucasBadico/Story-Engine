@@ -74,6 +74,7 @@ type Phase3MatchCandidate struct {
 	EntityName string
 	Summary    string
 	Similarity float64
+	Metadata   map[string]string `json:"metadata,omitempty"`
 }
 
 type Phase3ConfirmedMatch struct {
@@ -249,6 +250,7 @@ func (u *Phase3MatchUseCase) matchFinding(
 			EntityName: entityName,
 			Summary:    summary,
 			Similarity: similarity,
+			Metadata:   doc.Metadata,
 		})
 	}
 	if u.logger != nil {

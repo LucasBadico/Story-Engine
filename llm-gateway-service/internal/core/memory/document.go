@@ -1,6 +1,7 @@
 package memory
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/google/uuid"
@@ -32,6 +33,7 @@ type Document struct {
 	SourceID   uuid.UUID
 	Title      string
 	Content    string
+	Metadata   map[string]string
 	CreatedAt  time.Time
 	UpdatedAt  time.Time
 }
@@ -46,9 +48,18 @@ func NewDocument(tenantID uuid.UUID, sourceType SourceType, sourceID uuid.UUID, 
 		SourceID:   sourceID,
 		Title:      title,
 		Content:    content,
+		Metadata:   map[string]string{},
 		CreatedAt:  now,
 		UpdatedAt:  now,
 	}
+}
+
+// MetadataJSON returns metadata as JSON bytes.
+func (d *Document) MetadataJSON() ([]byte, error) {
+	if d.Metadata == nil {
+		return []byte(`{}`), nil
+	}
+	return json.Marshal(d.Metadata)
 }
 
 // Validate validates the document
@@ -64,4 +75,3 @@ func (d *Document) Validate() error {
 	}
 	return nil
 }
-

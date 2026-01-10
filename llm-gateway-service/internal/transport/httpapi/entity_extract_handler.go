@@ -40,16 +40,17 @@ type entityExtractRequest struct {
 }
 
 type entityExtractResponse struct {
-	Entities []entityExtractEntity `json:"entities"`
+	Entities  []entityExtractEntity              `json:"entities"`
+	Relations []entity_extraction.Phase4Relation `json:"relations"`
 }
 
 type entityExtractEntity struct {
-	Type       string                             `json:"type"`
-	Name       string                             `json:"name"`
-	Summary    string                             `json:"summary,omitempty"`
-	Found      bool                               `json:"found"`
-	Match      *entity_extraction.PhaseTempMatch  `json:"match,omitempty"`
-	Candidates []entity_extraction.PhaseTempMatch `json:"candidates,omitempty"`
+	Type       string                          `json:"type"`
+	Name       string                          `json:"name"`
+	Summary    string                          `json:"summary,omitempty"`
+	Found      bool                            `json:"found"`
+	Match      *entity_extraction.Phase4Match  `json:"match,omitempty"`
+	Candidates []entity_extraction.Phase4Match `json:"candidates,omitempty"`
 }
 
 func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
@@ -93,7 +94,8 @@ func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := entityExtractResponse{
-		Entities: make([]entityExtractEntity, 0, len(output.Payload.Entities)),
+		Entities:  make([]entityExtractEntity, 0, len(output.Payload.Entities)),
+		Relations: []entity_extraction.Phase4Relation{},
 	}
 
 	foundCount := 0
@@ -188,10 +190,10 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 	}
 
 	emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
-		Type:    "result",
+		Type:    "result_entities",
 		Message: "entity extraction completed",
 		Data: map[string]interface{}{
-			"payload": output.Payload,
+			"entities": output.Payload.Entities,
 		},
 		Timestamp: time.Now().UTC(),
 	})

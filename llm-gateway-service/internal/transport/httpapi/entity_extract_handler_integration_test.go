@@ -52,7 +52,7 @@ func TestEntityExtractHandler_Integration(t *testing.T) {
 	router := entity_extraction.NewPhase1EntityTypeRouterUseCase(model, log)
 	extractor := entity_extraction.NewPhase2EntryUseCase(model, log, nil)
 	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, docRepo, embedder, model, log)
-	payload := entity_extraction.NewPhaseTempPayloadUseCase()
+	payload := entity_extraction.NewPhase4EntitiesPayloadUseCase()
 	useCase := entity_extraction.NewEntityAndRelationshipsExtractor(router, extractor, matcher, payload, log)
 	handler := NewEntityExtractHandler(useCase, log)
 
@@ -84,6 +84,7 @@ func TestEntityExtractHandler_Integration(t *testing.T) {
 				SourceID uuid.UUID `json:"source_id"`
 			} `json:"match"`
 		} `json:"entities"`
+		Relations []interface{} `json:"relations"`
 	}
 	if err := json.NewDecoder(rr.Body).Decode(&resp); err != nil {
 		t.Fatalf("decode response: %v", err)
