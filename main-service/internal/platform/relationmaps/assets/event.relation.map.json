@@ -1,0 +1,34 @@
+{
+  "entity_type": "event",
+  "version": 1,
+  "relations": {
+    "has_participant": {
+      "pair_candidates": ["character", "faction", "organization", "group", "artifact", "location"],
+      "description": "Event involves an entity as a participant.",
+      "contexts": ["battles", "rituals", "meetings", "ceremonies", "discoveries"],
+      "signals": ["took part in", "participated", "was present", "attended"],
+      "constraints": { "min_confidence": 0.55, "allow_implicit": true, "requires_evidence": true }
+    },
+    "triggered": {
+      "pair_candidates": ["event"],
+      "description": "Event triggered another event.",
+      "contexts": ["chain reactions", "escalations", "aftermath"],
+      "signals": ["triggered", "led to", "sparked"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "resulted_in": {
+      "pair_candidates": ["event", "artifact", "location", "faction", "character"],
+      "description": "Event resulted in a change or new entity or state.",
+      "contexts": ["aftermath", "consequences", "outcomes"],
+      "signals": ["resulted in", "ended with", "gave rise to"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "revealed": {
+      "pair_candidates": ["artifact", "character", "location", "faction"],
+      "description": "Event revealed hidden information or entities.",
+      "contexts": ["discoveries", "revelations"],
+      "signals": ["revealed", "discovered", "uncovered"],
+      "constraints": { "min_confidence": 0.55, "allow_implicit": true, "requires_evidence": true }
+    }
+  }
+}

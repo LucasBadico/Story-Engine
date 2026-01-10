@@ -1,0 +1,77 @@
+{
+  "parent_of": { "mirror": "child_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is a parent of target." },
+  "child_of": { "mirror": "parent_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is a child of target." },
+  "ancestor_of": { "mirror": "descendant_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is an ancestor of target." },
+  "descendant_of": { "mirror": "ancestor_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is a descendant of target." },
+
+  "sibling_of": { "mirror": "sibling_of", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are siblings." },
+  "spouse_of": { "mirror": "spouse_of", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are spouses or partners." },
+  "lover_of": { "mirror": "lover_of", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are lovers." },
+  "ex_lover_of": { "mirror": "ex_lover_of", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target were lovers in the past." },
+
+  "guardian_of": { "mirror": "ward_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is the guardian of target." },
+  "ward_of": { "mirror": "guardian_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is under the guardianship of target." },
+
+  "ally_of": { "mirror": "ally_of", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are allies." },
+  "enemy_of": { "mirror": "enemy_of", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are enemies." },
+  "rival_of": { "mirror": "rival_of", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are rivals." },
+
+  "trusts": { "mirror": "trusted_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source trusts target." },
+  "trusted_by": { "mirror": "trusts", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is trusted by target." },
+  "betrayed": { "mirror": "betrayed_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source betrayed target." },
+  "betrayed_by": { "mirror": "betrayed", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source was betrayed by target." },
+
+  "mentor_of": { "mirror": "mentored_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source mentors or trains target." },
+  "mentored_by": { "mirror": "mentor_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is mentored or trained by target." },
+
+  "member_of": { "mirror": "has_member", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source belongs to a group or organization." },
+  "has_member": { "mirror": "member_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source has target as a member." },
+
+  "leader_of": { "mirror": "led_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source leads target." },
+  "led_by": { "mirror": "leader_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is led by target." },
+
+  "founder_of": { "mirror": "founded_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source founded target." },
+  "founded_by": { "mirror": "founder_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source was founded by target." },
+
+  "at_war_with": { "mirror": "at_war_with", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are at war." },
+  "in_truce_with": { "mirror": "in_truce_with", "symmetric": true, "preferred_direction": "source_to_target", "semantics": "Source and target are in a truce." },
+
+  "vassal_of": { "mirror": "overlord_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is a vassal of target." },
+  "overlord_of": { "mirror": "vassal_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is an overlord of target." },
+
+  "located_in": { "mirror": "contains", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is located in target." },
+  "contains": { "mirror": "located_in", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source contains target." },
+
+  "controls": { "mirror": "controlled_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source controls target." },
+  "controlled_by": { "mirror": "controls", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is controlled by target." },
+
+  "owns": { "mirror": "owned_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source owns target." },
+  "owned_by": { "mirror": "owns", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is owned by target." },
+
+  "wields": { "mirror": "wielded_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source wields or uses an artifact." },
+  "wielded_by": { "mirror": "wields", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is wielded by target." },
+
+  "created": { "mirror": "created_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source created target." },
+  "created_by": { "mirror": "created", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source was created by target." },
+
+  "bound_to": { "mirror": "binds", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is bound to target." },
+  "binds": { "mirror": "bound_to", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source binds target." },
+
+  "caused": { "mirror": "caused_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source caused target." },
+  "caused_by": { "mirror": "caused", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source was caused by target." },
+
+  "participated_in": { "mirror": "has_participant", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source entity participated in an event." },
+  "has_participant": { "mirror": "participated_in", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Event has source entity as a participant." },
+
+  "triggered": { "mirror": "triggered_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source triggered target (event or entity)." },
+  "triggered_by": { "mirror": "triggered", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source was triggered by target." },
+
+  "resulted_in": { "mirror": "resulted_from", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source resulted in target (event or entity or state)." },
+  "resulted_from": { "mirror": "resulted_in", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source resulted from target." },
+
+  "prevented": { "mirror": "prevented_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source prevented target." },
+  "prevented_by": { "mirror": "prevented", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source was prevented by target." },
+
+  "revealed": { "mirror": "revealed_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source revealed target." },
+  "revealed_by": { "mirror": "revealed", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source was revealed by target." }
+}

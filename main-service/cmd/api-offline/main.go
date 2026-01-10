@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/story-engine/main-service/internal/adapters/db/sqlite"
+	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/application/story"
 	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
@@ -20,7 +21,6 @@ import (
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
-	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	loreapp "github.com/story-engine/main-service/internal/application/world/lore"
@@ -265,11 +265,16 @@ func main() {
 	beatHandler := httphandlers.NewBeatHandler(createBeatUseCase, getBeatUseCase, updateBeatUseCase, deleteBeatUseCase, listBeatsUseCase, moveBeatUseCase, log)
 	contentBlockHandler := httphandlers.NewContentBlockHandler(createContentBlockUseCase, getContentBlockUseCase, updateContentBlockUseCase, deleteContentBlockUseCase, listContentBlocksUseCase, log)
 	contentAnchorHandler := httphandlers.NewContentAnchorHandler(createContentAnchorUseCase, listContentAnchorsByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentAnchorUseCase, log)
+	relationMapHandler := httphandlers.NewRelationMapHandler()
 
 	// Create router
 	router := http.NewServeMux()
 
 	// Register routes (only Story + World Building, no User/Membership/RPG)
+
+	// Relation map routes
+	router.HandleFunc("GET /api/v1/static/relations", relationMapHandler.Types)
+	router.HandleFunc("GET /api/v1/static/relations/{entity_type}", relationMapHandler.Map)
 
 	// World Building routes
 	router.HandleFunc("POST /api/v1/worlds", worldHandler.Create)
@@ -406,7 +411,7 @@ func main() {
 
 	router.HandleFunc("POST /api/v1/content-blocks/{id}/anchors", contentAnchorHandler.Create)
 	router.HandleFunc("GET /api/v1/content-blocks/{id}/anchors", contentAnchorHandler.ListByContentBlock)
-	router.HandleFunc("POST /api/v1/content-blocks/{id}/references", contentAnchorHandler.Create)   // deprecated alias
+	router.HandleFunc("POST /api/v1/content-blocks/{id}/references", contentAnchorHandler.Create)            // deprecated alias
 	router.HandleFunc("GET /api/v1/content-blocks/{id}/references", contentAnchorHandler.ListByContentBlock) // deprecated alias
 	router.HandleFunc("GET /api/v1/scenes/{id}/content-blocks", contentAnchorHandler.ListByScene)
 	router.HandleFunc("GET /api/v1/beats/{id}/content-blocks", contentAnchorHandler.ListByBeat)

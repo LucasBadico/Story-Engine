@@ -1,0 +1,46 @@
+{
+  "entity_type": "faction",
+  "version": 1,
+  "relations": {
+    "has_member": {
+      "pair_candidates": ["character"],
+      "description": "Faction has a character as a member.",
+      "contexts": ["when a roster, initiation, or membership is stated"],
+      "signals": ["members include", "recruited", "initiation", "joined"],
+      "anti_signals": ["met", "visited"],
+      "constraints": { "min_confidence": 0.55, "allow_implicit": true, "requires_evidence": true }
+    },
+    "led_by": {
+      "pair_candidates": ["character"],
+      "description": "Faction is led by a character.",
+      "contexts": ["when a leader is named", "when command structure is explicit"],
+      "signals": ["led by", "commanded by", "under the rule of"],
+      "anti_signals": ["influenced by"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "ally_of": {
+      "pair_candidates": ["faction", "organization", "group"],
+      "description": "Faction is allied with another group.",
+      "contexts": ["when alliances or treaties exist"],
+      "signals": ["alliance", "treaty", "joined forces"],
+      "anti_signals": ["trade", "neutral"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "enemy_of": {
+      "pair_candidates": ["faction", "organization", "group"],
+      "description": "Faction is hostile to another group.",
+      "contexts": ["when factions are at war", "when hostility is declared"],
+      "signals": ["at war", "enemy", "hostile", "raided"],
+      "anti_signals": ["competition"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "contains": {
+      "pair_candidates": ["location"],
+      "description": "Faction controls or contains territory (locations).",
+      "contexts": ["when a faction controls a city, fort, or region"],
+      "signals": ["controls", "holds", "occupies", "territory"],
+      "anti_signals": ["visited"],
+      "constraints": { "min_confidence": 0.55, "allow_implicit": true, "requires_evidence": true }
+    }
+  }
+}

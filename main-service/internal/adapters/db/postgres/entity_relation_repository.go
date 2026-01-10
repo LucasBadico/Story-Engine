@@ -72,6 +72,12 @@ func (r *EntityRelationRepository) Create(ctx context.Context, rel *relation.Ent
 // CreateWithMirror creates both the relation and its mirror in a single transaction
 func (r *EntityRelationRepository) CreateWithMirror(ctx context.Context, rel *relation.EntityRelation) (*relation.EntityRelation, error) {
 	mirror := rel.CreateMirrorRelation()
+	if mirror == nil {
+		if err := r.Create(ctx, rel); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
 
 	// Start transaction
 	tx, err := r.db.Begin(ctx)
@@ -80,15 +86,28 @@ func (r *EntityRelationRepository) CreateWithMirror(ctx context.Context, rel *re
 	}
 	defer tx.Rollback(ctx)
 
-	// Create main relation
+	// Create main relation first without mirror_id to avoid FK constraint issues.
+	originalMirrorID := rel.MirrorID
+	rel.MirrorID = nil
 	if err := r.createInTx(ctx, tx, rel); err != nil {
+		rel.MirrorID = originalMirrorID
 		return nil, err
 	}
 
 	// Create mirror relation
 	if err := r.createInTx(ctx, tx, mirror); err != nil {
+		rel.MirrorID = originalMirrorID
 		return nil, err
 	}
+
+	// Update original relation to set mirror_id.
+	updateQuery := `UPDATE entity_relations SET mirror_id = $1 WHERE id = $2`
+	if _, err := tx.Exec(ctx, updateQuery, mirror.ID, rel.ID); err != nil {
+		rel.MirrorID = originalMirrorID
+		return nil, err
+	}
+
+	rel.MirrorID = originalMirrorID
 
 	if err := tx.Commit(ctx); err != nil {
 		return nil, err

@@ -91,6 +91,12 @@ func (r *EntityRelationRepository) Create(ctx context.Context, rel *relation.Ent
 // CreateWithMirror creates both the relation and its mirror in a single transaction
 func (r *EntityRelationRepository) CreateWithMirror(ctx context.Context, rel *relation.EntityRelation) (*relation.EntityRelation, error) {
 	mirror := rel.CreateMirrorRelation()
+	if mirror == nil {
+		if err := r.Create(ctx, rel); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
 
 	// Start transaction
 	tx, err := r.db.Begin(ctx)

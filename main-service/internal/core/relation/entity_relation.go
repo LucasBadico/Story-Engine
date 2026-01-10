@@ -3,9 +3,12 @@ package relation
 import (
 	"encoding/json"
 	"errors"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/story-engine/main-service/internal/platform/relationmaps"
 )
 
 var (
@@ -36,32 +39,38 @@ type EntityRelation struct {
 	UpdatedAt       time.Time
 }
 
-// Inverse relation type mapping
-var inverseRelations = map[string]string{
-	"parent_of":    "child_of",
-	"child_of":     "parent_of",
-	"sibling_of":   "sibling_of",
-	"spouse_of":    "spouse_of",
-	"ally_of":      "ally_of",
-	"enemy_of":     "enemy_of",
-	"member_of":    "has_member",
-	"has_member":   "member_of",
-	"leader_of":    "led_by",
-	"led_by":       "leader_of",
-	"located_in":   "contains",
-	"contains":     "located_in",
-	"owns":         "owned_by",
-	"owned_by":     "owns",
-	"mentor_of":    "mentored_by",
-	"mentored_by":  "mentor_of",
+type relationTypeDefinition struct {
+	Mirror string `json:"mirror"`
 }
 
-// GetInverseRelationType returns the inverse relation type
-func GetInverseRelationType(relationType string) string {
-	if inverse, ok := inverseRelations[relationType]; ok {
-		return inverse
+var (
+	relationTypesOnce sync.Once
+	relationTypesMap  map[string]relationTypeDefinition
+)
+
+func loadRelationTypes() {
+	relationTypesMap = map[string]relationTypeDefinition{}
+	payload, err := relationmaps.TypesJSON()
+	if err != nil {
+		return
 	}
-	return relationType // fallback: symmetric
+	_ = json.Unmarshal(payload, &relationTypesMap)
+}
+
+// GetInverseRelationType returns the inverse relation type if defined.
+func GetInverseRelationType(relationType string) (string, bool) {
+	if strings.HasPrefix(relationType, "custom:") {
+		return "", false
+	}
+
+	relationTypesOnce.Do(loadRelationTypes)
+	if relationTypesMap == nil {
+		return "", false
+	}
+	if def, ok := relationTypesMap[relationType]; ok && strings.TrimSpace(def.Mirror) != "" {
+		return def.Mirror, true
+	}
+	return "", false
 }
 
 // NewEntityRelation creates a new entity relation
@@ -119,8 +128,12 @@ func (r *EntityRelation) Validate() error {
 	return nil
 }
 
-// CreateMirrorRelation creates the inverse relation
+// CreateMirrorRelation creates the inverse relation when supported.
 func (r *EntityRelation) CreateMirrorRelation() *EntityRelation {
+	inverseType, ok := GetInverseRelationType(r.RelationType)
+	if !ok {
+		return nil
+	}
 	mirror := &EntityRelation{
 		ID:              uuid.New(),
 		TenantID:        r.TenantID,
@@ -129,7 +142,7 @@ func (r *EntityRelation) CreateMirrorRelation() *EntityRelation {
 		SourceID:        r.TargetID,
 		TargetType:      r.SourceType,
 		TargetID:        r.SourceID,
-		RelationType:    GetInverseRelationType(r.RelationType),
+		RelationType:    inverseType,
 		ContextType:     r.ContextType,
 		ContextID:       r.ContextID,
 		Attributes:      copyAttributes(r.Attributes),

@@ -1,0 +1,30 @@
+{
+  "entity_type": "location",
+  "version": 1,
+  "relations": {
+    "contains": {
+      "pair_candidates": ["location", "character", "artifact", "faction", "organization", "group"],
+      "description": "Location contains another entity.",
+      "contexts": ["when an entity is inside a place", "when a place includes sub-locations"],
+      "signals": ["inside", "within", "contained", "housed"],
+      "anti_signals": ["near", "adjacent"],
+      "constraints": { "min_confidence": 0.5, "allow_implicit": true, "requires_evidence": true }
+    },
+    "located_in": {
+      "pair_candidates": ["location"],
+      "description": "Location is located within another location.",
+      "contexts": ["when a place is part of a larger region"],
+      "signals": ["in", "within", "part of", "region of"],
+      "anti_signals": ["near"],
+      "constraints": { "min_confidence": 0.55, "allow_implicit": true, "requires_evidence": true }
+    },
+    "owned_by": {
+      "pair_candidates": ["character", "faction", "organization", "group"],
+      "description": "Location or property is owned by an entity.",
+      "contexts": ["when a property belongs to someone"],
+      "signals": ["owned by", "property of", "estate"],
+      "anti_signals": ["occupied"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": false, "requires_evidence": true }
+    }
+  }
+}

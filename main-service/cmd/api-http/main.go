@@ -358,6 +358,7 @@ func main() {
 	contentBlockHandler := httphandlers.NewContentBlockHandler(createContentBlockUseCase, getContentBlockUseCase, updateContentBlockUseCase, deleteContentBlockUseCase, listContentBlocksUseCase, log)
 	contentAnchorHandler := httphandlers.NewContentAnchorHandler(createContentAnchorUseCase, listContentAnchorsByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentAnchorUseCase, log)
 	entityRelationHandler := httphandlers.NewEntityRelationHandler(createRelationUseCase, getRelationUseCase, listRelationsBySourceUseCase, listRelationsByTargetUseCase, listRelationsByWorldUseCase, updateRelationUseCase, deleteRelationUseCase, log)
+	relationMapHandler := httphandlers.NewRelationMapHandler()
 
 	// Create router
 	mux := http.NewServeMux()
@@ -500,7 +501,7 @@ func main() {
 
 	mux.HandleFunc("POST /api/v1/content-blocks/{id}/anchors", contentAnchorHandler.Create)
 	mux.HandleFunc("GET /api/v1/content-blocks/{id}/anchors", contentAnchorHandler.ListByContentBlock)
-	mux.HandleFunc("POST /api/v1/content-blocks/{id}/references", contentAnchorHandler.Create)   // deprecated alias
+	mux.HandleFunc("POST /api/v1/content-blocks/{id}/references", contentAnchorHandler.Create)            // deprecated alias
 	mux.HandleFunc("GET /api/v1/content-blocks/{id}/references", contentAnchorHandler.ListByContentBlock) // deprecated alias
 	mux.HandleFunc("GET /api/v1/scenes/{id}/content-blocks", contentAnchorHandler.ListByScene)
 	mux.HandleFunc("GET /api/v1/beats/{id}/content-blocks", contentAnchorHandler.ListByBeat)
@@ -571,6 +572,9 @@ func main() {
 	mux.HandleFunc("GET /api/v1/worlds/{world_id}/relations", entityRelationHandler.ListByWorld)
 	mux.HandleFunc("GET /api/v1/relations/source", entityRelationHandler.ListBySource)
 	mux.HandleFunc("GET /api/v1/relations/target", entityRelationHandler.ListByTarget)
+
+	mux.HandleFunc("GET /api/v1/static/relations", relationMapHandler.Types)
+	mux.HandleFunc("GET /api/v1/static/relations/{entity_type}", relationMapHandler.Map)
 
 	mux.HandleFunc("GET /health", httphandlers.HealthCheck)
 

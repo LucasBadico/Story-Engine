@@ -1,0 +1,70 @@
+{
+  "entity_type": "character",
+  "version": 1,
+  "relations": {
+    "member_of": {
+      "pair_candidates": ["faction", "organization", "group"],
+      "description": "Character belongs to a group or organization.",
+      "contexts": [
+        "when a character joins a faction or guild",
+        "when a character is enlisted in a guard or unit",
+        "when a character is part of a cult or order"
+      ],
+      "signals": ["member of", "joined", "part of", "enlisted", "swore loyalty to"],
+      "anti_signals": ["visited", "met", "heard about"],
+      "constraints": { "min_confidence": 0.55, "allow_implicit": true, "requires_evidence": true }
+    },
+    "leader_of": {
+      "pair_candidates": ["faction", "organization", "group"],
+      "description": "Character leads a group or organization.",
+      "contexts": [
+        "when a character commands a unit",
+        "when a character rules a faction",
+        "when a character is appointed as captain or leader"
+      ],
+      "signals": ["leads", "commands", "captain of", "chief of", "rules"],
+      "anti_signals": ["temporary", "acting", "substitute"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "mentor_of": {
+      "pair_candidates": ["character"],
+      "description": "Character mentors another character.",
+      "contexts": ["when a character trains another", "when a master apprentice relationship exists"],
+      "signals": ["trained", "mentored", "taught", "apprentice"],
+      "anti_signals": ["met once", "brief advice"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "ally_of": {
+      "pair_candidates": ["character", "faction", "organization", "group"],
+      "description": "Character is allied with another entity.",
+      "contexts": ["when they cooperate toward a goal", "when alliances are declared"],
+      "signals": ["allied with", "teamed up", "formed an alliance", "joined forces"],
+      "anti_signals": ["neutral", "temporary truce"],
+      "constraints": { "min_confidence": 0.55, "allow_implicit": true, "requires_evidence": true }
+    },
+    "enemy_of": {
+      "pair_candidates": ["character", "faction", "organization", "group"],
+      "description": "Character is enemies with another entity.",
+      "contexts": ["when they are in conflict", "when rivalry or feud is explicit"],
+      "signals": ["enemy", "hunted", "swore revenge", "at war with"],
+      "anti_signals": ["dislikes", "annoyed"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": true, "requires_evidence": true }
+    },
+    "owns": {
+      "pair_candidates": ["artifact", "location"],
+      "description": "Character owns an item or property.",
+      "contexts": ["when an item is possessed", "when property is legally owned"],
+      "signals": ["owns", "belongs to", "property", "title deed"],
+      "anti_signals": ["borrowed", "stole", "found"],
+      "constraints": { "min_confidence": 0.6, "allow_implicit": false, "requires_evidence": true }
+    },
+    "located_in": {
+      "pair_candidates": ["location"],
+      "description": "Character is physically located in a place.",
+      "contexts": ["when the narrative places a character at a location"],
+      "signals": ["in", "at", "inside", "entered", "arrived"],
+      "anti_signals": ["dreamed", "remembered", "heard about"],
+      "constraints": { "min_confidence": 0.5, "allow_implicit": true, "requires_evidence": true }
+    }
+  }
+}
