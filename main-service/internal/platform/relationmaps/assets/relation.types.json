@@ -24,7 +24,7 @@
   "mentor_of": { "mirror": "mentored_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source mentors or trains target." },
   "mentored_by": { "mirror": "mentor_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is mentored or trained by target." },
 
-  "member_of": { "mirror": "has_member", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source belongs to a group or organization." },
+  "member_of": { "mirror": "has_member", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source is a member of target." },
   "has_member": { "mirror": "member_of", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source has target as a member." },
 
   "leader_of": { "mirror": "led_by", "symmetric": false, "preferred_direction": "source_to_target", "semantics": "Source leads target." },
