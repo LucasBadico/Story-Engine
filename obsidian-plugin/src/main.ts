@@ -12,6 +12,7 @@ import { StoryDetailsModal } from "./views/StoryDetailsModal";
 import { CreateStoryModal } from "./views/CreateStoryModal";
 import { FileManager } from "./sync/fileManager";
 import { SyncService } from "./sync/syncService";
+import { AutoSyncManager } from "./sync/autoSyncManager";
 import { StoryListView, STORY_LIST_VIEW_TYPE } from "./views/StoryListView";
 import {
 	StoryEngineExtractView,
@@ -30,6 +31,8 @@ const DEFAULT_SETTINGS: StoryEngineSettings = {
 	mode: "local",
 	showHelpBox: true,
 	localModeVideoUrl: "https://example.com/setup-video",
+	autoSyncOnApiUpdates: true,
+	autoPushOnFileBlur: true,
 };
 
 export default class StoryEnginePlugin extends Plugin {
@@ -37,6 +40,7 @@ export default class StoryEnginePlugin extends Plugin {
 	apiClient!: StoryEngineClient;
 	fileManager!: FileManager;
 	syncService!: SyncService;
+	private autoSyncManager?: AutoSyncManager;
 	extractResult: ExtractEntityResult | null = null;
 	extractLogs: ExtractLogEntry[] = [];
 	extractStatus: "idle" | "running" | "done" | "error" | "canceled" = "idle";
@@ -51,6 +55,9 @@ export default class StoryEnginePlugin extends Plugin {
 			this.settings.tenantId || ""
 		);
 		this.apiClient.setMode(this.settings.mode || "local");
+		this.apiClient.setAutoSyncOnApiUpdates(
+			this.settings.autoSyncOnApiUpdates ?? true
+		);
 
 		this.fileManager = new FileManager(
 			this.app.vault,
@@ -63,6 +70,7 @@ export default class StoryEnginePlugin extends Plugin {
 			this.settings,
 			this.app
 		);
+		this.initializeAutoSyncManager();
 
 		this.addSettingTab(new StoryEngineSettingTab(this.app, this));
 
@@ -106,6 +114,13 @@ export default class StoryEnginePlugin extends Plugin {
 		// Detach all leaves of the story list view
 		this.app.workspace.detachLeavesOfType(STORY_LIST_VIEW_TYPE);
 		this.app.workspace.detachLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE);
+		if (this.syncService) {
+			this.syncService.dispose();
+		}
+		if (this.autoSyncManager) {
+			this.autoSyncManager.dispose();
+			this.autoSyncManager = undefined;
+		}
 	}
 
 	async loadSettings() {
@@ -122,6 +137,9 @@ export default class StoryEnginePlugin extends Plugin {
 		if (this.apiClient) {
 			this.apiClient.setTenantId(this.settings.tenantId || "");
 			this.apiClient.setMode(this.settings.mode || "local");
+			this.apiClient.setAutoSyncOnApiUpdates(
+				this.settings.autoSyncOnApiUpdates ?? true
+			);
 		} else {
 			this.apiClient = new StoryEngineClient(
 				this.settings.apiUrl,
@@ -129,6 +147,9 @@ export default class StoryEnginePlugin extends Plugin {
 				this.settings.tenantId || ""
 			);
 			this.apiClient.setMode(this.settings.mode || "local");
+			this.apiClient.setAutoSyncOnApiUpdates(
+				this.settings.autoSyncOnApiUpdates ?? true
+			);
 		}
 		// Update file manager base path
 		this.fileManager = new FileManager(
@@ -136,12 +157,27 @@ export default class StoryEnginePlugin extends Plugin {
 			this.settings.syncFolderPath || "Stories"
 		);
 		// Update sync service
+		if (this.syncService) {
+			this.syncService.dispose();
+		}
 		this.syncService = new SyncService(
 			this.apiClient,
 			this.fileManager,
 			this.settings,
 			this.app
 		);
+		this.initializeAutoSyncManager();
+	}
+
+	private initializeAutoSyncManager(): void {
+		if (this.autoSyncManager) {
+			this.autoSyncManager.dispose();
+			this.autoSyncManager = undefined;
+		}
+
+		if (this.settings.autoPushOnFileBlur) {
+			this.autoSyncManager = new AutoSyncManager(this);
+		}
 	}
 
 	async createStoryCommand() {

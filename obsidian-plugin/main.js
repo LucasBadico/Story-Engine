@@ -30,6 +30,29 @@ __export(main_exports, {
 module.exports = __toCommonJS(main_exports);
 var import_obsidian17 = require("obsidian");
 
+// src/sync/apiUpdateNotifier.ts
+var ApiUpdateNotifier = class {
+  constructor() {
+    this.subscribers = /* @__PURE__ */ new Set();
+  }
+  subscribe(subscriber) {
+    this.subscribers.add(subscriber);
+    return () => {
+      this.subscribers.delete(subscriber);
+    };
+  }
+  async notify(payload) {
+    for (const subscriber of this.subscribers) {
+      try {
+        await subscriber(payload);
+      } catch (err) {
+        console.error("Auto sync subscriber failed", err);
+      }
+    }
+  }
+};
+var apiUpdateNotifier = new ApiUpdateNotifier();
+
 // src/api/client.ts
 var StoryEngineClient = class {
   constructor(apiUrl, apiKey, tenantId = "") {
@@ -37,12 +60,16 @@ var StoryEngineClient = class {
     this.apiKey = apiKey;
     this.tenantId = tenantId;
     this.mode = "remote";
+    this.autoSyncOnApiUpdates = true;
   }
   setTenantId(tenantId) {
     this.tenantId = tenantId.trim();
   }
   setMode(mode) {
     this.mode = mode;
+  }
+  setAutoSyncOnApiUpdates(enabled) {
+    this.autoSyncOnApiUpdates = enabled;
   }
   async request(method, endpoint, body, tenantIdOverride) {
     const url = `${this.apiUrl}${endpoint}`;
@@ -183,6 +210,7 @@ var StoryEngineClient = class {
         status: chapter.status
       }
     );
+    void this.publishChapterUpdate(response.chapter.id);
     return response.chapter;
   }
   async updateChapter(id2, chapter) {
@@ -191,6 +219,7 @@ var StoryEngineClient = class {
       `/api/v1/chapters/${id2}`,
       chapter
     );
+    void this.publishChapterUpdate(response.chapter.id);
     return response.chapter;
   }
   async getChapters(storyId) {
@@ -216,6 +245,7 @@ var StoryEngineClient = class {
       "/api/v1/scenes",
       scene
     );
+    void this.publishSceneTree(response.scene.id);
     return response.scene;
   }
   async updateScene(id2, scene) {
@@ -224,6 +254,7 @@ var StoryEngineClient = class {
       `/api/v1/scenes/${id2}`,
       scene
     );
+    void this.publishSceneTree(response.scene.id);
     return response.scene;
   }
   async getScenes(chapterId) {
@@ -244,11 +275,21 @@ var StoryEngineClient = class {
     await this.request("DELETE", `/api/v1/scenes/${id2}`);
   }
   async createBeat(beat) {
+    if (!beat.scene_id) {
+      throw new Error("scene_id is required to create a beat");
+    }
+    const payload = { ...beat };
+    if (!payload.order_num || payload.order_num <= 0) {
+      const existingBeats = await this.getBeats(beat.scene_id);
+      const nextOrder = existingBeats.length > 0 ? Math.max(...existingBeats.map((b) => b.order_num || 0)) + 1 : 1;
+      payload.order_num = nextOrder;
+    }
     const response = await this.request(
       "POST",
       "/api/v1/beats",
-      beat
+      payload
     );
+    void this.publishSceneTree(response.beat.scene_id);
     return response.beat;
   }
   async updateBeat(id2, beat) {
@@ -257,6 +298,7 @@ var StoryEngineClient = class {
       `/api/v1/beats/${id2}`,
       beat
     );
+    void this.publishSceneTree(response.beat.scene_id);
     return response.beat;
   }
   async getBeats(sceneId) {
@@ -303,6 +345,7 @@ var StoryEngineClient = class {
       `/api/v1/scenes/${sceneId}/move`,
       body
     );
+    void this.publishSceneTree(response.scene.id);
     return response.scene;
   }
   async getBeatsByStory(storyId) {
@@ -318,6 +361,7 @@ var StoryEngineClient = class {
       `/api/v1/beats/${beatId}/move`,
       { scene_id: sceneId }
     );
+    void this.publishSceneTree(response.beat.scene_id);
     return response.beat;
   }
   async getContentBlocks(chapterId) {
@@ -340,6 +384,7 @@ var StoryEngineClient = class {
       `/api/v1/chapters/${chapterId}/content-blocks`,
       contentBlock
     );
+    void this.publishContentBlockUpdate(response.content_block.id);
     return response.content_block;
   }
   async updateContentBlock(id2, contentBlock) {
@@ -348,6 +393,7 @@ var StoryEngineClient = class {
       `/api/v1/content-blocks/${id2}`,
       contentBlock
     );
+    void this.publishContentBlockUpdate(response.content_block.id);
     return response.content_block;
   }
   async deleteContentBlock(id2) {
@@ -1016,6 +1062,104 @@ var StoryEngineClient = class {
     );
     return response.world;
   }
+  isAutoSyncEnabled() {
+    return this.autoSyncOnApiUpdates;
+  }
+  async publishChapterUpdate(chapterId) {
+    if (!this.isAutoSyncEnabled()) {
+      return;
+    }
+    try {
+      const chapter = await this.getChapter(chapterId);
+      const story = await this.getStory(chapter.story_id);
+      const scenes = await this.getScenes(chapterId);
+      const scenesWithBeats = await Promise.all(
+        scenes.map(async (scene) => {
+          const beats = await this.getBeats(scene.id);
+          return { scene, beats };
+        })
+      );
+      const contentBlocks = await this.getContentBlocks(chapterId);
+      const contentBlockRefs = [];
+      for (const block of contentBlocks) {
+        const refs = await this.getContentAnchors(block.id);
+        contentBlockRefs.push(...refs);
+      }
+      await this.notifyEntityUpdate({
+        type: "chapter",
+        story,
+        chapter,
+        scenes: scenesWithBeats,
+        contentBlocks,
+        contentBlockRefs
+      });
+    } catch (err) {
+      console.error("Failed to auto-sync chapter update", err);
+    }
+  }
+  async publishSceneTree(sceneId) {
+    if (!this.isAutoSyncEnabled()) {
+      return;
+    }
+    try {
+      const scene = await this.getScene(sceneId);
+      if (scene.chapter_id) {
+        await this.publishChapterUpdate(scene.chapter_id);
+        return;
+      }
+      const story = await this.getStory(scene.story_id);
+      const beats = await this.getBeats(scene.id);
+      const sceneContentBlocks = await this.getContentBlocksByScene(scene.id);
+      const beatContentBlocks = {};
+      for (const beat of beats) {
+        beatContentBlocks[beat.id] = await this.getContentBlocksByBeat(beat.id);
+      }
+      await this.notifyEntityUpdate({
+        type: "scene",
+        story,
+        scene,
+        beats,
+        sceneContentBlocks,
+        beatContentBlocks
+      });
+    } catch (err) {
+      console.error("Failed to auto-sync scene update", err);
+    }
+  }
+  async publishContentBlockUpdate(contentBlockId) {
+    if (!this.isAutoSyncEnabled()) {
+      return;
+    }
+    try {
+      const contentBlock = await this.getContentBlock(contentBlockId);
+      let story = null;
+      if (contentBlock.chapter_id) {
+        const chapter = await this.getChapter(contentBlock.chapter_id);
+        story = await this.getStory(chapter.story_id);
+      } else {
+        const anchors = await this.getContentAnchors(contentBlock.id);
+        const sceneAnchor = anchors.find((anchor) => anchor.entity_type === "scene");
+        if (sceneAnchor) {
+          const scene = await this.getScene(sceneAnchor.entity_id);
+          story = await this.getStory(scene.story_id);
+        }
+      }
+      if (!story) {
+        console.warn("Unable to resolve story for content block auto-sync", contentBlockId);
+        return;
+      }
+      await this.notifyEntityUpdate({
+        type: "content",
+        story,
+        contentBlock
+      });
+    } catch (err) {
+      console.error("Failed to auto-sync content block update", err);
+    }
+  }
+  async notifyEntityUpdate(payload) {
+    await apiUpdateNotifier.notify(payload);
+  }
 };
 
 // src/settings.ts
@@ -1108,6 +1252,15 @@ var StoryEngineSettingTab = class extends import_obsidian.PluginSettingTab {
         var _a;
         return toggle.setValue((_a = this.plugin.settings.autoVersionSnapshots) != null ? _a : true).onChange(async (value) => {
           this.plugin.settings.autoVersionSnapshots = value;
+          await this.plugin.saveSettings();
+        });
+      }
+    );
+    new import_obsidian.Setting(containerEl).setName("Auto Sync on API Updates").setDesc("Apply API update payloads directly to local files when available").addToggle(
+      (toggle) => {
+        var _a;
+        return toggle.setValue((_a = this.plugin.settings.autoSyncOnApiUpdates) != null ? _a : true).onChange(async (value) => {
+          this.plugin.settings.autoSyncOnApiUpdates = value;
           await this.plugin.saveSettings();
         });
       }
@@ -3642,10 +3795,29 @@ var SyncService = class {
     this.fileManager = fileManager;
     this.settings = settings;
     this.app = app;
+    if (this.settings.autoSyncOnApiUpdates) {
+      this.unsubscribeFromNotifier = apiUpdateNotifier.subscribe(async (payload) => {
+        try {
+          await this.applyEntityData(payload);
+        } catch (err) {
+          console.error("Failed to auto-sync entity data", err);
+        }
+      });
+    }
+  }
+  dispose() {
+    if (this.unsubscribeFromNotifier) {
+      this.unsubscribeFromNotifier();
+      this.unsubscribeFromNotifier = void 0;
+    }
   }
   // Pull story from service to Obsidian (Service → Obsidian)
-  async pullStory(storyId) {
+  async pullStory(storyId, target) {
     try {
+      if (target) {
+        await this.pullSingleEntity(storyId, target);
+        return;
+      }
       const storyData = await this.apiClient.getStoryWithHierarchy(storyId);
       const folderPath = this.fileManager.getStoryFolderPath(
         storyData.story.title
@@ -3900,14 +4072,76 @@ var SyncService = class {
     }
     new import_obsidian8.Notice(`Synced ${stories.length} stories`);
   }
+  // Apply entity data received from API without fetching
+  async applyEntityData(payload) {
+    switch (payload.type) {
+      case "chapter": {
+        await this.writeChapterBundle({
+          story: payload.story,
+          chapter: payload.chapter,
+          scenes: payload.scenes,
+          contentBlocks: payload.contentBlocks,
+          contentBlockRefs: payload.contentBlockRefs
+        });
+        new import_obsidian8.Notice(`Chapter "${payload.chapter.title}" synced successfully`);
+        break;
+      }
+      case "scene": {
+        const beatContentBlockMap = /* @__PURE__ */ new Map();
+        if (payload.beatContentBlocks) {
+          for (const [beatId, blocks] of Object.entries(payload.beatContentBlocks)) {
+            beatContentBlockMap.set(beatId, blocks);
+          }
+        }
+        const folderPath = this.fileManager.getStoryFolderPath(payload.story.title);
+        await this.ensureStoryFolders(folderPath);
+        await this.writeSceneBundle({
+          storyTitle: payload.story.title,
+          folderPath,
+          scene: payload.scene,
+          beats: payload.beats,
+          sceneContentBlocks: payload.sceneContentBlocks,
+          beatContentBlockMap,
+          skipRemoteContentFetch: true
+        });
+        if (payload.sceneContentBlocks) {
+          for (const contentBlock of payload.sceneContentBlocks) {
+            await this.writeContentBlockToFolder(folderPath, payload.story.title, contentBlock);
+          }
+        }
+        for (const blocks of beatContentBlockMap.values()) {
+          for (const contentBlock of blocks) {
+            await this.writeContentBlockToFolder(folderPath, payload.story.title, contentBlock);
+          }
+        }
+        new import_obsidian8.Notice(`Scene "${payload.scene.goal}" synced successfully`);
+        break;
+      }
+      case "content": {
+        const folderPath = this.fileManager.getStoryFolderPath(payload.story.title);
+        await this.ensureContentFolders(folderPath);
+        await this.writeContentBlockToFolder(
+          folderPath,
+          payload.story.title,
+          payload.contentBlock
+        );
+        new import_obsidian8.Notice("Content block synced successfully");
+        break;
+      }
+    }
+  }
   // Push story from Obsidian to service (Obsidian → Service)
-  async pushStory(folderPath) {
+  async pushStory(folderPath, target) {
     try {
       const { frontmatter: storyFrontmatter } = await this.fileManager.readStoryMetadata(folderPath);
       if (!storyFrontmatter.id) {
         throw new Error("Story metadata missing ID");
       }
       const storyId = storyFrontmatter.id;
+      if (target) {
+        await this.pushSingleEntity(folderPath, target, storyId, storyFrontmatter.title);
+        return;
+      }
       const storyFilePath = `${folderPath}/story.md`;
       const storyFile = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
       if (storyFile instanceof import_obsidian8.TFile) {
@@ -5713,6 +5947,318 @@ ${afterProse}`;
     const updatedContent = `${frontmatter}
 ${updatedBody}`;
     await this.fileManager.getVault().modify(file, updatedContent);
+  }
+  async writeChapterBundle(data) {
+    const folderPath = this.fileManager.getStoryFolderPath(data.story.title);
+    await this.ensureStoryFolders(folderPath);
+    for (const contentBlock of data.contentBlocks) {
+      await this.writeContentBlockToFolder(folderPath, data.story.title, contentBlock);
+    }
+    const chaptersFolderPath = `${folderPath}/00-chapters`;
+    const chapterFileName = `Chapter-${data.chapter.number}.md`;
+    const chapterFilePath = `${chaptersFolderPath}/${chapterFileName}`;
+    await this.fileManager.writeChapterFile(
+      { chapter: data.chapter, scenes: data.scenes },
+      chapterFilePath,
+      data.story.title,
+      data.contentBlocks,
+      data.contentBlockRefs,
+      []
+    );
+    const { byScene, byBeat } = this.buildContentBlockAssociationMaps(
+      data.contentBlocks,
+      data.contentBlockRefs
+    );
+    await this.syncScenesToFilesystem(
+      data.scenes,
+      folderPath,
+      data.story.title,
+      byScene,
+      byBeat
+    );
+  }
+  async writeSceneBundle(data) {
+    var _a, _b;
+    await this.fileManager.ensureFolderExists(`${data.folderPath}/01-scenes`);
+    await this.fileManager.ensureFolderExists(`${data.folderPath}/02-beats`);
+    const sceneContentBlocks = (_a = data.sceneContentBlocks) != null ? _a : data.skipRemoteContentFetch ? [] : await this.apiClient.getContentBlocksByScene(data.scene.id);
+    const sceneFileName = this.fileManager.generateSceneFileName(data.scene);
+    const sceneFilePath = `${data.folderPath}/01-scenes/${sceneFileName}`;
+    await this.fileManager.writeSceneFile(
+      { scene: data.scene, beats: data.beats },
+      sceneFilePath,
+      data.storyTitle,
+      sceneContentBlocks,
+      []
+    );
+    for (const beat of data.beats) {
+      const provided = (_b = data.beatContentBlockMap) == null ? void 0 : _b.get(beat.id);
+      const beatContentBlocks = provided != null ? provided : data.skipRemoteContentFetch ? [] : await this.apiClient.getContentBlocksByBeat(beat.id);
+      const beatFileName = this.fileManager.generateBeatFileName(beat);
+      const beatFilePath = `${data.folderPath}/02-beats/${beatFileName}`;
+      await this.fileManager.writeBeatFile(
+        beat,
+        beatFilePath,
+        data.storyTitle,
+        beatContentBlocks
+      );
+    }
+  }
+  buildContentBlockAssociationMaps(contentBlocks, contentBlockRefs) {
+    const byScene = /* @__PURE__ */ new Map();
+    const byBeat = /* @__PURE__ */ new Map();
+    const blockById = new Map(contentBlocks.map((block) => [block.id, block]));
+    for (const ref of contentBlockRefs) {
+      const block = blockById.get(ref.content_block_id);
+      if (!block) {
+        continue;
+      }
+      if (ref.entity_type === "scene") {
+        if (!byScene.has(ref.entity_id)) {
+          byScene.set(ref.entity_id, []);
+        }
+        byScene.get(ref.entity_id).push(block);
+      } else if (ref.entity_type === "beat") {
+        if (!byBeat.has(ref.entity_id)) {
+          byBeat.set(ref.entity_id, []);
+        }
+        byBeat.get(ref.entity_id).push(block);
+      }
+    }
+    return { byScene, byBeat };
+  }
+  async pullSingleEntity(storyId, target) {
+    switch (target.type) {
+      case "chapter":
+        await this.pullChapterEntity(storyId, target.id);
+        break;
+      case "scene":
+        await this.pullSceneEntity(storyId, target.id);
+        break;
+      case "content":
+        await this.pullContentBlockEntity(storyId, target.id);
+        break;
+      default:
+        throw new Error(`Unsupported entity type: ${target.type}`);
+    }
+  }
+  async pullChapterEntity(storyId, chapterId) {
+    const story = await this.apiClient.getStory(storyId);
+    const chapter = await this.apiClient.getChapter(chapterId);
+    if (chapter.story_id !== storyId) {
+      throw new Error("Chapter does not belong to the selected story");
+    }
+    const scenes = await this.apiClient.getScenes(chapterId);
+    const scenesWithBeats = await Promise.all(
+      scenes.map(async (scene) => {
+        const beats = await this.apiClient.getBeats(scene.id);
+        return { scene, beats };
+      })
+    );
+    const contentBlocks = await this.apiClient.getContentBlocks(chapterId);
+    const contentBlockRefs = [];
+    for (const contentBlock of contentBlocks) {
+      const refs = await this.apiClient.getContentAnchors(contentBlock.id);
+      contentBlockRefs.push(...refs);
+    }
+    await this.writeChapterBundle({
+      story,
+      chapter,
+      scenes: scenesWithBeats,
+      contentBlocks,
+      contentBlockRefs
+    });
+    new import_obsidian8.Notice(`Chapter "${chapter.title}" synced successfully`);
+  }
+  async pullSceneEntity(storyId, sceneId) {
+    const scene = await this.apiClient.getScene(sceneId);
+    if (scene.story_id !== storyId) {
+      throw new Error("Scene does not belong to the selected story");
+    }
+    const story = await this.apiClient.getStory(storyId);
+    const folderPath = this.fileManager.getStoryFolderPath(story.title);
+    await this.ensureStoryFolders(folderPath);
+    const beats = await this.apiClient.getBeats(scene.id);
+    const sceneContentBlocks = await this.apiClient.getContentBlocksByScene(scene.id);
+    const beatContentBlockMap = /* @__PURE__ */ new Map();
+    for (const beat of beats) {
+      const beatContentBlocks = await this.apiClient.getContentBlocksByBeat(beat.id);
+      beatContentBlockMap.set(beat.id, beatContentBlocks);
+    }
+    await this.writeSceneBundle({
+      storyTitle: story.title,
+      folderPath,
+      scene,
+      beats,
+      sceneContentBlocks,
+      beatContentBlockMap
+    });
+    await this.syncSceneContentBlocks(scene, beats, folderPath, story.title);
+    new import_obsidian8.Notice(`Scene "${scene.goal}" synced successfully`);
+  }
+  async pullContentBlockEntity(storyId, contentBlockId) {
+    const story = await this.apiClient.getStory(storyId);
+    const contentBlock = await this.apiClient.getContentBlock(contentBlockId);
+    if (contentBlock.chapter_id) {
+      const chapter = await this.apiClient.getChapter(contentBlock.chapter_id);
+      if (chapter.story_id !== storyId) {
+        throw new Error("Content block does not belong to the selected story");
+      }
+    }
+    const folderPath = this.fileManager.getStoryFolderPath(story.title);
+    await this.ensureContentFolders(folderPath);
+    await this.writeContentBlockToFolder(folderPath, story.title, contentBlock);
+    new import_obsidian8.Notice("Content block synced successfully");
+  }
+  async pushSingleEntity(folderPath, target, storyId, storyTitle) {
+    let entityLabel;
+    switch (target.type) {
+      case "chapter":
+        entityLabel = await this.pushChapterEntity(folderPath, target.id);
+        break;
+      case "scene":
+        entityLabel = await this.pushSceneEntity(folderPath, storyId, target.id);
+        break;
+      case "content":
+        entityLabel = await this.pushContentBlockEntity(folderPath, target.id, storyTitle);
+        break;
+      default:
+        throw new Error(`Unsupported entity type: ${target.type}`);
+    }
+    new import_obsidian8.Notice(`${entityLabel} pushed successfully`);
+    try {
+      await this.pullSingleEntity(storyId, target);
+    } catch (pullErr) {
+      const pullErrorMessage = pullErr instanceof Error ? pullErr.message : "Failed to sync entity after push";
+      new import_obsidian8.Notice(`Warning: ${pullErrorMessage}`, 5e3);
+    }
+  }
+  async pushChapterEntity(folderPath, chapterId) {
+    var _a, _b;
+    const chapterFile = await this.findChapterFileById(folderPath, chapterId);
+    if (!chapterFile) {
+      throw new Error("Chapter file not found locally");
+    }
+    await this.pushChapterContentBlocks(chapterFile.path, folderPath);
+    const label = ((_a = chapterFile.frontmatter) == null ? void 0 : _a.title) || (((_b = chapterFile.frontmatter) == null ? void 0 : _b.number) ? `Chapter ${chapterFile.frontmatter.number}` : "Chapter");
+    return label;
+  }
+  async pushSceneEntity(folderPath, storyId, sceneId) {
+    var _a;
+    const sceneFile = await this.findSceneFileById(folderPath, sceneId);
+    if (!sceneFile) {
+      throw new Error("Scene file not found locally");
+    }
+    await this.pushSceneBeats(sceneFile.path, storyId);
+    await this.pushSceneContentBlocks(sceneFile.path, folderPath);
+    const label = ((_a = sceneFile.frontmatter) == null ? void 0 : _a.goal) ? `Scene: ${sceneFile.frontmatter.goal}` : "Scene";
+    return label;
+  }
+  async pushContentBlockEntity(folderPath, contentBlockId, storyTitle) {
+    var _a;
+    const contentsFolderPath = `${folderPath}/03-contents`;
+    await this.fileManager.ensureFolderExists(contentsFolderPath);
+    const localContentBlock = await this.findContentBlockById(contentsFolderPath, contentBlockId);
+    if (!localContentBlock) {
+      throw new Error("Content block file not found locally");
+    }
+    const updatedBlock = await this.apiClient.updateContentBlock(contentBlockId, {
+      content: localContentBlock.content,
+      metadata: localContentBlock.metadata,
+      type: localContentBlock.type,
+      kind: localContentBlock.kind,
+      order_num: (_a = localContentBlock.order_num) != null ? _a : void 0
+    });
+    const filePath = await this.getContentBlockFilePathFromContents(contentsFolderPath, updatedBlock);
+    await this.fileManager.writeContentBlockFile(updatedBlock, filePath, storyTitle);
+    return "Content block";
+  }
+  async ensureStoryFolders(folderPath) {
+    await this.fileManager.ensureFolderExists(folderPath);
+    await this.ensureContentFolders(folderPath);
+    await this.fileManager.ensureFolderExists(`${folderPath}/00-chapters`);
+    await this.fileManager.ensureFolderExists(`${folderPath}/01-scenes`);
+    await this.fileManager.ensureFolderExists(`${folderPath}/02-beats`);
+  }
+  async ensureContentFolders(folderPath) {
+    const contentsFolderPath = `${folderPath}/03-contents`;
+    await this.fileManager.ensureFolderExists(contentsFolderPath);
+    for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
+      await this.fileManager.ensureFolderExists(`${contentsFolderPath}/${typeFolder}`);
+    }
+  }
+  async writeContentBlockToFolder(storyFolderPath, storyTitle, contentBlock) {
+    const typeFolderPath = this.fileManager.getContentBlockFolderPath(
+      storyFolderPath,
+      contentBlock.type || "text"
+    );
+    await this.fileManager.ensureFolderExists(typeFolderPath);
+    const contentBlockFileName = this.fileManager.generateContentBlockFileName(contentBlock);
+    const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
+    await this.fileManager.writeContentBlockFile(contentBlock, contentBlockFilePath, storyTitle);
+  }
+  async syncScenesToFilesystem(scenesWithBeats, folderPath, storyTitle, contentBlocksByScene, contentBlocksByBeat) {
+    const skipRemoteFetch = Boolean(contentBlocksByScene || contentBlocksByBeat);
+    for (const { scene, beats } of scenesWithBeats) {
+      await this.writeSceneBundle({
+        storyTitle,
+        folderPath,
+        scene,
+        beats,
+        sceneContentBlocks: contentBlocksByScene == null ? void 0 : contentBlocksByScene.get(scene.id),
+        beatContentBlockMap: contentBlocksByBeat,
+        skipRemoteContentFetch: skipRemoteFetch
+      });
+    }
+  }
+  async syncSceneContentBlocks(scene, beats, folderPath, storyTitle) {
+    if (!scene.chapter_id) {
+      return;
+    }
+    const contentBlocks = await this.apiClient.getContentBlocks(scene.chapter_id);
+    for (const contentBlock of contentBlocks) {
+      const refs = await this.apiClient.getContentAnchors(contentBlock.id);
+      const hasSceneRef = refs.some(
+        (ref) => ref.entity_type === "scene" && ref.entity_id === scene.id
+      );
+      const beatIds = beats.map((beat) => beat.id);
+      const hasBeatRef = refs.some(
+        (ref) => ref.entity_type === "beat" && beatIds.includes(ref.entity_id)
+      );
+      if (hasSceneRef || hasBeatRef) {
+        await this.writeContentBlockToFolder(folderPath, storyTitle, contentBlock);
+      }
+    }
+  }
+  async findChapterFileById(folderPath, chapterId) {
+    const chapterFiles = await this.fileManager.listChapterFiles(folderPath);
+    for (const chapterFilePath of chapterFiles) {
+      const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
+      if (!(file instanceof import_obsidian8.TFile)) {
+        continue;
+      }
+      const content = await this.fileManager.getVault().read(file);
+      const frontmatter = this.fileManager.parseFrontmatter(content);
+      if (frontmatter.id === chapterId) {
+        return { path: chapterFilePath, frontmatter };
+      }
+    }
+    return null;
+  }
+  async findSceneFileById(folderPath, sceneId) {
+    const sceneFiles = await this.fileManager.listStorySceneFiles(folderPath);
+    for (const sceneFilePath of sceneFiles) {
+      const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
+      if (!(file instanceof import_obsidian8.TFile)) {
+        continue;
+      }
+      const content = await this.fileManager.getVault().read(file);
+      const frontmatter = this.fileManager.parseFrontmatter(content);
+      if (frontmatter.id === sceneId) {
+        return { path: sceneFilePath, frontmatter };
+      }
+    }
+    return null;
   }
 };
 
@@ -15207,7 +15753,8 @@ var DEFAULT_SETTINGS = {
   conflictResolution: "service",
   mode: "local",
   showHelpBox: true,
-  localModeVideoUrl: "https://example.com/setup-video"
+  localModeVideoUrl: "https://example.com/setup-video",
+  autoSyncOnApiUpdates: true
 };
 var StoryEnginePlugin = class extends import_obsidian17.Plugin {
   constructor() {
@@ -15218,6 +15765,7 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
     this.extractAbortController = null;
   }
   async onload() {
+    var _a;
     await this.loadSettings();
     this.apiClient = new StoryEngineClient(
       this.settings.apiUrl,
@@ -15225,6 +15773,9 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
       this.settings.tenantId || ""
     );
     this.apiClient.setMode(this.settings.mode || "local");
+    this.apiClient.setAutoSyncOnApiUpdates(
+      (_a = this.settings.autoSyncOnApiUpdates) != null ? _a : true
+    );
     this.fileManager = new FileManager(
       this.app.vault,
       this.settings.syncFolderPath || "Stories"
@@ -15267,6 +15818,9 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
   async onunload() {
     this.app.workspace.detachLeavesOfType(STORY_LIST_VIEW_TYPE);
     this.app.workspace.detachLeavesOfType(STORY_ENGINE_EXTRACT_VIEW_TYPE);
+    if (this.syncService) {
+      this.syncService.dispose();
+    }
   }
   async loadSettings() {
     this.settings = Object.assign(
@@ -15276,10 +15830,14 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
     );
   }
   async saveSettings() {
+    var _a, _b;
     await this.saveData(this.settings);
     if (this.apiClient) {
       this.apiClient.setTenantId(this.settings.tenantId || "");
       this.apiClient.setMode(this.settings.mode || "local");
+      this.apiClient.setAutoSyncOnApiUpdates(
+        (_a = this.settings.autoSyncOnApiUpdates) != null ? _a : true
+      );
     } else {
       this.apiClient = new StoryEngineClient(
         this.settings.apiUrl,
@@ -15287,11 +15845,17 @@ var StoryEnginePlugin = class extends import_obsidian17.Plugin {
         this.settings.tenantId || ""
       );
       this.apiClient.setMode(this.settings.mode || "local");
+      this.apiClient.setAutoSyncOnApiUpdates(
+        (_b = this.settings.autoSyncOnApiUpdates) != null ? _b : true
+      );
     }
     this.fileManager = new FileManager(
       this.app.vault,
       this.settings.syncFolderPath || "Stories"
     );
+    if (this.syncService) {
+      this.syncService.dispose();
+    }
     this.syncService = new SyncService(
       this.apiClient,
       this.fileManager,

@@ -30,9 +30,12 @@ import {
 	SceneReference,
 	TimeConfig,
 } from "../types";
+import { SyncEntityPayload } from "../sync/entitySyncTypes";
+import { apiUpdateNotifier } from "../sync/apiUpdateNotifier";
 
 export class StoryEngineClient {
 	private mode: "local" | "remote" = "remote";
+	private autoSyncOnApiUpdates = true;
 
 	constructor(
 		private apiUrl: string,
@@ -46,6 +49,10 @@ export class StoryEngineClient {
 
 	setMode(mode: "local" | "remote"): void {
 		this.mode = mode;
+	}
+
+	setAutoSyncOnApiUpdates(enabled: boolean): void {
+		this.autoSyncOnApiUpdates = enabled;
 	}
 
 	private async request<T>(
@@ -216,6 +223,7 @@ export class StoryEngineClient {
 				status: chapter.status,
 			}
 		);
+		void this.publishChapterUpdate(response.chapter.id);
 		return response.chapter;
 	}
 
@@ -225,6 +233,7 @@ export class StoryEngineClient {
 			`/api/v1/chapters/${id}`,
 			chapter
 		);
+		void this.publishChapterUpdate(response.chapter.id);
 		return response.chapter;
 	}
 
@@ -254,6 +263,7 @@ export class StoryEngineClient {
 			"/api/v1/scenes",
 			scene
 		);
+		void this.publishSceneTree(response.scene.id);
 		return response.scene;
 	}
 
@@ -263,6 +273,7 @@ export class StoryEngineClient {
 			`/api/v1/scenes/${id}`,
 			scene
 		);
+		void this.publishSceneTree(response.scene.id);
 		return response.scene;
 	}
 
@@ -287,11 +298,27 @@ export class StoryEngineClient {
 	}
 
 	async createBeat(beat: Partial<Beat>): Promise<Beat> {
+		if (!beat.scene_id) {
+			throw new Error("scene_id is required to create a beat");
+		}
+
+		const payload: Partial<Beat> = { ...beat };
+
+		if (!payload.order_num || payload.order_num <= 0) {
+			const existingBeats = await this.getBeats(beat.scene_id);
+			const nextOrder =
+				existingBeats.length > 0
+					? Math.max(...existingBeats.map((b) => b.order_num || 0)) + 1
+					: 1;
+			payload.order_num = nextOrder;
+		}
+
 		const response = await this.request<{ beat: Beat }>(
 			"POST",
 			"/api/v1/beats",
-			beat
+			payload
 		);
+		void this.publishSceneTree(response.beat.scene_id);
 		return response.beat;
 	}
 
@@ -301,6 +328,7 @@ export class StoryEngineClient {
 			`/api/v1/beats/${id}`,
 			beat
 		);
+		void this.publishSceneTree(response.beat.scene_id);
 		return response.beat;
 	}
 
@@ -353,6 +381,7 @@ export class StoryEngineClient {
 			`/api/v1/scenes/${sceneId}/move`,
 			body
 		);
+		void this.publishSceneTree(response.scene.id);
 		return response.scene;
 	}
 
@@ -370,6 +399,7 @@ export class StoryEngineClient {
 			`/api/v1/beats/${beatId}/move`,
 			{ scene_id: sceneId }
 		);
+		void this.publishSceneTree(response.beat.scene_id);
 		return response.beat;
 	}
 
@@ -395,6 +425,7 @@ export class StoryEngineClient {
 			`/api/v1/chapters/${chapterId}/content-blocks`,
 			contentBlock
 		);
+		void this.publishContentBlockUpdate(response.content_block.id);
 		return response.content_block;
 	}
 
@@ -404,6 +435,7 @@ export class StoryEngineClient {
 			`/api/v1/content-blocks/${id}`,
 			contentBlock
 		);
+		void this.publishContentBlockUpdate(response.content_block.id);
 		return response.content_block;
 	}
 
@@ -1158,6 +1190,117 @@ export class StoryEngineClient {
 			timeConfig
 		);
 		return response.world;
+	}
+
+	private isAutoSyncEnabled(): boolean {
+		return this.autoSyncOnApiUpdates;
+	}
+
+	private async publishChapterUpdate(chapterId: string): Promise<void> {
+		if (!this.isAutoSyncEnabled()) {
+			return;
+		}
+
+		try {
+			const chapter = await this.getChapter(chapterId);
+			const story = await this.getStory(chapter.story_id);
+			const scenes = await this.getScenes(chapterId);
+			const scenesWithBeats: SceneWithBeats[] = await Promise.all(
+				scenes.map(async (scene) => {
+					const beats = await this.getBeats(scene.id);
+					return { scene, beats };
+				})
+			);
+			const contentBlocks = await this.getContentBlocks(chapterId);
+			const contentBlockRefs: ContentAnchor[] = [];
+			for (const block of contentBlocks) {
+				const refs = await this.getContentAnchors(block.id);
+				contentBlockRefs.push(...refs);
+			}
+
+			await this.notifyEntityUpdate({
+				type: "chapter",
+				story,
+				chapter,
+				scenes: scenesWithBeats,
+				contentBlocks,
+				contentBlockRefs,
+			});
+		} catch (err) {
+			console.error("Failed to auto-sync chapter update", err);
+		}
+	}
+
+	private async publishSceneTree(sceneId: string): Promise<void> {
+		if (!this.isAutoSyncEnabled()) {
+			return;
+		}
+
+		try {
+			const scene = await this.getScene(sceneId);
+			if (scene.chapter_id) {
+				await this.publishChapterUpdate(scene.chapter_id);
+				return;
+			}
+
+			const story = await this.getStory(scene.story_id);
+			const beats = await this.getBeats(scene.id);
+			const sceneContentBlocks = await this.getContentBlocksByScene(scene.id);
+			const beatContentBlocks: Record<string, ContentBlock[]> = {};
+			for (const beat of beats) {
+				beatContentBlocks[beat.id] = await this.getContentBlocksByBeat(beat.id);
+			}
+
+			await this.notifyEntityUpdate({
+				type: "scene",
+				story,
+				scene,
+				beats,
+				sceneContentBlocks,
+				beatContentBlocks,
+			});
+		} catch (err) {
+			console.error("Failed to auto-sync scene update", err);
+		}
+	}
+
+	private async publishContentBlockUpdate(contentBlockId: string): Promise<void> {
+		if (!this.isAutoSyncEnabled()) {
+			return;
+		}
+
+		try {
+			const contentBlock = await this.getContentBlock(contentBlockId);
+			let story: Story | null = null;
+			if (contentBlock.chapter_id) {
+				const chapter = await this.getChapter(contentBlock.chapter_id);
+				story = await this.getStory(chapter.story_id);
+			} else {
+				const anchors = await this.getContentAnchors(contentBlock.id);
+				const sceneAnchor = anchors.find((anchor) => anchor.entity_type === "scene");
+				if (sceneAnchor) {
+					const scene = await this.getScene(sceneAnchor.entity_id);
+					story = await this.getStory(scene.story_id);
+				}
+			}
+
+			if (!story) {
+				console.warn("Unable to resolve story for content block auto-sync", contentBlockId);
+				return;
+			}
+
+			await this.notifyEntityUpdate({
+				type: "content",
+				story,
+				contentBlock,
+			});
+		} catch (err) {
+			console.error("Failed to auto-sync content block update", err);
+		}
+	}
+
+	async notifyEntityUpdate(payload: SyncEntityPayload): Promise<void> {
+		await apiUpdateNotifier.notify(payload);
 	}
 }
 

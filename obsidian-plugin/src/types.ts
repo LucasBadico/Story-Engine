@@ -12,6 +12,8 @@ export interface StoryEngineSettings {
 	mode: "local" | "remote";
 	showHelpBox: boolean;
 	localModeVideoUrl?: string;
+	autoSyncOnApiUpdates: boolean;
+	autoPushOnFileBlur: boolean;
 }
 
 export interface ErrorResponse {

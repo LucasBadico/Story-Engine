@@ -159,6 +159,30 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Auto Sync on API Updates")
+			.setDesc("Apply API update payloads directly to local files when available")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoSyncOnApiUpdates ?? true)
+					.onChange(async (value) => {
+						this.plugin.settings.autoSyncOnApiUpdates = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
+		new Setting(containerEl)
+			.setName("Auto Push on Blur/Idle")
+			.setDesc("When you leave a chapter/scene/beat or stay idle for 1 min, push changes upstream automatically")
+			.addToggle((toggle) =>
+				toggle
+					.setValue(this.plugin.settings.autoPushOnFileBlur ?? true)
+					.onChange(async (value) => {
+						this.plugin.settings.autoPushOnFileBlur = value;
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// Conflict Resolution (conditional - hidden in local mode)
 		conflictResolutionSetting = new Setting(containerEl)
 			.setName("Conflict Resolution")
