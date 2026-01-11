@@ -9,11 +9,11 @@ import (
 
 // MockIngestionQueue is a mock implementation of IngestionQueue for testing
 type MockIngestionQueue struct {
-	items           map[string]*QueueItem // key: "tenantID:sourceType:sourceID"
-	processingItems map[string]*QueueItem
-	tenants         map[uuid.UUID]bool
+	items             map[string]*QueueItem // key: "tenantID:sourceType:sourceID"
+	processingItems   map[string]*QueueItem
+	tenants           map[uuid.UUID]bool
 	processingTenants map[uuid.UUID]bool
-	
+
 	enqueueErr error
 	popErr     error
 	listErr    error
@@ -44,7 +44,6 @@ func (m *MockIngestionQueue) SetListError(err error) {
 	m.listErr = err
 }
 
-
 // Push adds/updates item with current timestamp (debounce reset)
 func (m *MockIngestionQueue) Push(ctx context.Context, tenantID uuid.UUID, sourceType string, sourceID uuid.UUID) error {
 	if m.enqueueErr != nil {
@@ -52,10 +51,10 @@ func (m *MockIngestionQueue) Push(ctx context.Context, tenantID uuid.UUID, sourc
 	}
 	key := tenantID.String() + ":" + sourceType + ":" + sourceID.String()
 	m.items[key] = &QueueItem{
-		TenantID:  tenantID,
+		TenantID:   tenantID,
 		SourceType: sourceType,
-		SourceID:  sourceID,
-		Timestamp: time.Now(),
+		SourceID:   sourceID,
+		Timestamp:  time.Now(),
 	}
 	m.tenants[tenantID] = true
 	return nil
@@ -117,6 +116,29 @@ func (m *MockIngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, 
 	count := 0
 	for key, item := range m.items {
 		if item.TenantID == tenantID && item.Timestamp.Before(stableAt) && count < limit {
+			result = append(result, item)
+			delete(m.items, key)
+			item.Timestamp = time.Now()
+			m.processingItems[key] = item
+			count++
+		}
+	}
+	m.refreshTenants(tenantID)
+	if count > 0 {
+		m.processingTenants[tenantID] = true
+	}
+	return result, nil
+}
+
+// PopStableBySourceType moves stable items for a source type from the queue to processing
+func (m *MockIngestionQueue) PopStableBySourceType(ctx context.Context, tenantID uuid.UUID, sourceType string, stableAt time.Time, limit int) ([]*QueueItem, error) {
+	if m.popErr != nil {
+		return nil, m.popErr
+	}
+	var result []*QueueItem
+	count := 0
+	for key, item := range m.items {
+		if item.TenantID == tenantID && item.SourceType == sourceType && item.Timestamp.Before(stableAt) && count < limit {
 			result = append(result, item)
 			delete(m.items, key)
 			item.Timestamp = time.Now()

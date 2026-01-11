@@ -27,11 +27,14 @@ func NewGenerateSummaryUseCase(executor *executor.Executor, provider string, log
 }
 
 type GenerateSummaryInput struct {
-	EntityType string
-	Name       string
-	Contents   []string
-	Context    string
-	MaxItems   int
+	EntityType   string
+	Name         string
+	Contents     []string
+	Context      string
+	SourceData   string
+	TargetData   string
+	RelationData string
+	MaxItems     int
 }
 
 type GenerateSummaryOutput struct {
@@ -40,6 +43,9 @@ type GenerateSummaryOutput struct {
 
 //go:embed prompts/generate_entity_summary.prompt
 var generateEntitySummaryPromptTemplate string
+
+//go:embed prompts/generate_relation_summary.prompt
+var generateRelationSummaryPromptTemplate string
 
 //go:embed prompts/generate_entity_summary_repair.prompt
 var generateEntitySummaryRepairPromptTemplate string
@@ -65,7 +71,7 @@ func (uc *GenerateSummaryUseCase) Execute(ctx context.Context, input GenerateSum
 		return GenerateSummaryOutput{}, errors.New("llm executor is required")
 	}
 
-	prompt := buildGenerateEntitySummaryPrompt(entityType, name, contents, input.Context, maxItems)
+	prompt := buildGenerateSummaryPrompt(input, maxItems)
 	raw, err := uc.executor.Submit(ctx, prompt, uc.provider)
 	if err != nil {
 		uc.logger.Error("summary model failed", "error", err)
@@ -93,12 +99,15 @@ func (uc *GenerateSummaryUseCase) Execute(ctx context.Context, input GenerateSum
 	}, nil
 }
 
-func buildGenerateEntitySummaryPrompt(entityType string, name string, contents []string, context string, maxItems int) string {
-	prompt := generateEntitySummaryPromptTemplate
-	prompt = strings.ReplaceAll(prompt, "{{entity_type}}", entityType)
-	prompt = strings.ReplaceAll(prompt, "{{entity_name}}", name)
-	prompt = strings.ReplaceAll(prompt, "{{content_blocks}}", formatSummaryContentBlocks(contents))
-	prompt = strings.ReplaceAll(prompt, "{{context_if_any}}", strings.TrimSpace(context))
+func buildGenerateSummaryPrompt(input GenerateSummaryInput, maxItems int) string {
+	prompt := selectSummaryPromptTemplate(input.EntityType)
+	prompt = strings.ReplaceAll(prompt, "{{entity_type}}", strings.TrimSpace(input.EntityType))
+	prompt = strings.ReplaceAll(prompt, "{{entity_name}}", strings.TrimSpace(input.Name))
+	prompt = strings.ReplaceAll(prompt, "{{content_blocks}}", formatSummaryContentBlocks(input.Contents))
+	prompt = strings.ReplaceAll(prompt, "{{context_if_any}}", strings.TrimSpace(input.Context))
+	prompt = strings.ReplaceAll(prompt, "{{source_data_if_any}}", strings.TrimSpace(input.SourceData))
+	prompt = strings.ReplaceAll(prompt, "{{target_data_if_any}}", strings.TrimSpace(input.TargetData))
+	prompt = strings.ReplaceAll(prompt, "{{relation_data_if_any}}", strings.TrimSpace(input.RelationData))
 	prompt = strings.ReplaceAll(prompt, "{{max_items}}", fmt.Sprintf("%d", maxItems))
 	return strings.TrimSpace(prompt) + "\n"
 }
@@ -108,6 +117,16 @@ func buildGenerateEntitySummaryRepairPrompt(rawOutput string, maxItems int) stri
 	prompt = strings.ReplaceAll(prompt, "{{raw_output}}", strings.TrimSpace(rawOutput))
 	prompt = strings.ReplaceAll(prompt, "{{max_items}}", fmt.Sprintf("%d", maxItems))
 	return strings.TrimSpace(prompt) + "\n"
+}
+
+func selectSummaryPromptTemplate(entityType string) string {
+	switch strings.ToLower(strings.TrimSpace(entityType)) {
+	case "relation", "relation_citation":
+		if strings.TrimSpace(generateRelationSummaryPromptTemplate) != "" {
+			return generateRelationSummaryPromptTemplate
+		}
+	}
+	return generateEntitySummaryPromptTemplate
 }
 
 func (uc *GenerateSummaryUseCase) repairSummaryOutput(ctx context.Context, raw string, maxItems int) (GenerateSummaryOutput, error) {

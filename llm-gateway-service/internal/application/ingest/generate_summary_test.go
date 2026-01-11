@@ -6,7 +6,12 @@ import (
 )
 
 func TestBuildGenerateEntitySummaryPrompt(t *testing.T) {
-	prompt := buildGenerateEntitySummaryPrompt("character", "Aria", []string{"Aria is a mage."}, "", 3)
+	prompt := buildGenerateSummaryPrompt(GenerateSummaryInput{
+		EntityType: "character",
+		Name:       "Aria",
+		Contents:   []string{"Aria is a mage."},
+		Context:    "",
+	}, 3)
 	if prompt == "" {
 		t.Fatalf("expected prompt content")
 	}

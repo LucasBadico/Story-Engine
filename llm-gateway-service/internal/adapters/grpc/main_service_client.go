@@ -11,6 +11,7 @@ import (
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	characterpb "github.com/story-engine/main-service/proto/character"
 	contentblockpb "github.com/story-engine/main-service/proto/content_block"
+	entityrelationpb "github.com/story-engine/main-service/proto/entity_relation"
 	eventpb "github.com/story-engine/main-service/proto/event"
 	factionpb "github.com/story-engine/main-service/proto/faction"
 	locationpb "github.com/story-engine/main-service/proto/location"
@@ -26,20 +27,21 @@ var _ grpcclient.MainServiceClient = (*MainServiceClient)(nil)
 
 // MainServiceClient implements the gRPC client interface for main-service
 type MainServiceClient struct {
-	storyClient                 storypb.StoryServiceClient
-	chapterClient               chapterpb.ChapterServiceClient
-	sceneClient                 scenepb.SceneServiceClient
-	beatClient                  beatpb.BeatServiceClient
-	contentBlockClient          contentblockpb.ContentBlockServiceClient
-	contentAnchorClient         contentblockpb.ContentAnchorServiceClient
-	worldClient                 worldpb.WorldServiceClient
-	characterClient             characterpb.CharacterServiceClient
-	locationClient              locationpb.LocationServiceClient
-	eventClient                 eventpb.EventServiceClient
-	artifactClient              artifactpb.ArtifactServiceClient
-	factionClient               factionpb.FactionServiceClient
-	loreClient                  lorepb.LoreServiceClient
-	conn                        *grpclib.ClientConn
+	storyClient          storypb.StoryServiceClient
+	chapterClient        chapterpb.ChapterServiceClient
+	sceneClient          scenepb.SceneServiceClient
+	beatClient           beatpb.BeatServiceClient
+	contentBlockClient   contentblockpb.ContentBlockServiceClient
+	contentAnchorClient  contentblockpb.ContentAnchorServiceClient
+	worldClient          worldpb.WorldServiceClient
+	characterClient      characterpb.CharacterServiceClient
+	locationClient       locationpb.LocationServiceClient
+	eventClient          eventpb.EventServiceClient
+	artifactClient       artifactpb.ArtifactServiceClient
+	factionClient        factionpb.FactionServiceClient
+	loreClient           lorepb.LoreServiceClient
+	entityRelationClient entityrelationpb.EntityRelationServiceClient
+	conn                 *grpclib.ClientConn
 }
 
 // NewMainServiceClient creates a new gRPC client for main-service
@@ -50,20 +52,21 @@ func NewMainServiceClient(addr string) (*MainServiceClient, error) {
 	}
 
 	return &MainServiceClient{
-		storyClient:                 storypb.NewStoryServiceClient(conn),
-		chapterClient:               chapterpb.NewChapterServiceClient(conn),
-		sceneClient:                 scenepb.NewSceneServiceClient(conn),
-		beatClient:                  beatpb.NewBeatServiceClient(conn),
-		contentBlockClient:          contentblockpb.NewContentBlockServiceClient(conn),
-		contentAnchorClient:         contentblockpb.NewContentAnchorServiceClient(conn),
-		worldClient:                 worldpb.NewWorldServiceClient(conn),
-		characterClient:             characterpb.NewCharacterServiceClient(conn),
-		locationClient:              locationpb.NewLocationServiceClient(conn),
-		eventClient:                 eventpb.NewEventServiceClient(conn),
-		artifactClient:              artifactpb.NewArtifactServiceClient(conn),
-		factionClient:               factionpb.NewFactionServiceClient(conn),
-		loreClient:                  lorepb.NewLoreServiceClient(conn),
-		conn:                        conn,
+		storyClient:          storypb.NewStoryServiceClient(conn),
+		chapterClient:        chapterpb.NewChapterServiceClient(conn),
+		sceneClient:          scenepb.NewSceneServiceClient(conn),
+		beatClient:           beatpb.NewBeatServiceClient(conn),
+		contentBlockClient:   contentblockpb.NewContentBlockServiceClient(conn),
+		contentAnchorClient:  contentblockpb.NewContentAnchorServiceClient(conn),
+		worldClient:          worldpb.NewWorldServiceClient(conn),
+		characterClient:      characterpb.NewCharacterServiceClient(conn),
+		locationClient:       locationpb.NewLocationServiceClient(conn),
+		eventClient:          eventpb.NewEventServiceClient(conn),
+		artifactClient:       artifactpb.NewArtifactServiceClient(conn),
+		factionClient:        factionpb.NewFactionServiceClient(conn),
+		loreClient:           lorepb.NewLoreServiceClient(conn),
+		entityRelationClient: entityrelationpb.NewEntityRelationServiceClient(conn),
+		conn:                 conn,
 	}, nil
 }
 
@@ -671,6 +674,18 @@ func (c *MainServiceClient) GetLore(ctx context.Context, loreID uuid.UUID) (*grp
 	return protoToLore(resp.Lore), nil
 }
 
+// GetRelation retrieves a relation by ID
+func (c *MainServiceClient) GetRelation(ctx context.Context, relationID uuid.UUID) (*grpcclient.EntityRelation, error) {
+	resp, err := c.entityRelationClient.GetRelation(ctx, &entityrelationpb.GetRelationRequest{
+		Id: relationID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	return protoToEntityRelation(resp.Relation), nil
+}
+
 func protoToFaction(f *factionpb.Faction) *grpcclient.Faction {
 	factionID, _ := uuid.Parse(f.Id)
 	worldID, _ := uuid.Parse(f.WorldId)
@@ -727,4 +742,46 @@ func protoToLore(l *lorepb.Lore) *grpcclient.Lore {
 	}
 
 	return lore
+}
+
+func protoToEntityRelation(r *entityrelationpb.EntityRelation) *grpcclient.EntityRelation {
+	if r == nil {
+		return nil
+	}
+
+	relationID, _ := uuid.Parse(r.Id)
+	tenantID, _ := uuid.Parse(r.TenantId)
+	worldID, _ := uuid.Parse(r.WorldId)
+	sourceID, _ := uuid.Parse(r.SourceId)
+	targetID, _ := uuid.Parse(r.TargetId)
+
+	relation := &grpcclient.EntityRelation{
+		ID:           relationID,
+		TenantID:     tenantID,
+		WorldID:      worldID,
+		SourceType:   r.SourceType,
+		SourceID:     sourceID,
+		TargetType:   r.TargetType,
+		TargetID:     targetID,
+		RelationType: r.RelationType,
+		Attributes:   r.AttributesJson,
+		Summary:      r.Summary,
+		CreatedAt:    r.CreatedAt.Seconds,
+		UpdatedAt:    r.UpdatedAt.Seconds,
+	}
+
+	if r.ContextType != nil && *r.ContextType != "" {
+		val := r.GetContextType()
+		relation.ContextType = &val
+	}
+	if r.ContextId != nil && *r.ContextId != "" {
+		val := r.GetContextId()
+		relation.ContextID = &val
+	}
+	if r.MirrorId != nil && *r.MirrorId != "" {
+		mirrorID, _ := uuid.Parse(r.GetMirrorId())
+		relation.MirrorID = &mirrorID
+	}
+
+	return relation
 }

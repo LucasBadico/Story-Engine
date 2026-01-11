@@ -22,6 +22,8 @@ type IngestionQueue interface {
 
 	// PopStable returns items not updated since stableAt and moves them to processing
 	PopStable(ctx context.Context, tenantID uuid.UUID, stableAt time.Time, limit int) ([]*QueueItem, error)
+	// PopStableBySourceType returns items for a given source type not updated since stableAt.
+	PopStableBySourceType(ctx context.Context, tenantID uuid.UUID, sourceType string, stableAt time.Time, limit int) ([]*QueueItem, error)
 
 	// Ack removes an item from processing after successful handling
 	Ack(ctx context.Context, tenantID uuid.UUID, sourceType string, sourceID uuid.UUID) error

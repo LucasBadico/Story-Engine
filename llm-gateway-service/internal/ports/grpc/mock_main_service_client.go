@@ -9,16 +9,20 @@ import (
 
 // MockMainServiceClient is a mock implementation of MainServiceClient for testing
 type MockMainServiceClient struct {
-	stories          map[uuid.UUID]*Story
-	chapters         map[uuid.UUID]*Chapter
-	scenes           map[uuid.UUID]*Scene
-	beats            map[uuid.UUID]*Beat
-	worlds           map[uuid.UUID]*World
-	factions         map[uuid.UUID]*Faction
-	lores            map[uuid.UUID]*Lore
-	contentBlocks    map[uuid.UUID]*ContentBlock
-	contentAnchors   map[uuid.UUID][]*ContentAnchor
-	characters       map[uuid.UUID]*Character
+	stories        map[uuid.UUID]*Story
+	chapters       map[uuid.UUID]*Chapter
+	scenes         map[uuid.UUID]*Scene
+	beats          map[uuid.UUID]*Beat
+	worlds         map[uuid.UUID]*World
+	factions       map[uuid.UUID]*Faction
+	lores          map[uuid.UUID]*Lore
+	contentBlocks  map[uuid.UUID]*ContentBlock
+	contentAnchors map[uuid.UUID][]*ContentAnchor
+	characters     map[uuid.UUID]*Character
+	locations      map[uuid.UUID]*Location
+	events         map[uuid.UUID]*Event
+	artifacts      map[uuid.UUID]*Artifact
+	relations      map[uuid.UUID]*EntityRelation
 
 	// Error functions
 	getStoryErr   func(uuid.UUID) error
@@ -30,16 +34,20 @@ type MockMainServiceClient struct {
 // NewMockMainServiceClient creates a new mock main service client
 func NewMockMainServiceClient() *MockMainServiceClient {
 	return &MockMainServiceClient{
-		stories:          make(map[uuid.UUID]*Story),
-		chapters:         make(map[uuid.UUID]*Chapter),
-		scenes:           make(map[uuid.UUID]*Scene),
-		beats:            make(map[uuid.UUID]*Beat),
-		worlds:           make(map[uuid.UUID]*World),
-		factions:         make(map[uuid.UUID]*Faction),
-		lores:            make(map[uuid.UUID]*Lore),
-		contentBlocks:    make(map[uuid.UUID]*ContentBlock),
-		contentAnchors:   make(map[uuid.UUID][]*ContentAnchor),
-		characters:       make(map[uuid.UUID]*Character),
+		stories:        make(map[uuid.UUID]*Story),
+		chapters:       make(map[uuid.UUID]*Chapter),
+		scenes:         make(map[uuid.UUID]*Scene),
+		beats:          make(map[uuid.UUID]*Beat),
+		worlds:         make(map[uuid.UUID]*World),
+		factions:       make(map[uuid.UUID]*Faction),
+		lores:          make(map[uuid.UUID]*Lore),
+		contentBlocks:  make(map[uuid.UUID]*ContentBlock),
+		contentAnchors: make(map[uuid.UUID][]*ContentAnchor),
+		characters:     make(map[uuid.UUID]*Character),
+		locations:      make(map[uuid.UUID]*Location),
+		events:         make(map[uuid.UUID]*Event),
+		artifacts:      make(map[uuid.UUID]*Artifact),
+		relations:      make(map[uuid.UUID]*EntityRelation),
 	}
 }
 
@@ -263,15 +271,27 @@ func (m *MockMainServiceClient) GetCharacter(ctx context.Context, characterID uu
 }
 
 func (m *MockMainServiceClient) GetLocation(ctx context.Context, locationID uuid.UUID) (*Location, error) {
-	return nil, fmt.Errorf("not implemented")
+	location, ok := m.locations[locationID]
+	if !ok {
+		return nil, fmt.Errorf("location not found: %s", locationID)
+	}
+	return location, nil
 }
 
 func (m *MockMainServiceClient) GetEvent(ctx context.Context, eventID uuid.UUID) (*Event, error) {
-	return nil, fmt.Errorf("not implemented")
+	event, ok := m.events[eventID]
+	if !ok {
+		return nil, fmt.Errorf("event not found: %s", eventID)
+	}
+	return event, nil
 }
 
 func (m *MockMainServiceClient) GetArtifact(ctx context.Context, artifactID uuid.UUID) (*Artifact, error) {
-	return nil, fmt.Errorf("not implemented")
+	artifact, ok := m.artifacts[artifactID]
+	if !ok {
+		return nil, fmt.Errorf("artifact not found: %s", artifactID)
+	}
+	return artifact, nil
 }
 
 func (m *MockMainServiceClient) GetCharacterTraits(ctx context.Context, characterID uuid.UUID) ([]*CharacterTrait, error) {
@@ -292,4 +312,32 @@ func (m *MockMainServiceClient) GetEventArtifacts(ctx context.Context, eventID u
 
 func (m *MockMainServiceClient) ListSceneReferences(ctx context.Context, sceneID uuid.UUID) ([]*SceneReference, error) {
 	return nil, fmt.Errorf("not implemented")
+}
+
+// AddLocation adds a location to the mock
+func (m *MockMainServiceClient) AddLocation(location *Location) {
+	m.locations[location.ID] = location
+}
+
+// AddEvent adds an event to the mock
+func (m *MockMainServiceClient) AddEvent(event *Event) {
+	m.events[event.ID] = event
+}
+
+// AddArtifact adds an artifact to the mock
+func (m *MockMainServiceClient) AddArtifact(artifact *Artifact) {
+	m.artifacts[artifact.ID] = artifact
+}
+
+// AddRelation adds a relation to the mock
+func (m *MockMainServiceClient) AddRelation(relation *EntityRelation) {
+	m.relations[relation.ID] = relation
+}
+
+func (m *MockMainServiceClient) GetRelation(ctx context.Context, relationID uuid.UUID) (*EntityRelation, error) {
+	relation, ok := m.relations[relationID]
+	if !ok {
+		return nil, fmt.Errorf("relation not found: %s", relationID)
+	}
+	return relation, nil
 }

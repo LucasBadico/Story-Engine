@@ -69,6 +69,49 @@ func (q *ProcessingQueue) PopStableToProcessing(ctx context.Context, tenantID uu
 	return toStringSlice(result), nil
 }
 
+// PopStableToProcessingByPrefix moves stable items with a prefix to processing and returns members.
+func (q *ProcessingQueue) PopStableToProcessingByPrefix(ctx context.Context, tenantID uuid.UUID, stableAt time.Time, limit int, prefix string) ([]string, error) {
+	queueKey := q.queueKey(tenantID)
+	processingKey := q.processingKey(tenantID)
+	maxScore := float64(stableAt.Unix())
+	processingScore := float64(time.Now().Unix())
+
+	luaScript := `
+		local queue_key = KEYS[1]
+		local processing_key = KEYS[2]
+		local max_score = tonumber(ARGV[1])
+		local limit = tonumber(ARGV[2])
+		local processing_score = tonumber(ARGV[3])
+		local prefix = ARGV[4]
+
+		local items = redis.call('ZRANGEBYSCORE', queue_key, '0', max_score)
+		local results = {}
+		if #items > 0 then
+			for _, item in ipairs(items) do
+				if string.sub(item, 1, string.len(prefix)) == prefix then
+					redis.call('ZREM', queue_key, item)
+					redis.call('ZADD', processing_key, processing_score, item)
+					table.insert(results, item)
+					if #results >= limit then
+						break
+					end
+				end
+			end
+		end
+		return results
+	`
+
+	result, err := q.client.Eval(ctx, luaScript, []string{queueKey, processingKey}, maxScore, limit, processingScore, prefix).Result()
+	if err != nil {
+		if err == redis.Nil {
+			return []string{}, nil
+		}
+		return nil, err
+	}
+
+	return toStringSlice(result), nil
+}
+
 // Ack removes a member from the processing set.
 func (q *ProcessingQueue) Ack(ctx context.Context, tenantID uuid.UUID, member string) error {
 	return q.client.ZRem(ctx, q.processingKey(tenantID), member).Err()

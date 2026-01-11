@@ -153,6 +153,13 @@ func main() {
 		embedder,
 		log,
 	)
+	ingestRelationUseCase := ingest.NewIngestRelationUseCase(
+		grpcClient,
+		documentRepo,
+		chunkRepo,
+		embedder,
+		log,
+	)
 
 	var summaryGenerator *ingest.GenerateSummaryUseCase
 	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
@@ -183,6 +190,7 @@ func main() {
 		ingestArtifactUseCase.SetSummaryGenerator(summaryGenerator)
 		ingestFactionUseCase.SetSummaryGenerator(summaryGenerator)
 		ingestLoreUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestRelationUseCase.SetSummaryGenerator(summaryGenerator)
 	}
 	// searchMemoryUseCase is available for future use (e.g., API endpoints)
 	_ = search.NewSearchMemoryUseCase(
@@ -207,6 +215,7 @@ func main() {
 		ingestArtifactUseCase,
 		ingestFactionUseCase,
 		ingestLoreUseCase,
+		ingestRelationUseCase,
 		log,
 		cfg,
 	)
@@ -227,7 +236,8 @@ func main() {
 
 	// Start worker loop
 	log.Info("Starting worker",
-		"debounce_minutes", cfg.Worker.DebounceMinutes,
+		"story_debounce_seconds", cfg.Worker.StoryDebounceSeconds,
+		"world_debounce_seconds", cfg.Worker.WorldDebounceSeconds,
 		"poll_seconds", cfg.Worker.PollSeconds,
 		"embedding_provider", cfg.Embedding.Provider)
 

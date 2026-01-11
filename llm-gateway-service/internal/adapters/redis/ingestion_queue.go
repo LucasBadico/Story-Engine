@@ -41,6 +41,17 @@ func (q *IngestionQueue) PopStable(ctx context.Context, tenantID uuid.UUID, stab
 	return parseQueueItems(tenantID, members, stableAt), nil
 }
 
+// PopStableBySourceType returns items for a given source type not updated since stableAt and moves them to processing
+func (q *IngestionQueue) PopStableBySourceType(ctx context.Context, tenantID uuid.UUID, sourceType string, stableAt time.Time, limit int) ([]*queue.QueueItem, error) {
+	prefix := fmt.Sprintf("%s:", sourceType)
+	members, err := q.processingQueue.PopStableToProcessingByPrefix(ctx, tenantID, stableAt, limit, prefix)
+	if err != nil {
+		return nil, err
+	}
+
+	return parseQueueItems(tenantID, members, stableAt), nil
+}
+
 // Ack removes an item from processing after successful handling
 func (q *IngestionQueue) Ack(ctx context.Context, tenantID uuid.UUID, sourceType string, sourceID uuid.UUID) error {
 	member := fmt.Sprintf("%s:%s", sourceType, sourceID.String())

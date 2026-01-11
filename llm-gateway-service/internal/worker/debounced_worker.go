@@ -27,8 +27,10 @@ type DebouncedWorker struct {
 	ingestArtifact     *ingest.IngestArtifactUseCase
 	ingestFaction      *ingest.IngestFactionUseCase
 	ingestLore         *ingest.IngestLoreUseCase
+	ingestRelation     *ingest.IngestRelationUseCase
 	logger             *logger.Logger
-	debounceInterval   time.Duration
+	storyDebounce      time.Duration
+	worldDebounce      time.Duration
 	processingTimeout  time.Duration
 	pollInterval       time.Duration
 	batchSize          int
@@ -47,9 +49,19 @@ func NewDebouncedWorker(
 	ingestArtifact *ingest.IngestArtifactUseCase,
 	ingestFaction *ingest.IngestFactionUseCase,
 	ingestLore *ingest.IngestLoreUseCase,
+	ingestRelation *ingest.IngestRelationUseCase,
 	logger *logger.Logger,
 	cfg *config.Config,
 ) *DebouncedWorker {
+	storyDebounce := time.Duration(cfg.Worker.StoryDebounceSeconds) * time.Second
+	if storyDebounce <= 0 {
+		storyDebounce = time.Duration(cfg.Worker.DebounceMinutes) * time.Minute
+	}
+	worldDebounce := time.Duration(cfg.Worker.WorldDebounceSeconds) * time.Second
+	if worldDebounce <= 0 {
+		worldDebounce = 10 * time.Second
+	}
+
 	return &DebouncedWorker{
 		queue:              queue,
 		ingestStory:        ingestStory,
@@ -62,8 +74,10 @@ func NewDebouncedWorker(
 		ingestArtifact:     ingestArtifact,
 		ingestFaction:      ingestFaction,
 		ingestLore:         ingestLore,
+		ingestRelation:     ingestRelation,
 		logger:             logger,
-		debounceInterval:   time.Duration(cfg.Worker.DebounceMinutes) * time.Minute,
+		storyDebounce:      storyDebounce,
+		worldDebounce:      worldDebounce,
 		processingTimeout:  time.Duration(cfg.Worker.ProcessingTimeoutSeconds) * time.Second,
 		pollInterval:       time.Duration(cfg.Worker.PollSeconds) * time.Second,
 		batchSize:          cfg.Worker.BatchSize,
@@ -73,7 +87,8 @@ func NewDebouncedWorker(
 // Run starts the worker loop
 func (w *DebouncedWorker) Run(ctx context.Context) {
 	w.logger.Info("Starting debounced worker",
-		"debounce_interval", w.debounceInterval,
+		"story_debounce", w.storyDebounce,
+		"world_debounce", w.worldDebounce,
 		"processing_timeout", w.processingTimeout,
 		"poll_interval", w.pollInterval,
 		"batch_size", w.batchSize)
@@ -97,10 +112,11 @@ func (w *DebouncedWorker) Run(ctx context.Context) {
 
 // processStableItems finds and processes items that haven't been updated recently
 func (w *DebouncedWorker) processStableItems(ctx context.Context) {
-	stableAt := time.Now().Add(-w.debounceInterval)
+	storyStableAt := time.Now().Add(-w.storyDebounce)
+	worldStableAt := time.Now().Add(-w.worldDebounce)
 	expiredBefore := time.Now().Add(-w.processingTimeout)
 
-	w.logger.Debug("Processing stable items", "stable_at", stableAt)
+	w.logger.Debug("Processing stable items", "story_stable_at", storyStableAt, "world_stable_at", worldStableAt)
 
 	w.requeueExpiredProcessing(ctx, expiredBefore)
 
@@ -131,47 +147,92 @@ func (w *DebouncedWorker) processStableItems(ctx context.Context) {
 
 // processTenantQueue processes queue for a specific tenant
 func (w *DebouncedWorker) processTenantQueue(ctx context.Context, tenantID uuid.UUID) error {
-	stableAt := time.Now().Add(-w.debounceInterval)
-
-	items, err := w.queue.PopStable(ctx, tenantID, stableAt, w.batchSize)
-	if err != nil {
-		return fmt.Errorf("failed to pop stable items: %w", err)
+	if err := w.processTenantQueueByTypes(ctx, tenantID, storySourceTypes, w.storyDebounce); err != nil {
+		return err
 	}
-
-	if len(items) == 0 {
-		return nil
-	}
-
-	w.logger.Info("Processing stable items", "tenant_id", tenantID, "count", len(items))
-
-	for _, item := range items {
-		if err := w.processItem(ctx, item); err != nil {
-			w.logger.Error("Failed to process item",
-				"tenant_id", item.TenantID,
-				"source_type", item.SourceType,
-				"source_id", item.SourceID,
-				"error", err)
-			if releaseErr := w.queue.Release(ctx, item.TenantID, item.SourceType, item.SourceID); releaseErr != nil {
-				w.logger.Error("Failed to release item back to queue",
-					"tenant_id", item.TenantID,
-					"source_type", item.SourceType,
-					"source_id", item.SourceID,
-					"error", releaseErr)
-			}
-			// Continue processing other items
-			continue
-		}
-
-		if err := w.queue.Ack(ctx, item.TenantID, item.SourceType, item.SourceID); err != nil {
-			w.logger.Error("Failed to ack processed item",
-				"tenant_id", item.TenantID,
-				"source_type", item.SourceType,
-				"source_id", item.SourceID,
-				"error", err)
-		}
+	if err := w.processTenantQueueByTypes(ctx, tenantID, worldSourceTypes, w.worldDebounce); err != nil {
+		return err
 	}
 
 	return nil
+}
+
+func (w *DebouncedWorker) processTenantQueueByTypes(ctx context.Context, tenantID uuid.UUID, sourceTypes []memory.SourceType, debounce time.Duration) error {
+	if len(sourceTypes) == 0 {
+		return nil
+	}
+
+	stableAt := time.Now().Add(-debounce)
+	remaining := w.batchSize
+	processed := 0
+
+	for _, sourceType := range sourceTypes {
+		if remaining <= 0 {
+			break
+		}
+		items, err := w.queue.PopStableBySourceType(ctx, tenantID, string(sourceType), stableAt, remaining)
+		if err != nil {
+			return fmt.Errorf("failed to pop stable items for %s: %w", sourceType, err)
+		}
+		if len(items) == 0 {
+			continue
+		}
+
+		for _, item := range items {
+			if err := w.processItem(ctx, item); err != nil {
+				w.logger.Error("Failed to process item",
+					"tenant_id", item.TenantID,
+					"source_type", item.SourceType,
+					"source_id", item.SourceID,
+					"error", err)
+				if releaseErr := w.queue.Release(ctx, item.TenantID, item.SourceType, item.SourceID); releaseErr != nil {
+					w.logger.Error("Failed to release item back to queue",
+						"tenant_id", item.TenantID,
+						"source_type", item.SourceType,
+						"source_id", item.SourceID,
+						"error", releaseErr)
+				}
+				continue
+			}
+
+			if err := w.queue.Ack(ctx, item.TenantID, item.SourceType, item.SourceID); err != nil {
+				w.logger.Error("Failed to ack processed item",
+					"tenant_id", item.TenantID,
+					"source_type", item.SourceType,
+					"source_id", item.SourceID,
+					"error", err)
+			}
+		}
+
+		processed += len(items)
+		remaining -= len(items)
+	}
+
+	if processed > 0 {
+		w.logger.Info("Processed stable items", "tenant_id", tenantID, "count", processed, "debounce", debounce)
+	}
+
+	return nil
+}
+
+var storySourceTypes = []memory.SourceType{
+	memory.SourceTypeStory,
+	memory.SourceTypeChapter,
+	memory.SourceTypeScene,
+	memory.SourceTypeBeat,
+	memory.SourceTypeContentBlock,
+	memory.SourceTypeRelationCitation,
+}
+
+var worldSourceTypes = []memory.SourceType{
+	memory.SourceTypeWorld,
+	memory.SourceTypeCharacter,
+	memory.SourceTypeLocation,
+	memory.SourceTypeEvent,
+	memory.SourceTypeArtifact,
+	memory.SourceTypeFaction,
+	memory.SourceTypeLore,
+	memory.SourceTypeRelation,
 }
 
 func (w *DebouncedWorker) requeueExpiredProcessing(ctx context.Context, expiredBefore time.Time) {
@@ -301,6 +362,18 @@ func (w *DebouncedWorker) processItem(ctx context.Context, item *queue.QueueItem
 			return fmt.Errorf("failed to ingest lore: %w", err)
 		}
 		w.logger.Info("Successfully ingested lore", "lore_id", item.SourceID)
+
+	case memory.SourceTypeRelation:
+		fallthrough
+	case memory.SourceTypeRelationCitation:
+		_, err := w.ingestRelation.Execute(ctx, ingest.IngestRelationInput{
+			TenantID:   item.TenantID,
+			RelationID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest relation: %w", err)
+		}
+		w.logger.Info("Successfully ingested relation", "relation_id", item.SourceID)
 
 	default:
 		return fmt.Errorf("unsupported source type: %s", item.SourceType)

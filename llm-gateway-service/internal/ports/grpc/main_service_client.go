@@ -10,19 +10,19 @@ import (
 type MainServiceClient interface {
 	// GetStory retrieves a story by ID
 	GetStory(ctx context.Context, storyID uuid.UUID) (*Story, error)
-	
+
 	// GetChapter retrieves a chapter by ID
 	GetChapter(ctx context.Context, chapterID uuid.UUID) (*Chapter, error)
-	
+
 	// GetScene retrieves a scene by ID
 	GetScene(ctx context.Context, sceneID uuid.UUID) (*Scene, error)
-	
+
 	// GetBeat retrieves a beat by ID
 	GetBeat(ctx context.Context, beatID uuid.UUID) (*Beat, error)
-	
+
 	// GetContentBlock retrieves a content block by ID
 	GetContentBlock(ctx context.Context, contentBlockID uuid.UUID) (*ContentBlock, error)
-	
+
 	// ListContentBlocksByChapter lists content blocks for a chapter
 	ListContentBlocksByChapter(ctx context.Context, chapterID uuid.UUID) ([]*ContentBlock, error)
 
@@ -39,6 +39,7 @@ type MainServiceClient interface {
 	GetArtifact(ctx context.Context, artifactID uuid.UUID) (*Artifact, error)
 	GetFaction(ctx context.Context, factionID uuid.UUID) (*Faction, error)
 	GetLore(ctx context.Context, loreID uuid.UUID) (*Lore, error)
+	GetRelation(ctx context.Context, relationID uuid.UUID) (*EntityRelation, error)
 
 	// Character relations
 	GetCharacterTraits(ctx context.Context, characterID uuid.UUID) ([]*CharacterTrait, error)
@@ -104,9 +105,9 @@ type ContentBlock struct {
 	ID        uuid.UUID
 	ChapterID *uuid.UUID
 	OrderNum  *int
-	Type      string // text, image, video, audio, embed, link
-	Kind      string // final, alt_a, alt_b, cleaned, localized, draft, thumbnail
-	Content   string // text content or URL depending on type
+	Type      string                 // text, image, video, audio, embed, link
+	Kind      string                 // final, alt_a, alt_b, cleaned, localized, draft, thumbnail
+	Content   string                 // text content or URL depending on type
 	Metadata  map[string]interface{} // type-specific metadata
 	CreatedAt int64
 	UpdatedAt int64
@@ -114,11 +115,11 @@ type ContentBlock struct {
 
 // ContentAnchor represents a text anchor from a content block to an entity
 type ContentAnchor struct {
-	ID            uuid.UUID
+	ID             uuid.UUID
 	ContentBlockID uuid.UUID
-	EntityType    string // "scene", "beat", "chapter", "character", "location", "artifact", "event", "world", etc.
-	EntityID      uuid.UUID
-	CreatedAt     int64
+	EntityType     string // "scene", "beat", "chapter", "character", "location", "artifact", "event", "world", etc.
+	EntityID       uuid.UUID
+	CreatedAt      int64
 }
 
 // World represents a world from main-service
@@ -135,13 +136,13 @@ type World struct {
 
 // Character represents a character from main-service
 type Character struct {
-	ID            uuid.UUID
-	WorldID       uuid.UUID
-	ArchetypeID   *uuid.UUID
-	Name          string
-	Description   string
-	CreatedAt     int64
-	UpdatedAt     int64
+	ID          uuid.UUID
+	WorldID     uuid.UUID
+	ArchetypeID *uuid.UUID
+	Name        string
+	Description string
+	CreatedAt   int64
+	UpdatedAt   int64
 }
 
 // CharacterTrait represents a character trait
@@ -259,4 +260,23 @@ type Lore struct {
 	HierarchyLevel int
 	CreatedAt      int64
 	UpdatedAt      int64
+}
+
+// EntityRelation represents a relation between two entities
+type EntityRelation struct {
+	ID           uuid.UUID
+	TenantID     uuid.UUID
+	WorldID      uuid.UUID
+	SourceType   string
+	SourceID     uuid.UUID
+	TargetType   string
+	TargetID     uuid.UUID
+	RelationType string
+	ContextType  *string
+	ContextID    *string
+	Attributes   string
+	Summary      string
+	MirrorID     *uuid.UUID
+	CreatedAt    int64
+	UpdatedAt    int64
 }

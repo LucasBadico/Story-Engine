@@ -32,6 +32,8 @@ type Config struct {
 	}
 	Worker struct {
 		DebounceMinutes          int
+		StoryDebounceSeconds     int
+		WorldDebounceSeconds     int
 		PollSeconds              int
 		BatchSize                int
 		ProcessingTimeoutSeconds int
@@ -79,6 +81,8 @@ func Load() *Config {
 
 	// Worker
 	cfg.Worker.DebounceMinutes = getEnvInt("WORKER_DEBOUNCE_MINUTES", 5)
+	cfg.Worker.StoryDebounceSeconds = getEnvInt("WORKER_STORY_DEBOUNCE_SECONDS", cfg.Worker.DebounceMinutes*60)
+	cfg.Worker.WorldDebounceSeconds = getEnvInt("WORKER_WORLD_DEBOUNCE_SECONDS", 10)
 	cfg.Worker.PollSeconds = getEnvInt("WORKER_POLL_SECONDS", 60)
 	cfg.Worker.BatchSize = getEnvInt("WORKER_BATCH_SIZE", 10)
 	cfg.Worker.ProcessingTimeoutSeconds = getEnvInt("WORKER_PROCESSING_TIMEOUT_SECONDS", 600)

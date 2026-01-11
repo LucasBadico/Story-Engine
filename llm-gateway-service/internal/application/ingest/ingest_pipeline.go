@@ -21,6 +21,9 @@ type IngestPipelineContext struct {
 	EntityName       string
 	Contents         []string
 	Context          string
+	SourceData       string
+	TargetData       string
+	RelationData     string
 	Chunks           []*memory.Chunk
 	TemplateChunk    *memory.Chunk
 	NextChunkIndex   int
@@ -65,6 +68,22 @@ func runIngestPipeline(
 	contents []string,
 	chunks []*memory.Chunk,
 ) ([]*memory.Chunk, error) {
+	return runIngestPipelineWithDetails(ctx, log, embedder, summaryGenerator, entityType, entityName, contents, "", "", "", chunks)
+}
+
+func runIngestPipelineWithDetails(
+	ctx context.Context,
+	log *logger.Logger,
+	embedder embeddings.Embedder,
+	summaryGenerator SummaryGenerator,
+	entityType string,
+	entityName string,
+	contents []string,
+	sourceData string,
+	targetData string,
+	relationData string,
+	chunks []*memory.Chunk,
+) ([]*memory.Chunk, error) {
 	if log == nil || embedder == nil {
 		return chunks, nil
 	}
@@ -81,6 +100,9 @@ func runIngestPipeline(
 		EntityName:       entityName,
 		Contents:         contents,
 		Context:          "",
+		SourceData:       sourceData,
+		TargetData:       targetData,
+		RelationData:     relationData,
 		Chunks:           chunks,
 		TemplateChunk:    templateChunk,
 		NextChunkIndex:   len(chunks),
@@ -122,11 +144,14 @@ func (s SummaryIngestStep) Execute(ctx context.Context, input *IngestPipelineCon
 	}
 
 	output, err := input.SummaryGenerator.Execute(ctx, GenerateSummaryInput{
-		EntityType: input.EntityType,
-		Name:       input.EntityName,
-		Contents:   input.Contents,
-		Context:    input.Context,
-		MaxItems:   maxItems,
+		EntityType:   input.EntityType,
+		Name:         input.EntityName,
+		Contents:     input.Contents,
+		Context:      input.Context,
+		SourceData:   input.SourceData,
+		TargetData:   input.TargetData,
+		RelationData: input.RelationData,
+		MaxItems:     maxItems,
 	})
 	if err != nil {
 		return err
