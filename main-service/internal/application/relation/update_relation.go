@@ -84,7 +84,7 @@ func (uc *UpdateRelationUseCase) Execute(ctx context.Context, input UpdateRelati
 	uc.logger.Info("relation updated", "relation_id", rel.ID)
 
 	// Enqueue embedding ingestion
-	uc.enqueueIngestion(ctx, rel.TenantID, rel.ID)
+	uc.enqueueIngestion(ctx, rel)
 
 	return &UpdateRelationOutput{
 		Relation: rel,
@@ -92,11 +92,15 @@ func (uc *UpdateRelationUseCase) Execute(ctx context.Context, input UpdateRelati
 }
 
 // enqueueIngestion enqueues a relation for embedding ingestion
-func (uc *UpdateRelationUseCase) enqueueIngestion(ctx context.Context, tenantID, relationID uuid.UUID) {
+func (uc *UpdateRelationUseCase) enqueueIngestion(ctx context.Context, rel *relation.EntityRelation) {
 	if uc.ingestionQueue == nil {
 		return
 	}
-	if err := uc.ingestionQueue.Push(ctx, tenantID, "relation", relationID); err != nil {
-		uc.logger.Error("failed to enqueue relation ingestion", "error", err, "relation_id", relationID, "tenant_id", tenantID)
+	if rel == nil {
+		return
+	}
+	sourceType := relationIngestionSourceType(rel)
+	if err := uc.ingestionQueue.Push(ctx, rel.TenantID, sourceType, rel.ID); err != nil {
+		uc.logger.Error("failed to enqueue relation ingestion", "error", err, "relation_id", rel.ID, "tenant_id", rel.TenantID)
 	}
 }

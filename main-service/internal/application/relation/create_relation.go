@@ -153,17 +153,21 @@ func (uc *CreateRelationUseCase) Execute(ctx context.Context, input CreateRelati
 	uc.logger.Info("relation created", "relation_id", rel.ID, "source_id", rel.SourceID, "target_id", rel.TargetID)
 
 	// Enqueue embedding ingestion (all relations created via API are confirmed)
-	uc.enqueueIngestion(ctx, rel.TenantID, rel.ID)
+	uc.enqueueIngestion(ctx, rel)
 
 	return output, nil
 }
 
 // enqueueIngestion enqueues a relation for embedding ingestion
-func (uc *CreateRelationUseCase) enqueueIngestion(ctx context.Context, tenantID, relationID uuid.UUID) {
+func (uc *CreateRelationUseCase) enqueueIngestion(ctx context.Context, rel *relation.EntityRelation) {
 	if uc.ingestionQueue == nil {
 		return
 	}
-	if err := uc.ingestionQueue.Push(ctx, tenantID, "relation", relationID); err != nil {
-		uc.logger.Error("failed to enqueue relation ingestion", "error", err, "relation_id", relationID, "tenant_id", tenantID)
+	if rel == nil {
+		return
+	}
+	sourceType := relationIngestionSourceType(rel)
+	if err := uc.ingestionQueue.Push(ctx, rel.TenantID, sourceType, rel.ID); err != nil {
+		uc.logger.Error("failed to enqueue relation ingestion", "error", err, "relation_id", rel.ID, "tenant_id", rel.TenantID)
 	}
 }
