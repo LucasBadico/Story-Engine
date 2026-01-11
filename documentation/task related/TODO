@@ -2,9 +2,21 @@
 - [ ] upload image endpoint
 - [ ] revisar tennat id: Atualizar Membership e AuditLog (requer mudança de interface)
 
+# Relacoes no extract (LLM Gateway + Main Service)
+- [ ] definir mapa oficial de relation types + mirrors no main-service (baseado no entity_relation.go)
+- [ ] expor ou documentar mapa oficial para consumo do gateway
+- [ ] adicionar phase4 relation_discovery no llm-gateway-service (prompt + usecase + eventos)
+- [ ] adicionar phase5 relation_normalize no llm-gateway-service (normalizacao via mapa + fallback LLM)
+- [ ] atualizar payload de retorno da API para incluir relations (entities + relations)
+- [ ] ajustar SSE para result_entities/result_relations e confirmar ordem de entrega
+- [ ] alinhar persistencia no main-service usando create_mirror quando aplicavel
+- [ ] documentar contrato de relations (payload, eventos, relation_type)
+
 # Easy wins
 - [ ] LLM Gateway - sanitizar parâmetros sensíveis do entity extract (chunk size, overlap, thresholds) com limites via env
 - [ ] LLM Gateway - handle deletes from main-service (remove embeddings/docs on entity delete)
+- [ ] LLM Gateway - adicionar testes de integracao para phases 3+ (phase3 match, phase4 entities, phase5 relations, phase6 normalize, phase7 match)
+- [ ] LLM Gateway - revisar metadata extra em embedding_documents (quais campos incluir por entidade)
 - [ ] LLM Gateway - provider Gemini (embeddings)
   - [ ] definir escopo: embeddings only (sem geração de texto) e modelo alvo
   - [ ] adicionar config/envs (provider, base url, api key, model)

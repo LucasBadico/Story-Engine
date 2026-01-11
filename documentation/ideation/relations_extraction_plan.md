@@ -79,14 +79,14 @@ Selecao sugerida:
 - `text`: modo full_text ou spans.
 - `entity_findings`: refs estaveis (finding:<type>:<index>), nome, resumo, mentions[].
 - `confirmed_matches`: mapeia finding_ref -> match canonical.
-- `allowed_relations_by_source_type`: mapas por tipo (pair_candidates, descricao, sinais).
+- `suggested_relations_by_source_type`: mapas por tipo (pair_candidates, descricao, sinais).
 - `relation_type_semantics` (opcional): definicoes globais para grounding.
 
 ### Regras de validacao (gateway)
 - full_text => text.text obrigatorio.
 - spans => spans nao vazio, global_summary 3-8 bullets.
 - mentions devem existir nos spans.
-- relation_type precisa estar nos mapas permitidos (ou custom:*).
+- relation_type deve preferir os mapas sugeridos (ou custom:* quando necessario).
 
 ### Phase5Input (Go + JSON)
 Estrutura detalhada (derivada do v2):
@@ -97,7 +97,7 @@ type Phase5Input struct {
   Text Phase5TextSpec `json:"text"`
   EntityFindings []EntityFinding `json:"entity_findings"`
   ConfirmedMatches []ConfirmedMatch `json:"confirmed_matches,omitempty"`
-  AllowedRelationsBySourceType map[string]PerEntityRelationMap `json:"allowed_relations_by_source_type"`
+  SuggestedRelationsBySourceType map[string]PerEntityRelationMap `json:"suggested_relations_by_source_type"`
   RelationTypeSemantics map[string]string `json:"relation_type_semantics,omitempty"`
 }
 
@@ -175,7 +175,7 @@ type RelationConstraints struct {
     { "ref": "finding:character:0", "type": "character", "name": "Ari", "summary": "Young mage apprentice" }
   ],
   "confirmed_matches": [],
-  "allowed_relations_by_source_type": {
+"suggested_relations_by_source_type": {
     "character": {
       "entity_type": "character",
       "version": 1,
@@ -214,7 +214,7 @@ type RelationConstraints struct {
   "confirmed_matches": [
     { "finding_ref": "finding:faction:1", "match": { "ref": "match:faction:uuid-abc", "type": "faction", "id": "uuid-abc", "canonical_name": "Order of the Sun", "similarity": 0.91 } }
   ],
-  "allowed_relations_by_source_type": {
+"suggested_relations_by_source_type": {
     "character": {
       "entity_type": "character",
       "version": 1,
@@ -278,7 +278,7 @@ type RelationConstraints struct {
 - **Objetivo:** extrair relacoes entre entidades encontradas e entidades existentes inferidas.
 - **Inputs no prompt:** texto, contexto, lista de entidades encontradas, lista de matches confirmados.
 - **Saida esperada:** JSON com relacoes candidatas contendo source/target, relation_type, evidence, confidence.
-- **Regras chave:** usar apenas relation_type permitido; evidencias obrigatorias; preferir explicitas; implicitas apenas quando forte.
+- **Regras chave:** usar relation_type sugerido; evidencias obrigatorias; preferir explicitas; implicitas apenas quando forte; usar custom:* quando necessario.
 
 #### Prompt (canonical)
 You are Phase5: RELATION_DISCOVERY.
@@ -291,9 +291,13 @@ Hard rules:
 - Output MUST be valid JSON and match the provided schema.
 - Each relation MUST include evidence with a span_id and a short quote.
 - Prefer explicit relations; implicit relations are allowed only when strongly implied.
-- Only propose relation_type values allowed by the provided per-entity relation maps.
+- Only propose relation_type values suggested by the provided per-entity relation maps.
 - Enforce pair_candidates: if a relation type does not allow the target entity type, do not output it.
 - If support is weak or ambiguous, either omit the relation or set polarity="uncertain" with low confidence.
+
+Notes:
+- Use suggested_relations_by_source_type as the source of truth for preferred relation_type values.
+- If strongly supported but not in suggestions, use custom:<type>.
 
 Output schema:
 {
@@ -313,7 +317,7 @@ Output schema:
 #### Regras de execucao (gateway)
 1) Selecionar modo de input (full_text ou spans).
 2) Construir spans (se Modo B) com span_id estavel.
-3) Montar payload com entity_findings, confirmed_matches, allowed_relations_by_source_type.
+3) Montar payload com entity_findings, confirmed_matches, suggested_relations_by_source_type.
 4) Executar LLM em JSON-mode (se suportado) com limites conservadores.
 5) Validar JSON, relation_type, pair_candidates e evidence.
 6) Deduplicar por (source_ref, target_ref, relation_type, context_id).
