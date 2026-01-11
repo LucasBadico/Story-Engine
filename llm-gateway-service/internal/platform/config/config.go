@@ -17,6 +17,7 @@ type Config struct {
 	}
 	MainService struct {
 		GRPCAddr string
+		HTTPAddr string
 	}
 	Embedding struct {
 		Provider  string
@@ -57,6 +58,7 @@ func Load() *Config {
 
 	// Main Service
 	cfg.MainService.GRPCAddr = getEnv("MAIN_SERVICE_GRPC_ADDR", "localhost:50051")
+	cfg.MainService.HTTPAddr = getEnv("MAIN_SERVICE_HTTP_ADDR", "http://localhost:8080")
 
 	// Embedding
 	cfg.Embedding.Provider = getEnv("EMBEDDING_PROVIDER", "ollama")

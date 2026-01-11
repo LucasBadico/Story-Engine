@@ -53,8 +53,8 @@ func TestEntityExtractHandler_Integration(t *testing.T) {
 	extractor := entity_extraction.NewPhase2EntryUseCase(model, log, nil)
 	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, docRepo, embedder, model, log)
 	payload := entity_extraction.NewPhase4EntitiesPayloadUseCase()
-	useCase := entity_extraction.NewEntityAndRelationshipsExtractor(router, extractor, matcher, payload, log)
-	handler := NewEntityExtractHandler(useCase, log)
+	useCase := entity_extraction.NewEntityAndRelationshipsExtractor(router, extractor, matcher, payload, nil, nil, nil, log)
+	handler := NewEntityExtractHandler(useCase, nil, nil, log)
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()

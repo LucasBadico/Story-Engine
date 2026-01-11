@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
 	"github.com/story-engine/llm-gateway-service/internal/adapters/db/postgres"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/ollama"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/openai"
+	httpadapter "github.com/story-engine/llm-gateway-service/internal/adapters/http"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
 	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
@@ -63,6 +65,8 @@ func main() {
 
 	searchHandler := httpapi.NewSearchHandler(searchUseCase, log)
 
+	relationTypes, suggestedRelations := loadRelationMaps(log, cfg.MainService.HTTPAddr)
+
 	executorConfig := executor.ConfigFromEnv(cfg.LLM.Provider)
 	providers := make([]executor.Provider, 0, len(executorConfig.Providers))
 	for _, providerCfg := range executorConfig.Providers {
@@ -98,14 +102,21 @@ func main() {
 	extractor := entity_extraction.NewPhase2EntryUseCase(routerModel, log, nil)
 	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, documentRepo, embedder, routerModel, log)
 	payload := entity_extraction.NewPhase4EntitiesPayloadUseCase()
+	relationDiscovery := entity_extraction.NewPhase5RelationDiscoveryUseCase(routerModel, log)
+	relationNormalize := entity_extraction.NewPhase6RelationNormalizeUseCase(log)
+	relationNormalize.SetSummaryModel(routerModel)
+	relationMatcher := entity_extraction.NewPhase7RelationMatchUseCase(searchUseCase, log)
 	entityExtractUseCase := entity_extraction.NewEntityAndRelationshipsExtractor(
 		router,
 		extractor,
 		matcher,
 		payload,
+		relationDiscovery,
+		relationNormalize,
+		relationMatcher,
 		log,
 	)
-	entityExtractHandler := httpapi.NewEntityExtractHandler(entityExtractUseCase, log)
+	entityExtractHandler := httpapi.NewEntityExtractHandler(entityExtractUseCase, relationTypes, suggestedRelations, log)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", httpapi.Health)
@@ -143,4 +154,39 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		log.Error("HTTP server shutdown failed", "error", err)
 	}
+}
+
+func loadRelationMaps(log *logger.Logger, baseURL string) (map[string]entity_extraction.Phase6RelationTypeDefinition, map[string]entity_extraction.Phase5PerEntityRelationMap) {
+	types := map[string]entity_extraction.Phase6RelationTypeDefinition{}
+	suggested := map[string]entity_extraction.Phase5PerEntityRelationMap{}
+
+	if strings.TrimSpace(baseURL) == "" {
+		log.Warn("main-service HTTP address missing; relation maps disabled")
+		return types, suggested
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	loadedTypes, err := httpadapter.FetchRelationTypes(ctx, baseURL)
+	if err != nil {
+		log.Warn("failed to fetch relation types", "error", err)
+	} else {
+		types = loadedTypes
+	}
+
+	entityTypes := []string{"character", "faction", "location", "event"}
+	for _, entityType := range entityTypes {
+		relMap, err := httpadapter.FetchRelationMap(ctx, baseURL, entityType)
+		if err != nil {
+			log.Warn("failed to fetch relation map", "entity_type", entityType, "error", err)
+			continue
+		}
+		if relMap != nil {
+			suggested[entityType] = *relMap
+		}
+	}
+
+	log.Info("relation maps loaded", "types", len(types), "suggested", len(suggested))
+	return types, suggested
 }

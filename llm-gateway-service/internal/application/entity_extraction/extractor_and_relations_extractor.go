@@ -10,11 +10,14 @@ import (
 )
 
 type EntityAndRelationshipsExtractor struct {
-	router    *Phase1EntityTypeRouterUseCase
-	extractor *Phase2EntryUseCase
-	matcher   *Phase3MatchUseCase
-	payload   *Phase4EntitiesPayloadUseCase
-	logger    *logger.Logger
+	router            *Phase1EntityTypeRouterUseCase
+	extractor         *Phase2EntryUseCase
+	matcher           *Phase3MatchUseCase
+	payload           *Phase4EntitiesPayloadUseCase
+	relationDiscovery *Phase5RelationDiscoveryUseCase
+	relationNormalize *Phase6RelationNormalizeUseCase
+	relationMatcher   *Phase7RelationMatchUseCase
+	logger            *logger.Logger
 }
 
 func NewEntityAndRelationshipsExtractor(
@@ -22,20 +25,27 @@ func NewEntityAndRelationshipsExtractor(
 	extractor *Phase2EntryUseCase,
 	matcher *Phase3MatchUseCase,
 	payload *Phase4EntitiesPayloadUseCase,
+	relationDiscovery *Phase5RelationDiscoveryUseCase,
+	relationNormalize *Phase6RelationNormalizeUseCase,
+	relationMatcher *Phase7RelationMatchUseCase,
 	logger *logger.Logger,
 ) *EntityAndRelationshipsExtractor {
 	return &EntityAndRelationshipsExtractor{
-		router:    router,
-		extractor: extractor,
-		matcher:   matcher,
-		payload:   payload,
-		logger:    logger,
+		router:            router,
+		extractor:         extractor,
+		matcher:           matcher,
+		payload:           payload,
+		relationDiscovery: relationDiscovery,
+		relationNormalize: relationNormalize,
+		relationMatcher:   relationMatcher,
+		logger:            logger,
 	}
 }
 
 type EntityAndRelationshipsExtractorInput struct {
 	TenantID              uuid.UUID
 	WorldID               uuid.UUID
+	RequestID             string
 	Text                  string
 	Context               string
 	EntityTypes           []string
@@ -45,6 +55,11 @@ type EntityAndRelationshipsExtractorInput struct {
 	MaxCandidatesPerChunk int
 	MinSimilarity         float64
 	MaxMatchCandidates    int
+	MaxRelationMatches    int
+	RelationMatchMinSim   float64
+	SuggestedRelations    map[string]Phase5PerEntityRelationMap
+	RelationTypes         map[string]Phase6RelationTypeDefinition
+	RelationTypeSemantics map[string]string
 	EventLogger           ExtractionEventLogger
 }
 
@@ -139,7 +154,7 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 				"entities": 0,
 			},
 		})
-		return EntityAndRelationshipsExtractorOutput{Payload: Phase4EntitiesPayload{Entities: []Phase4Entity{}}}, nil
+		return EntityAndRelationshipsExtractorOutput{Payload: Phase4EntitiesPayload{Entities: []Phase4Entity{}, Relations: []Phase8RelationResult{}}}, nil
 	}
 
 	emitEvent(ctx, eventLogger, ExtractionEvent{
@@ -197,14 +212,31 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 		},
 	})
 
+	relations := []Phase8RelationResult{}
+	if u.relationDiscovery != nil && u.relationNormalize != nil && u.relationMatcher != nil &&
+		len(input.SuggestedRelations) > 0 && len(input.RelationTypes) > 0 {
+		relations, err = u.extractRelations(ctx, input, phase2Output, phase3Output)
+		if err != nil {
+			u.logger.Error("relation extraction failed", "error", err)
+		}
+	}
+
 	emitEvent(ctx, eventLogger, ExtractionEvent{
 		Type:    "phase.start",
 		Phase:   "payload",
 		Message: "payload formatting started",
 	})
 	return EntityAndRelationshipsExtractorOutput{
-		Payload: u.payload.Execute(phase3Output),
+		Payload: mergeRelationsPayload(u.payload.Execute(phase3Output), relations),
 	}, nil
+}
+
+func mergeRelationsPayload(payload Phase4EntitiesPayload, relations []Phase8RelationResult) Phase4EntitiesPayload {
+	if len(relations) == 0 {
+		return payload
+	}
+	payload.Relations = relations
+	return payload
 }
 
 func uuidString(id uuid.UUID) string {

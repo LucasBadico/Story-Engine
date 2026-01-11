@@ -9,8 +9,8 @@ func NewPhase4EntitiesPayloadUseCase() *Phase4EntitiesPayloadUseCase {
 }
 
 type Phase4EntitiesPayload struct {
-	Entities  []Phase4Entity   `json:"entities"`
-	Relations []Phase4Relation `json:"relations,omitempty"`
+	Entities  []Phase4Entity         `json:"entities"`
+	Relations []Phase8RelationResult `json:"relations,omitempty"`
 }
 
 type Phase4Entity struct {
@@ -29,10 +29,6 @@ type Phase4Match struct {
 	Similarity float64           `json:"similarity"`
 	Reason     string            `json:"reason,omitempty"`
 	Metadata   map[string]string `json:"metadata,omitempty"`
-}
-
-type Phase4Relation struct {
-	// Placeholder for Phase5+ output.
 }
 
 func (u *Phase4EntitiesPayloadUseCase) Execute(input Phase3MatchOutput) Phase4EntitiesPayload {
@@ -73,5 +69,5 @@ func (u *Phase4EntitiesPayloadUseCase) Execute(input Phase3MatchOutput) Phase4En
 		entities = append(entities, entity)
 	}
 
-	return Phase4EntitiesPayload{Entities: entities, Relations: []Phase4Relation{}}
+	return Phase4EntitiesPayload{Entities: entities, Relations: []Phase8RelationResult{}}
 }
