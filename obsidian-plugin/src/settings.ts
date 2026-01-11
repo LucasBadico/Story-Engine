@@ -58,6 +58,22 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
+		new Setting(containerEl)
+			.setName("Sync Version")
+			.setDesc(
+				"Toggle between the legacy sync engine (v1) and the new modular pipeline (v2 - experimental)"
+			)
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("v1", "Legacy (v1)")
+					.addOption("v2", "Modular (v2, experimental)")
+					.setValue(this.plugin.settings.syncVersion || "v1")
+					.onChange(async (value) => {
+						this.plugin.settings.syncVersion = value as "v1" | "v2";
+						await this.plugin.saveSettings();
+					})
+			);
+
 		// API URL
 		new Setting(containerEl)
 			.setName("API URL")

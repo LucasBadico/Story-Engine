@@ -15,8 +15,9 @@ import { parseHierarchicalProse, parseChapterProse, compareContentBlocks, Parsed
 import { ConflictModal, ConflictResolutionResult } from "../views/modals/ConflictModal";
 import { SyncEntityPayload, SyncEntityTarget } from "./entitySyncTypes";
 import { apiUpdateNotifier } from "./apiUpdateNotifier";
+import type { SyncEngine } from "./engine";
 
-export class SyncService {
+export class SyncService implements SyncEngine {
 	private unsubscribeFromNotifier?: () => void;
 
 	constructor(

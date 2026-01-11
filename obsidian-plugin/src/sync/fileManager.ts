@@ -25,6 +25,10 @@ export class FileManager {
 		return `${this.baseFolder}/${sanitized}`;
 	}
 
+	getWorldsRootPath(): string {
+		return `${this.baseFolder}/worlds`;
+	}
+
 	// Sanitize folder/file names
 	private sanitizeFolderName(name: string): string {
 		return name
@@ -38,8 +42,21 @@ export class FileManager {
 		baseFields: Record<string, string | number | null>,
 		extraFields?: Record<string, string | number | null>,
 		options?: {
-			entityType: "story" | "chapter" | "scene" | "beat" | "content-block";
+			entityType:
+				| "story"
+				| "chapter"
+				| "scene"
+				| "beat"
+				| "content-block"
+				| "world"
+				| "character"
+				| "location"
+				| "faction"
+				| "artifact"
+				| "event"
+				| "lore";
 			storyName?: string;
+			worldName?: string;
 			date?: string; // ISO date string (YYYY-MM-DD) or Date object
 		}
 	): string {
@@ -62,6 +79,12 @@ export class FileManager {
 					.toLowerCase()
 					.replace(/\s+/g, "-");
 				tags.push(`story/${sanitizedStoryName}`);
+			}
+			if (options.worldName) {
+				const sanitizedWorldName = this.sanitizeFolderName(options.worldName)
+					.toLowerCase()
+					.replace(/\s+/g, "-");
+				tags.push(`world/${sanitizedWorldName}`);
 			}
 
 			// Date tag in format YYYY/MM/DD
@@ -109,12 +132,92 @@ export class FileManager {
 		return lines.join("\n");
 	}
 
+	getWorldFolderPath(worldName: string): string {
+		const sanitized = this.sanitizeFolderName(worldName);
+		return `${this.baseFolder}/worlds/${sanitized}`;
+	}
+
+	async writeWorldMetadata(world: import("../types").World, folderPath: string): Promise<void> {
+		await this.ensureFolderExists(folderPath);
+		const frontmatter = this.generateFrontmatter(
+			{
+				id: world.id,
+				genre: world.genre,
+				rpg_system_id: world.rpg_system_id ?? null,
+				time_config: world.time_config ? JSON.stringify(world.time_config) : null,
+				created_at: world.created_at,
+				updated_at: world.updated_at,
+			},
+			undefined,
+			{
+				entityType: "world",
+				worldName: world.name,
+				date: world.created_at,
+			}
+		);
+
+		const content = [
+			frontmatter,
+			`# ${world.name}`,
+			"",
+			world.description || "_No description yet._",
+			"",
+			world.is_implicit ? "> This world is implicit (auto-created)." : "",
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		await this.writeFile(`${folderPath}/world.md`, content.trim() + "\n");
+	}
+
 	// Ensure folder exists
 	async ensureFolderExists(path: string): Promise<void> {
 		const folder = this.vault.getAbstractFileByPath(path);
 		if (!folder) {
 			await this.vault.createFolder(path);
 		}
+	}
+
+	async writeFile(filePath: string, content: string): Promise<void> {
+		const folderPath = filePath.split("/").slice(0, -1).join("/");
+		if (folderPath) {
+			await this.ensureFolderExists(folderPath);
+		}
+		const existing = this.vault.getAbstractFileByPath(filePath);
+		if (existing instanceof TFile) {
+			await this.vault.modify(existing, content);
+		} else {
+			await this.vault.create(filePath, content);
+		}
+	}
+
+	async readFile(filePath: string): Promise<string> {
+		const file = this.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			throw new Error(`File not found: ${filePath}`);
+		}
+		return this.vault.read(file);
+	}
+
+	async renameFile(oldPath: string, newPath: string): Promise<void> {
+		const file = this.vault.getAbstractFileByPath(oldPath);
+		if (!(file instanceof TFile)) {
+			throw new Error(`File not found: ${oldPath}`);
+		}
+		const folderPath = newPath.split("/").slice(0, -1).join("/");
+		if (folderPath) {
+			await this.ensureFolderExists(folderPath);
+		}
+		await this.vault.rename(file, newPath);
+	}
+
+	fileExists(path: string): boolean {
+		const file = this.vault.getAbstractFileByPath(path);
+		return !!file;
+	}
+
+	async createSnapshot(_label: string): Promise<void> {
+		// TODO: implement snapshot storage (Phase 11)
 	}
 
 	// Write story metadata (story.md)
@@ -572,7 +675,7 @@ export class FileManager {
 	}
 
 	// Read story metadata
-	async readStoryMetadata(folderPath: string): Promise<StoryMetadata> {
+	async readStoryMetadata(folderPath: string, idField?: string): Promise<StoryMetadata> {
 		const filePath = `${folderPath}/story.md`;
 		const file = this.vault.getAbstractFileByPath(filePath);
 
@@ -583,9 +686,13 @@ export class FileManager {
 		const content = await this.vault.read(file);
 		const frontmatter = this.parseFrontmatter(content);
 
+		// Use configured ID field name to read story ID, fallback to "id"
+		const effectiveIdField = idField || "id";
+		const storyId = frontmatter[effectiveIdField] || frontmatter.id || "";
+
 		return {
 			frontmatter: {
-				id: frontmatter.id,
+				id: storyId,
 				title: frontmatter.title,
 				status: frontmatter.status,
 				version: parseInt(frontmatter.version),
