@@ -15548,6 +15548,12 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     this.expandedRelationIndex = null;
     this.pendingRelationScrollIndex = null;
     this.pendingTabScroll = false;
+    this.entitySearch = "";
+    this.entityFilterType = "all";
+    this.entitySort = "name";
+    this.relationSearch = "";
+    this.relationFilterType = "all";
+    this.relationSort = "type";
     this.plugin = plugin;
     this.logs = plugin.extractLogs;
     this.status = plugin.extractStatus;
@@ -15586,27 +15592,6 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
       cls: "story-engine-extract-header"
     });
     header.createEl("h2", { text: "Extract" });
-    const headerMeta = header.createDiv({
-      cls: "story-engine-extract-meta"
-    });
-    headerMeta.createEl("div", {
-      text: `Status: ${this.status}`
-    });
-    if (this.result) {
-      const foundCount = this.result.entities.filter((entity) => entity.found).length;
-      headerMeta.createEl("div", {
-        text: `Entities: ${this.result.entities.length}`
-      });
-      headerMeta.createEl("div", {
-        text: `Relations: ${this.result.relations.length}`
-      });
-      headerMeta.createEl("div", {
-        text: `Found: ${foundCount}`
-      });
-      headerMeta.createEl("div", {
-        text: `Text length: ${this.result.text.length}`
-      });
-    }
     const headerActions = header.createDiv({
       cls: "story-engine-extract-header-actions"
     });
@@ -15645,6 +15630,27 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
       text: this.result.text,
       cls: "story-engine-extract-query-text"
     });
+    const headerMeta = this.contentRoot.createDiv({
+      cls: "story-engine-extract-meta"
+    });
+    headerMeta.createEl("div", {
+      text: `Status: ${this.status}`
+    });
+    if (this.result) {
+      const foundCount = this.result.entities.filter((entity) => entity.found).length;
+      headerMeta.createEl("div", {
+        text: `Entities: ${this.result.entities.length}`
+      });
+      headerMeta.createEl("div", {
+        text: `Relations: ${this.result.relations.length}`
+      });
+      headerMeta.createEl("div", {
+        text: `Found: ${foundCount}`
+      });
+      headerMeta.createEl("div", {
+        text: `Text length: ${this.result.text.length}`
+      });
+    }
     const tabs = this.contentRoot.createDiv({
       cls: "story-engine-extract-tabs"
     });
@@ -15712,10 +15718,12 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     };
     this.renderLogs(progressPanel);
     if (hasEntities) {
+      this.renderEntityControls(entitiesPanel);
       const list = entitiesPanel.createDiv({
         cls: "story-engine-extract-list"
       });
-      this.result.entities.forEach((entity, index) => {
+      const filteredEntities = this.filterAndSortEntities(this.result.entities);
+      filteredEntities.forEach((entity, index) => {
         this.renderEntity(list, entity, index);
       });
     } else {
@@ -15726,10 +15734,12 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
       });
     }
     if (hasRelations) {
+      this.renderRelationControls(relationsPanel);
       const list = relationsPanel.createDiv({
         cls: "story-engine-extract-list"
       });
-      this.result.relations.forEach((relation, index) => {
+      const filteredRelations = this.filterAndSortRelations(this.result.relations);
+      filteredRelations.forEach((relation, index) => {
         this.renderRelation(list, relation, index);
       });
     } else {
@@ -16011,6 +16021,12 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     });
     const statusText = relation.status === "pending_entities" ? "Pending" : relation.status;
     const statusClass = relation.status === "pending_entities" ? "is-new" : "is-found";
+    const typeLabel = `${relation.source.type} -> ${relation.target.type}`;
+    const typeLine = header.createEl("div", {
+      text: typeLabel,
+      cls: "story-engine-extract-entity-type"
+    });
+    typeLine.addClass("story-engine-extract-relation-types");
     header.createEl("div", {
       text: statusText,
       cls: `story-engine-extract-status ${statusClass}`
@@ -16018,13 +16034,8 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     const title = item.createDiv({ cls: "story-engine-extract-item-title" });
     const sourceLabel = relation.source.name || relation.source.ref;
     const targetLabel = relation.target.name || relation.target.ref;
-    const relationLine = `#${index + 1} ${relation.relation_type} | ${sourceLabel} -> ${targetLabel}`;
     title.createEl("div", {
-      text: relationLine,
-      cls: "story-engine-extract-entity-name"
-    });
-    title.createEl("div", {
-      text: relation.status,
+      text: `${sourceLabel} \u2192 ${targetLabel}`,
       cls: "story-engine-extract-entity-type"
     });
     if (relation.summary) {
@@ -16097,6 +16108,173 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
         });
       });
     }
+  }
+  renderEntityControls(container) {
+    if (!this.result)
+      return;
+    const controls = container.createDiv({ cls: "story-engine-extract-controls" });
+    const search = controls.createEl("input", {
+      type: "search",
+      placeholder: "Search entities",
+      cls: "story-engine-extract-search"
+    });
+    search.value = this.entitySearch;
+    search.oninput = () => {
+      this.entitySearch = search.value.trim();
+      this.render();
+    };
+    const typeSelect = controls.createEl("select", {
+      cls: "story-engine-extract-select"
+    });
+    typeSelect.createEl("option", { value: "all", text: "All types" });
+    this.getEntityTypes(this.result.entities).forEach((type2) => {
+      typeSelect.createEl("option", { value: type2, text: type2 });
+    });
+    typeSelect.value = this.entityFilterType;
+    typeSelect.onchange = () => {
+      this.entityFilterType = typeSelect.value;
+      this.render();
+    };
+    const sortSelect = controls.createEl("select", {
+      cls: "story-engine-extract-select"
+    });
+    sortSelect.createEl("option", { value: "name", text: "Sort: Name" });
+    sortSelect.createEl("option", { value: "type", text: "Sort: Type" });
+    sortSelect.createEl("option", { value: "status", text: "Sort: Status" });
+    sortSelect.value = this.entitySort;
+    sortSelect.onchange = () => {
+      this.entitySort = sortSelect.value;
+      this.render();
+    };
+  }
+  renderRelationControls(container) {
+    if (!this.result)
+      return;
+    const controls = container.createDiv({ cls: "story-engine-extract-controls" });
+    const search = controls.createEl("input", {
+      type: "search",
+      placeholder: "Search relations",
+      cls: "story-engine-extract-search"
+    });
+    search.value = this.relationSearch;
+    search.oninput = () => {
+      this.relationSearch = search.value.trim();
+      this.render();
+    };
+    const typeSelect = controls.createEl("select", {
+      cls: "story-engine-extract-select"
+    });
+    typeSelect.createEl("option", { value: "all", text: "All types" });
+    this.getRelationTypes(this.result.relations).forEach((type2) => {
+      typeSelect.createEl("option", { value: type2, text: type2 });
+    });
+    typeSelect.value = this.relationFilterType;
+    typeSelect.onchange = () => {
+      this.relationFilterType = typeSelect.value;
+      this.render();
+    };
+    const sortSelect = controls.createEl("select", {
+      cls: "story-engine-extract-select"
+    });
+    sortSelect.createEl("option", { value: "type", text: "Sort: Type" });
+    sortSelect.createEl("option", { value: "status", text: "Sort: Status" });
+    sortSelect.createEl("option", { value: "source", text: "Sort: Source" });
+    sortSelect.createEl("option", { value: "target", text: "Sort: Target" });
+    sortSelect.value = this.relationSort;
+    sortSelect.onchange = () => {
+      this.relationSort = sortSelect.value;
+      this.render();
+    };
+  }
+  getEntityTypes(entities) {
+    const set3 = /* @__PURE__ */ new Set();
+    entities.forEach((entity) => {
+      if (entity.type) {
+        set3.add(entity.type);
+      }
+    });
+    return Array.from(set3).sort((a, b) => a.localeCompare(b));
+  }
+  getRelationTypes(relations) {
+    const set3 = /* @__PURE__ */ new Set();
+    relations.forEach((relation) => {
+      if (relation.relation_type) {
+        set3.add(relation.relation_type);
+      }
+    });
+    return Array.from(set3).sort((a, b) => a.localeCompare(b));
+  }
+  filterAndSortEntities(entities) {
+    const search = this.entitySearch.toLowerCase();
+    let filtered = entities.filter((entity) => {
+      var _a;
+      if (this.entityFilterType !== "all" && entity.type !== this.entityFilterType) {
+        return false;
+      }
+      if (!search)
+        return true;
+      return entity.name.toLowerCase().includes(search) || entity.type.toLowerCase().includes(search) || ((_a = entity.summary) != null ? _a : "").toLowerCase().includes(search);
+    });
+    const statusRank = (entity) => {
+      if (entity.created)
+        return 0;
+      if (entity.found)
+        return 1;
+      return 2;
+    };
+    filtered = [...filtered].sort((a, b) => {
+      switch (this.entitySort) {
+        case "type":
+          return a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+        case "status":
+          return statusRank(a) - statusRank(b) || a.name.localeCompare(b.name);
+        default:
+          return a.name.localeCompare(b.name);
+      }
+    });
+    return filtered;
+  }
+  filterAndSortRelations(relations) {
+    const search = this.relationSearch.toLowerCase();
+    let filtered = relations.filter((relation) => {
+      var _a, _b, _c, _d, _e;
+      if (this.relationFilterType !== "all" && relation.relation_type !== this.relationFilterType) {
+        return false;
+      }
+      if (!search)
+        return true;
+      const sourceLabel = ((_b = (_a = relation.source.name) != null ? _a : relation.source.ref) != null ? _b : "").toLowerCase();
+      const targetLabel = ((_d = (_c = relation.target.name) != null ? _c : relation.target.ref) != null ? _d : "").toLowerCase();
+      return relation.relation_type.toLowerCase().includes(search) || sourceLabel.includes(search) || targetLabel.includes(search) || relation.source.type.toLowerCase().includes(search) || relation.target.type.toLowerCase().includes(search) || ((_e = relation.summary) != null ? _e : "").toLowerCase().includes(search);
+    });
+    const statusRank = (relation) => {
+      if (relation.status === "created")
+        return 0;
+      if (relation.status === "ready")
+        return 1;
+      if (relation.status === "pending_entities")
+        return 2;
+      return 3;
+    };
+    filtered = [...filtered].sort((a, b) => {
+      switch (this.relationSort) {
+        case "status":
+          return statusRank(a) - statusRank(b) || a.relation_type.localeCompare(b.relation_type);
+        case "source": {
+          const aSource = a.source.name || a.source.ref;
+          const bSource = b.source.name || b.source.ref;
+          return aSource.localeCompare(bSource) || a.relation_type.localeCompare(b.relation_type);
+        }
+        case "target": {
+          const aTarget = a.target.name || a.target.ref;
+          const bTarget = b.target.name || b.target.ref;
+          return aTarget.localeCompare(bTarget) || a.relation_type.localeCompare(b.relation_type);
+        }
+        default:
+          return a.relation_type.localeCompare(b.relation_type);
+      }
+    });
+    return filtered;
   }
   resolveRelationEntity(node) {
     if (!this.result) {
@@ -16636,6 +16814,11 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
         }
         if (!parsed.type) {
           parsed.type = currentEvent || "message";
+        }
+        if (parsed.type === "relation.error") {
+          parsed.message = `\u274C ${parsed.message}`;
+        } else if (parsed.type === "relation.success") {
+          parsed.message = `\u2705 ${parsed.message}`;
         }
         this.appendExtractLog(parsed);
         if (parsed.type === "result_entities" && ((_a = parsed.data) == null ? void 0 : _a.entities)) {

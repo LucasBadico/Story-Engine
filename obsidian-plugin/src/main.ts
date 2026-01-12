@@ -526,6 +526,12 @@ export default class StoryEnginePlugin extends Plugin {
 					parsed.type = currentEvent || "message";
 				}
 
+				if (parsed.type === "relation.error") {
+					parsed.message = `❌ ${parsed.message}`;
+				} else if (parsed.type === "relation.success") {
+					parsed.message = `✅ ${parsed.message}`;
+				}
+
 				this.appendExtractLog(parsed);
 
 				if (parsed.type === "result_entities" && parsed.data?.entities) {

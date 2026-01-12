@@ -21,6 +21,12 @@ export class StoryEngineExtractView extends ItemView {
 	private expandedRelationIndex: number | null = null;
 	private pendingRelationScrollIndex: number | null = null;
 	private pendingTabScroll = false;
+	private entitySearch = "";
+	private entityFilterType = "all";
+	private entitySort = "name";
+	private relationSearch = "";
+	private relationFilterType = "all";
+	private relationSort = "type";
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
 		super(leaf);
@@ -70,29 +76,6 @@ export class StoryEngineExtractView extends ItemView {
 		});
 		header.createEl("h2", { text: "Extract" });
 
-		const headerMeta = header.createDiv({
-			cls: "story-engine-extract-meta",
-		});
-		headerMeta.createEl("div", {
-			text: `Status: ${this.status}`,
-		});
-		if (this.result) {
-			const foundCount = this.result.entities.filter((entity) => entity.found)
-				.length;
-			headerMeta.createEl("div", {
-				text: `Entities: ${this.result.entities.length}`,
-			});
-			headerMeta.createEl("div", {
-				text: `Relations: ${this.result.relations.length}`,
-			});
-			headerMeta.createEl("div", {
-				text: `Found: ${foundCount}`,
-			});
-			headerMeta.createEl("div", {
-				text: `Text length: ${this.result.text.length}`,
-			});
-		}
-
 		const headerActions = header.createDiv({
 			cls: "story-engine-extract-header-actions",
 		});
@@ -133,6 +116,29 @@ export class StoryEngineExtractView extends ItemView {
 			text: this.result.text,
 			cls: "story-engine-extract-query-text",
 		});
+
+		const headerMeta = this.contentRoot.createDiv({
+			cls: "story-engine-extract-meta",
+		});
+		headerMeta.createEl("div", {
+			text: `Status: ${this.status}`,
+		});
+		if (this.result) {
+			const foundCount = this.result.entities.filter((entity) => entity.found)
+				.length;
+			headerMeta.createEl("div", {
+				text: `Entities: ${this.result.entities.length}`,
+			});
+			headerMeta.createEl("div", {
+				text: `Relations: ${this.result.relations.length}`,
+			});
+			headerMeta.createEl("div", {
+				text: `Found: ${foundCount}`,
+			});
+			headerMeta.createEl("div", {
+				text: `Text length: ${this.result.text.length}`,
+			});
+		}
 
 		const tabs = this.contentRoot.createDiv({
 			cls: "story-engine-extract-tabs",
@@ -223,10 +229,12 @@ export class StoryEngineExtractView extends ItemView {
 		this.renderLogs(progressPanel);
 
 		if (hasEntities) {
+			this.renderEntityControls(entitiesPanel);
 			const list = entitiesPanel.createDiv({
 				cls: "story-engine-extract-list",
 			});
-			this.result.entities.forEach((entity, index) => {
+			const filteredEntities = this.filterAndSortEntities(this.result.entities);
+			filteredEntities.forEach((entity, index) => {
 				this.renderEntity(list, entity, index);
 			});
 		} else {
@@ -240,10 +248,12 @@ export class StoryEngineExtractView extends ItemView {
 		}
 
 		if (hasRelations) {
+			this.renderRelationControls(relationsPanel);
 			const list = relationsPanel.createDiv({
 				cls: "story-engine-extract-list",
 			});
-			this.result.relations.forEach((relation, index) => {
+			const filteredRelations = this.filterAndSortRelations(this.result.relations);
+			filteredRelations.forEach((relation, index) => {
 				this.renderRelation(list, relation, index);
 			});
 		} else {
@@ -570,6 +580,12 @@ export class StoryEngineExtractView extends ItemView {
 		const statusClass = relation.status === "pending_entities"
 			? "is-new"
 			: "is-found";
+		const typeLabel = `${relation.source.type} -> ${relation.target.type}`;
+		const typeLine = header.createEl("div", {
+			text: typeLabel,
+			cls: "story-engine-extract-entity-type",
+		});
+		typeLine.addClass("story-engine-extract-relation-types");
 		header.createEl("div", {
 			text: statusText,
 			cls: `story-engine-extract-status ${statusClass}`,
@@ -578,13 +594,8 @@ export class StoryEngineExtractView extends ItemView {
 		const title = item.createDiv({ cls: "story-engine-extract-item-title" });
 		const sourceLabel = relation.source.name || relation.source.ref;
 		const targetLabel = relation.target.name || relation.target.ref;
-		const relationLine = `#${index + 1} ${relation.relation_type} | ${sourceLabel} -> ${targetLabel}`;
 		title.createEl("div", {
-			text: relationLine,
-			cls: "story-engine-extract-entity-name",
-		});
-		title.createEl("div", {
-			text: relation.status,
+			text: `${sourceLabel} → ${targetLabel}`,
 			cls: "story-engine-extract-entity-type",
 		});
 
@@ -663,6 +674,191 @@ export class StoryEngineExtractView extends ItemView {
 				});
 			});
 		}
+	}
+
+	private renderEntityControls(container: HTMLElement) {
+		if (!this.result) return;
+		const controls = container.createDiv({ cls: "story-engine-extract-controls" });
+
+		const search = controls.createEl("input", {
+			type: "search",
+			placeholder: "Search entities",
+			cls: "story-engine-extract-search",
+		});
+		search.value = this.entitySearch;
+		search.oninput = () => {
+			this.entitySearch = search.value.trim();
+			this.render();
+		};
+
+		const typeSelect = controls.createEl("select", {
+			cls: "story-engine-extract-select",
+		});
+		typeSelect.createEl("option", { value: "all", text: "All types" });
+		this.getEntityTypes(this.result.entities).forEach((type) => {
+			typeSelect.createEl("option", { value: type, text: type });
+		});
+		typeSelect.value = this.entityFilterType;
+		typeSelect.onchange = () => {
+			this.entityFilterType = typeSelect.value;
+			this.render();
+		};
+
+		const sortSelect = controls.createEl("select", {
+			cls: "story-engine-extract-select",
+		});
+		sortSelect.createEl("option", { value: "name", text: "Sort: Name" });
+		sortSelect.createEl("option", { value: "type", text: "Sort: Type" });
+		sortSelect.createEl("option", { value: "status", text: "Sort: Status" });
+		sortSelect.value = this.entitySort;
+		sortSelect.onchange = () => {
+			this.entitySort = sortSelect.value;
+			this.render();
+		};
+	}
+
+	private renderRelationControls(container: HTMLElement) {
+		if (!this.result) return;
+		const controls = container.createDiv({ cls: "story-engine-extract-controls" });
+
+		const search = controls.createEl("input", {
+			type: "search",
+			placeholder: "Search relations",
+			cls: "story-engine-extract-search",
+		});
+		search.value = this.relationSearch;
+		search.oninput = () => {
+			this.relationSearch = search.value.trim();
+			this.render();
+		};
+
+		const typeSelect = controls.createEl("select", {
+			cls: "story-engine-extract-select",
+		});
+		typeSelect.createEl("option", { value: "all", text: "All types" });
+		this.getRelationTypes(this.result.relations).forEach((type) => {
+			typeSelect.createEl("option", { value: type, text: type });
+		});
+		typeSelect.value = this.relationFilterType;
+		typeSelect.onchange = () => {
+			this.relationFilterType = typeSelect.value;
+			this.render();
+		};
+
+		const sortSelect = controls.createEl("select", {
+			cls: "story-engine-extract-select",
+		});
+		sortSelect.createEl("option", { value: "type", text: "Sort: Type" });
+		sortSelect.createEl("option", { value: "status", text: "Sort: Status" });
+		sortSelect.createEl("option", { value: "source", text: "Sort: Source" });
+		sortSelect.createEl("option", { value: "target", text: "Sort: Target" });
+		sortSelect.value = this.relationSort;
+		sortSelect.onchange = () => {
+			this.relationSort = sortSelect.value;
+			this.render();
+		};
+	}
+
+	private getEntityTypes(entities: ExtractEntity[]): string[] {
+		const set = new Set<string>();
+		entities.forEach((entity) => {
+			if (entity.type) {
+				set.add(entity.type);
+			}
+		});
+		return Array.from(set).sort((a, b) => a.localeCompare(b));
+	}
+
+	private getRelationTypes(relations: ExtractRelation[]): string[] {
+		const set = new Set<string>();
+		relations.forEach((relation) => {
+			if (relation.relation_type) {
+				set.add(relation.relation_type);
+			}
+		});
+		return Array.from(set).sort((a, b) => a.localeCompare(b));
+	}
+
+	private filterAndSortEntities(entities: ExtractEntity[]): ExtractEntity[] {
+		const search = this.entitySearch.toLowerCase();
+		let filtered = entities.filter((entity) => {
+			if (this.entityFilterType !== "all" && entity.type !== this.entityFilterType) {
+				return false;
+			}
+			if (!search) return true;
+			return (
+				entity.name.toLowerCase().includes(search)
+				|| entity.type.toLowerCase().includes(search)
+				|| (entity.summary ?? "").toLowerCase().includes(search)
+			);
+		});
+
+		const statusRank = (entity: ExtractEntity) => {
+			if (entity.created) return 0;
+			if (entity.found) return 1;
+			return 2;
+		};
+
+		filtered = [...filtered].sort((a, b) => {
+			switch (this.entitySort) {
+				case "type":
+					return a.type.localeCompare(b.type) || a.name.localeCompare(b.name);
+				case "status":
+					return statusRank(a) - statusRank(b) || a.name.localeCompare(b.name);
+				default:
+					return a.name.localeCompare(b.name);
+			}
+		});
+
+		return filtered;
+	}
+
+	private filterAndSortRelations(relations: ExtractRelation[]): ExtractRelation[] {
+		const search = this.relationSearch.toLowerCase();
+		let filtered = relations.filter((relation) => {
+			if (this.relationFilterType !== "all" && relation.relation_type !== this.relationFilterType) {
+				return false;
+			}
+			if (!search) return true;
+			const sourceLabel = (relation.source.name ?? relation.source.ref ?? "").toLowerCase();
+			const targetLabel = (relation.target.name ?? relation.target.ref ?? "").toLowerCase();
+			return (
+				relation.relation_type.toLowerCase().includes(search)
+				|| sourceLabel.includes(search)
+				|| targetLabel.includes(search)
+				|| relation.source.type.toLowerCase().includes(search)
+				|| relation.target.type.toLowerCase().includes(search)
+				|| (relation.summary ?? "").toLowerCase().includes(search)
+			);
+		});
+
+		const statusRank = (relation: ExtractRelation) => {
+			if (relation.status === "created") return 0;
+			if (relation.status === "ready") return 1;
+			if (relation.status === "pending_entities") return 2;
+			return 3;
+		};
+
+		filtered = [...filtered].sort((a, b) => {
+			switch (this.relationSort) {
+				case "status":
+					return statusRank(a) - statusRank(b) || a.relation_type.localeCompare(b.relation_type);
+				case "source": {
+					const aSource = a.source.name || a.source.ref;
+					const bSource = b.source.name || b.source.ref;
+					return aSource.localeCompare(bSource) || a.relation_type.localeCompare(b.relation_type);
+				}
+				case "target": {
+					const aTarget = a.target.name || a.target.ref;
+					const bTarget = b.target.name || b.target.ref;
+					return aTarget.localeCompare(bTarget) || a.relation_type.localeCompare(b.relation_type);
+				}
+				default:
+					return a.relation_type.localeCompare(b.relation_type);
+			}
+		});
+
+		return filtered;
 	}
 
 	private resolveRelationEntity(node: ExtractRelationNode): ExtractEntity {
