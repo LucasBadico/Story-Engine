@@ -67,7 +67,65 @@ export interface ExtractEntityResult {
 	text: string;
 	world_id: string;
 	entities: ExtractEntity[];
+	relations: ExtractRelation[];
 	received_at: string;
+	include_relations?: boolean;
+}
+
+export interface ExtractRelationNode {
+	ref: string;
+	id?: string;
+	type: string;
+	name?: string;
+}
+
+export interface ExtractRelationMatchCandidate {
+	chunk_id: string;
+	document_id: string;
+	source_type: string;
+	source_id: string;
+	content: string;
+	similarity: number;
+}
+
+export interface ExtractRelation {
+	source: ExtractRelationNode;
+	target: ExtractRelationNode;
+	relation_type: string;
+	direction: string;
+	summary?: string;
+	confidence?: number;
+	polarity?: string;
+	implicit?: boolean;
+	status: string;
+	create_mirror?: boolean;
+	mirror_of?: string | null;
+	matches?: ExtractRelationMatchCandidate[];
+	created_id?: string;
+}
+
+export interface EntityRelation {
+	id: string;
+	world_id: string;
+	source_type: string;
+	source_id: string;
+	target_type: string;
+	target_id: string;
+	relation_type: string;
+	summary?: string;
+	created_at?: string;
+	updated_at?: string;
+}
+
+export interface CreateEntityRelationInput {
+	world_id: string;
+	source_type: string;
+	source_id: string;
+	target_type: string;
+	target_id: string;
+	relation_type: string;
+	summary?: string;
+	create_mirror?: boolean;
 }
 
 export interface ExtractStreamEvent {

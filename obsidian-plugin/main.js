@@ -949,6 +949,24 @@ var StoryEngineClient = class {
   async deleteCharacterRelationship(id2) {
     await this.request("DELETE", `/api/v1/character-relationships/${id2}`);
   }
+  async createEntityRelation(input) {
+    var _a;
+    const response = await this.request(
+      "POST",
+      "/api/v1/relations",
+      {
+        world_id: input.world_id,
+        source_type: input.source_type,
+        source_id: input.source_id,
+        target_type: input.target_type,
+        target_id: input.target_id,
+        relation_type: input.relation_type,
+        summary: input.summary,
+        create_mirror: (_a = input.create_mirror) != null ? _a : false
+      }
+    );
+    return response.relation;
+  }
   // Event Characters/References methods
   async getEventCharacters(eventId) {
     const response = await this.request(
@@ -1479,14 +1497,26 @@ function registerCommands(plugin) {
   });
   plugin.addCommand({
     id: "extract-entities-from-selection",
-    name: "Extract Entities from Selection",
+    name: "Extract Entities and Relations from Selection",
+    editorCallback: (editor) => {
+      const selection2 = editor.getSelection();
+      if (!selection2.trim()) {
+        new import_obsidian3.Notice("Select text to extract entities and relations", 3e3);
+        return;
+      }
+      plugin.extractSelectionCommand(selection2, true);
+    }
+  });
+  plugin.addCommand({
+    id: "extract-entities-only-from-selection",
+    name: "Extract Entities Only from Selection",
     editorCallback: (editor) => {
       const selection2 = editor.getSelection();
       if (!selection2.trim()) {
         new import_obsidian3.Notice("Select text to extract entities", 3e3);
         return;
       }
-      plugin.extractSelectionCommand(selection2);
+      plugin.extractSelectionCommand(selection2, false);
     }
   });
 }
@@ -15515,6 +15545,9 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     this.status = "idle";
     this.activeTab = "progress";
     this.expandedLogs = /* @__PURE__ */ new Set();
+    this.expandedRelationIndex = null;
+    this.pendingRelationScrollIndex = null;
+    this.pendingTabScroll = false;
     this.plugin = plugin;
     this.logs = plugin.extractLogs;
     this.status = plugin.extractStatus;
@@ -15549,9 +15582,6 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     if (!this.contentRoot)
       return;
     this.contentRoot.empty();
-    if (this.activeTab === "entities" && this.status === "running") {
-      this.activeTab = "progress";
-    }
     const header = this.contentRoot.createDiv({
       cls: "story-engine-extract-header"
     });
@@ -15566,6 +15596,9 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
       const foundCount = this.result.entities.filter((entity) => entity.found).length;
       headerMeta.createEl("div", {
         text: `Entities: ${this.result.entities.length}`
+      });
+      headerMeta.createEl("div", {
+        text: `Relations: ${this.result.relations.length}`
       });
       headerMeta.createEl("div", {
         text: `Found: ${foundCount}`
@@ -15616,37 +15649,51 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
       cls: "story-engine-extract-tabs"
     });
     const hasEntities = this.result.entities.length > 0;
-    const entitiesDisabled = !hasEntities || this.status === "running";
-    const entitiesTab = tabs.createEl("button", {
-      text: "Entities Found",
-      cls: `story-engine-extract-tab ${this.activeTab === "entities" ? "is-active" : ""}`
-    });
-    if (entitiesDisabled) {
-      entitiesTab.disabled = true;
-      entitiesTab.addClass("is-disabled");
-      if (this.activeTab === "entities") {
-        this.activeTab = "progress";
-      }
-    }
-    entitiesTab.onclick = () => {
-      if (entitiesDisabled)
-        return;
-      this.activeTab = "entities";
-      this.render();
-    };
+    const hasRelations = this.result.relations.length > 0;
+    const includeRelations = this.result.include_relations !== false;
+    const entitiesDisabled = !hasEntities && this.status === "idle";
+    const relationsDisabled = !hasRelations && this.status === "idle" || !includeRelations;
     const progressTab = tabs.createEl("button", {
       text: "Progress",
       cls: `story-engine-extract-tab ${this.activeTab === "progress" ? "is-active" : ""}`
     });
     progressTab.onclick = () => {
-      this.activeTab = "progress";
-      this.render();
+      this.setActiveTab("progress");
+    };
+    const entitiesTab = tabs.createEl("button", {
+      text: "Entities",
+      cls: `story-engine-extract-tab ${this.activeTab === "entities" ? "is-active" : ""}`
+    });
+    if (entitiesDisabled) {
+      entitiesTab.disabled = true;
+      entitiesTab.addClass("is-disabled");
+    }
+    entitiesTab.onclick = () => {
+      if (entitiesDisabled)
+        return;
+      this.setActiveTab("entities");
+    };
+    const relationsTab = tabs.createEl("button", {
+      text: "Relations",
+      cls: `story-engine-extract-tab ${this.activeTab === "relations" ? "is-active" : ""}`
+    });
+    if (relationsDisabled) {
+      relationsTab.disabled = true;
+      relationsTab.addClass("is-disabled");
+    }
+    relationsTab.onclick = () => {
+      if (relationsDisabled)
+        return;
+      this.setActiveTab("relations");
     };
     const panels = this.contentRoot.createDiv({
       cls: "story-engine-extract-panels"
     });
     const entitiesPanel = panels.createDiv({
       cls: `story-engine-extract-panel ${this.activeTab === "entities" ? "is-active" : ""}`
+    });
+    const relationsPanel = panels.createDiv({
+      cls: `story-engine-extract-panel ${this.activeTab === "relations" ? "is-active" : ""}`
     });
     const progressPanel = panels.createDiv({
       cls: `story-engine-extract-panel ${this.activeTab === "progress" ? "is-active" : ""}`
@@ -15672,11 +15719,34 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
         this.renderEntity(list, entity, index);
       });
     } else {
+      const emptyText = this.status === "running" ? "Extracting entities..." : "No entities returned from extraction.";
       entitiesPanel.createEl("p", {
-        text: "No entities returned from extraction.",
+        text: emptyText,
         cls: "story-engine-extract-empty"
       });
     }
+    if (hasRelations) {
+      const list = relationsPanel.createDiv({
+        cls: "story-engine-extract-list"
+      });
+      this.result.relations.forEach((relation, index) => {
+        this.renderRelation(list, relation, index);
+      });
+    } else {
+      let emptyText = "No relations returned from extraction.";
+      if (!includeRelations) {
+        emptyText = "Relations not requested.";
+      } else if (!hasEntities) {
+        emptyText = "Waiting for entity extraction.";
+      } else if (this.status === "running") {
+        emptyText = "Extracting relations...";
+      }
+      relationsPanel.createEl("p", {
+        text: emptyText,
+        cls: "story-engine-extract-empty"
+      });
+    }
+    this.applyPendingScroll();
   }
   renderLogs(container) {
     const root2 = container != null ? container : this.contentRoot;
@@ -15737,7 +15807,11 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     list.scrollTop = list.scrollHeight;
   }
   renderEntity(container, entity, index) {
+    this.renderEntityCard(container, entity, index);
+  }
+  renderEntityCard(container, entity, index, onCreated) {
     const item = container.createDiv({ cls: "story-engine-extract-item" });
+    item.dataset.relationIndex = String(index);
     const header = item.createDiv({ cls: "story-engine-extract-item-header" });
     header.createEl("div", {
       text: `#${index + 1}`,
@@ -15789,7 +15863,10 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
           if (entity.found) {
             await this.updateEntity(entity);
           } else {
-            await this.createEntity(entity);
+            const createdId = await this.createEntity(entity);
+            if (createdId && onCreated) {
+              onCreated(createdId);
+            }
           }
         } finally {
           actionButton.disabled = false;
@@ -15819,7 +15896,7 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     var _a, _b;
     if (!((_a = this.result) == null ? void 0 : _a.world_id)) {
       new import_obsidian17.Notice("World ID missing. Select a story or world first.", 4e3);
-      return;
+      return "";
     }
     const description = ((_b = entity.summary) == null ? void 0 : _b.trim()) || entity.name;
     let createdId = "";
@@ -15866,7 +15943,7 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
       }
       default:
         new import_obsidian17.Notice(`Unsupported type: ${entity.type}`, 4e3);
-        return;
+        return "";
     }
     entity.found = false;
     entity.created = true;
@@ -15879,6 +15956,7 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     };
     this.render();
     new import_obsidian17.Notice(`Created ${entity.type}: ${entity.name}`, 3e3);
+    return createdId;
   }
   async updateEntity(entity) {
     var _a, _b;
@@ -15923,6 +16001,225 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
         return;
     }
     new import_obsidian17.Notice(`Updated ${entity.type}: ${entity.name}`, 3e3);
+  }
+  renderRelation(container, relation, index) {
+    const item = container.createDiv({ cls: "story-engine-extract-item" });
+    const header = item.createDiv({ cls: "story-engine-extract-item-header" });
+    header.createEl("div", {
+      text: `#${index + 1}`,
+      cls: "story-engine-extract-rank"
+    });
+    const statusText = relation.status === "pending_entities" ? "Pending" : relation.status;
+    const statusClass = relation.status === "pending_entities" ? "is-new" : "is-found";
+    header.createEl("div", {
+      text: statusText,
+      cls: `story-engine-extract-status ${statusClass}`
+    });
+    const title = item.createDiv({ cls: "story-engine-extract-item-title" });
+    const sourceLabel = relation.source.name || relation.source.ref;
+    const targetLabel = relation.target.name || relation.target.ref;
+    const relationLine = `#${index + 1} ${relation.relation_type} | ${sourceLabel} -> ${targetLabel}`;
+    title.createEl("div", {
+      text: relationLine,
+      cls: "story-engine-extract-entity-name"
+    });
+    title.createEl("div", {
+      text: relation.status,
+      cls: "story-engine-extract-entity-type"
+    });
+    if (relation.summary) {
+      item.createEl("div", {
+        text: relation.summary,
+        cls: "story-engine-extract-content"
+      });
+    }
+    const hasPending = this.hasTempNode(relation.source) || this.hasTempNode(relation.target);
+    const relationCreated = relation.status === "created";
+    const actions = item.createDiv({ cls: "story-engine-extract-actions" });
+    const createRelationButton = actions.createEl("button", {
+      text: relationCreated ? "Relation Created" : "Create Relation",
+      cls: "story-engine-extract-action"
+    });
+    if (relationCreated) {
+      createRelationButton.disabled = true;
+      createRelationButton.addClass("is-disabled");
+      createRelationButton.title = "Relation already created.";
+    } else if (hasPending) {
+      createRelationButton.disabled = true;
+      createRelationButton.addClass("is-disabled");
+      createRelationButton.title = "Create pending entities first.";
+    } else {
+      createRelationButton.onclick = async () => {
+        createRelationButton.disabled = true;
+        try {
+          await this.createRelation(relation);
+        } finally {
+          createRelationButton.disabled = false;
+        }
+      };
+    }
+    if (hasPending) {
+      const createButton = actions.createEl("button", {
+        text: "Create Pending",
+        cls: "story-engine-extract-action"
+      });
+      createButton.onclick = async () => {
+        createButton.disabled = true;
+        try {
+          await this.createPendingEntities(relation);
+        } finally {
+          createButton.disabled = false;
+        }
+      };
+    }
+    const accordionButton = actions.createEl("button", {
+      text: "See Entities",
+      cls: "story-engine-extract-action"
+    });
+    accordionButton.onclick = () => {
+      const shouldExpand = this.expandedRelationIndex !== index;
+      this.expandedRelationIndex = shouldExpand ? index : null;
+      this.pendingRelationScrollIndex = shouldExpand ? index : null;
+      this.render();
+    };
+    if (this.expandedRelationIndex === index) {
+      const entitiesWrap = item.createDiv({
+        cls: "story-engine-extract-relations-entities"
+      });
+      entitiesWrap.dataset.relationIndex = String(index);
+      const entities = [
+        this.resolveRelationEntity(relation.source),
+        this.resolveRelationEntity(relation.target)
+      ];
+      entities.forEach((entity, entityIndex) => {
+        this.renderEntityCard(entitiesWrap, entity, entityIndex, (createdId) => {
+          this.applyCreatedIdToRelation(relation, entity, createdId);
+        });
+      });
+    }
+  }
+  resolveRelationEntity(node) {
+    if (!this.result) {
+      return this.buildRelationEntity(node);
+    }
+    const existing = this.result.entities.find((entity) => {
+      var _a;
+      if (node.id && ((_a = entity.match) == null ? void 0 : _a.source_id) === node.id) {
+        return true;
+      }
+      return entity.type === node.type && entity.name === node.name;
+    });
+    return existing != null ? existing : this.buildRelationEntity(node);
+  }
+  buildRelationEntity(node) {
+    const hasId = !!(node.id && node.id.trim());
+    return {
+      type: node.type,
+      name: node.name || node.ref,
+      found: hasId,
+      match: hasId ? {
+        source_type: node.type,
+        source_id: node.id,
+        entity_name: node.name,
+        similarity: 1,
+        reason: "Relation match"
+      } : void 0
+    };
+  }
+  hasTempNode(node) {
+    if (!node.id || !node.id.trim()) {
+      return true;
+    }
+    if (node.id.startsWith("temp")) {
+      return true;
+    }
+    return node.ref.startsWith("finding:");
+  }
+  async createPendingEntities(relation) {
+    const nodes = [relation.source, relation.target];
+    for (const node of nodes) {
+      if (!this.hasTempNode(node)) {
+        continue;
+      }
+      const entity = this.buildRelationEntity(node);
+      const createdId = await this.createEntity(entity);
+      if (createdId) {
+        this.applyCreatedIdToRelation(relation, entity, createdId);
+      }
+    }
+    this.render();
+  }
+  async createRelation(relation) {
+    var _a, _b;
+    if (!((_a = this.result) == null ? void 0 : _a.world_id)) {
+      new import_obsidian17.Notice("World ID missing. Select a story or world first.", 4e3);
+      return;
+    }
+    if (!relation.source.id || !relation.target.id) {
+      new import_obsidian17.Notice("Create the related entities before creating the relation.", 4e3);
+      return;
+    }
+    const created = await this.plugin.apiClient.createEntityRelation({
+      world_id: this.result.world_id,
+      source_type: relation.source.type,
+      source_id: relation.source.id,
+      target_type: relation.target.type,
+      target_id: relation.target.id,
+      relation_type: relation.relation_type,
+      summary: relation.summary,
+      create_mirror: (_b = relation.create_mirror) != null ? _b : false
+    });
+    relation.status = "created";
+    relation.created_id = created.id;
+    this.render();
+    new import_obsidian17.Notice(`Relation created: ${relation.relation_type}`, 3e3);
+  }
+  applyCreatedIdToRelation(relation, entity, createdId) {
+    const updateNode = (node) => {
+      if (node.type !== entity.type)
+        return false;
+      if (entity.name && node.name && node.name !== entity.name)
+        return false;
+      node.id = createdId;
+      node.name = entity.name;
+      return true;
+    };
+    if (!updateNode(relation.source)) {
+      updateNode(relation.target);
+    }
+    if (!this.hasTempNode(relation.source) && !this.hasTempNode(relation.target)) {
+      relation.status = "ready";
+    }
+  }
+  setActiveTab(tab) {
+    this.activeTab = tab;
+    this.pendingTabScroll = true;
+    this.render();
+  }
+  applyPendingScroll() {
+    if (!this.pendingTabScroll && this.pendingRelationScrollIndex === null) {
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (this.pendingTabScroll) {
+        const panel = this.contentRoot.querySelector(
+          ".story-engine-extract-panel.is-active"
+        );
+        if (panel) {
+          panel.scrollTop = 0;
+          panel.scrollIntoView({ block: "start" });
+        }
+        this.pendingTabScroll = false;
+      }
+      if (this.pendingRelationScrollIndex !== null) {
+        const selector = `.story-engine-extract-relations-entities[data-relation-index="${this.pendingRelationScrollIndex}"]`;
+        const entityBlock = this.contentRoot.querySelector(selector);
+        if (entityBlock) {
+          entityBlock.scrollIntoView({ block: "start" });
+        }
+        this.pendingRelationScrollIndex = null;
+      }
+    });
   }
 };
 
@@ -15993,10 +16290,17 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
           return;
         }
         menu.addItem((item) => {
-          item.setTitle("Story Engine: Extract entities");
+          item.setTitle("Story Engine: Extract Entities and Relations");
           item.setIcon("search");
           item.onClick(() => {
-            this.extractSelectionCommand(selection2);
+            this.extractSelectionCommand(selection2, true);
+          });
+        });
+        menu.addItem((item) => {
+          item.setTitle("Story Engine: Extract Entities Only");
+          item.setIcon("search");
+          item.onClick(() => {
+            this.extractSelectionCommand(selection2, false);
           });
         });
       })
@@ -16155,11 +16459,14 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
     const story = await this.apiClient.getStory(storyId);
     return (_a = story.world_id) != null ? _a : null;
   }
-  async extractSelectionCommand(selection2) {
+  async extractSelectionCommand(selection2, includeRelations = true) {
     var _a, _b, _c;
     const trimmedSelection = selection2.trim();
     if (!trimmedSelection) {
-      new import_obsidian18.Notice("Select text to extract entities", 3e3);
+      new import_obsidian18.Notice(
+        includeRelations ? "Select text to extract entities and relations" : "Select text to extract entities",
+        3e3
+      );
       return;
     }
     if (this.settings.mode !== "remote") {
@@ -16191,7 +16498,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
       );
       return;
     }
-    this.resetExtractState(trimmedSelection, worldId);
+    this.resetExtractState(trimmedSelection, worldId, includeRelations);
     await this.activateView();
     await this.activateExtractView();
     this.updateExtractViews();
@@ -16206,7 +16513,8 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
       tenantId,
       gatewayUrl,
       worldId,
-      text: trimmedSelection
+      text: trimmedSelection,
+      includeRelations
     });
   }
   updateExtractViews() {
@@ -16224,13 +16532,15 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
       view.setLogs(this.extractLogs, this.extractStatus);
     }
   }
-  resetExtractState(text, worldId) {
+  resetExtractState(text, worldId, includeRelations = true) {
     this.cancelExtractStream();
     this.extractResult = {
       text,
       world_id: worldId,
       entities: [],
-      received_at: (/* @__PURE__ */ new Date()).toISOString()
+      relations: [],
+      received_at: (/* @__PURE__ */ new Date()).toISOString(),
+      include_relations: includeRelations
     };
     this.extractLogs = [];
     this.extractStatus = "running";
@@ -16259,7 +16569,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
     });
   }
   async startExtractStream(params) {
-    const { tenantId, gatewayUrl, worldId, text } = params;
+    const { tenantId, gatewayUrl, worldId, text, includeRelations } = params;
     const controller = new AbortController();
     this.extractAbortController = controller;
     this.appendExtractLog({
@@ -16279,7 +16589,8 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
           },
           body: JSON.stringify({
             text,
-            world_id: worldId
+            world_id: worldId,
+            include_relations: includeRelations
           }),
           signal: controller.signal
         }
@@ -16327,20 +16638,26 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
           parsed.type = currentEvent || "message";
         }
         this.appendExtractLog(parsed);
-        if (parsed.type === "result" && ((_a = parsed.data) == null ? void 0 : _a.payload)) {
-          const payload = parsed.data.payload;
+        if (parsed.type === "result_entities" && ((_a = parsed.data) == null ? void 0 : _a.entities)) {
+          const entities = parsed.data.entities;
           if (this.extractResult) {
-            this.extractResult.entities = (_b = payload.entities) != null ? _b : [];
+            this.extractResult.entities = entities != null ? entities : [];
             this.extractResult.received_at = (/* @__PURE__ */ new Date()).toISOString();
           }
-          this.extractStatus = "done";
-          const foundCount = (_c = this.extractResult) == null ? void 0 : _c.entities.filter(
+          const foundCount = (_b = this.extractResult) == null ? void 0 : _b.entities.filter(
             (entity) => entity.found
           ).length;
           new import_obsidian18.Notice(
-            `Extraction complete: ${foundCount != null ? foundCount : 0}/${(_e = (_d = this.extractResult) == null ? void 0 : _d.entities.length) != null ? _e : 0} matched`,
+            `Entities extracted: ${foundCount != null ? foundCount : 0}/${(_d = (_c = this.extractResult) == null ? void 0 : _c.entities.length) != null ? _d : 0} matched`,
             4e3
           );
+        }
+        if (parsed.type === "result_relations" && ((_e = parsed.data) == null ? void 0 : _e.relations)) {
+          const relations = parsed.data.relations;
+          if (this.extractResult) {
+            this.extractResult.relations = relations != null ? relations : [];
+            this.extractResult.received_at = (/* @__PURE__ */ new Date()).toISOString();
+          }
         }
         if (parsed.type === "error") {
           this.extractStatus = "error";

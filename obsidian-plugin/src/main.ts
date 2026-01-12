@@ -100,10 +100,18 @@ export default class StoryEnginePlugin extends Plugin {
 				}
 
 				menu.addItem((item) => {
-					item.setTitle("Story Engine: Extract entities");
+					item.setTitle("Story Engine: Extract Entities and Relations");
 					item.setIcon("search");
 					item.onClick(() => {
-						this.extractSelectionCommand(selection);
+						this.extractSelectionCommand(selection, true);
+					});
+				});
+
+				menu.addItem((item) => {
+					item.setTitle("Story Engine: Extract Entities Only");
+					item.setIcon("search");
+					item.onClick(() => {
+						this.extractSelectionCommand(selection, false);
 					});
 				});
 			})
@@ -301,10 +309,15 @@ export default class StoryEnginePlugin extends Plugin {
 		return story.world_id ?? null;
 	}
 
-	async extractSelectionCommand(selection: string) {
+	async extractSelectionCommand(selection: string, includeRelations = true) {
 		const trimmedSelection = selection.trim();
 		if (!trimmedSelection) {
-			new Notice("Select text to extract entities", 3000);
+			new Notice(
+				includeRelations
+					? "Select text to extract entities and relations"
+					: "Select text to extract entities",
+				3000
+			);
 			return;
 		}
 
@@ -343,7 +356,7 @@ export default class StoryEnginePlugin extends Plugin {
 			return;
 		}
 
-		this.resetExtractState(trimmedSelection, worldId);
+		this.resetExtractState(trimmedSelection, worldId, includeRelations);
 		await this.activateView();
 		await this.activateExtractView();
 		this.updateExtractViews();
@@ -362,6 +375,7 @@ export default class StoryEnginePlugin extends Plugin {
 			gatewayUrl,
 			worldId,
 			text: trimmedSelection,
+			includeRelations,
 		});
 	}
 
@@ -384,13 +398,19 @@ export default class StoryEnginePlugin extends Plugin {
 		}
 	}
 
-	private resetExtractState(text: string, worldId: string) {
+	private resetExtractState(
+		text: string,
+		worldId: string,
+		includeRelations = true
+	) {
 		this.cancelExtractStream();
 		this.extractResult = {
 			text,
 			world_id: worldId,
 			entities: [],
+			relations: [],
 			received_at: new Date().toISOString(),
+			include_relations: includeRelations,
 		};
 		this.extractLogs = [];
 		this.extractStatus = "running";
@@ -428,8 +448,9 @@ export default class StoryEnginePlugin extends Plugin {
 		gatewayUrl: string;
 		worldId: string;
 		text: string;
+		includeRelations: boolean;
 	}) {
-		const { tenantId, gatewayUrl, worldId, text } = params;
+		const { tenantId, gatewayUrl, worldId, text, includeRelations } = params;
 		const controller = new AbortController();
 		this.extractAbortController = controller;
 		this.appendExtractLog({
@@ -453,6 +474,7 @@ export default class StoryEnginePlugin extends Plugin {
 					body: JSON.stringify({
 						text,
 						world_id: worldId,
+						include_relations: includeRelations,
 					}),
 					signal: controller.signal,
 				}
@@ -506,22 +528,27 @@ export default class StoryEnginePlugin extends Plugin {
 
 				this.appendExtractLog(parsed);
 
-				if (parsed.type === "result" && parsed.data?.payload) {
-					const payload = parsed.data.payload as {
-						entities: ExtractEntityResult["entities"];
-					};
+				if (parsed.type === "result_entities" && parsed.data?.entities) {
+					const entities = parsed.data.entities as ExtractEntityResult["entities"];
 					if (this.extractResult) {
-						this.extractResult.entities = payload.entities ?? [];
+						this.extractResult.entities = entities ?? [];
 						this.extractResult.received_at = new Date().toISOString();
 					}
-					this.extractStatus = "done";
 					const foundCount = this.extractResult?.entities.filter(
 						(entity) => entity.found
 					).length;
 					new Notice(
-						`Extraction complete: ${foundCount ?? 0}/${this.extractResult?.entities.length ?? 0} matched`,
+						`Entities extracted: ${foundCount ?? 0}/${this.extractResult?.entities.length ?? 0} matched`,
 						4000
 					);
+				}
+
+				if (parsed.type === "result_relations" && parsed.data?.relations) {
+					const relations = parsed.data.relations as ExtractEntityResult["relations"];
+					if (this.extractResult) {
+						this.extractResult.relations = relations ?? [];
+						this.extractResult.received_at = new Date().toISOString();
+					}
 				}
 
 				if (parsed.type === "error") {

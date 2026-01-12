@@ -4,6 +4,8 @@ import {
 	ExtractEntity,
 	ExtractEntityMatch,
 	ExtractEntityResult,
+	ExtractRelation,
+	ExtractRelationNode,
 } from "../types";
 
 export const STORY_ENGINE_EXTRACT_VIEW_TYPE = "story-engine-extract-view";
@@ -14,8 +16,11 @@ export class StoryEngineExtractView extends ItemView {
 	private contentRoot!: HTMLElement;
 	private logs = [] as StoryEnginePlugin["extractLogs"];
 	private status: StoryEnginePlugin["extractStatus"] = "idle";
-	private activeTab: "entities" | "progress" = "progress";
+	private activeTab: "entities" | "relations" | "progress" = "progress";
 	private expandedLogs = new Set<string>();
+	private expandedRelationIndex: number | null = null;
+	private pendingRelationScrollIndex: number | null = null;
+	private pendingTabScroll = false;
 
 	constructor(leaf: WorkspaceLeaf, plugin: StoryEnginePlugin) {
 		super(leaf);
@@ -60,10 +65,6 @@ export class StoryEngineExtractView extends ItemView {
 		if (!this.contentRoot) return;
 		this.contentRoot.empty();
 
-		if (this.activeTab === "entities" && this.status === "running") {
-			this.activeTab = "progress";
-		}
-
 		const header = this.contentRoot.createDiv({
 			cls: "story-engine-extract-header",
 		});
@@ -80,6 +81,9 @@ export class StoryEngineExtractView extends ItemView {
 				.length;
 			headerMeta.createEl("div", {
 				text: `Entities: ${this.result.entities.length}`,
+			});
+			headerMeta.createEl("div", {
+				text: `Relations: ${this.result.relations.length}`,
 			});
 			headerMeta.createEl("div", {
 				text: `Found: ${foundCount}`,
@@ -135,25 +139,11 @@ export class StoryEngineExtractView extends ItemView {
 		});
 
 		const hasEntities = this.result.entities.length > 0;
-		const entitiesDisabled = !hasEntities || this.status === "running";
-		const entitiesTab = tabs.createEl("button", {
-			text: "Entities Found",
-			cls: `story-engine-extract-tab ${
-				this.activeTab === "entities" ? "is-active" : ""
-			}`,
-		});
-		if (entitiesDisabled) {
-			entitiesTab.disabled = true;
-			entitiesTab.addClass("is-disabled");
-			if (this.activeTab === "entities") {
-				this.activeTab = "progress";
-			}
-		}
-		entitiesTab.onclick = () => {
-			if (entitiesDisabled) return;
-			this.activeTab = "entities";
-			this.render();
-		};
+		const hasRelations = this.result.relations.length > 0;
+		const includeRelations = this.result.include_relations !== false;
+		const entitiesDisabled = !hasEntities && this.status === "idle";
+		const relationsDisabled = (!hasRelations && this.status === "idle")
+			|| !includeRelations;
 
 		const progressTab = tabs.createEl("button", {
 			text: "Progress",
@@ -162,8 +152,37 @@ export class StoryEngineExtractView extends ItemView {
 			}`,
 		});
 		progressTab.onclick = () => {
-			this.activeTab = "progress";
-			this.render();
+			this.setActiveTab("progress");
+		};
+
+		const entitiesTab = tabs.createEl("button", {
+			text: "Entities",
+			cls: `story-engine-extract-tab ${
+				this.activeTab === "entities" ? "is-active" : ""
+			}`,
+		});
+		if (entitiesDisabled) {
+			entitiesTab.disabled = true;
+			entitiesTab.addClass("is-disabled");
+		}
+		entitiesTab.onclick = () => {
+			if (entitiesDisabled) return;
+			this.setActiveTab("entities");
+		};
+
+		const relationsTab = tabs.createEl("button", {
+			text: "Relations",
+			cls: `story-engine-extract-tab ${
+				this.activeTab === "relations" ? "is-active" : ""
+			}`,
+		});
+		if (relationsDisabled) {
+			relationsTab.disabled = true;
+			relationsTab.addClass("is-disabled");
+		}
+		relationsTab.onclick = () => {
+			if (relationsDisabled) return;
+			this.setActiveTab("relations");
 		};
 
 		const panels = this.contentRoot.createDiv({
@@ -173,6 +192,12 @@ export class StoryEngineExtractView extends ItemView {
 		const entitiesPanel = panels.createDiv({
 			cls: `story-engine-extract-panel ${
 				this.activeTab === "entities" ? "is-active" : ""
+			}`,
+		});
+
+		const relationsPanel = panels.createDiv({
+			cls: `story-engine-extract-panel ${
+				this.activeTab === "relations" ? "is-active" : ""
 			}`,
 		});
 
@@ -205,11 +230,38 @@ export class StoryEngineExtractView extends ItemView {
 				this.renderEntity(list, entity, index);
 			});
 		} else {
+			const emptyText = this.status === "running"
+				? "Extracting entities..."
+				: "No entities returned from extraction.";
 			entitiesPanel.createEl("p", {
-				text: "No entities returned from extraction.",
+				text: emptyText,
 				cls: "story-engine-extract-empty",
 			});
 		}
+
+		if (hasRelations) {
+			const list = relationsPanel.createDiv({
+				cls: "story-engine-extract-list",
+			});
+			this.result.relations.forEach((relation, index) => {
+				this.renderRelation(list, relation, index);
+			});
+		} else {
+			let emptyText = "No relations returned from extraction.";
+			if (!includeRelations) {
+				emptyText = "Relations not requested.";
+			} else if (!hasEntities) {
+				emptyText = "Waiting for entity extraction.";
+			} else if (this.status === "running") {
+				emptyText = "Extracting relations...";
+			}
+			relationsPanel.createEl("p", {
+				text: emptyText,
+				cls: "story-engine-extract-empty",
+			});
+		}
+
+		this.applyPendingScroll();
 	}
 
 	private renderLogs(container?: HTMLElement) {
@@ -284,7 +336,17 @@ export class StoryEngineExtractView extends ItemView {
 	}
 
 	private renderEntity(container: HTMLElement, entity: ExtractEntity, index: number) {
+		this.renderEntityCard(container, entity, index);
+	}
+
+	private renderEntityCard(
+		container: HTMLElement,
+		entity: ExtractEntity,
+		index: number,
+		onCreated?: (createdId: string) => void
+	) {
 		const item = container.createDiv({ cls: "story-engine-extract-item" });
+		item.dataset.relationIndex = String(index);
 		const header = item.createDiv({ cls: "story-engine-extract-item-header" });
 		header.createEl("div", {
 			text: `#${index + 1}`,
@@ -349,7 +411,10 @@ export class StoryEngineExtractView extends ItemView {
 					if (entity.found) {
 						await this.updateEntity(entity);
 					} else {
-						await this.createEntity(entity);
+						const createdId = await this.createEntity(entity);
+						if (createdId && onCreated) {
+							onCreated(createdId);
+						}
 					}
 				} finally {
 					actionButton.disabled = false;
@@ -377,10 +442,10 @@ export class StoryEngineExtractView extends ItemView {
 		return wrapper;
 	}
 
-	private async createEntity(entity: ExtractEntity) {
+	private async createEntity(entity: ExtractEntity): Promise<string> {
 		if (!this.result?.world_id) {
 			new Notice("World ID missing. Select a story or world first.", 4000);
-			return;
+			return "";
 		}
 
 		const description = entity.summary?.trim() || entity.name;
@@ -429,7 +494,7 @@ export class StoryEngineExtractView extends ItemView {
 			}
 			default:
 				new Notice(`Unsupported type: ${entity.type}`, 4000);
-				return;
+				return "";
 		}
 
 		entity.found = false;
@@ -443,6 +508,7 @@ export class StoryEngineExtractView extends ItemView {
 		};
 		this.render();
 		new Notice(`Created ${entity.type}: ${entity.name}`, 3000);
+		return createdId;
 	}
 
 	private async updateEntity(entity: ExtractEntity) {
@@ -489,5 +555,251 @@ export class StoryEngineExtractView extends ItemView {
 		}
 
 		new Notice(`Updated ${entity.type}: ${entity.name}`, 3000);
+	}
+
+	private renderRelation(container: HTMLElement, relation: ExtractRelation, index: number) {
+		const item = container.createDiv({ cls: "story-engine-extract-item" });
+		const header = item.createDiv({ cls: "story-engine-extract-item-header" });
+		header.createEl("div", {
+			text: `#${index + 1}`,
+			cls: "story-engine-extract-rank",
+		});
+		const statusText = relation.status === "pending_entities"
+			? "Pending"
+			: relation.status;
+		const statusClass = relation.status === "pending_entities"
+			? "is-new"
+			: "is-found";
+		header.createEl("div", {
+			text: statusText,
+			cls: `story-engine-extract-status ${statusClass}`,
+		});
+
+		const title = item.createDiv({ cls: "story-engine-extract-item-title" });
+		const sourceLabel = relation.source.name || relation.source.ref;
+		const targetLabel = relation.target.name || relation.target.ref;
+		const relationLine = `#${index + 1} ${relation.relation_type} | ${sourceLabel} -> ${targetLabel}`;
+		title.createEl("div", {
+			text: relationLine,
+			cls: "story-engine-extract-entity-name",
+		});
+		title.createEl("div", {
+			text: relation.status,
+			cls: "story-engine-extract-entity-type",
+		});
+
+		if (relation.summary) {
+			item.createEl("div", {
+				text: relation.summary,
+				cls: "story-engine-extract-content",
+			});
+		}
+
+		const hasPending = this.hasTempNode(relation.source)
+			|| this.hasTempNode(relation.target);
+		const relationCreated = relation.status === "created";
+
+		const actions = item.createDiv({ cls: "story-engine-extract-actions" });
+		const createRelationButton = actions.createEl("button", {
+			text: relationCreated ? "Relation Created" : "Create Relation",
+			cls: "story-engine-extract-action",
+		});
+		if (relationCreated) {
+			createRelationButton.disabled = true;
+			createRelationButton.addClass("is-disabled");
+			createRelationButton.title = "Relation already created.";
+		} else if (hasPending) {
+			createRelationButton.disabled = true;
+			createRelationButton.addClass("is-disabled");
+			createRelationButton.title = "Create pending entities first.";
+		} else {
+			createRelationButton.onclick = async () => {
+				createRelationButton.disabled = true;
+				try {
+					await this.createRelation(relation);
+				} finally {
+					createRelationButton.disabled = false;
+				}
+			};
+		}
+		if (hasPending) {
+			const createButton = actions.createEl("button", {
+				text: "Create Pending",
+				cls: "story-engine-extract-action",
+			});
+			createButton.onclick = async () => {
+				createButton.disabled = true;
+				try {
+					await this.createPendingEntities(relation);
+				} finally {
+					createButton.disabled = false;
+				}
+			};
+		}
+
+		const accordionButton = actions.createEl("button", {
+			text: "See Entities",
+			cls: "story-engine-extract-action",
+		});
+		accordionButton.onclick = () => {
+			const shouldExpand = this.expandedRelationIndex !== index;
+			this.expandedRelationIndex = shouldExpand ? index : null;
+			this.pendingRelationScrollIndex = shouldExpand ? index : null;
+			this.render();
+		};
+
+		if (this.expandedRelationIndex === index) {
+			const entitiesWrap = item.createDiv({
+				cls: "story-engine-extract-relations-entities",
+			});
+			entitiesWrap.dataset.relationIndex = String(index);
+			const entities = [
+				this.resolveRelationEntity(relation.source),
+				this.resolveRelationEntity(relation.target),
+			];
+			entities.forEach((entity, entityIndex) => {
+				this.renderEntityCard(entitiesWrap, entity, entityIndex, (createdId) => {
+					this.applyCreatedIdToRelation(relation, entity, createdId);
+				});
+			});
+		}
+	}
+
+	private resolveRelationEntity(node: ExtractRelationNode): ExtractEntity {
+		if (!this.result) {
+			return this.buildRelationEntity(node);
+		}
+
+		const existing = this.result.entities.find((entity) => {
+			if (node.id && entity.match?.source_id === node.id) {
+				return true;
+			}
+			return entity.type === node.type && entity.name === node.name;
+		});
+
+		return existing ?? this.buildRelationEntity(node);
+	}
+
+	private buildRelationEntity(node: ExtractRelationNode): ExtractEntity {
+		const hasId = !!(node.id && node.id.trim());
+		return {
+			type: node.type,
+			name: node.name || node.ref,
+			found: hasId,
+			match: hasId
+				? {
+					source_type: node.type,
+					source_id: node.id as string,
+					entity_name: node.name,
+					similarity: 1,
+					reason: "Relation match",
+				}
+				: undefined,
+		};
+	}
+
+	private hasTempNode(node: ExtractRelationNode): boolean {
+		if (!node.id || !node.id.trim()) {
+			return true;
+		}
+		if (node.id.startsWith("temp")) {
+			return true;
+		}
+		return node.ref.startsWith("finding:");
+	}
+
+	private async createPendingEntities(relation: ExtractRelation) {
+		const nodes = [relation.source, relation.target];
+		for (const node of nodes) {
+			if (!this.hasTempNode(node)) {
+				continue;
+			}
+			const entity = this.buildRelationEntity(node);
+			const createdId = await this.createEntity(entity);
+			if (createdId) {
+				this.applyCreatedIdToRelation(relation, entity, createdId);
+			}
+		}
+		this.render();
+	}
+
+	private async createRelation(relation: ExtractRelation) {
+		if (!this.result?.world_id) {
+			new Notice("World ID missing. Select a story or world first.", 4000);
+			return;
+		}
+		if (!relation.source.id || !relation.target.id) {
+			new Notice("Create the related entities before creating the relation.", 4000);
+			return;
+		}
+
+		const created = await this.plugin.apiClient.createEntityRelation({
+			world_id: this.result.world_id,
+			source_type: relation.source.type,
+			source_id: relation.source.id,
+			target_type: relation.target.type,
+			target_id: relation.target.id,
+			relation_type: relation.relation_type,
+			summary: relation.summary,
+			create_mirror: relation.create_mirror ?? false,
+		});
+
+		relation.status = "created";
+		relation.created_id = created.id;
+		this.render();
+		new Notice(`Relation created: ${relation.relation_type}`, 3000);
+	}
+
+	private applyCreatedIdToRelation(
+		relation: ExtractRelation,
+		entity: ExtractEntity,
+		createdId: string
+	) {
+		const updateNode = (node: ExtractRelationNode) => {
+			if (node.type !== entity.type) return false;
+			if (entity.name && node.name && node.name !== entity.name) return false;
+			node.id = createdId;
+			node.name = entity.name;
+			return true;
+		};
+		if (!updateNode(relation.source)) {
+			updateNode(relation.target);
+		}
+		if (!this.hasTempNode(relation.source) && !this.hasTempNode(relation.target)) {
+			relation.status = "ready";
+		}
+	}
+
+	private setActiveTab(tab: "progress" | "entities" | "relations") {
+		this.activeTab = tab;
+		this.pendingTabScroll = true;
+		this.render();
+	}
+
+	private applyPendingScroll() {
+		if (!this.pendingTabScroll && this.pendingRelationScrollIndex === null) {
+			return;
+		}
+		requestAnimationFrame(() => {
+			if (this.pendingTabScroll) {
+				const panel = this.contentRoot.querySelector(
+					".story-engine-extract-panel.is-active"
+				) as HTMLElement | null;
+				if (panel) {
+					panel.scrollTop = 0;
+					panel.scrollIntoView({ block: "start" });
+				}
+				this.pendingTabScroll = false;
+			}
+
+			if (this.pendingRelationScrollIndex !== null) {
+				const selector = `.story-engine-extract-relations-entities[data-relation-index="${this.pendingRelationScrollIndex}"]`;
+				const entityBlock = this.contentRoot.querySelector(selector) as HTMLElement | null;
+				if (entityBlock) {
+					entityBlock.scrollIntoView({ block: "start" });
+				}
+				this.pendingRelationScrollIndex = null;
+			}
+		});
 	}
 }

@@ -58,15 +58,27 @@ export function registerCommands(plugin: StoryEnginePlugin) {
 
 	plugin.addCommand({
 		id: "extract-entities-from-selection",
-		name: "Extract Entities from Selection",
+		name: "Extract Entities and Relations from Selection",
+		editorCallback: (editor) => {
+			const selection = editor.getSelection();
+			if (!selection.trim()) {
+				new Notice("Select text to extract entities and relations", 3000);
+				return;
+			}
+			plugin.extractSelectionCommand(selection, true);
+		},
+	});
+
+	plugin.addCommand({
+		id: "extract-entities-only-from-selection",
+		name: "Extract Entities Only from Selection",
 		editorCallback: (editor) => {
 			const selection = editor.getSelection();
 			if (!selection.trim()) {
 				new Notice("Select text to extract entities", 3000);
 				return;
 			}
-			plugin.extractSelectionCommand(selection);
+			plugin.extractSelectionCommand(selection, false);
 		},
 	});
 }
-

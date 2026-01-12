@@ -29,6 +29,8 @@ import {
 	EventReference,
 	SceneReference,
 	TimeConfig,
+	EntityRelation,
+	CreateEntityRelationInput,
 } from "../types";
 import { SyncEntityPayload } from "../sync/entitySyncTypes";
 import { apiUpdateNotifier } from "../sync/apiUpdateNotifier";
@@ -1067,6 +1069,24 @@ export class StoryEngineClient {
 		await this.request("DELETE", `/api/v1/character-relationships/${id}`);
 	}
 
+	async createEntityRelation(input: CreateEntityRelationInput): Promise<EntityRelation> {
+		const response = await this.request<{ relation: EntityRelation }>(
+			"POST",
+			"/api/v1/relations",
+			{
+				world_id: input.world_id,
+				source_type: input.source_type,
+				source_id: input.source_id,
+				target_type: input.target_type,
+				target_id: input.target_id,
+				relation_type: input.relation_type,
+				summary: input.summary,
+				create_mirror: input.create_mirror ?? false,
+			}
+		);
+		return response.relation;
+	}
+
 	// Event Characters/References methods
 	async getEventCharacters(eventId: string): Promise<EventCharacter[]> {
 		const response = await this.request<{ event_characters: EventCharacter[] }>(
@@ -1303,4 +1323,3 @@ export class StoryEngineClient {
 		await apiUpdateNotifier.notify(payload);
 	}
 }
-
