@@ -216,6 +216,23 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 					})
 			);
 
+		// Sidebar Position
+		new Setting(containerEl)
+			.setName("World Sidebar Position")
+			.setDesc("Choose whether the world sidebar appears on the left or right side")
+			.addDropdown((dropdown) =>
+				dropdown
+					.addOption("left", "Left")
+					.addOption("right", "Right")
+					.setValue(this.plugin.settings.sidebarPosition || "left")
+					.onChange(async (value) => {
+						this.plugin.settings.sidebarPosition = value as "left" | "right";
+						await this.plugin.saveSettings();
+						// Trigger view refresh if needed
+						this.app.workspace.trigger("layout-change");
+					})
+			);
+
 		new Setting(containerEl)
 			.setName("Unsplash Access Key")
 			.setDesc("Application ID / Access Key for Unsplash API (get one at https://unsplash.com/developers)")

@@ -2423,9 +2423,14 @@ export class StoryListView extends ItemView {
 
 		this.headerEl.empty();
 		
-		const headerLeft = this.headerEl.createDiv({ cls: "story-engine-header-left" });
+		// Main header container
+		const headerContainer = this.headerEl.createDiv({ cls: "story-engine-world-details-header" });
+		const headerContent = headerContainer.createDiv({ cls: "story-engine-world-header-content" });
 		
-		const backButton = headerLeft.createEl("button", {
+		// Top row: Back button + Actions
+		const topRow = headerContent.createDiv({ cls: "story-engine-world-header-top" });
+		
+		const backButton = topRow.createEl("button", {
 			text: "← Back",
 			cls: "story-engine-back-btn",
 		});
@@ -2437,51 +2442,9 @@ export class StoryListView extends ItemView {
 			this.renderListContent();
 		};
 
-		// Title container
-		const titleContainer = headerLeft.createDiv({ cls: "story-engine-title-container" });
-		const titleRow = titleContainer.createDiv({ cls: "story-engine-title-row" });
+		// Header actions (context menu)
+		const headerActions = topRow.createDiv({ cls: "story-engine-header-actions" });
 		
-		titleRow.createEl("h2", { 
-			text: this.currentWorld.name,
-			cls: "story-engine-title-header"
-		});
-
-		// Genre pill
-		if (this.currentWorld.genre) {
-			const genrePill = titleRow.createSpan({ 
-				cls: "story-engine-status-pill story-engine-status-draft"
-			});
-			genrePill.textContent = this.currentWorld.genre;
-		}
-
-		// UUID with copy icon
-		const uuidRow = titleContainer.createDiv({ cls: "story-engine-uuid-row" });
-		const uuidSpan = uuidRow.createSpan({ cls: "story-engine-uuid" });
-		uuidSpan.textContent = this.currentWorld.id;
-		
-		const copyUuidButton = uuidRow.createEl("button", {
-			cls: "story-engine-copy-uuid-btn",
-			attr: { "aria-label": "Copy UUID" }
-		});
-		setIcon(copyUuidButton, "copy");
-		copyUuidButton.onclick = () => {
-			if (!this.currentWorld) return;
-			navigator.clipboard.writeText(this.currentWorld.id).then(() => {
-				new Notice("UUID copied to clipboard");
-			}).catch(() => {
-				new Notice("Failed to copy UUID", 3000);
-			});
-		};
-
-		// Description if present
-		if (this.currentWorld.description) {
-			const descRow = titleContainer.createDiv({ cls: "story-engine-world-desc" });
-			descRow.textContent = this.currentWorld.description;
-		}
-
-		const headerActions = this.headerEl.createDiv({ cls: "story-engine-header-actions" });
-		
-		// Context menu button with actions
 		const contextButton = headerActions.createEl("button", {
 			cls: "story-engine-context-btn",
 			attr: { "aria-label": "World Actions" }
@@ -2514,54 +2477,102 @@ export class StoryListView extends ItemView {
 		document.addEventListener("click", () => {
 			dropdownMenu.style.display = "none";
 		}, { once: true });
+
+		// Title section with name and description
+		const titleSection = headerContent.createDiv({ cls: "story-engine-world-title-section" });
+		
+		// World name
+		titleSection.createEl("h1", { 
+			text: this.currentWorld.name,
+			cls: "story-engine-world-name"
+		});
+
+		// Description
+		if (this.currentWorld.description) {
+			titleSection.createEl("p", { 
+				text: this.currentWorld.description,
+				cls: "story-engine-world-desc"
+			});
+		}
+
+		// Meta row with genre and UUID
+		const metaRow = titleSection.createDiv({ cls: "story-engine-world-meta-row" });
+		
+		// Genre badge
+		if (this.currentWorld.genre) {
+			const genreBadge = metaRow.createSpan({ 
+				cls: "story-engine-badge story-engine-genre-badge"
+			});
+			setIcon(genreBadge, "tag");
+			genreBadge.createSpan({ text: this.currentWorld.genre });
+		}
+
+		// UUID display with copy
+		const uuidContainer = metaRow.createDiv({ cls: "story-engine-world-uuid" });
+		const uuidText = uuidContainer.createSpan({ text: this.currentWorld.id.substring(0, 8) + "..." });
+		
+		const copyUuidButton = uuidContainer.createEl("button", {
+			cls: "story-engine-copy-uuid-btn",
+			attr: { "aria-label": "Copy UUID" }
+		});
+		setIcon(copyUuidButton, "copy");
+		copyUuidButton.onclick = (e) => {
+			e.stopPropagation();
+			if (!this.currentWorld) return;
+			navigator.clipboard.writeText(this.currentWorld.id).then(() => {
+				new Notice("UUID copied to clipboard");
+			}).catch(() => {
+				new Notice("Failed to copy UUID", 3000);
+			});
+		};
 	}
 
 	renderWorldTabs() {
 		if (!this.contentEl) return;
 
 		// Remove existing tabs if any
-		const existingTabs = this.contentEl.querySelector(".story-engine-tabs-container");
+		const existingTabs = this.contentEl.querySelector(".story-engine-world-tabs");
 		if (existingTabs) {
 			existingTabs.remove();
 		}
 
-		const tabsWrapper = this.contentEl.createDiv({ cls: "story-engine-tabs-container" });
+		// Create vertical sidebar container
+		const sidebarPosition = this.plugin.settings.sidebarPosition || "left";
+		const sidebarContainer = this.contentEl.createDiv({ 
+			cls: `story-engine-world-sidebar story-engine-world-sidebar-${sidebarPosition}` 
+		});
 
-		// First row: Entity tabs (Characters, Locations, Factions, Artifacts)
-		const entityTabsContainer = tabsWrapper.createDiv({ cls: "story-engine-tabs" });
-		const entityTabs: { key: "characters" | "traits" | "archetypes" | "events" | "lore" | "locations" | "factions" | "artifacts"; label: string }[] = [
-			{ key: "characters", label: "Characters" },
-			{ key: "locations", label: "Locations" },
-			{ key: "factions", label: "Factions" },
-			{ key: "artifacts", label: "Artifacts" },
+		// All tabs with icons
+		const allTabs: { 
+			key: "characters" | "traits" | "archetypes" | "events" | "lore" | "locations" | "factions" | "artifacts"; 
+			label: string;
+			icon: string;
+		}[] = [
+			{ key: "characters", label: "Characters", icon: "user" },
+			{ key: "locations", label: "Locations", icon: "map-pin" },
+			{ key: "factions", label: "Factions", icon: "users" },
+			{ key: "artifacts", label: "Artifacts", icon: "gem" },
+			{ key: "traits", label: "Traits", icon: "star" },
+			{ key: "archetypes", label: "Archetypes", icon: "shapes" },
+			{ key: "events", label: "Events", icon: "calendar" },
+			{ key: "lore", label: "Lore", icon: "book-open" },
 		];
 
-		for (const tab of entityTabs) {
-			const tabButton = entityTabsContainer.createEl("button", {
-				text: tab.label,
-				cls: `story-engine-tab ${this.worldTab === tab.key ? "is-active" : ""}`,
+		for (const tab of allTabs) {
+			const tabButton = sidebarContainer.createEl("button", {
+				cls: `story-engine-sidebar-tab ${this.worldTab === tab.key ? "is-active" : ""}`,
+				attr: {
+					"aria-label": tab.label,
+				}
 			});
-			tabButton.onclick = () => {
-				this.worldTab = tab.key;
-				this.renderWorldTabs();
-				this.renderWorldTabContent();
-			};
-		}
-
-		// Second row: Meta tabs (Traits, Archetypes, Events, Lore)
-		const metaTabsContainer = tabsWrapper.createDiv({ cls: "story-engine-tabs" });
-		const metaTabs: { key: "characters" | "traits" | "archetypes" | "events" | "lore" | "locations" | "factions" | "artifacts"; label: string }[] = [
-			{ key: "traits", label: "Traits" },
-			{ key: "archetypes", label: "Archetypes" },
-			{ key: "events", label: "Events" },
-			{ key: "lore", label: "Lore" },
-		];
-
-		for (const tab of metaTabs) {
-			const tabButton = metaTabsContainer.createEl("button", {
-				text: tab.label,
-				cls: `story-engine-tab ${this.worldTab === tab.key ? "is-active" : ""}`,
-			});
+			
+			// Add icon
+			setIcon(tabButton, tab.icon);
+			
+			// Create tooltip
+			const tooltip = tabButton.createDiv({ cls: "story-engine-sidebar-tooltip" });
+			tooltip.setText(tab.label);
+			
 			tabButton.onclick = () => {
 				this.worldTab = tab.key;
 				this.renderWorldTabs();
@@ -2574,15 +2585,22 @@ export class StoryListView extends ItemView {
 		if (!this.contentEl) return;
 
 		// Remove existing content
-		const existingContent = this.contentEl.querySelector(".story-engine-tab-content");
+		const existingContent = this.contentEl.querySelector(".story-engine-world-tab-content");
 		if (existingContent) {
 			existingContent.remove();
 		}
 
-		const contentContainer = this.contentEl.createDiv({ cls: "story-engine-tab-content" });
+		// Get sidebar position for proper content placement
+		const sidebarPosition = this.plugin.settings.sidebarPosition || "left";
+		const contentContainer = this.contentEl.createDiv({ 
+			cls: `story-engine-world-tab-content story-engine-content-sidebar-${sidebarPosition}` 
+		});
 
 		if (this.loadingWorldData) {
-			contentContainer.createEl("p", { text: "Loading..." });
+			// Modern skeleton loading
+			for (let i = 0; i < 3; i++) {
+				contentContainer.createDiv({ cls: "story-engine-skeleton story-engine-skeleton-card" });
+			}
 			return;
 		}
 
@@ -2665,34 +2683,85 @@ export class StoryListView extends ItemView {
 
 	renderCharactersTab(container: HTMLElement) {
 		if (this.characters.length === 0) {
-			container.createEl("p", { text: "No characters found. Create your first character!" });
+			// Modern empty state
+			const emptyState = container.createDiv({ cls: "story-engine-empty-state" });
+			const emptyIcon = emptyState.createDiv({ cls: "story-engine-empty-icon" });
+			setIcon(emptyIcon, "users");
+			emptyState.createEl("h3", { 
+				text: "No Characters Yet",
+				cls: "story-engine-empty-title"
+			});
+			emptyState.createEl("p", { 
+				text: "Start building your world by creating your first character.",
+				cls: "story-engine-empty-description"
+			});
+			const createBtn = emptyState.createEl("button", {
+				text: "Create Character",
+				cls: "story-engine-empty-action"
+			});
+			createBtn.onclick = () => this.showCreateCharacterModal();
 			return;
 		}
 
-		const list = container.createDiv({ cls: "story-engine-list" });
+		// Modern card-based layout
 		for (const character of this.characters) {
-			const item = list.createDiv({ cls: "story-engine-item" });
-			const titleDiv = item.createDiv({ cls: "story-engine-title", text: character.name });
-			titleDiv.style.cursor = "pointer";
-			titleDiv.onclick = () => {
+			const card = container.createDiv({ cls: "story-engine-entity-card" });
+			card.style.cursor = "pointer";
+			
+			// Make entire card clickable
+			card.onclick = () => {
 				this.showCharacterDetails(character);
 			};
 			
-			const meta = item.createDiv({ cls: "story-engine-meta" });
-			if (character.description) {
-				meta.createEl("span", { text: character.description.substring(0, 50) + (character.description.length > 50 ? "..." : "") });
+			// Card header with title and actions
+			const cardHeader = card.createDiv({ cls: "story-engine-entity-card-header" });
+			
+			const cardTitle = cardHeader.createDiv({ cls: "story-engine-entity-card-title" });
+			const nameEl = cardTitle.createEl("h3", { 
+				text: character.name,
+				cls: "story-engine-entity-name"
+			});
+			
+			if (character.archetype_id) {
+				const archetype = this.archetypes.find(a => a.id === character.archetype_id);
+				if (archetype) {
+					cardTitle.createEl("p", { 
+						text: archetype.name,
+						cls: "story-engine-entity-subtitle"
+					});
+				}
 			}
-
-			const actions = item.createDiv({ cls: "story-engine-item-actions" });
-			// Botão relacionamento
-			const relBtn = actions.createEl("button");
-			setIcon(relBtn, "users");
-			relBtn.title = "Add Relationship";
-			relBtn.onclick = () => this.showAddCharacterRelationshipModal(character);
-			actions.createEl("button", { text: "Edit" }).onclick = () => {
+			
+			// Card actions (hover visible)
+			const cardActions = cardHeader.createDiv({ cls: "story-engine-entity-card-actions" });
+			
+			const relationshipBtn = cardActions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Add Relationship" }
+			});
+			setIcon(relationshipBtn, "users");
+			relationshipBtn.onclick = (e) => {
+				e.stopPropagation();
+				this.showAddCharacterRelationshipModal(character);
+			};
+			
+			const editBtn = cardActions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Edit" }
+			});
+			setIcon(editBtn, "pencil");
+			editBtn.onclick = (e) => {
+				e.stopPropagation();
 				this.showEditCharacterModal(character);
 			};
-			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			
+			const deleteBtn = cardActions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Delete" }
+			});
+			setIcon(deleteBtn, "trash");
+			deleteBtn.onclick = async (e) => {
+				e.stopPropagation();
 				if (confirm(`Delete character "${character.name}"?`)) {
 					try {
 						await this.plugin.apiClient.deleteCharacter(character.id);
@@ -2704,6 +2773,16 @@ export class StoryListView extends ItemView {
 					}
 				}
 			};
+			
+			// Card content
+			const cardContent = card.createDiv({ cls: "story-engine-entity-card-content" });
+			
+			if (character.description) {
+				cardContent.createEl("p", { 
+					text: character.description,
+					cls: "story-engine-entity-description"
+				});
+			}
 		}
 	}
 
