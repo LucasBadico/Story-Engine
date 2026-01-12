@@ -28,7 +28,10 @@ func TenantMiddleware(next http.Handler) http.Handler {
 
 		// Skip tenant validation for routes that don't need it
 		path := r.URL.Path
-		if path == "/health" || strings.HasPrefix(path, "/api/v1/tenants") {
+		if path == "/health" ||
+			strings.HasPrefix(path, "/api/v1/tenants") ||
+			strings.HasPrefix(path, "/api/v1/rpg-systems") ||
+			strings.HasPrefix(path, "/api/v1/static") {
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -112,4 +115,3 @@ func writeError(w http.ResponseWriter, err error, defaultStatus int) {
 	w.WriteHeader(status)
 	json.NewEncoder(w).Encode(response)
 }
-

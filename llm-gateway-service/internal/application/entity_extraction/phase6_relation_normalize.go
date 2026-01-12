@@ -131,6 +131,16 @@ func (uc *Phase6RelationNormalizeUseCase) normalizePhase6Relation(ctx context.Co
 
 	relationType := strings.TrimSpace(rel.RelationType)
 	custom := strings.HasPrefix(strings.ToLower(relationType), "custom:")
+	if custom {
+		trimmed := strings.TrimPrefix(relationType, "custom:")
+		trimmed = strings.TrimSpace(trimmed)
+		if trimmed != "" {
+			if _, ok := input.RelationTypes[trimmed]; ok {
+				relationType = trimmed
+				custom = false
+			}
+		}
+	}
 
 	def, hasDef := input.RelationTypes[relationType]
 	if !hasDef && !custom {

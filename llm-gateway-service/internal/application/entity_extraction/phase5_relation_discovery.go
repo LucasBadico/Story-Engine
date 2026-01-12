@@ -17,6 +17,12 @@ type Phase5RelationDiscoveryUseCase struct {
 	logger *logger.Logger
 }
 
+const phase5MaxOutputTokens = 12288
+
+type phase5MaxOutputTokenModel interface {
+	GenerateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error)
+}
+
 func NewPhase5RelationDiscoveryUseCase(model llm.RouterModel, logger *logger.Logger) *Phase5RelationDiscoveryUseCase {
 	return &Phase5RelationDiscoveryUseCase{
 		model:  model,
@@ -140,7 +146,12 @@ func (uc *Phase5RelationDiscoveryUseCase) Execute(ctx context.Context, input Pha
 		return Phase5RelationDiscoveryOutput{}, err
 	}
 
-	raw, err := uc.model.Generate(ctx, prompt)
+	var raw string
+	if model, ok := uc.model.(phase5MaxOutputTokenModel); ok {
+		raw, err = model.GenerateWithMaxOutputTokens(ctx, prompt, phase5MaxOutputTokens)
+	} else {
+		raw, err = uc.model.Generate(ctx, prompt)
+	}
 	if err != nil {
 		if uc.logger != nil {
 			uc.logger.Error("phase5 relation discovery model failed", "error", err)
@@ -151,7 +162,7 @@ func (uc *Phase5RelationDiscoveryUseCase) Execute(ctx context.Context, input Pha
 	parsed, err := parsePhase5RelationDiscoveryOutput(raw)
 	if err != nil {
 		if uc.logger != nil {
-			uc.logger.Error("phase5 relation discovery parse failed", "error", err)
+			uc.logger.Error("phase5 relation discovery parse failed", "error", err, "raw", raw)
 		}
 		return Phase5RelationDiscoveryOutput{}, err
 	}
@@ -243,6 +254,8 @@ func validatePhase5Relations(input Phase5RelationDiscoveryInput, relations []Pha
 		if sourceType == "" || targetType == "" || rel.RelationType == "" {
 			continue
 		}
+		rel.Source.Type = sourceType
+		rel.Target.Type = targetType
 
 		if mode == "spans" {
 			if strings.TrimSpace(rel.Evidence.SpanID) == "" {
@@ -276,6 +289,8 @@ func validatePhase5Relations(input Phase5RelationDiscoveryInput, relations []Pha
 func normalizeEntityType(value string) string {
 	trimmed := strings.ToLower(strings.TrimSpace(value))
 	switch trimmed {
+	case "artefact":
+		return "artifact"
 	case "organization", "group":
 		return "faction"
 	default:

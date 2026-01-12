@@ -11,6 +11,10 @@ type RouterModelProvider struct {
 	model llm.RouterModel
 }
 
+type routerModelMaxOutputTokens interface {
+	GenerateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error)
+}
+
 func NewRouterModelProvider(name string, model llm.RouterModel) *RouterModelProvider {
 	return &RouterModelProvider{
 		name:  name,
@@ -23,5 +27,12 @@ func (p *RouterModelProvider) Name() string {
 }
 
 func (p *RouterModelProvider) Generate(ctx context.Context, prompt string) (string, error) {
+	return p.model.Generate(ctx, prompt)
+}
+
+func (p *RouterModelProvider) GenerateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error) {
+	if model, ok := p.model.(routerModelMaxOutputTokens); ok {
+		return model.GenerateWithMaxOutputTokens(ctx, prompt, maxOutputTokens)
+	}
 	return p.model.Generate(ctx, prompt)
 }

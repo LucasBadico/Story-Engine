@@ -13,7 +13,9 @@ import (
 )
 
 const (
-	defaultModel = "gemini-1.5-flash"
+	defaultModel           = "gemini-1.5-flash"
+	defaultMaxOutputTokens = 4096
+	extendedTimeoutSeconds = 120
 )
 
 type RouterModel struct {
@@ -70,6 +72,17 @@ type promptFeedback struct {
 }
 
 func (m *RouterModel) Generate(ctx context.Context, prompt string) (string, error) {
+	return m.generateWithMaxOutputTokens(ctx, prompt, defaultMaxOutputTokens)
+}
+
+func (m *RouterModel) GenerateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error) {
+	if maxOutputTokens <= 0 {
+		maxOutputTokens = defaultMaxOutputTokens
+	}
+	return m.generateWithMaxOutputTokens(ctx, prompt, maxOutputTokens)
+}
+
+func (m *RouterModel) generateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error) {
 	if m.apiKey == "" {
 		return "", errors.New("gemini api key is required")
 	}
@@ -77,7 +90,12 @@ func (m *RouterModel) Generate(ctx context.Context, prompt string) (string, erro
 		return "", errors.New("prompt is required")
 	}
 
-	const maxAttempts = 2
+	const maxAttempts = 3
+
+	client := m.client
+	if maxOutputTokens > defaultMaxOutputTokens && client.Timeout < extendedTimeoutSeconds*time.Second {
+		client = &http.Client{Timeout: extendedTimeoutSeconds * time.Second}
+	}
 
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
 		body := requestPayload{
@@ -91,7 +109,7 @@ func (m *RouterModel) Generate(ctx context.Context, prompt string) (string, erro
 			},
 			GenerationConfig: generationConfig{
 				Temperature:      0.2,
-				MaxOutputTokens:  4096,
+				MaxOutputTokens:  maxOutputTokens,
 				ResponseMimeType: "application/json",
 			},
 		}
@@ -113,13 +131,17 @@ func (m *RouterModel) Generate(ctx context.Context, prompt string) (string, erro
 		}
 		req.Header.Set("Content-Type", "application/json")
 
-		resp, err := m.client.Do(req)
+		resp, err := client.Do(req)
 		if err != nil {
 			return "", fmt.Errorf("gemini request failed: %w", err)
 		}
 		defer resp.Body.Close()
 
 		if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+			if shouldRetryGeminiStatus(resp.StatusCode) && attempt < maxAttempts {
+				time.Sleep(backoffDuration(attempt))
+				continue
+			}
 			return "", fmt.Errorf("gemini request failed with status %d", resp.StatusCode)
 		}
 
@@ -156,4 +178,22 @@ func (m *RouterModel) Generate(ctx context.Context, prompt string) (string, erro
 	}
 
 	return "", errors.New("gemini request failed after retries")
+}
+
+func shouldRetryGeminiStatus(status int) bool {
+	if status == http.StatusTooManyRequests || status == http.StatusServiceUnavailable {
+		return true
+	}
+	return status >= 500 && status <= 599
+}
+
+func backoffDuration(attempt int) time.Duration {
+	switch attempt {
+	case 1:
+		return 500 * time.Millisecond
+	case 2:
+		return time.Second
+	default:
+		return 2 * time.Second
+	}
 }

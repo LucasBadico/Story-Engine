@@ -61,6 +61,7 @@ type EntityAndRelationshipsExtractorInput struct {
 	RelationTypes         map[string]Phase6RelationTypeDefinition
 	RelationTypeSemantics map[string]string
 	EventLogger           ExtractionEventLogger
+	IncludeRelations      bool
 }
 
 type EntityAndRelationshipsExtractorOutput struct {
@@ -213,12 +214,37 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 	})
 
 	relations := []Phase8RelationResult{}
-	if u.relationDiscovery != nil && u.relationNormalize != nil && u.relationMatcher != nil &&
-		len(input.SuggestedRelations) > 0 && len(input.RelationTypes) > 0 {
-		relations, err = u.extractRelations(ctx, input, phase2Output, phase3Output)
-		if err != nil {
-			u.logger.Error("relation extraction failed", "error", err)
+	basePayload := u.payload.Execute(phase3Output)
+
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "result_entities",
+		Message: "entity extraction completed",
+		Data: map[string]interface{}{
+			"entities": basePayload.Entities,
+		},
+	})
+
+	if input.IncludeRelations && u.relationDiscovery != nil && u.relationNormalize != nil && u.relationMatcher != nil {
+		if len(input.SuggestedRelations) == 0 || len(input.RelationTypes) == 0 {
+			u.logger.Warn("relation maps missing; skipping relation extraction",
+				"suggested", len(input.SuggestedRelations),
+				"types", len(input.RelationTypes))
+		} else {
+			relations, err = u.extractRelations(ctx, input, phase2Output, phase3Output)
+			if err != nil {
+				u.logger.Error("relation extraction failed", "error", err)
+			}
 		}
+	}
+
+	if len(relations) > 0 {
+		emitEvent(ctx, eventLogger, ExtractionEvent{
+			Type:    "result_relations",
+			Message: "relation extraction completed",
+			Data: map[string]interface{}{
+				"relations": relations,
+			},
+		})
 	}
 
 	emitEvent(ctx, eventLogger, ExtractionEvent{
@@ -227,7 +253,7 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 		Message: "payload formatting started",
 	})
 	return EntityAndRelationshipsExtractorOutput{
-		Payload: mergeRelationsPayload(u.payload.Execute(phase3Output), relations),
+		Payload: mergeRelationsPayload(basePayload, relations),
 	}, nil
 }
 

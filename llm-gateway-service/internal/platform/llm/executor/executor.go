@@ -13,6 +13,10 @@ type Provider interface {
 	Generate(ctx context.Context, prompt string) (string, error)
 }
 
+type ProviderMaxOutputTokens interface {
+	GenerateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error)
+}
+
 type ProviderConfig struct {
 	Name        string
 	MaxParallel int
@@ -26,12 +30,13 @@ type Config struct {
 }
 
 type Request struct {
-	Ctx        context.Context
-	Prompt     string
-	Provider   string
-	RequestID  string
-	ResponseCh chan Response
-	ErrorCh    chan error
+	Ctx             context.Context
+	Prompt          string
+	Provider        string
+	RequestID       string
+	MaxOutputTokens int
+	ResponseCh      chan Response
+	ErrorCh         chan error
 }
 
 type Response struct {
@@ -109,11 +114,39 @@ func (e *Executor) Submit(ctx context.Context, prompt string, provider string) (
 	errorCh := make(chan error, 1)
 
 	req := &Request{
-		Ctx:        ctx,
-		Prompt:     prompt,
-		Provider:   provider,
-		ResponseCh: responseCh,
-		ErrorCh:    errorCh,
+		Ctx:             ctx,
+		Prompt:          prompt,
+		Provider:        provider,
+		MaxOutputTokens: 0,
+		ResponseCh:      responseCh,
+		ErrorCh:         errorCh,
+	}
+
+	if err := e.Enqueue(req); err != nil {
+		return "", err
+	}
+
+	select {
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case err := <-errorCh:
+		return "", err
+	case response := <-responseCh:
+		return response.Text, nil
+	}
+}
+
+func (e *Executor) SubmitWithMaxOutputTokens(ctx context.Context, prompt string, provider string, maxOutputTokens int) (string, error) {
+	responseCh := make(chan Response, 1)
+	errorCh := make(chan error, 1)
+
+	req := &Request{
+		Ctx:             ctx,
+		Prompt:          prompt,
+		Provider:        provider,
+		MaxOutputTokens: maxOutputTokens,
+		ResponseCh:      responseCh,
+		ErrorCh:         errorCh,
 	}
 
 	if err := e.Enqueue(req); err != nil {
@@ -190,7 +223,19 @@ func (p *providerPool) worker() {
 			}
 		}
 
-		text, err := p.provider.Generate(req.Ctx, req.Prompt)
+		var (
+			text string
+			err  error
+		)
+		if req.MaxOutputTokens > 0 {
+			if provider, ok := p.provider.(ProviderMaxOutputTokens); ok {
+				text, err = provider.GenerateWithMaxOutputTokens(req.Ctx, req.Prompt, req.MaxOutputTokens)
+			} else {
+				text, err = p.provider.Generate(req.Ctx, req.Prompt)
+			}
+		} else {
+			text, err = p.provider.Generate(req.Ctx, req.Prompt)
+		}
 		if err != nil {
 			sendError(req, err)
 			continue

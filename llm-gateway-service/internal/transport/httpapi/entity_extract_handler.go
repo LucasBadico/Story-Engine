@@ -48,6 +48,7 @@ type entityExtractRequest struct {
 	MaxMatchCandidates    int      `json:"max_match_candidates,omitempty"`
 	MaxRelationMatches    int      `json:"max_relation_matches,omitempty"`
 	RelationMatchMinSim   float64  `json:"relation_match_min_similarity,omitempty"`
+	IncludeRelations      *bool    `json:"include_relations,omitempty"`
 }
 
 type entityExtractResponse struct {
@@ -85,6 +86,11 @@ func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
 		fmt.Sprintf("max_match_candidates: %d", req.MaxMatchCandidates),
 	}))
 
+	includeRelations := true
+	if req.IncludeRelations != nil {
+		includeRelations = *req.IncludeRelations
+	}
+
 	output, err := h.useCase.Execute(r.Context(), entity_extraction.EntityAndRelationshipsExtractorInput{
 		TenantID:              tenantID,
 		WorldID:               worldID,
@@ -102,6 +108,7 @@ func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
 		RelationMatchMinSim:   req.RelationMatchMinSim,
 		SuggestedRelations:    h.suggestedRelations,
 		RelationTypes:         h.relationTypes,
+		IncludeRelations:      includeRelations,
 	})
 	if err != nil {
 		h.logger.Error(fmt.Sprintf("entity extract failed tenant_id=%s error=%v", tenantID, err))
@@ -110,8 +117,10 @@ func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := entityExtractResponse{
-		Entities:  make([]entityExtractEntity, 0, len(output.Payload.Entities)),
-		Relations: output.Payload.Relations,
+		Entities: make([]entityExtractEntity, 0, len(output.Payload.Entities)),
+	}
+	if includeRelations {
+		resp.Relations = output.Payload.Relations
 	}
 
 	foundCount := 0
@@ -179,6 +188,11 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 		Timestamp: time.Now().UTC(),
 	})
 
+	includeRelations := true
+	if req.IncludeRelations != nil {
+		includeRelations = *req.IncludeRelations
+	}
+
 	output, err := h.useCase.Execute(r.Context(), entity_extraction.EntityAndRelationshipsExtractorInput{
 		TenantID:              tenantID,
 		WorldID:               worldID,
@@ -197,6 +211,7 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 		SuggestedRelations:    h.suggestedRelations,
 		RelationTypes:         h.relationTypes,
 		EventLogger:           eventLogger,
+		IncludeRelations:      includeRelations,
 	})
 	if err != nil {
 		emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
@@ -210,25 +225,7 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
-		Type:    "result_entities",
-		Message: "entity extraction completed",
-		Data: map[string]interface{}{
-			"entities": output.Payload.Entities,
-		},
-		Timestamp: time.Now().UTC(),
-	})
-
-	if len(output.Payload.Relations) > 0 {
-		emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
-			Type:    "result_relations",
-			Message: "relation extraction completed",
-			Data: map[string]interface{}{
-				"relations": output.Payload.Relations,
-			},
-			Timestamp: time.Now().UTC(),
-		})
-	}
+	_ = output
 }
 
 func formatLogBlock(title string, lines []string) string {

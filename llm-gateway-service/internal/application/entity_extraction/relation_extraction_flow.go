@@ -3,10 +3,15 @@ package entity_extraction
 import (
 	"context"
 	"fmt"
+	"os"
+	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/story-engine/llm-gateway-service/internal/core/memory"
+	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
 type relationFindingRef struct {
@@ -20,6 +25,7 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 	phase2Output Phase2EntryOutput,
 	phase3Output Phase3MatchOutput,
 ) ([]Phase8RelationResult, error) {
+	eventLogger := normalizeEventLogger(input.EventLogger)
 	requestID := strings.TrimSpace(input.RequestID)
 	if requestID == "" {
 		requestID = uuid.NewString()
@@ -27,27 +33,128 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 
 	findingRefs, entityFindings := buildPhase5Findings(phase2Output.Findings)
 	confirmedMatches, refMap := buildPhase5MatchesAndRefMap(findingRefs, phase3Output.Results)
-	textSpec := buildPhase5TextSpec(phase2Output.Findings, strings.TrimSpace(input.Text))
+	pairs := buildRelationDiscoveryPairs(entityFindings)
 
-	phase5Input := Phase5RelationDiscoveryInput{
-		RequestID:                      requestID,
-		Context:                        buildPhase5Context(input),
-		Text:                           textSpec,
-		EntityFindings:                 entityFindings,
-		ConfirmedMatches:               confirmedMatches,
-		SuggestedRelationsBySourceType: input.SuggestedRelations,
-		RelationTypeSemantics:          buildRelationTypeSemantics(input.RelationTypes, input.RelationTypeSemantics),
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.start",
+		Phase:   "relation.discovery",
+		Message: "relation discovery started",
+		Data: map[string]interface{}{
+			"pairs": len(pairs),
+		},
+	})
+
+	relations := make([]Phase5RelationCandidate, 0)
+	seenRelations := map[string]struct{}{}
+	var relationsMu sync.Mutex
+	var errMu sync.Mutex
+	var firstErr error
+
+	parallelism := getRelationDiscoveryParallelism(u.logger)
+	sem := make(chan struct{}, parallelism)
+	var wg sync.WaitGroup
+
+	for _, pair := range pairs {
+		pair := pair
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+
+			emitEvent(ctx, eventLogger, ExtractionEvent{
+				Type:    "relation.discovery.batch",
+				Phase:   "relation.discovery",
+				Message: "relation discovery batch",
+				Data: map[string]interface{}{
+					"source_type": pair.SourceType,
+					"target_type": pair.TargetType,
+				},
+			})
+
+			suggested, ok := input.SuggestedRelations[pair.SourceType]
+			if !ok {
+				return
+			}
+
+			filteredPhase2 := filterPhase2FindingsByTypes(phase2Output.Findings, pair.SourceType, pair.TargetType)
+			textSpec := buildPhase5TextSpec(filteredPhase2, strings.TrimSpace(input.Text))
+			if len(textSpec.Spans) == 0 {
+				return
+			}
+
+			filteredFindings, refSet := filterPhase5FindingsByTypes(entityFindings, pair.SourceType, pair.TargetType)
+			if len(filteredFindings) == 0 {
+				return
+			}
+
+			filteredMatches := filterPhase5ConfirmedMatchesByRefs(confirmedMatches, refSet)
+
+			phase5Input := Phase5RelationDiscoveryInput{
+				RequestID:                      requestID,
+				Context:                        buildPhase5Context(input),
+				Text:                           textSpec,
+				EntityFindings:                 filteredFindings,
+				ConfirmedMatches:               filteredMatches,
+				SuggestedRelationsBySourceType: map[string]Phase5PerEntityRelationMap{pair.SourceType: suggested},
+				RelationTypeSemantics:          buildRelationTypeSemantics(input.RelationTypes, input.RelationTypeSemantics),
+			}
+
+			phase5Output, err := u.relationDiscovery.Execute(ctx, phase5Input)
+			if err != nil {
+				errMu.Lock()
+				if firstErr == nil {
+					firstErr = err
+				}
+				errMu.Unlock()
+				return
+			}
+
+			relationsMu.Lock()
+			for _, relation := range phase5Output.Relations {
+				key := buildPhase5RelationKey(relation)
+				if _, ok := seenRelations[key]; ok {
+					continue
+				}
+				seenRelations[key] = struct{}{}
+				relations = append(relations, relation)
+			}
+			relationsMu.Unlock()
+		}()
 	}
 
-	phase5Output, err := u.relationDiscovery.Execute(ctx, phase5Input)
-	if err != nil {
-		return nil, err
+	wg.Wait()
+	if firstErr != nil {
+		return nil, firstErr
 	}
 
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.done",
+		Phase:   "relation.discovery",
+		Message: "relation discovery finished",
+		Data: map[string]interface{}{
+			"relations": len(relations),
+		},
+	})
+
+	if len(relations) == 0 {
+		return []Phase8RelationResult{}, nil
+	}
+
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.start",
+		Phase:   "relation.normalize",
+		Message: "relation normalization started",
+		Data: map[string]interface{}{
+			"relations": len(relations),
+		},
+	})
 	phase6Output, err := u.relationNormalize.Execute(ctx, Phase6RelationNormalizeInput{
 		RequestID:                      requestID,
-		Context:                        phase5Input.Context,
-		Relations:                      phase5Output.Relations,
+		Context:                        buildPhase5Context(input),
+		Relations:                      relations,
 		RefMap:                         refMap,
 		SuggestedRelationsBySourceType: input.SuggestedRelations,
 		RelationTypes:                  input.RelationTypes,
@@ -55,7 +162,23 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 	if err != nil {
 		return nil, err
 	}
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.done",
+		Phase:   "relation.normalize",
+		Message: "relation normalization finished",
+		Data: map[string]interface{}{
+			"relations": len(phase6Output.Relations),
+		},
+	})
 
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.start",
+		Phase:   "relation.match",
+		Message: "relation match started",
+		Data: map[string]interface{}{
+			"relations": len(phase6Output.Relations),
+		},
+	})
 	matchOutput, err := u.relationMatcher.Execute(ctx, Phase7RelationMatchInput{
 		TenantID:      input.TenantID,
 		Relations:     phase6Output.Relations,
@@ -66,6 +189,14 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 	if err != nil {
 		return nil, err
 	}
+	emitEvent(ctx, eventLogger, ExtractionEvent{
+		Type:    "phase.done",
+		Phase:   "relation.match",
+		Message: "relation match finished",
+		Data: map[string]interface{}{
+			"matched_relations": len(matchOutput.Matches),
+		},
+	})
 
 	return buildPhase8Relations(phase6Output.Relations, matchOutput), nil
 }
@@ -110,6 +241,84 @@ func buildPhase5Findings(findings []Phase2EntityFinding) (map[string]relationFin
 	}
 
 	return refs, out
+}
+
+type relationDiscoveryPair struct {
+	SourceType string
+	TargetType string
+}
+
+func buildRelationDiscoveryPairs(findings []Phase5EntityFinding) []relationDiscoveryPair {
+	present := map[string]struct{}{}
+	for _, finding := range findings {
+		if strings.TrimSpace(finding.Type) == "" {
+			continue
+		}
+		present[finding.Type] = struct{}{}
+	}
+
+	typesOrder := []string{"character", "location", "faction", "event", "artefact"}
+	pairs := make([]relationDiscoveryPair, 0)
+	for _, sourceType := range typesOrder {
+		if _, ok := present[sourceType]; !ok {
+			continue
+		}
+		for _, targetType := range typesOrder {
+			if _, ok := present[targetType]; !ok {
+				continue
+			}
+			pairs = append(pairs, relationDiscoveryPair{
+				SourceType: sourceType,
+				TargetType: targetType,
+			})
+		}
+	}
+	return pairs
+}
+
+func filterPhase2FindingsByTypes(findings []Phase2EntityFinding, sourceType, targetType string) []Phase2EntityFinding {
+	out := make([]Phase2EntityFinding, 0, len(findings))
+	for _, finding := range findings {
+		entityType := strings.TrimSpace(finding.EntityType)
+		if entityType == sourceType || entityType == targetType {
+			out = append(out, finding)
+		}
+	}
+	return out
+}
+
+func filterPhase5FindingsByTypes(
+	findings []Phase5EntityFinding,
+	sourceType, targetType string,
+) ([]Phase5EntityFinding, map[string]struct{}) {
+	out := make([]Phase5EntityFinding, 0, len(findings))
+	refs := make(map[string]struct{})
+	for _, finding := range findings {
+		entityType := strings.TrimSpace(finding.Type)
+		if entityType != sourceType && entityType != targetType {
+			continue
+		}
+		out = append(out, finding)
+		refs[finding.Ref] = struct{}{}
+	}
+	return out, refs
+}
+
+func filterPhase5ConfirmedMatchesByRefs(
+	matches []Phase5ConfirmedMatch,
+	refs map[string]struct{},
+) []Phase5ConfirmedMatch {
+	if len(matches) == 0 || len(refs) == 0 {
+		return nil
+	}
+	out := make([]Phase5ConfirmedMatch, 0, len(matches))
+	for _, match := range matches {
+		if _, ok := refs[match.FindingRef]; !ok {
+			continue
+		}
+		out = append(out, match)
+	}
+	return out
 }
 
 func buildPhase5MatchesAndRefMap(
@@ -191,6 +400,17 @@ func buildPhase5TextSpec(findings []Phase2EntityFinding, fullText string) Phase5
 	}
 }
 
+func buildPhase5RelationKey(relation Phase5RelationCandidate) string {
+	return fmt.Sprintf(
+		"%s|%s|%s|%s|%s",
+		relation.Source.Ref,
+		relation.Target.Ref,
+		relation.RelationType,
+		relation.Evidence.SpanID,
+		strings.TrimSpace(relation.Evidence.Quote),
+	)
+}
+
 func buildPhase8Relations(relations []Phase6NormalizedRelation, matches Phase7RelationMatchOutput) []Phase8RelationResult {
 	if len(relations) == 0 {
 		return []Phase8RelationResult{}
@@ -201,8 +421,10 @@ func buildPhase8Relations(relations []Phase6NormalizedRelation, matches Phase7Re
 		matchMap[match.RelationIndex] = match.Matches
 	}
 
+	ordered := orderRelationsWithMirrors(relations)
 	out := make([]Phase8RelationResult, 0, len(relations))
-	for idx, relation := range relations {
+	for _, idx := range ordered {
+		relation := relations[idx]
 		out = append(out, Phase8RelationResult{
 			Source:       relation.Source,
 			Target:       relation.Target,
@@ -222,6 +444,50 @@ func buildPhase8Relations(relations []Phase6NormalizedRelation, matches Phase7Re
 	}
 
 	return out
+}
+
+func orderRelationsWithMirrors(relations []Phase6NormalizedRelation) []int {
+	ordered := make([]int, 0, len(relations))
+	mirrorBuckets := map[string][]int{}
+	seen := make(map[int]struct{}, len(relations))
+
+	for idx, rel := range relations {
+		if rel.MirrorOf != nil && strings.TrimSpace(*rel.MirrorOf) != "" {
+			key := strings.TrimSpace(*rel.MirrorOf)
+			mirrorBuckets[key] = append(mirrorBuckets[key], idx)
+			continue
+		}
+		ordered = append(ordered, idx)
+		seen[idx] = struct{}{}
+	}
+
+	for _, idx := range ordered {
+		key := phase6RelationKey(relations[idx])
+		mirrors := mirrorBuckets[key]
+		if len(mirrors) == 0 {
+			continue
+		}
+		for _, mirrorIdx := range mirrors {
+			if _, ok := seen[mirrorIdx]; ok {
+				continue
+			}
+			seen[mirrorIdx] = struct{}{}
+			ordered = append(ordered, mirrorIdx)
+		}
+	}
+
+	for key, mirrors := range mirrorBuckets {
+		_ = key
+		for _, mirrorIdx := range mirrors {
+			if _, ok := seen[mirrorIdx]; ok {
+				continue
+			}
+			seen[mirrorIdx] = struct{}{}
+			ordered = append(ordered, mirrorIdx)
+		}
+	}
+
+	return ordered
 }
 
 func defaultRelationMatchSourceTypes() []memory.SourceType {
@@ -253,6 +519,35 @@ func buildRelationTypeSemantics(
 		return nil
 	}
 	return result
+}
+
+func getRelationDiscoveryParallelism(log *logger.Logger) int {
+	parallelism := 2
+	cpuCount := runtime.NumCPU()
+
+	if value := strings.TrimSpace(os.Getenv("RELATION_DISCOVERY_PARALLELISM")); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil && parsed > 0 {
+			parallelism = parsed
+		}
+	} else if value := strings.TrimSpace(os.Getenv("ENTITY_EXTRACT_PARALLELISM")); value != "" {
+		if parsed, err := strconv.Atoi(value); err == nil && parsed > 0 {
+			parallelism = parsed
+		}
+	}
+
+	if log != nil && parallelism > cpuCount {
+		log.Warn(
+			"relation discovery parallelism exceeds CPU count",
+			"parallelism", parallelism,
+			"cpu_count", cpuCount,
+		)
+	}
+
+	if parallelism < 1 {
+		parallelism = 1
+	}
+
+	return parallelism
 }
 
 func collectMentions(occurrences []Phase2EntityOccurrence) []string {
