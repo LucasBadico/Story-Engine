@@ -24,6 +24,7 @@
   - [ ] wire-up no factory/config para selecionar o provider Gemini
   - [ ] testes unitários do adapter (mock HTTP) e smoke test no worker
   - [ ] atualizar docs de setup com exemplo de envs do Gemini
+  - [ ] investigar 503 no Gemini (quota/limites, regiao/endpoint, retry/backoff no cliente)
 - [ ] world entities -  
   - [ ] view
     - [ ] evento- continua errado
