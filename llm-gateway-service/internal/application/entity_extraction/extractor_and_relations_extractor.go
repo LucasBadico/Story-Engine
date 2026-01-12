@@ -229,10 +229,27 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 			u.logger.Warn("relation maps missing; skipping relation extraction",
 				"suggested", len(input.SuggestedRelations),
 				"types", len(input.RelationTypes))
+			emitEvent(ctx, eventLogger, ExtractionEvent{
+				Type:    "relation.error",
+				Phase:   "relation",
+				Message: "relation extraction skipped (maps missing)",
+				Data: map[string]interface{}{
+					"suggested": len(input.SuggestedRelations),
+					"types":     len(input.RelationTypes),
+				},
+			})
 		} else {
 			relations, err = u.extractRelations(ctx, input, phase2Output, phase3Output)
 			if err != nil {
 				u.logger.Error("relation extraction failed", "error", err)
+				emitEvent(ctx, eventLogger, ExtractionEvent{
+					Type:    "relation.error",
+					Phase:   "relation",
+					Message: "relation extraction failed",
+					Data: map[string]interface{}{
+						"error": err.Error(),
+					},
+				})
 			}
 		}
 	}
@@ -243,6 +260,23 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 			Message: "relation extraction completed",
 			Data: map[string]interface{}{
 				"relations": relations,
+			},
+		})
+		emitEvent(ctx, eventLogger, ExtractionEvent{
+			Type:    "relation.success",
+			Phase:   "relation",
+			Message: "relation extraction succeeded",
+			Data: map[string]interface{}{
+				"count": len(relations),
+			},
+		})
+	} else if input.IncludeRelations {
+		emitEvent(ctx, eventLogger, ExtractionEvent{
+			Type:    "relation.success",
+			Phase:   "relation",
+			Message: "relation extraction completed with no relations",
+			Data: map[string]interface{}{
+				"count": 0,
 			},
 		})
 	}

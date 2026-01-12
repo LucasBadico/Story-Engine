@@ -23,6 +23,10 @@ type phase5MaxOutputTokenModel interface {
 	GenerateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error)
 }
 
+type phase5RepairModel interface {
+	Generate(ctx context.Context, prompt string) (string, error)
+}
+
 func NewPhase5RelationDiscoveryUseCase(model llm.RouterModel, logger *logger.Logger) *Phase5RelationDiscoveryUseCase {
 	return &Phase5RelationDiscoveryUseCase{
 		model:  model,
@@ -164,7 +168,12 @@ func (uc *Phase5RelationDiscoveryUseCase) Execute(ctx context.Context, input Pha
 		if uc.logger != nil {
 			uc.logger.Error("phase5 relation discovery parse failed", "error", err, "raw", raw)
 		}
-		return Phase5RelationDiscoveryOutput{}, err
+		repaired, repairErr := uc.repairPhase5Output(ctx, raw)
+		if repairErr == nil {
+			parsed = repaired
+		} else {
+			return Phase5RelationDiscoveryOutput{}, err
+		}
 	}
 
 	validated := validatePhase5Relations(input, parsed.Relations)
@@ -228,7 +237,69 @@ func parsePhase5RelationDiscoveryOutput(raw string) (Phase5RelationDiscoveryOutp
 		}
 	}
 
+	if recovered, ok := recoverPhase5Output(clean); ok {
+		return recovered, nil
+	}
+
 	return Phase5RelationDiscoveryOutput{}, errors.New("invalid relation discovery output JSON")
+}
+
+func recoverPhase5Output(raw string) (Phase5RelationDiscoveryOutput, bool) {
+	start := strings.Index(raw, "{")
+	if start < 0 {
+		return Phase5RelationDiscoveryOutput{}, false
+	}
+
+	for end := len(raw) - 1; end > start; end-- {
+		if raw[end] != '}' {
+			continue
+		}
+		candidate := raw[start : end+1]
+		var output Phase5RelationDiscoveryOutput
+		if err := json.Unmarshal([]byte(candidate), &output); err == nil {
+			return output, true
+		}
+	}
+
+	return Phase5RelationDiscoveryOutput{}, false
+}
+
+func (uc *Phase5RelationDiscoveryUseCase) repairPhase5Output(ctx context.Context, raw string) (Phase5RelationDiscoveryOutput, error) {
+	model, ok := uc.model.(phase5RepairModel)
+	if !ok || model == nil {
+		return Phase5RelationDiscoveryOutput{}, errors.New("repair model not available")
+	}
+	prompt := buildPhase5RelationRepairPrompt(raw)
+	repairedRaw, err := model.Generate(ctx, prompt)
+	if err != nil {
+		if uc.logger != nil {
+			uc.logger.Error("phase5 relation discovery repair failed", "error", err)
+		}
+		return Phase5RelationDiscoveryOutput{}, err
+	}
+	return parsePhase5RelationDiscoveryOutput(repairedRaw)
+}
+
+func buildPhase5RelationRepairPrompt(raw string) string {
+	return strings.TrimSpace(fmt.Sprintf(`You are a JSON repair tool.
+
+Your task: return a VALID JSON object that strictly matches the schema below.
+Use the raw model output as input and fix any JSON issues.
+
+Rules:
+- Output JSON on a single line.
+- Do NOT add extra keys.
+- Do NOT add explanations.
+- Do NOT include code fences.
+
+RAW MODEL OUTPUT:
+"""
+%s
+"""
+
+OUTPUT JSON SCHEMA:
+{"relations":[{"source":{"ref":"...","type":"..."},"target":{"ref":"...","type":"..."},"relation_type":"...","polarity":"asserted|denied|uncertain","implicit":false,"confidence":0.0,"evidence":{"span_id":"...","quote":"..."}}]}
+`, raw))
 }
 
 func validatePhase5Relations(input Phase5RelationDiscoveryInput, relations []Phase5RelationCandidate) []Phase5RelationCandidate {

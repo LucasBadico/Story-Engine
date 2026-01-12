@@ -49,6 +49,7 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 	var relationsMu sync.Mutex
 	var errMu sync.Mutex
 	var firstErr error
+	errorCount := 0
 
 	parallelism := getRelationDiscoveryParallelism(u.logger)
 	sem := make(chan struct{}, parallelism)
@@ -108,7 +109,18 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 				if firstErr == nil {
 					firstErr = err
 				}
+				errorCount++
 				errMu.Unlock()
+				emitEvent(ctx, eventLogger, ExtractionEvent{
+					Type:    "relation.discovery.error",
+					Phase:   "relation.discovery",
+					Message: "relation discovery batch failed",
+					Data: map[string]interface{}{
+						"source_type": pair.SourceType,
+						"target_type": pair.TargetType,
+						"error":       err.Error(),
+					},
+				})
 				return
 			}
 
@@ -126,7 +138,7 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 	}
 
 	wg.Wait()
-	if firstErr != nil {
+	if firstErr != nil && len(relations) == 0 {
 		return nil, firstErr
 	}
 
@@ -136,6 +148,7 @@ func (u *EntityAndRelationshipsExtractor) extractRelations(
 		Message: "relation discovery finished",
 		Data: map[string]interface{}{
 			"relations": len(relations),
+			"errors":    errorCount,
 		},
 	})
 
