@@ -14,6 +14,7 @@ export interface StoryEngineSettings {
 	localModeVideoUrl?: string;
 	autoSyncOnApiUpdates: boolean;
 	autoPushOnFileBlur: boolean;
+	sidebarPosition: "left" | "right";
 }
 
 export interface ErrorResponse {

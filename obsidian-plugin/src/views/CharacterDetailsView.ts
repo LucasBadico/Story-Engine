@@ -61,8 +61,21 @@ export class CharacterDetailsView {
 	async render() {
 		await this.loadCharacterData();
 		this.renderHeader();
-		this.renderTabs();
-		this.renderTabContent();
+		this.renderContent();
+	}
+
+	private renderContent() {
+		// Clear content completely
+		this.contentEl.empty();
+		
+		// Create main container for tabs and content
+		const mainContainer = this.contentEl.createDiv({ cls: "character-details-container" });
+		
+		// Render tabs
+		this.renderTabs(mainContainer);
+		
+		// Render tab content
+		this.renderTabContent(mainContainer);
 	}
 
 	async loadCharacterData() {
@@ -133,23 +146,28 @@ export class CharacterDetailsView {
 		};
 
 		const titleDiv = headerLeft.createDiv({ cls: "story-engine-header-title" });
-		titleDiv.createEl("h2", { text: this.character.name });
+		const titleRow = titleDiv.createDiv({ cls: "story-engine-title-row" });
+		titleRow.createEl("h2", { text: this.character.name });
 
 		// Archetype pill
 		if (this.character.archetype_id) {
 			const archetype = this.archetypes.find((a) => a.id === this.character.archetype_id);
 			if (archetype) {
-				const archetypePill = titleDiv.createSpan({ cls: "story-engine-badge" });
+				const archetypePill = titleRow.createSpan({ cls: "story-engine-badge" });
 				archetypePill.textContent = archetype.name;
 			}
 		}
 
-		// UUID with copy icon
-		const uuidDiv = headerLeft.createDiv({ cls: "story-engine-uuid" });
-		uuidDiv.createEl("span", { text: this.character.id });
-		const copyIcon = uuidDiv.createEl("span", { cls: "story-engine-copy-icon" });
-		setIcon(copyIcon, "copy");
-		copyIcon.onclick = () => {
+		// Copy ID button with tooltip
+		const copyIdBtn = titleRow.createEl("button", { 
+			cls: "story-engine-copy-id-btn",
+			attr: { 
+				"aria-label": "Copy ID",
+				"title": `ID: ${this.character.id}\nClick to copy`
+			}
+		});
+		setIcon(copyIdBtn, "copy");
+		copyIdBtn.onclick = () => {
 			navigator.clipboard.writeText(this.character.id);
 			new Notice("UUID copied to clipboard");
 		};
@@ -161,16 +179,9 @@ export class CharacterDetailsView {
 		};
 	}
 
-	renderTabs() {
-		if (!this.contentEl) return;
-
-		// Remove existing tabs if any
-		const existingTabs = this.contentEl.querySelector(".story-engine-tabs");
-		if (existingTabs) {
-			existingTabs.remove();
-		}
-
-		const tabsContainer = this.contentEl.createDiv({ cls: "story-engine-tabs" });
+	private renderTabs(container: HTMLElement) {
+		const tabsContainer = container.createDiv({ cls: "character-details-tabs" });
+		
 		type TabKey = "overview" | "traits" | "events" | "scenes" | "relationships";
 		const tabs: { key: TabKey; label: string }[] = [
 			{ key: "overview", label: "Overview" },
@@ -180,28 +191,24 @@ export class CharacterDetailsView {
 			{ key: "relationships", label: "Relationships" },
 		];
 
-		for (const tab of tabs) {
-			const tabEl = tabsContainer.createEl("button", {
+		tabs.forEach(tab => {
+			const isActive = this.characterTab === tab.key;
+			const tabButton = tabsContainer.createEl("button", {
 				text: tab.label,
-				cls: this.characterTab === tab.key ? "story-engine-tab-active" : "story-engine-tab",
+				cls: isActive ? "character-tab character-tab-active" : "character-tab",
 			});
-			tabEl.onclick = () => {
-				this.characterTab = tab.key;
-				this.renderTabContent();
+			
+			tabButton.onclick = () => {
+				if (this.characterTab !== tab.key) {
+					this.characterTab = tab.key;
+					this.renderContent();
+				}
 			};
-		}
+		});
 	}
 
-	renderTabContent() {
-		if (!this.contentEl) return;
-
-		// Find and clear existing tab content container
-		const existingContainer = this.contentEl.querySelector(".story-engine-tab-content");
-		if (existingContainer) {
-			existingContainer.remove();
-		}
-
-		const contentContainer = this.contentEl.createDiv({ cls: "story-engine-tab-content" });
+	private renderTabContent(container: HTMLElement) {
+		const contentContainer = container.createDiv({ cls: "character-details-content-inner" });
 
 		switch (this.characterTab) {
 			case "overview":
@@ -280,7 +287,7 @@ export class CharacterDetailsView {
 				this.character = updated;
 				await this.loadCharacterData();
 				this.renderHeader();
-				this.renderTabContent();
+				this.renderContent();
 				new Notice("Archetype saved");
 			} catch (err) {
 				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -324,7 +331,7 @@ export class CharacterDetailsView {
 					try {
 						await this.plugin.apiClient.removeCharacterTrait(this.character.id, charTrait.trait_id);
 						await this.loadCharacterData();
-						this.renderTabContent();
+						this.renderContent();
 						new Notice("Trait removed");
 					} catch (err) {
 						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -365,7 +372,7 @@ export class CharacterDetailsView {
 					try {
 						await this.plugin.apiClient.removeEventCharacter(event.id, this.character.id);
 						await this.loadCharacterData();
-						this.renderTabContent();
+						this.renderContent();
 						new Notice("Character removed from event");
 					} catch (err) {
 						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -446,7 +453,7 @@ export class CharacterDetailsView {
 					try {
 						await this.plugin.apiClient.deleteCharacterRelationship(rel.id);
 						await this.loadCharacterData();
-						this.renderTabContent();
+						this.renderContent();
 						new Notice("Relationship deleted");
 					} catch (err) {
 						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -502,7 +509,7 @@ export class CharacterDetailsView {
 					notesInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Trait added");
 			} catch (err) {
@@ -546,7 +553,7 @@ export class CharacterDetailsView {
 					notesInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Trait updated");
 			} catch (err) {
@@ -601,7 +608,7 @@ export class CharacterDetailsView {
 					roleInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Character added to event");
 			} catch (err) {
@@ -639,7 +646,7 @@ export class CharacterDetailsView {
 					roleInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Role updated");
 			} catch (err) {
@@ -709,7 +716,7 @@ export class CharacterDetailsView {
 					bidirectional: bidirectionalCheckbox.checked,
 				});
 				await this.loadCharacterData();
-				this.renderTabContent();
+			this.renderContent();
 				modal.close();
 				new Notice("Relationship added");
 			} catch (err) {
@@ -763,7 +770,7 @@ export class CharacterDetailsView {
 					bidirectional: bidirectionalCheckbox.checked,
 				});
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Relationship updated");
 			} catch (err) {
@@ -781,7 +788,7 @@ export class CharacterDetailsView {
 	updateCharacter(character: Character) {
 		this.character = character;
 		this.renderHeader();
-		this.renderTabContent();
+		this.renderContent();
 	}
 }
 
