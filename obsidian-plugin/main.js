@@ -21149,6 +21149,90 @@ var OutlineGenerator = class {
   hasScenesWithContent(scenes) {
     return scenes.some((scene) => scene.beats.length > 0);
   }
+  generateChapterOutline(chapter, options = {}) {
+    var _a;
+    const lines = [];
+    const enableHelpBox = options.showHelpBox !== false;
+    const idField = getIdFieldName(options.idField);
+    lines.push(
+      "---",
+      `${idField}: ${chapter.chapter.id}`,
+      "type: chapter-outline",
+      `synced_at: ${(_a = options.syncedAt) != null ? _a : this.now()}`,
+      "---",
+      "",
+      `# ${chapter.chapter.title}`,
+      "",
+      "## Hierarchy",
+      ""
+    );
+    if (enableHelpBox) {
+      lines.push(
+        "> [!tip] Como editar esta lista",
+        "> - **Reordenar**: Arraste itens para mudar a ordem",
+        "> - **Criar novo**: Edite a linha `_New..._` no final de cada se\xE7\xE3o",
+        "> - **Indenta\xE7\xE3o**: Tab define hierarquia (scene \u2192 beat)",
+        "> - **Marcadores**: `+` tem conte\xFAdo, `-` est\xE1 vazio",
+        ""
+      );
+    }
+    const sections = this.buildChapterSections(chapter.scenes, options.includePlaceholders !== false);
+    sections.forEach((section) => {
+      const indent = "	".repeat(section.depth);
+      lines.push(`${indent}- ${section.link} ${section.status}`.trimEnd());
+    });
+    if (options.includePlaceholders !== false) {
+      lines.push("- _New scene: goal - time_");
+    }
+    return lines.join("\n").trimEnd() + "\n";
+  }
+  buildChapterSections(scenes, includePlaceholders) {
+    const sections = [];
+    scenes.forEach((sceneWrapper, sceneIdx) => {
+      var _a;
+      const sceneLabel = this.composeSceneLabel(sceneWrapper);
+      const sceneLink = this.buildLink(
+        "sc",
+        (_a = sceneWrapper.scene.order_num) != null ? _a : sceneIdx + 1,
+        sceneWrapper.scene.goal || `Scene ${sceneIdx + 1}`,
+        sceneWrapper.scene.id,
+        `Scene ${sceneIdx + 1}: ${sceneLabel}`
+      );
+      sections.push({
+        type: "scene",
+        link: sceneLink,
+        label: sceneLabel,
+        status: sceneWrapper.beats.length ? "+" : "-",
+        depth: 0
+      });
+      sceneWrapper.beats.forEach((beat, beatIdx) => {
+        var _a2;
+        sections.push({
+          type: "beat",
+          link: this.buildLink(
+            "bt",
+            (_a2 = beat.order_num) != null ? _a2 : beatIdx + 1,
+            beat.intent || `Beat ${beatIdx + 1}`,
+            beat.id,
+            `Beat ${beatIdx + 1}: ${beat.intent || ""}`
+          ),
+          label: beat.intent,
+          status: beat.outcome ? "+" : "-",
+          depth: 1
+        });
+      });
+      if (includePlaceholders) {
+        sections.push({
+          type: "beat",
+          link: "_New beat: intent here..._",
+          label: "",
+          status: "-",
+          depth: 1
+        });
+      }
+    });
+    return sections;
+  }
   slugify(value) {
     return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 40);
   }
@@ -21552,6 +21636,54 @@ var ContentsGenerator = class {
       block.content.trim() || "*No content yet*"
     );
     return fence;
+  }
+  generateChapterContents(chapter, chapterContentBlocks, sceneContentBlocks, beatContentBlocks, options = {}) {
+    var _a, _b;
+    const lines = [];
+    const idField = getIdFieldName(options.idField);
+    lines.push(
+      "---",
+      `${idField}: ${chapter.chapter.id}`,
+      "type: chapter-contents",
+      `synced_at: ${(_a = options.syncedAt) != null ? _a : this.now()}`,
+      "---",
+      "",
+      `# ${chapter.chapter.title} - Contents`,
+      ""
+    );
+    const chapterBlocks = (_b = chapterContentBlocks.get(chapter.chapter.id)) != null ? _b : [];
+    chapterBlocks.sort((a, b) => {
+      var _a2, _b2;
+      return ((_a2 = a.order_num) != null ? _a2 : 0) - ((_b2 = b.order_num) != null ? _b2 : 0);
+    }).forEach((block) => {
+      lines.push(this.renderContentBlock(block));
+    });
+    chapter.scenes.forEach((scene, sceneIdx) => {
+      lines.push(
+        this.buildSceneSection(scene, sceneIdx, chapter.chapter.id, {
+          story: {
+            id: chapter.chapter.story_id,
+            tenant_id: "",
+            title: "",
+            status: "draft",
+            version_number: 1,
+            root_story_id: chapter.chapter.story_id,
+            previous_story_id: null,
+            created_by_user_id: "",
+            world_id: null,
+            created_at: "",
+            updated_at: ""
+          },
+          chapters: [],
+          chapterContentBlocks,
+          sceneContentBlocks,
+          beatContentBlocks,
+          options
+        })
+      );
+    });
+    lines.push(this.parser.generatePlaceholder("scene"));
+    return lines.join("\n").trimEnd() + "\n";
   }
   slugify(value) {
     return value.toLowerCase().normalize("NFKD").replace(/[^a-z0-9\s-]/g, "").trim().replace(/\s+/g, "-").slice(0, 40);
@@ -22903,7 +23035,7 @@ var StoryHandler = class {
     this.contentBlockCache = /* @__PURE__ */ new Map();
   }
   async pull(id2, context) {
-    var _a, _b, _c, _d, _e, _f;
+    var _a, _b, _c, _d, _e, _f, _g;
     const story = await context.apiClient.getStoryWithHierarchy(id2);
     const folderPath = context.fileManager.getStoryFolderPath(story.story.title);
     await context.fileManager.ensureFolderExists(folderPath);
@@ -23068,6 +23200,16 @@ var StoryHandler = class {
       context
     );
     await this.generateRelations(story, folderPath, context);
+    try {
+      await this.writeIndividualEntityFiles(story, folderPath, context);
+    } catch (error) {
+      console.error("[Sync V2] Failed to write individual entity files", error);
+      (_g = context.emitWarning) == null ? void 0 : _g.call(context, {
+        code: "individual_files_write_failed",
+        message: `Failed to write individual entity files: ${error instanceof Error ? error.message : String(error)}`,
+        severity: "warning"
+      });
+    }
     return story;
   }
   async push(entity, context) {
@@ -23188,6 +23330,229 @@ var StoryHandler = class {
       });
     } catch (err) {
       console.warn(`[Sync V2] Failed to rename ${entity} file`, err);
+    }
+  }
+  /**
+   * Write individual entity files (chapters, scenes, beats, content blocks)
+   * Similar to V1 behavior - creates individual files for each entity
+   */
+  async writeIndividualEntityFiles(story, folderPath, context) {
+    var _a;
+    const chaptersFolderPath = `${folderPath}/00-chapters`;
+    const scenesFolderPath = `${folderPath}/01-scenes`;
+    const beatsFolderPath = `${folderPath}/02-beats`;
+    const contentsFolderPath = `${folderPath}/03-contents`;
+    await context.fileManager.ensureFolderExists(chaptersFolderPath);
+    await context.fileManager.ensureFolderExists(scenesFolderPath);
+    await context.fileManager.ensureFolderExists(beatsFolderPath);
+    await context.fileManager.ensureFolderExists(contentsFolderPath);
+    for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
+      await context.fileManager.ensureFolderExists(`${contentsFolderPath}/${typeFolder}`);
+    }
+    const allScenes = await context.apiClient.getScenesByStory(story.story.id);
+    const orphanScenes = [];
+    for (const scene of allScenes) {
+      if (!scene.chapter_id) {
+        const beats = await context.apiClient.getBeats(scene.id);
+        orphanScenes.push({ scene, beats });
+      }
+    }
+    orphanScenes.sort((a, b) => a.scene.order_num - b.scene.order_num);
+    const allBeats = await context.apiClient.getBeatsByStory(story.story.id);
+    const orphanBeats = [];
+    const sceneIdSet = new Set(allScenes.map((s) => s.id));
+    for (const beat of allBeats) {
+      if (!beat.scene_id || !sceneIdSet.has(beat.scene_id)) {
+        orphanBeats.push(beat);
+      }
+    }
+    orphanBeats.sort((a, b) => a.order_num - b.order_num);
+    const chapterContentBlocks = /* @__PURE__ */ new Map();
+    const sceneContentBlocks = /* @__PURE__ */ new Map();
+    const beatContentBlocks = /* @__PURE__ */ new Map();
+    for (const chapterWithContent of story.chapters) {
+      const chapterBlocks = await context.apiClient.getContentBlocks(chapterWithContent.chapter.id);
+      chapterContentBlocks.set(chapterWithContent.chapter.id, chapterBlocks);
+      for (const contentBlock of chapterBlocks) {
+        const contentBlockFileName = context.fileManager.generateContentBlockFileName(contentBlock);
+        const typeFolderPath = context.fileManager.getContentBlockFolderPath(folderPath, contentBlock.type || "text");
+        await context.fileManager.ensureFolderExists(typeFolderPath);
+        const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
+        await context.fileManager.writeContentBlockFile(
+          contentBlock,
+          contentBlockFilePath,
+          story.story.title
+        );
+      }
+      for (const { scene, beats } of chapterWithContent.scenes) {
+        const sceneBlocks = await context.apiClient.getContentBlocksByScene(scene.id);
+        sceneContentBlocks.set(scene.id, sceneBlocks);
+        for (const beat of beats) {
+          const beatBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+          beatContentBlocks.set(beat.id, beatBlocks);
+        }
+      }
+    }
+    const pathResolver = new PathResolver(folderPath);
+    for (const chapterWithContent of story.chapters) {
+      const chapterBasePath = pathResolver.getChapterPath(chapterWithContent.chapter);
+      const chapterBasePathWithoutExt = chapterBasePath.replace(/\.md$/, "");
+      const outlineContent = this.outlineGenerator.generateChapterOutline(chapterWithContent, {
+        syncedAt: context.timestamp(),
+        showHelpBox: context.settings.showHelpBox,
+        idField: context.settings.frontmatterIdField
+      });
+      await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.outline.md`, outlineContent);
+      const contentsContent = this.contentsGenerator.generateChapterContents(
+        chapterWithContent,
+        chapterContentBlocks,
+        sceneContentBlocks,
+        beatContentBlocks,
+        {
+          syncedAt: context.timestamp(),
+          idField: context.settings.frontmatterIdField
+        }
+      );
+      await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.contents.md`, contentsContent);
+      try {
+        const relationsResponse = await context.apiClient.listRelationsBySource({
+          sourceType: "chapter",
+          sourceId: chapterWithContent.chapter.id
+        });
+        const nonCitationRelations = relationsResponse.data.filter(
+          (rel) => rel.relation_type !== "citation"
+        );
+        if (nonCitationRelations.length > 0) {
+          const resolvedRelations = await Promise.all(
+            nonCitationRelations.map(async (relation) => {
+              try {
+                let targetName = relation.target_id;
+                let targetId = relation.target_id;
+                switch (relation.target_type) {
+                  case "character": {
+                    const char = await context.apiClient.getCharacter(relation.target_id);
+                    targetName = char.name;
+                    targetId = char.id;
+                    break;
+                  }
+                  case "location": {
+                    const loc = await context.apiClient.getLocation(relation.target_id);
+                    targetName = loc.name;
+                    targetId = loc.id;
+                    break;
+                  }
+                  case "faction": {
+                    const faction = await context.apiClient.getFaction(relation.target_id);
+                    targetName = faction.name;
+                    targetId = faction.id;
+                    break;
+                  }
+                  case "artifact": {
+                    const artifact = await context.apiClient.getArtifact(relation.target_id);
+                    targetName = artifact.name;
+                    targetId = artifact.id;
+                    break;
+                  }
+                  case "event": {
+                    const event = await context.apiClient.getEvent(relation.target_id);
+                    targetName = event.name;
+                    targetId = event.id;
+                    break;
+                  }
+                  case "lore": {
+                    const lore = await context.apiClient.getLore(relation.target_id);
+                    targetName = lore.name;
+                    targetId = lore.id;
+                    break;
+                  }
+                }
+                return {
+                  targetType: relation.target_type,
+                  targetId,
+                  targetName,
+                  relationType: relation.relation_type,
+                  summary: relation.context
+                };
+              } catch (error) {
+                console.warn(`[Sync V2] Failed to resolve target for chapter relation`, {
+                  relation,
+                  error
+                });
+                return {
+                  targetType: relation.target_type,
+                  targetId: relation.target_id,
+                  targetName: relation.target_id,
+                  relationType: relation.relation_type,
+                  summary: relation.context
+                };
+              }
+            })
+          );
+          const relationsInput = {
+            entity: {
+              id: chapterWithContent.chapter.id,
+              name: chapterWithContent.chapter.title,
+              type: "chapter",
+              worldId: (_a = story.story.world_id) != null ? _a : void 0,
+              worldName: void 0
+              // TODO: fetch world name if needed
+            },
+            relations: resolvedRelations,
+            options: {
+              syncedAt: context.timestamp(),
+              showHelpBox: context.settings.showHelpBox,
+              idField: context.settings.frontmatterIdField
+            }
+          };
+          const relationsContent = this.relationsGenerator.generate(relationsInput);
+          await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.relations.md`, relationsContent);
+        }
+      } catch (error) {
+        console.warn("[Sync V2] Failed to generate chapter relations file", {
+          chapterId: chapterWithContent.chapter.id,
+          error
+        });
+      }
+      for (const { scene, beats } of chapterWithContent.scenes) {
+        const sceneBlocks = sceneContentBlocks.get(scene.id) || [];
+        const sceneFilePath = pathResolver.getScenePath(scene);
+        await context.fileManager.writeSceneFile(
+          { scene, beats },
+          sceneFilePath,
+          story.story.title,
+          sceneBlocks,
+          orphanBeats
+        );
+        for (const beat of beats) {
+          const beatBlocks = beatContentBlocks.get(beat.id) || [];
+          const beatFilePath = pathResolver.getBeatPath(beat);
+          await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatBlocks);
+        }
+      }
+    }
+    for (const { scene, beats } of orphanScenes) {
+      const sceneContentBlocks2 = await context.apiClient.getContentBlocksByScene(scene.id);
+      const sceneFileName = context.fileManager.generateSceneFileName(scene);
+      const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
+      await context.fileManager.writeSceneFile(
+        { scene, beats },
+        sceneFilePath,
+        story.story.title,
+        sceneContentBlocks2,
+        orphanBeats
+      );
+      for (const beat of beats) {
+        const beatContentBlocks2 = await context.apiClient.getContentBlocksByBeat(beat.id);
+        const beatFileName = context.fileManager.generateBeatFileName(beat);
+        const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
+        await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatContentBlocks2);
+      }
+    }
+    for (const beat of orphanBeats) {
+      const beatContentBlocks2 = await context.apiClient.getContentBlocksByBeat(beat.id);
+      const beatFileName = context.fileManager.generateBeatFileName(beat);
+      const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
+      await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatContentBlocks2);
     }
   }
   async generateRelations(story, folderPath, context) {

@@ -1,4 +1,4 @@
-import type { ContentBlock, StoryWithHierarchy } from "../../../types";
+import type { ContentBlock, ContentAnchor, Scene, Beat, StoryWithHierarchy, SceneWithBeats } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { OutlineGenerator } from "../../generators/OutlineGenerator";
 import { ContentsGenerator } from "../../generators/ContentsGenerator";
@@ -11,6 +11,7 @@ import {
 	mapRelationsToGeneratorInput,
 } from "../../relations/mappers";
 import type { RelationTargetResolver } from "../../relations/mappers";
+import type { RelationsGeneratorInput } from "../../types/generators";
 import { RelationsPushHandler } from "../../push/RelationsPushHandler";
 import { ConflictResolver } from "../../conflict/ConflictResolver";
 import { parseFrontmatter } from "../../utils/detectEntityMentions";
@@ -218,6 +219,19 @@ export class StoryHandler {
 		// Generate relations file (citations are only for world entities)
 		await this.generateRelations(story, folderPath, context);
 
+		// Write individual entity files (chapters, scenes, beats, content blocks)
+		try {
+			await this.writeIndividualEntityFiles(story, folderPath, context);
+		} catch (error) {
+			console.error("[Sync V2] Failed to write individual entity files", error);
+			context.emitWarning?.({
+				code: "individual_files_write_failed",
+				message: `Failed to write individual entity files: ${error instanceof Error ? error.message : String(error)}`,
+				severity: "warning",
+			});
+			// Don't throw - continue execution even if individual files fail
+		}
+
 		return story;
 	}
 
@@ -352,6 +366,300 @@ export class StoryHandler {
 			});
 		} catch (err) {
 			console.warn(`[Sync V2] Failed to rename ${entity} file`, err);
+		}
+	}
+
+	/**
+	 * Write individual entity files (chapters, scenes, beats, content blocks)
+	 * Similar to V1 behavior - creates individual files for each entity
+	 */
+	private async writeIndividualEntityFiles(
+		story: StoryWithHierarchy,
+		folderPath: string,
+		context: SyncContext
+	): Promise<void> {
+		// Ensure folders exist
+		const chaptersFolderPath = `${folderPath}/00-chapters`;
+		const scenesFolderPath = `${folderPath}/01-scenes`;
+		const beatsFolderPath = `${folderPath}/02-beats`;
+		const contentsFolderPath = `${folderPath}/03-contents`;
+		
+		await context.fileManager.ensureFolderExists(chaptersFolderPath);
+		await context.fileManager.ensureFolderExists(scenesFolderPath);
+		await context.fileManager.ensureFolderExists(beatsFolderPath);
+		await context.fileManager.ensureFolderExists(contentsFolderPath);
+		
+		// Create type subfolders for content blocks
+		for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
+			await context.fileManager.ensureFolderExists(`${contentsFolderPath}/${typeFolder}`);
+		}
+
+		// Fetch orphan scenes and beats (without chapter_id/scene_id)
+		const allScenes = await context.apiClient.getScenesByStory(story.story.id);
+		const orphanScenes: Array<{ scene: Scene; beats: Beat[] }> = [];
+		
+		for (const scene of allScenes) {
+			if (!scene.chapter_id) {
+				const beats = await context.apiClient.getBeats(scene.id);
+				orphanScenes.push({ scene, beats });
+			}
+		}
+		
+		orphanScenes.sort((a, b) => a.scene.order_num - b.scene.order_num);
+		
+		const allBeats = await context.apiClient.getBeatsByStory(story.story.id);
+		const orphanBeats: Beat[] = [];
+		const sceneIdSet = new Set(allScenes.map(s => s.id));
+		
+		for (const beat of allBeats) {
+			if (!beat.scene_id || !sceneIdSet.has(beat.scene_id)) {
+				orphanBeats.push(beat);
+			}
+		}
+		
+		orphanBeats.sort((a, b) => a.order_num - b.order_num);
+
+		// Fetch content blocks for all chapters, scenes, and beats
+		const chapterContentBlocks = new Map<string, ContentBlock[]>();
+		const sceneContentBlocks = new Map<string, ContentBlock[]>();
+		const beatContentBlocks = new Map<string, ContentBlock[]>();
+		
+		for (const chapterWithContent of story.chapters) {
+			// Chapter content blocks
+			const chapterBlocks = await context.apiClient.getContentBlocks(chapterWithContent.chapter.id);
+			chapterContentBlocks.set(chapterWithContent.chapter.id, chapterBlocks);
+
+			// Write content block files to their type-specific subfolders
+			for (const contentBlock of chapterBlocks) {
+				const contentBlockFileName = context.fileManager.generateContentBlockFileName(contentBlock);
+				const typeFolderPath = context.fileManager.getContentBlockFolderPath(folderPath, contentBlock.type || "text");
+				await context.fileManager.ensureFolderExists(typeFolderPath);
+				const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
+				await context.fileManager.writeContentBlockFile(
+					contentBlock,
+					contentBlockFilePath,
+					story.story.title
+				);
+			}
+
+			// Scene and beat content blocks
+			for (const { scene, beats } of chapterWithContent.scenes) {
+				const sceneBlocks = await context.apiClient.getContentBlocksByScene(scene.id);
+				sceneContentBlocks.set(scene.id, sceneBlocks);
+
+				for (const beat of beats) {
+					const beatBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+					beatContentBlocks.set(beat.id, beatBlocks);
+				}
+			}
+		}
+
+		const pathResolver = new PathResolver(folderPath);
+
+		// Write chapter files in V2 format (outline, contents, relations)
+		for (const chapterWithContent of story.chapters) {
+			const chapterBasePath = pathResolver.getChapterPath(chapterWithContent.chapter);
+			const chapterBasePathWithoutExt = chapterBasePath.replace(/\.md$/, "");
+
+			// Generate and write outline.md
+			const outlineContent = this.outlineGenerator.generateChapterOutline(chapterWithContent, {
+				syncedAt: context.timestamp(),
+				showHelpBox: context.settings.showHelpBox,
+				idField: context.settings.frontmatterIdField,
+			});
+			await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.outline.md`, outlineContent);
+
+			// Generate and write contents.md
+			const contentsContent = this.contentsGenerator.generateChapterContents(
+				chapterWithContent,
+				chapterContentBlocks,
+				sceneContentBlocks,
+				beatContentBlocks,
+				{
+					syncedAt: context.timestamp(),
+					idField: context.settings.frontmatterIdField,
+				}
+			);
+			await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.contents.md`, contentsContent);
+
+			// Generate and write relations.md
+			try {
+				const relationsResponse = await context.apiClient.listRelationsBySource({
+					sourceType: "chapter",
+					sourceId: chapterWithContent.chapter.id,
+				});
+
+				// Filter out citations (only include relations like pov, setting, etc)
+				const nonCitationRelations = relationsResponse.data.filter(
+					(rel) => rel.relation_type !== "citation"
+				);
+
+				if (nonCitationRelations.length > 0) {
+					// Resolve target names
+					const resolvedRelations = await Promise.all(
+						nonCitationRelations.map(async (relation) => {
+							try {
+								let targetName = relation.target_id;
+								let targetId = relation.target_id;
+
+								switch (relation.target_type) {
+									case "character": {
+										const char = await context.apiClient.getCharacter(relation.target_id);
+										targetName = char.name;
+										targetId = char.id;
+										break;
+									}
+									case "location": {
+										const loc = await context.apiClient.getLocation(relation.target_id);
+										targetName = loc.name;
+										targetId = loc.id;
+										break;
+									}
+									case "faction": {
+										const faction = await context.apiClient.getFaction(relation.target_id);
+										targetName = faction.name;
+										targetId = faction.id;
+										break;
+									}
+									case "artifact": {
+										const artifact = await context.apiClient.getArtifact(relation.target_id);
+										targetName = artifact.name;
+										targetId = artifact.id;
+										break;
+									}
+									case "event": {
+										const event = await context.apiClient.getEvent(relation.target_id);
+										targetName = event.name;
+										targetId = event.id;
+										break;
+									}
+									case "lore": {
+										const lore = await context.apiClient.getLore(relation.target_id);
+										targetName = lore.name;
+										targetId = lore.id;
+										break;
+									}
+								}
+
+								return {
+									targetType: relation.target_type,
+									targetId,
+									targetName,
+									relationType: relation.relation_type,
+									summary: relation.context,
+								};
+							} catch (error) {
+								console.warn(`[Sync V2] Failed to resolve target for chapter relation`, {
+									relation,
+									error,
+								});
+								return {
+									targetType: relation.target_type,
+									targetId: relation.target_id,
+									targetName: relation.target_id,
+									relationType: relation.relation_type,
+									summary: relation.context,
+								};
+							}
+						})
+					);
+
+					const relationsInput: RelationsGeneratorInput = {
+						entity: {
+							id: chapterWithContent.chapter.id,
+							name: chapterWithContent.chapter.title,
+							type: "chapter",
+							worldId: story.story.world_id ?? undefined,
+							worldName: undefined, // TODO: fetch world name if needed
+						},
+						relations: resolvedRelations,
+						options: {
+							syncedAt: context.timestamp(),
+							showHelpBox: context.settings.showHelpBox,
+							idField: context.settings.frontmatterIdField,
+						},
+					};
+
+					const relationsContent = this.relationsGenerator.generate(relationsInput);
+					await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.relations.md`, relationsContent);
+				} else {
+					// Always create relations file, even if empty
+					const emptyRelationsInput: RelationsGeneratorInput = {
+						entity: {
+							id: chapterWithContent.chapter.id,
+							name: chapterWithContent.chapter.title,
+							type: "chapter",
+							worldId: story.story.world_id ?? undefined,
+							worldName: undefined,
+						},
+						relations: [],
+						options: {
+							syncedAt: context.timestamp(),
+							showHelpBox: context.settings.showHelpBox,
+							idField: context.settings.frontmatterIdField,
+						},
+					};
+					const relationsContent = this.relationsGenerator.generate(emptyRelationsInput);
+					await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.relations.md`, relationsContent);
+				}
+			} catch (error) {
+				console.warn("[Sync V2] Failed to generate chapter relations file", {
+					chapterId: chapterWithContent.chapter.id,
+					error,
+				});
+			}
+
+			// Write scene files (still using V1 format for now - scenes are single files)
+			for (const { scene, beats } of chapterWithContent.scenes) {
+				const sceneBlocks = sceneContentBlocks.get(scene.id) || [];
+				const sceneFilePath = pathResolver.getScenePath(scene);
+
+				await context.fileManager.writeSceneFile(
+					{ scene, beats },
+					sceneFilePath,
+					story.story.title,
+					sceneBlocks,
+					orphanBeats
+				);
+
+				// Write beat files (still using V1 format for now)
+				for (const beat of beats) {
+					const beatBlocks = beatContentBlocks.get(beat.id) || [];
+					const beatFilePath = pathResolver.getBeatPath(beat);
+					await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatBlocks);
+				}
+			}
+		}
+
+		// Write orphan scene files (scenes without chapter_id)
+		for (const { scene, beats } of orphanScenes) {
+			const sceneContentBlocks = await context.apiClient.getContentBlocksByScene(scene.id);
+			const sceneFileName = context.fileManager.generateSceneFileName(scene);
+			const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
+
+			await context.fileManager.writeSceneFile(
+				{ scene, beats },
+				sceneFilePath,
+				story.story.title,
+				sceneContentBlocks,
+				orphanBeats
+			);
+
+			// Write beat files for orphan scenes
+			for (const beat of beats) {
+				const beatContentBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+				const beatFileName = context.fileManager.generateBeatFileName(beat);
+				const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
+				await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatContentBlocks);
+			}
+		}
+
+		// Write orphan beat files (beats without scene_id)
+		for (const beat of orphanBeats) {
+			const beatContentBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+			const beatFileName = context.fileManager.generateBeatFileName(beat);
+			const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
+			await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatContentBlocks);
 		}
 	}
 

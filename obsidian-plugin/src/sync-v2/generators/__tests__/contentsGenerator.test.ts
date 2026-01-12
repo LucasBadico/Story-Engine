@@ -91,5 +91,65 @@ describe("ContentsGenerator", () => {
 		expect(output).toContain("<!--beat-start");
 		expect(output).toContain("Sample paragraph");
 	});
+
+	it("generates chapter contents", () => {
+		const generator = new ContentsGenerator(() => "2025-01-01T00:00:00Z");
+		const chapter: ChapterWithContent = {
+			chapter: {
+				id: "ch-1",
+				story_id: "story-1",
+				number: 1,
+				title: "Beginning",
+				status: "draft",
+				created_at: "2024-01-01",
+				updated_at: "2024-01-01",
+			},
+			scenes: [
+				{
+					scene: {
+						id: "sc-1",
+						story_id: "story-1",
+						chapter_id: "ch-1",
+						order_num: 1,
+						pov_character_id: null,
+						location_id: null,
+						time_ref: "",
+						goal: "Meet hero",
+						created_at: "2024-01-01",
+						updated_at: "2024-01-01",
+					},
+					beats: [
+						{
+							id: "bt-1",
+							scene_id: "sc-1",
+							order_num: 1,
+							type: "exposition",
+							intent: "Introduction",
+							outcome: "Hero introduced",
+							created_at: "2024-01-01",
+							updated_at: "2024-01-01",
+						},
+					],
+				},
+			],
+		};
+
+		const chapterBlocks = new Map<string, ContentBlock[]>([["ch-1", [textBlock()]]]);
+		const sceneBlocks = new Map<string, ContentBlock[]>([["sc-1", [textBlock({ id: "cb-2" })]]]);
+		const beatBlocks = new Map<string, ContentBlock[]>([["bt-1", [textBlock({ id: "cb-3" })]]]);
+
+		const output = generator.generateChapterContents(
+			chapter,
+			chapterBlocks,
+			sceneBlocks,
+			beatBlocks
+		);
+
+		expect(output).toContain("type: chapter-contents");
+		expect(output).toContain("# Beginning - Contents");
+		expect(output).toContain("Sample paragraph");
+		expect(output).toContain("<!--scene-start");
+		expect(output).toContain("<!--beat-start");
+	});
 });
 

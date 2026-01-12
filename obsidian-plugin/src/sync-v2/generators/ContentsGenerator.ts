@@ -143,6 +143,67 @@ export class ContentsGenerator {
 		);
 	}
 
+	generateSceneContents(
+		scene: SceneWithBeats,
+		sceneContentBlocks: Map<string, ContentBlock[]>,
+		beatContentBlocks: Map<string, ContentBlock[]>,
+		options: { syncedAt?: string; idField?: string } = {}
+	): string {
+		const lines: string[] = [];
+
+		// Use configured ID field name, default to "id"
+		const idField = getIdFieldName(options.idField);
+
+		lines.push(
+			"---",
+			`${idField}: ${scene.scene.id}`,
+			"type: scene-contents",
+			`synced_at: ${options.syncedAt ?? this.now()}`,
+			"---",
+			"",
+			`# ${scene.scene.goal || "Untitled Scene"} - Contents`,
+			""
+		);
+
+		const sceneBlocks = sceneContentBlocks.get(scene.scene.id) ?? [];
+		if (sceneBlocks.length === 0) {
+			lines.push(this.parser.generatePlaceholder("content"));
+		} else {
+			sceneBlocks
+				.sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0))
+				.forEach((block) => {
+					lines.push(this.renderContentBlock(block));
+				});
+		}
+
+		scene.beats.forEach((beat, beatIdx) => {
+			lines.push(this.buildBeatSection(beat, beatIdx, {
+				story: {
+					id: scene.scene.story_id,
+					tenant_id: "",
+					title: "",
+					status: "draft",
+					version_number: 1,
+					root_story_id: scene.scene.story_id,
+					previous_story_id: null,
+					created_by_user_id: "",
+					world_id: null,
+					created_at: "",
+					updated_at: "",
+				},
+				chapters: [],
+				chapterContentBlocks: new Map(),
+				sceneContentBlocks,
+				beatContentBlocks,
+				options,
+			}));
+		});
+
+		lines.push(this.parser.generatePlaceholder("beat"));
+
+		return lines.join("\n").trimEnd() + "\n";
+	}
+
 	private renderContentBlock(block: ContentBlock): string {
 		const name = this.slugify(block.metadata?.title || block.kind || `content-${block.id}`);
 		const fence = this.parser.generateFence(
@@ -153,6 +214,66 @@ export class ContentsGenerator {
 			block.content.trim() || "*No content yet*"
 		);
 		return fence;
+	}
+
+	generateChapterContents(
+		chapter: ChapterWithContent,
+		chapterContentBlocks: Map<string, ContentBlock[]>,
+		sceneContentBlocks: Map<string, ContentBlock[]>,
+		beatContentBlocks: Map<string, ContentBlock[]>,
+		options: { syncedAt?: string; idField?: string } = {}
+	): string {
+		const lines: string[] = [];
+
+		// Use configured ID field name, default to "id"
+		const idField = getIdFieldName(options.idField);
+
+		lines.push(
+			"---",
+			`${idField}: ${chapter.chapter.id}`,
+			"type: chapter-contents",
+			`synced_at: ${options.syncedAt ?? this.now()}`,
+			"---",
+			"",
+			`# ${chapter.chapter.title} - Contents`,
+			""
+		);
+
+		const chapterBlocks = chapterContentBlocks.get(chapter.chapter.id) ?? [];
+		chapterBlocks
+			.sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0))
+			.forEach((block) => {
+				lines.push(this.renderContentBlock(block));
+			});
+
+		chapter.scenes.forEach((scene, sceneIdx) => {
+			lines.push(
+				this.buildSceneSection(scene, sceneIdx, chapter.chapter.id, {
+					story: {
+						id: chapter.chapter.story_id,
+						tenant_id: "",
+						title: "",
+						status: "draft",
+						version_number: 1,
+						root_story_id: chapter.chapter.story_id,
+						previous_story_id: null,
+						created_by_user_id: "",
+						world_id: null,
+						created_at: "",
+						updated_at: "",
+					},
+					chapters: [],
+					chapterContentBlocks,
+					sceneContentBlocks,
+					beatContentBlocks,
+					options,
+				})
+			);
+		});
+
+		lines.push(this.parser.generatePlaceholder("scene"));
+
+		return lines.join("\n").trimEnd() + "\n";
 	}
 
 	private slugify(value: string): string {
