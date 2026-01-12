@@ -66,6 +66,19 @@ func main() {
 	searchHandler := httpapi.NewSearchHandler(searchUseCase, log)
 
 	relationTypes, suggestedRelations := loadRelationMaps(log, cfg.MainService.HTTPAddr)
+	if len(relationTypes) == 0 || len(suggestedRelations) == 0 {
+		log.Warn("relation maps not loaded",
+			"relation_types", len(relationTypes),
+			"suggested_relations", len(suggestedRelations),
+			"main_service", cfg.MainService.HTTPAddr,
+		)
+	} else {
+		log.Info("relation maps loaded",
+			"relation_types", len(relationTypes),
+			"suggested_relations", len(suggestedRelations),
+			"main_service", cfg.MainService.HTTPAddr,
+		)
+	}
 
 	executorConfig := executor.ConfigFromEnv(cfg.LLM.Provider)
 	providers := make([]executor.Provider, 0, len(executorConfig.Providers))
