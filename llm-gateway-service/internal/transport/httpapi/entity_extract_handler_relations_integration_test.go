@@ -15,7 +15,9 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
-	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
 	"github.com/story-engine/llm-gateway-service/internal/core/memory"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
@@ -58,15 +60,15 @@ func TestEntityExtractHandler_RelationsIntegration(t *testing.T) {
 	searchUseCase := search.NewSearchMemoryUseCase(chunkRepo, docRepo, embedder, log)
 
 	model := gemini.NewRouterModel(apiKey, modelName)
-	router := entity_extraction.NewPhase1EntityTypeRouterUseCase(model, log)
-	extractor := entity_extraction.NewPhase2EntryUseCase(model, log, nil)
-	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, docRepo, embedder, model, log)
-	payload := entity_extraction.NewPhase4EntitiesPayloadUseCase()
-	relationDiscovery := entity_extraction.NewPhase5RelationDiscoveryUseCase(model, log)
-	relationNormalize := entity_extraction.NewPhase6RelationNormalizeUseCase(log)
+	router := entities.NewPhase1EntityTypeRouterUseCase(model, log)
+	extractor := entities.NewPhase2EntryUseCase(model, log, nil)
+	matcher := entities.NewPhase3MatchUseCase(chunkRepo, docRepo, embedder, model, log)
+	payload := entities.NewPhase4EntitiesPayloadUseCase()
+	relationDiscovery := relations.NewPhase5RelationDiscoveryUseCase(model, log)
+	relationNormalize := relations.NewPhase6RelationNormalizeUseCase(log)
 	relationNormalize.SetSummaryModel(model)
-	relationMatcher := entity_extraction.NewPhase7RelationMatchUseCase(searchUseCase, log)
-	useCase := entity_extraction.NewEntityAndRelationshipsExtractor(
+	relationMatcher := relations.NewPhase7RelationMatchUseCase(searchUseCase, log)
+	useCase := extract.NewExtractOrchestrator(
 		router,
 		extractor,
 		matcher,
@@ -77,22 +79,22 @@ func TestEntityExtractHandler_RelationsIntegration(t *testing.T) {
 		log,
 	)
 
-	relationTypes := map[string]entity_extraction.Phase6RelationTypeDefinition{
+	relationTypes := map[string]relations.Phase6RelationTypeDefinition{
 		"member_of": {
 			Mirror:             "has_member",
 			PreferredDirection: "source_to_target",
 			Semantics:          "Source is a member of target.",
 		},
 	}
-	suggestedRelations := map[string]entity_extraction.Phase5PerEntityRelationMap{
+	suggestedRelations := map[string]relations.Phase5PerEntityRelationMap{
 		"character": {
 			EntityType: "character",
 			Version:    1,
-			Relations: map[string]entity_extraction.Phase5RelationConstraintSpec{
+			Relations: map[string]relations.Phase5RelationConstraintSpec{
 				"member_of": {
 					PairCandidates: []string{"faction"},
 					Description:    "Character belongs to a group or organization.",
-					Constraints: &entity_extraction.Phase5RelationConstraints{
+					Constraints: &relations.Phase5RelationConstraints{
 						MinConfidence:    0.5,
 						AllowImplicit:    true,
 						RequiresEvidence: true,

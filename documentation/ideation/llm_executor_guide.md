@@ -105,8 +105,8 @@ if err != nil {
 }
 
 routerModel := executor.NewRouterModelAdapter(llmExecutor, "gemini")
-routerUC := entity_extraction.NewPhase1EntityTypeRouterUseCase(routerModel, logger)
-out, err := routerUC.Execute(ctx, entity_extraction.Phase1EntityTypeRouterInput{
+routerUC := entities.NewPhase1EntityTypeRouterUseCase(routerModel, logger)
+out, err := routerUC.Execute(ctx, entities.Phase1EntityTypeRouterInput{
 	Text:    "Aria entered the Obsidian Tower.",
 	Context: "",
 	EntityTypes: []string{

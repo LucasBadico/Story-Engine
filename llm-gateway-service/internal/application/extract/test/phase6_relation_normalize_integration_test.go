@@ -1,6 +1,6 @@
 //go:build integration
 
-package entity_extraction_test
+package extract_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
-	entityextraction "github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
@@ -26,11 +26,11 @@ func TestPhase6RelationNormalize_WithPhase5GeminiIntegration(t *testing.T) {
 	}
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
-	phase5 := entityextraction.NewPhase5RelationDiscoveryUseCase(
+	phase5 := relations.NewPhase5RelationDiscoveryUseCase(
 		gemini.NewRouterModel(apiKey, model),
 		logger.New(),
 	)
-	phase6 := entityextraction.NewPhase6RelationNormalizeUseCase(logger.New())
+	phase6 := relations.NewPhase6RelationNormalizeUseCase(logger.New())
 	phase6.SetSummaryModel(gemini.NewRouterModel(apiKey, model))
 
 	inputText := "Ari swore loyalty to the Order of the Sun before entering the tower."
@@ -38,16 +38,16 @@ func TestPhase6RelationNormalize_WithPhase5GeminiIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
-	phase5Output, err := phase5.Execute(ctx, entityextraction.Phase5RelationDiscoveryInput{
+	phase5Output, err := phase5.Execute(ctx, relations.Phase5RelationDiscoveryInput{
 		RequestID: "req-rel-6",
-		Context: entityextraction.Phase5Context{
+		Context: relations.Phase5Context{
 			Type: "scene",
 			ID:   "scene-uuid",
 		},
-		Text: entityextraction.Phase5TextSpec{
+		Text: relations.Phase5TextSpec{
 			Mode:          "spans",
 			GlobalSummary: []string{"Ari declares loyalty to the Order of the Sun."},
-			Spans: []entityextraction.Phase5Span{
+			Spans: []relations.Phase5Span{
 				{
 					SpanID: "span:1",
 					Start:  0,
@@ -56,7 +56,7 @@ func TestPhase6RelationNormalize_WithPhase5GeminiIntegration(t *testing.T) {
 				},
 			},
 		},
-		EntityFindings: []entityextraction.Phase5EntityFinding{
+		EntityFindings: []relations.Phase5EntityFinding{
 			{
 				Ref:      "finding:character:0",
 				Type:     "character",
@@ -72,11 +72,11 @@ func TestPhase6RelationNormalize_WithPhase5GeminiIntegration(t *testing.T) {
 				Mentions: []string{"span:1"},
 			},
 		},
-		SuggestedRelationsBySourceType: map[string]entityextraction.Phase5PerEntityRelationMap{
+		SuggestedRelationsBySourceType: map[string]relations.Phase5PerEntityRelationMap{
 			"character": {
 				EntityType: "character",
 				Version:    1,
-				Relations: map[string]entityextraction.Phase5RelationConstraintSpec{
+				Relations: map[string]relations.Phase5RelationConstraintSpec{
 					"member_of": {
 						PairCandidates: []string{"faction"},
 						Description:    "Character belongs to a group or organization.",
@@ -92,29 +92,29 @@ func TestPhase6RelationNormalize_WithPhase5GeminiIntegration(t *testing.T) {
 		t.Fatalf("expected relations from phase5, got none")
 	}
 
-	phase6Output, err := phase6.Execute(ctx, entityextraction.Phase6RelationNormalizeInput{
+	phase6Output, err := phase6.Execute(ctx, relations.Phase6RelationNormalizeInput{
 		RequestID: "req-rel-6",
-		Context: entityextraction.Phase5Context{
+		Context: relations.Phase5Context{
 			Type: "scene",
 			ID:   "scene-uuid",
 		},
 		Relations: phase5Output.Relations,
-		RefMap: map[string]entityextraction.Phase6ResolvedRef{
+		RefMap: map[string]relations.Phase6ResolvedRef{
 			"finding:character:0": {ID: "uuid-ari", Type: "character", Name: "Ari"},
 			"finding:faction:1":   {ID: "uuid-order", Type: "faction", Name: "Order of the Sun"},
 		},
-		SuggestedRelationsBySourceType: map[string]entityextraction.Phase5PerEntityRelationMap{
+		SuggestedRelationsBySourceType: map[string]relations.Phase5PerEntityRelationMap{
 			"character": {
 				EntityType: "character",
 				Version:    1,
-				Relations: map[string]entityextraction.Phase5RelationConstraintSpec{
+				Relations: map[string]relations.Phase5RelationConstraintSpec{
 					"member_of": {
 						PairCandidates: []string{"faction"},
 					},
 				},
 			},
 		},
-		RelationTypes: map[string]entityextraction.Phase6RelationTypeDefinition{
+		RelationTypes: map[string]relations.Phase6RelationTypeDefinition{
 			"member_of": {Mirror: "has_member", PreferredDirection: "source_to_target", Semantics: "Source belongs to a group."},
 		},
 	})

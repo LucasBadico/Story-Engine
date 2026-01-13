@@ -8,15 +8,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
 )
 
 const staticTimeout = 5 * time.Second
 
 // FetchRelationTypes loads relation types from main-service.
-func FetchRelationTypes(ctx context.Context, baseURL string) (map[string]entity_extraction.Phase6RelationTypeDefinition, error) {
+func FetchRelationTypes(ctx context.Context, baseURL string) (map[string]relations.Phase6RelationTypeDefinition, error) {
 	url := strings.TrimRight(baseURL, "/") + "/api/v1/static/relations"
-	var payload map[string]entity_extraction.Phase6RelationTypeDefinition
+	var payload map[string]relations.Phase6RelationTypeDefinition
 	if err := fetchJSON(ctx, url, &payload); err != nil {
 		return nil, err
 	}
@@ -24,9 +24,9 @@ func FetchRelationTypes(ctx context.Context, baseURL string) (map[string]entity_
 }
 
 // FetchRelationMap loads a relation map for a specific entity type.
-func FetchRelationMap(ctx context.Context, baseURL, entityType string) (*entity_extraction.Phase5PerEntityRelationMap, error) {
+func FetchRelationMap(ctx context.Context, baseURL, entityType string) (*relations.Phase5PerEntityRelationMap, error) {
 	url := fmt.Sprintf("%s/api/v1/static/relations/%s", strings.TrimRight(baseURL, "/"), entityType)
-	var payload entity_extraction.Phase5PerEntityRelationMap
+	var payload relations.Phase5PerEntityRelationMap
 	if err := fetchJSON(ctx, url, &payload); err != nil {
 		return nil, err
 	}

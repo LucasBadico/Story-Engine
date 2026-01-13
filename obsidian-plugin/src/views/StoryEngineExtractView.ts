@@ -127,13 +127,10 @@ export class StoryEngineExtractView extends ItemView {
 			const foundCount = this.result.entities.filter((entity) => entity.found)
 				.length;
 			headerMeta.createEl("div", {
-				text: `Entities: ${this.result.entities.length}`,
+				text: `Entities found: ${foundCount}/${this.result.entities.length}`,
 			});
 			headerMeta.createEl("div", {
-				text: `Relations: ${this.result.relations.length}`,
-			});
-			headerMeta.createEl("div", {
-				text: `Found: ${foundCount}`,
+				text: `Relations found: ${this.result.relations.length}`,
 			});
 			headerMeta.createEl("div", {
 				text: `Text length: ${this.result.text.length}`,

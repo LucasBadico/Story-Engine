@@ -15,7 +15,7 @@ Event JSON shape:
 ```json
 {
   "type": "phase.start",
-  "phase": "extractor",
+  "phase": "entities.candidates",
   "message": "extractor started",
   "data": { "chunks": 4 },
   "timestamp": "2026-01-08T18:00:00Z"
@@ -47,9 +47,14 @@ Data:
 Emitted when a phase starts.
 
 Phase values:
-- `extractor`
-- `matcher`
-- `payload`
+- `entities.detect`
+- `entities.candidates`
+- `entities.resolve`
+- `entities.result`
+- `relations.discover`
+- `relations.normalize`
+- `relations.match`
+- `relations.result`
 
 ### extract.candidate
 Emitted for each extracted entity candidate.
@@ -87,24 +92,38 @@ Data (per phase):
 - extractor: findings
 - matcher: results
 
-### result
-Final payload (same shape as `/api/v1/entity-extract` response).
+### result_entities
+Emitted when entity extraction completes.
 
 Data:
 ```json
 {
-  "payload": {
-    "entities": [
-      {
-        "type": "character",
-        "name": "Aria",
-        "summary": "...",
-        "found": true,
-        "match": { "source_type": "character", "source_id": "...", "similarity": 0.92 },
-        "candidates": [ ... ]
-      }
-    ]
-  }
+  "entities": [
+    {
+      "type": "character",
+      "name": "Aria",
+      "summary": "...",
+      "found": true,
+      "match": { "source_type": "character", "source_id": "...", "similarity": 0.92 },
+      "candidates": [ ... ]
+    }
+  ]
+}
+```
+
+### result_relations
+Emitted when relation extraction completes (if enabled).
+
+Data:
+```json
+{
+  "relations": [
+    {
+      "relation_type": "member_of",
+      "source": { "type": "character", "name": "Aria" },
+      "target": { "type": "faction", "name": "Order of the Sun" }
+    }
+  ]
 }
 ```
 
@@ -116,5 +135,5 @@ Data:
 
 ## Client Notes
 - You can safely update UI incrementally using `extract.candidate` and `match.*`.
-- Use `result` as the final authoritative payload.
+- Use `result_entities`/`result_relations` as the authoritative payloads.
 - If the client cancels the request, the server stops emitting further events.

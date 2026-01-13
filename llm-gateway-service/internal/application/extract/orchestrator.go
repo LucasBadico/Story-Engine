@@ -1,4 +1,4 @@
-package entity_extraction
+package extract
 
 import (
 	"context"
@@ -6,31 +6,34 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/events"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
-type EntityAndRelationshipsExtractor struct {
-	router            *Phase1EntityTypeRouterUseCase
-	extractor         *Phase2EntryUseCase
-	matcher           *Phase3MatchUseCase
-	payload           *Phase4EntitiesPayloadUseCase
-	relationDiscovery *Phase5RelationDiscoveryUseCase
-	relationNormalize *Phase6RelationNormalizeUseCase
-	relationMatcher   *Phase7RelationMatchUseCase
+type ExtractOrchestrator struct {
+	router            *entities.Phase1EntityTypeRouterUseCase
+	extractor         *entities.Phase2EntryUseCase
+	matcher           *entities.Phase3MatchUseCase
+	payload           *entities.Phase4EntitiesPayloadUseCase
+	relationDiscovery *relations.Phase5RelationDiscoveryUseCase
+	relationNormalize *relations.Phase6RelationNormalizeUseCase
+	relationMatcher   *relations.Phase7RelationMatchUseCase
 	logger            *logger.Logger
 }
 
-func NewEntityAndRelationshipsExtractor(
-	router *Phase1EntityTypeRouterUseCase,
-	extractor *Phase2EntryUseCase,
-	matcher *Phase3MatchUseCase,
-	payload *Phase4EntitiesPayloadUseCase,
-	relationDiscovery *Phase5RelationDiscoveryUseCase,
-	relationNormalize *Phase6RelationNormalizeUseCase,
-	relationMatcher *Phase7RelationMatchUseCase,
+func NewExtractOrchestrator(
+	router *entities.Phase1EntityTypeRouterUseCase,
+	extractor *entities.Phase2EntryUseCase,
+	matcher *entities.Phase3MatchUseCase,
+	payload *entities.Phase4EntitiesPayloadUseCase,
+	relationDiscovery *relations.Phase5RelationDiscoveryUseCase,
+	relationNormalize *relations.Phase6RelationNormalizeUseCase,
+	relationMatcher *relations.Phase7RelationMatchUseCase,
 	logger *logger.Logger,
-) *EntityAndRelationshipsExtractor {
-	return &EntityAndRelationshipsExtractor{
+) *ExtractOrchestrator {
+	return &ExtractOrchestrator{
 		router:            router,
 		extractor:         extractor,
 		matcher:           matcher,
@@ -42,7 +45,7 @@ func NewEntityAndRelationshipsExtractor(
 	}
 }
 
-type EntityAndRelationshipsExtractorInput struct {
+type ExtractRequest struct {
 	TenantID              uuid.UUID
 	WorldID               uuid.UUID
 	RequestID             string
@@ -57,34 +60,34 @@ type EntityAndRelationshipsExtractorInput struct {
 	MaxMatchCandidates    int
 	MaxRelationMatches    int
 	RelationMatchMinSim   float64
-	SuggestedRelations    map[string]Phase5PerEntityRelationMap
-	RelationTypes         map[string]Phase6RelationTypeDefinition
+	SuggestedRelations    map[string]relations.Phase5PerEntityRelationMap
+	RelationTypes         map[string]relations.Phase6RelationTypeDefinition
 	RelationTypeSemantics map[string]string
-	EventLogger           ExtractionEventLogger
+	EventLogger           events.ExtractionEventLogger
 	IncludeRelations      bool
 }
 
-type EntityAndRelationshipsExtractorOutput struct {
-	Payload Phase4EntitiesPayload
+type ExtractResult struct {
+	Payload ExtractPayload
 }
 
-func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input EntityAndRelationshipsExtractorInput) (EntityAndRelationshipsExtractorOutput, error) {
+func (u *ExtractOrchestrator) Execute(ctx context.Context, input ExtractRequest) (ExtractResult, error) {
 	if input.TenantID == uuid.Nil {
-		return EntityAndRelationshipsExtractorOutput{}, errors.New("tenant id is required")
+		return ExtractResult{}, errors.New("tenant id is required")
 	}
 	if input.WorldID == uuid.Nil {
-		return EntityAndRelationshipsExtractorOutput{}, errors.New("world id is required")
+		return ExtractResult{}, errors.New("world id is required")
 	}
 	text := strings.TrimSpace(input.Text)
 	if text == "" {
-		return EntityAndRelationshipsExtractorOutput{}, errors.New("text is required")
+		return ExtractResult{}, errors.New("text is required")
 	}
 	if u.router == nil || u.extractor == nil || u.matcher == nil || u.payload == nil {
-		return EntityAndRelationshipsExtractorOutput{}, errors.New("router, extractor, matcher, and payload are required")
+		return ExtractResult{}, errors.New("router, extractor, matcher, and payload are required")
 	}
 
-	eventLogger := normalizeEventLogger(input.EventLogger)
-	emitEvent(ctx, eventLogger, ExtractionEvent{
+	eventLogger := events.NormalizeEventLogger(input.EventLogger)
+	events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 		Type:    "pipeline.start",
 		Message: "entity extraction started",
 		Data: map[string]interface{}{
@@ -99,16 +102,16 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 		entityTypes = []string{"character", "location", "artefact", "faction", "event"}
 	}
 
-	split, err := SplitTextIntoParagraphChunks(Phase0TextSplitInput{
+	split, err := entities.SplitTextIntoParagraphChunks(entities.Phase0TextSplitInput{
 		Text:          text,
 		MaxChunkChars: input.MaxChunkChars,
 		OverlapChars:  input.OverlapChars,
 	})
 	if err != nil {
-		return EntityAndRelationshipsExtractorOutput{}, err
+		return ExtractResult{}, err
 	}
 
-	routedChunks := make([]Phase2RoutedChunk, 0)
+	routedChunks := make([]entities.Phase2RoutedChunk, 0)
 	for _, paragraph := range split.Paragraphs {
 		for _, chunk := range paragraph.Chunks {
 			chunkText := strings.TrimSpace(chunk.Text)
@@ -125,9 +128,9 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 				continue
 			}
 
-			emitEvent(ctx, eventLogger, ExtractionEvent{
+			events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 				Type:    "router.chunk",
-				Phase:   "router",
+				Phase:   "entities.detect",
 				Message: "router types identified",
 				Data: map[string]interface{}{
 					"paragraph_id": paragraph.ParagraphID,
@@ -136,7 +139,7 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 				},
 			})
 
-			routedChunks = append(routedChunks, Phase2RoutedChunk{
+			routedChunks = append(routedChunks, entities.Phase2RoutedChunk{
 				ParagraphID: paragraph.ParagraphID,
 				ChunkID:     chunk.ChunkID,
 				StartOffset: chunk.StartOffset,
@@ -148,51 +151,51 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 	}
 
 	if len(routedChunks) == 0 {
-		emitEvent(ctx, eventLogger, ExtractionEvent{
+		events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 			Type:    "pipeline.done",
 			Message: "no routed chunks to extract",
 			Data: map[string]interface{}{
 				"entities": 0,
 			},
 		})
-		return EntityAndRelationshipsExtractorOutput{Payload: Phase4EntitiesPayload{Entities: []Phase4Entity{}, Relations: []Phase8RelationResult{}}}, nil
+		return ExtractResult{Payload: ExtractPayload{Entities: []entities.Phase4Entity{}, Relations: []relations.Phase8RelationResult{}}}, nil
 	}
 
-	emitEvent(ctx, eventLogger, ExtractionEvent{
+	events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 		Type:    "phase.start",
-		Phase:   "extractor",
+		Phase:   "entities.candidates",
 		Message: "extractor started",
 		Data: map[string]interface{}{
 			"chunks": len(routedChunks),
 		},
 	})
-	phase2Output, err := u.extractor.Execute(ctx, Phase2EntryInput{
+	phase2Output, err := u.extractor.Execute(ctx, entities.Phase2EntryInput{
 		Context:               input.Context,
 		MaxCandidatesPerChunk: input.MaxCandidatesPerChunk,
 		Chunks:                routedChunks,
 		EventLogger:           eventLogger,
 	})
 	if err != nil {
-		return EntityAndRelationshipsExtractorOutput{}, err
+		return ExtractResult{}, err
 	}
-	emitEvent(ctx, eventLogger, ExtractionEvent{
+	events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 		Type:    "phase.done",
-		Phase:   "extractor",
+		Phase:   "entities.candidates",
 		Message: "extractor finished",
 		Data: map[string]interface{}{
 			"findings": len(phase2Output.Findings),
 		},
 	})
 
-	emitEvent(ctx, eventLogger, ExtractionEvent{
+	events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 		Type:    "phase.start",
-		Phase:   "matcher",
+		Phase:   "entities.resolve",
 		Message: "matcher started",
 		Data: map[string]interface{}{
 			"findings": len(phase2Output.Findings),
 		},
 	})
-	phase3Output, err := u.matcher.Execute(ctx, Phase3MatchInput{
+	phase3Output, err := u.matcher.Execute(ctx, entities.Phase3MatchInput{
 		TenantID:      input.TenantID,
 		WorldID:       &input.WorldID,
 		Findings:      phase2Output.Findings,
@@ -202,22 +205,23 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 		EventLogger:   eventLogger,
 	})
 	if err != nil {
-		return EntityAndRelationshipsExtractorOutput{}, err
+		return ExtractResult{}, err
 	}
-	emitEvent(ctx, eventLogger, ExtractionEvent{
+	events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 		Type:    "phase.done",
-		Phase:   "matcher",
+		Phase:   "entities.resolve",
 		Message: "matcher finished",
 		Data: map[string]interface{}{
 			"results": len(phase3Output.Results),
 		},
 	})
 
-	relations := []Phase8RelationResult{}
+	relationsResult := []relations.Phase8RelationResult{}
 	basePayload := u.payload.Execute(phase3Output)
 
-	emitEvent(ctx, eventLogger, ExtractionEvent{
+	events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 		Type:    "result_entities",
+		Phase:   "entities.result",
 		Message: "entity extraction completed",
 		Data: map[string]interface{}{
 			"entities": basePayload.Entities,
@@ -229,9 +233,9 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 			u.logger.Warn("relation maps missing; skipping relation extraction",
 				"suggested", len(input.SuggestedRelations),
 				"types", len(input.RelationTypes))
-			emitEvent(ctx, eventLogger, ExtractionEvent{
+			events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 				Type:    "relation.error",
-				Phase:   "relation",
+				Phase:   "relations.result",
 				Message: "relation extraction skipped (maps missing)",
 				Data: map[string]interface{}{
 					"suggested": len(input.SuggestedRelations),
@@ -239,12 +243,30 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 				},
 			})
 		} else {
-			relations, err = u.extractRelations(ctx, input, phase2Output, phase3Output)
+			relationExtractor := relations.NewExtractor(
+				u.relationDiscovery,
+				u.relationNormalize,
+				u.relationMatcher,
+				u.logger,
+			)
+			relationsResult, err = relationExtractor.Execute(ctx, relations.ExtractInput{
+				TenantID:              input.TenantID,
+				WorldID:               input.WorldID,
+				RequestID:             input.RequestID,
+				Text:                  input.Text,
+				Context:               input.Context,
+				MaxRelationMatches:    input.MaxRelationMatches,
+				RelationMatchMinSim:   input.RelationMatchMinSim,
+				SuggestedRelations:    input.SuggestedRelations,
+				RelationTypes:         input.RelationTypes,
+				RelationTypeSemantics: input.RelationTypeSemantics,
+				EventLogger:           input.EventLogger,
+			}, phase2Output, phase3Output)
 			if err != nil {
 				u.logger.Error("relation extraction failed", "error", err)
-				emitEvent(ctx, eventLogger, ExtractionEvent{
+				events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 					Type:    "relation.error",
-					Phase:   "relation",
+					Phase:   "relations.result",
 					Message: "relation extraction failed",
 					Data: map[string]interface{}{
 						"error": err.Error(),
@@ -254,26 +276,27 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 		}
 	}
 
-	if len(relations) > 0 {
-		emitEvent(ctx, eventLogger, ExtractionEvent{
+	if len(relationsResult) > 0 {
+		events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 			Type:    "result_relations",
+			Phase:   "relations.result",
 			Message: "relation extraction completed",
 			Data: map[string]interface{}{
-				"relations": relations,
+				"relations": relationsResult,
 			},
 		})
-		emitEvent(ctx, eventLogger, ExtractionEvent{
+		events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 			Type:    "relation.success",
-			Phase:   "relation",
+			Phase:   "relations.result",
 			Message: "relation extraction succeeded",
 			Data: map[string]interface{}{
-				"count": len(relations),
+				"count": len(relationsResult),
 			},
 		})
 	} else if input.IncludeRelations {
-		emitEvent(ctx, eventLogger, ExtractionEvent{
+		events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 			Type:    "relation.success",
-			Phase:   "relation",
+			Phase:   "relations.result",
 			Message: "relation extraction completed with no relations",
 			Data: map[string]interface{}{
 				"count": 0,
@@ -281,22 +304,21 @@ func (u *EntityAndRelationshipsExtractor) Execute(ctx context.Context, input Ent
 		})
 	}
 
-	emitEvent(ctx, eventLogger, ExtractionEvent{
+	events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 		Type:    "phase.start",
-		Phase:   "payload",
+		Phase:   "entities.result",
 		Message: "payload formatting started",
 	})
-	return EntityAndRelationshipsExtractorOutput{
-		Payload: mergeRelationsPayload(basePayload, relations),
+	return ExtractResult{
+		Payload: mergeRelationsPayload(basePayload, relationsResult),
 	}, nil
 }
 
-func mergeRelationsPayload(payload Phase4EntitiesPayload, relations []Phase8RelationResult) Phase4EntitiesPayload {
-	if len(relations) == 0 {
-		return payload
+func mergeRelationsPayload(payload entities.Phase4EntitiesPayload, relations []relations.Phase8RelationResult) ExtractPayload {
+	return ExtractPayload{
+		Entities:  payload.Entities,
+		Relations: relations,
 	}
-	payload.Relations = relations
-	return payload
 }
 
 func uuidString(id uuid.UUID) string {
@@ -306,14 +328,14 @@ func uuidString(id uuid.UUID) string {
 	return id.String()
 }
 
-func (u *EntityAndRelationshipsExtractor) routeChunkTypes(
+func (u *ExtractOrchestrator) routeChunkTypes(
 	ctx context.Context,
 	text string,
 	context string,
 	entityTypes []string,
 	maxCandidates int,
 ) ([]string, error) {
-	output, err := u.router.Execute(ctx, Phase1EntityTypeRouterInput{
+	output, err := u.router.Execute(ctx, entities.Phase1EntityTypeRouterInput{
 		Text:          text,
 		Context:       context,
 		EntityTypes:   entityTypes,

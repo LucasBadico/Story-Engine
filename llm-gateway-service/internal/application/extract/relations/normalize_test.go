@@ -1,4 +1,4 @@
-package entity_extraction
+package relations
 
 import (
 	"strings"

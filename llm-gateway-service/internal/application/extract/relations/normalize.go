@@ -1,4 +1,4 @@
-package entity_extraction
+package relations
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/llm"
@@ -99,24 +100,52 @@ func (uc *Phase6RelationNormalizeUseCase) Execute(ctx context.Context, input Pha
 		return Phase6RelationNormalizeOutput{Relations: []Phase6NormalizedRelation{}}, nil
 	}
 
+	parallelism := getRelationNormalizeParallelism(uc.logger)
+	if parallelism < 1 {
+		parallelism = 1
+	}
+
+	normalizedBuckets := make([][]Phase6NormalizedRelation, len(input.Relations))
+	sem := make(chan struct{}, parallelism)
+	var wg sync.WaitGroup
+	for idx, rel := range input.Relations {
+		idx := idx
+		rel := rel
+		wg.Add(1)
+		sem <- struct{}{}
+		go func() {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+
+			normalizedRel, ok := uc.normalizePhase6Relation(ctx, input, rel)
+			if !ok {
+				return
+			}
+
+			items := []Phase6NormalizedRelation{normalizedRel}
+			if strings.HasPrefix(strings.ToLower(normalizedRel.RelationType), "custom:") {
+				mirror := normalizedRel
+				mirror.Source, mirror.Target = normalizedRel.Target, normalizedRel.Source
+				mirror.CreateMirror = false
+				mirror.Direction = "source_to_target"
+				key := phase6RelationKey(normalizedRel)
+				mirror.MirrorOf = &key
+				items = append(items, mirror)
+			}
+
+			normalizedBuckets[idx] = items
+		}()
+	}
+	wg.Wait()
+
 	normalized := make([]Phase6NormalizedRelation, 0, len(input.Relations))
-	for _, rel := range input.Relations {
-		normalizedRel, ok := uc.normalizePhase6Relation(ctx, input, rel)
-		if !ok {
+	for _, items := range normalizedBuckets {
+		if len(items) == 0 {
 			continue
 		}
-		normalized = append(normalized, normalizedRel)
-
-		if strings.HasPrefix(strings.ToLower(normalizedRel.RelationType), "custom:") {
-			mirror := normalizedRel
-			mirror.Source, mirror.Target = normalizedRel.Target, normalizedRel.Source
-			mirror.CreateMirror = false
-			mirror.Direction = "source_to_target"
-			key := phase6RelationKey(normalizedRel)
-			mirror.MirrorOf = &key
-			normalized = append(normalized, mirror)
-		}
-		_ = ctx
+		normalized = append(normalized, items...)
 	}
 
 	return Phase6RelationNormalizeOutput{Relations: normalized}, nil
