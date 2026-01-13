@@ -29,7 +29,6 @@ import {
 	EventReference,
 	SceneReference,
 	TimeConfig,
-	EntityRelation,
 	CreateEntityRelationInput,
 } from "../types";
 import type {
