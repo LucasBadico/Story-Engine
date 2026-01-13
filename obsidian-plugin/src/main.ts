@@ -10,6 +10,7 @@ import { StoryEngineSettingTab } from "./settings";
 import { registerCommands } from "./commands";
 import { StoryDetailsModal } from "./views/StoryDetailsModal";
 import { CreateStoryModal } from "./views/CreateStoryModal";
+import { ExtractConfigModal } from "./views/ExtractConfigModal";
 import { FileManager } from "./sync/fileManager";
 import { SyncService } from "./sync/syncService";
 import { AutoSyncManager } from "./sync/autoSyncManager";
@@ -321,6 +322,16 @@ export default class StoryEnginePlugin extends Plugin {
 			return;
 		}
 
+		const defaultTypes = ["character", "location", "artefact", "faction", "event"];
+		const config = await ExtractConfigModal.open(
+			this.app,
+			defaultTypes,
+			includeRelations
+		);
+		if (!config) {
+			return;
+		}
+
 		if (this.settings.mode !== "remote") {
 			new Notice("Extraction requires the full remote version.", 5000);
 			return;
@@ -356,7 +367,7 @@ export default class StoryEnginePlugin extends Plugin {
 			return;
 		}
 
-		this.resetExtractState(trimmedSelection, worldId, includeRelations);
+		this.resetExtractState(trimmedSelection, worldId, config.includeRelations);
 		await this.activateView();
 		await this.activateExtractView();
 		this.updateExtractViews();
@@ -375,7 +386,8 @@ export default class StoryEnginePlugin extends Plugin {
 			gatewayUrl,
 			worldId,
 			text: trimmedSelection,
-			includeRelations,
+			includeRelations: config.includeRelations,
+			entityTypes: config.entityTypes,
 		});
 	}
 
@@ -449,8 +461,10 @@ export default class StoryEnginePlugin extends Plugin {
 		worldId: string;
 		text: string;
 		includeRelations: boolean;
+		entityTypes: string[];
 	}) {
-		const { tenantId, gatewayUrl, worldId, text, includeRelations } = params;
+		const { tenantId, gatewayUrl, worldId, text, includeRelations, entityTypes } =
+			params;
 		const controller = new AbortController();
 		this.extractAbortController = controller;
 		this.appendExtractLog({
@@ -475,6 +489,7 @@ export default class StoryEnginePlugin extends Plugin {
 						text,
 						world_id: worldId,
 						include_relations: includeRelations,
+						entity_types: entityTypes,
 					}),
 					signal: controller.signal,
 				}

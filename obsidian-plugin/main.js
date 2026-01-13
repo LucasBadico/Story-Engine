@@ -28,7 +28,7 @@ __export(main_exports, {
   default: () => StoryEnginePlugin
 });
 module.exports = __toCommonJS(main_exports);
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // src/sync/apiUpdateNotifier.ts
 var ApiUpdateNotifier = class {
@@ -1695,8 +1695,116 @@ var CreateStoryModal = class extends import_obsidian5.Modal {
   }
 };
 
-// src/sync/fileManager.ts
+// src/views/ExtractConfigModal.ts
 var import_obsidian6 = require("obsidian");
+var ENTITY_TYPE_OPTIONS = [
+  { value: "character", label: "Character" },
+  { value: "location", label: "Location" },
+  { value: "artefact", label: "Artefact" },
+  { value: "faction", label: "Faction" },
+  { value: "event", label: "Event" }
+];
+var ExtractConfigModal = class _ExtractConfigModal extends import_obsidian6.Modal {
+  constructor(app, defaultTypes, defaultIncludeRelations) {
+    super(app);
+    this.resolve = null;
+    this.selectedTypes = /* @__PURE__ */ new Set();
+    this.includeRelations = true;
+    defaultTypes.forEach((type2) => this.selectedTypes.add(type2));
+    this.includeRelations = defaultIncludeRelations;
+  }
+  static open(app, defaultTypes, defaultIncludeRelations) {
+    return new Promise((resolve) => {
+      const modal = new _ExtractConfigModal(
+        app,
+        defaultTypes,
+        defaultIncludeRelations
+      );
+      modal.resolve = resolve;
+      modal.open();
+    });
+  }
+  onOpen() {
+    const { contentEl } = this;
+    contentEl.empty();
+    contentEl.createEl("h3", { text: "Extract Configuration" });
+    contentEl.createEl("p", {
+      text: "Choose which entity types to extract and whether to include relations."
+    });
+    const typeBlock = contentEl.createDiv({ cls: "story-engine-extract-config" });
+    typeBlock.createEl("div", {
+      text: "Entity types",
+      cls: "story-engine-extract-label"
+    });
+    ENTITY_TYPE_OPTIONS.forEach((option) => {
+      const row = typeBlock.createDiv({
+        cls: "story-engine-extract-config-row"
+      });
+      const checkbox = row.createEl("input", {
+        type: "checkbox"
+      });
+      checkbox.checked = this.selectedTypes.has(option.value);
+      checkbox.onchange = () => {
+        if (checkbox.checked) {
+          this.selectedTypes.add(option.value);
+        } else {
+          this.selectedTypes.delete(option.value);
+        }
+      };
+      row.createEl("span", { text: option.label });
+    });
+    const relationRow = contentEl.createDiv({
+      cls: "story-engine-extract-config-row"
+    });
+    const relationsCheckbox = relationRow.createEl("input", {
+      type: "checkbox"
+    });
+    relationsCheckbox.checked = this.includeRelations;
+    relationsCheckbox.onchange = () => {
+      this.includeRelations = relationsCheckbox.checked;
+    };
+    relationRow.createEl("span", { text: "Include relations" });
+    const buttonContainer = contentEl.createDiv({
+      cls: "modal-button-container"
+    });
+    const submitButton = buttonContainer.createEl("button", {
+      text: "Start Extraction",
+      cls: "mod-cta"
+    });
+    submitButton.onclick = () => this.submit();
+    const cancelButton = buttonContainer.createEl("button", {
+      text: "Cancel"
+    });
+    cancelButton.onclick = () => this.cancel();
+  }
+  submit() {
+    const types = Array.from(this.selectedTypes);
+    if (types.length === 0) {
+      new import_obsidian6.Notice("Select at least one entity type.", 3e3);
+      return;
+    }
+    if (this.resolve) {
+      this.resolve({
+        entityTypes: types,
+        includeRelations: this.includeRelations
+      });
+    }
+    this.close();
+  }
+  cancel() {
+    if (this.resolve) {
+      this.resolve(null);
+    }
+    this.close();
+  }
+  onClose() {
+    const { contentEl } = this;
+    contentEl.empty();
+  }
+};
+
+// src/sync/fileManager.ts
+var import_obsidian7 = require("obsidian");
 var FileManager = class {
   constructor(vault, baseFolder) {
     this.vault = vault;
@@ -2034,7 +2142,7 @@ Status: ${story.status}
     }
     const filePath = `${folderPath}/story.md`;
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian7.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -2197,7 +2305,7 @@ Status: ${story.status}
       }
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian7.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -2207,7 +2315,7 @@ Status: ${story.status}
   async readStoryMetadata(folderPath) {
     const filePath = `${folderPath}/story.md`;
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian6.TFile)) {
+    if (!(file instanceof import_obsidian7.TFile)) {
       throw new Error(`Story metadata file not found: ${filePath}`);
     }
     const content = await this.vault.read(file);
@@ -2256,7 +2364,7 @@ Status: ${story.status}
     }
     await this.ensureFolderExists(versionFolderPath);
     const storyFolder = this.vault.getAbstractFileByPath(storyFolderPath);
-    if (!(storyFolder instanceof import_obsidian6.TFolder)) {
+    if (!(storyFolder instanceof import_obsidian7.TFolder)) {
       throw new Error(`Story folder not found: ${storyFolderPath}`);
     }
     await this.copyFolderContents(storyFolder, versionFolderPath, "versions");
@@ -2265,12 +2373,12 @@ Status: ${story.status}
   // Recursively copy folder contents
   async copyFolderContents(sourceFolder, destPath, excludeFolderName) {
     for (const child of sourceFolder.children) {
-      if (child instanceof import_obsidian6.TFile) {
+      if (child instanceof import_obsidian7.TFile) {
         const relativePath = child.path.replace(sourceFolder.path + "/", "");
         const destFilePath = `${destPath}/${relativePath}`;
         const content = await this.vault.read(child);
         await this.vault.create(destFilePath, content);
-      } else if (child instanceof import_obsidian6.TFolder) {
+      } else if (child instanceof import_obsidian7.TFolder) {
         if (excludeFolderName && child.name === excludeFolderName) {
           continue;
         }
@@ -2410,7 +2518,7 @@ Status: ${story.status}
 `;
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian7.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -2464,7 +2572,7 @@ Status: ${story.status}
       }
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian7.TFile) {
       await this.vault.modify(file, content);
     } else {
       await this.vault.create(filePath, content);
@@ -2474,12 +2582,12 @@ Status: ${story.status}
   async listChapterFiles(storyFolderPath) {
     const chaptersPath = `${storyFolderPath}/00-chapters`;
     const folder = this.vault.getAbstractFileByPath(chaptersPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian7.TFolder)) {
       return [];
     }
     const chapterFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
         chapterFiles.push(child.path);
       }
     }
@@ -2489,12 +2597,12 @@ Status: ${story.status}
   async listSceneFiles(chapterFolderPath) {
     const scenesPath = `${chapterFolderPath}/01-scenes`;
     const folder = this.vault.getAbstractFileByPath(scenesPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian7.TFolder)) {
       return [];
     }
     const sceneFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
         sceneFiles.push(child.path);
       }
     }
@@ -2504,12 +2612,12 @@ Status: ${story.status}
   async listStorySceneFiles(storyFolderPath) {
     const scenesPath = `${storyFolderPath}/01-scenes`;
     const folder = this.vault.getAbstractFileByPath(scenesPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian7.TFolder)) {
       return [];
     }
     const sceneFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
         sceneFiles.push(child.path);
       }
     }
@@ -2519,12 +2627,12 @@ Status: ${story.status}
   async listStoryBeatFiles(storyFolderPath) {
     const beatsPath = `${storyFolderPath}/02-beats`;
     const folder = this.vault.getAbstractFileByPath(beatsPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian7.TFolder)) {
       return [];
     }
     const beatFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
         beatFiles.push(child.path);
       }
     }
@@ -2534,12 +2642,12 @@ Status: ${story.status}
   async listBeatFiles(sceneFolderPath) {
     const beatsPath = `${sceneFolderPath}/02-beats`;
     const folder = this.vault.getAbstractFileByPath(beatsPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian7.TFolder)) {
       return [];
     }
     const beatFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFile && child.extension === "md") {
+      if (child instanceof import_obsidian7.TFile && child.extension === "md") {
         beatFiles.push(child.path);
       }
     }
@@ -2769,7 +2877,7 @@ ${meta.description}`;
       fileContent = `${frontmatter}${contentBlock.content}`;
     }
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (file instanceof import_obsidian6.TFile) {
+    if (file instanceof import_obsidian7.TFile) {
       await this.vault.modify(file, fileContent);
     } else {
       await this.vault.create(filePath, fileContent);
@@ -2805,7 +2913,7 @@ ${meta.description}`;
       const imageFileName = `${contentBlockId}.${extension}`;
       const imagePath = `${contentBlockDir}/${imageFileName}`;
       const existingFile = this.vault.getAbstractFileByPath(imagePath);
-      if (existingFile instanceof import_obsidian6.TFile) {
+      if (existingFile instanceof import_obsidian7.TFile) {
         await this.vault.modifyBinary(existingFile, arrayBuffer);
       } else {
         await this.vault.createBinary(imagePath, arrayBuffer);
@@ -2819,7 +2927,7 @@ ${meta.description}`;
   // Read content block from file
   async readContentBlockFromFile(filePath) {
     const file = this.vault.getAbstractFileByPath(filePath);
-    if (!(file instanceof import_obsidian6.TFile)) {
+    if (!(file instanceof import_obsidian7.TFile)) {
       return null;
     }
     try {
@@ -2904,14 +3012,14 @@ ${meta.description}`;
   async listContentBlockFiles(storyFolderPath) {
     const contentsPath = `${storyFolderPath}/03-contents`;
     const folder = this.vault.getAbstractFileByPath(contentsPath);
-    if (!(folder instanceof import_obsidian6.TFolder)) {
+    if (!(folder instanceof import_obsidian7.TFolder)) {
       return [];
     }
     const contentFiles = [];
     for (const child of folder.children) {
-      if (child instanceof import_obsidian6.TFolder) {
+      if (child instanceof import_obsidian7.TFolder) {
         for (const file of child.children) {
-          if (file instanceof import_obsidian6.TFile && file.extension === "md") {
+          if (file instanceof import_obsidian7.TFile && file.extension === "md") {
             contentFiles.push(file.path);
           }
         }
@@ -2922,7 +3030,7 @@ ${meta.description}`;
 };
 
 // src/sync/syncService.ts
-var import_obsidian8 = require("obsidian");
+var import_obsidian9 = require("obsidian");
 
 // src/sync/contentBlockParser.ts
 function parseHierarchicalProse(chapterContent) {
@@ -3732,8 +3840,8 @@ function parseBeatProse(beatContent) {
 }
 
 // src/views/modals/ConflictModal.ts
-var import_obsidian7 = require("obsidian");
-var ConflictModal = class extends import_obsidian7.Modal {
+var import_obsidian8 = require("obsidian");
+var ConflictModal = class extends import_obsidian8.Modal {
   constructor(app, localContentBlock, remoteContentBlock, onResolve) {
     super(app);
     this.resolution = null;
@@ -3993,10 +4101,10 @@ var SyncService = class {
         );
       }
       await this.syncVersionHistory(storyData.story.root_story_id, folderPath);
-      new import_obsidian8.Notice(`Story "${storyData.story.title}" synced successfully`);
+      new import_obsidian9.Notice(`Story "${storyData.story.title}" synced successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-      new import_obsidian8.Notice(`Error syncing story: ${errorMessage}`, 5e3);
+      new import_obsidian9.Notice(`Error syncing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
@@ -4109,7 +4217,7 @@ var SyncService = class {
         console.error(`Failed to sync story ${story.id}:`, err);
       }
     }
-    new import_obsidian8.Notice(`Synced ${stories.length} stories`);
+    new import_obsidian9.Notice(`Synced ${stories.length} stories`);
   }
   // Apply entity data received from API without fetching
   async applyEntityData(payload) {
@@ -4122,7 +4230,7 @@ var SyncService = class {
           contentBlocks: payload.contentBlocks,
           contentBlockRefs: payload.contentBlockRefs
         });
-        new import_obsidian8.Notice(`Chapter "${payload.chapter.title}" synced successfully`);
+        new import_obsidian9.Notice(`Chapter "${payload.chapter.title}" synced successfully`);
         break;
       }
       case "scene": {
@@ -4153,7 +4261,7 @@ var SyncService = class {
             await this.writeContentBlockToFolder(folderPath, payload.story.title, contentBlock);
           }
         }
-        new import_obsidian8.Notice(`Scene "${payload.scene.goal}" synced successfully`);
+        new import_obsidian9.Notice(`Scene "${payload.scene.goal}" synced successfully`);
         break;
       }
       case "content": {
@@ -4164,7 +4272,7 @@ var SyncService = class {
           payload.story.title,
           payload.contentBlock
         );
-        new import_obsidian8.Notice("Content block synced successfully");
+        new import_obsidian9.Notice("Content block synced successfully");
         break;
       }
     }
@@ -4183,7 +4291,7 @@ var SyncService = class {
       }
       const storyFilePath = `${folderPath}/story.md`;
       const storyFile = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
-      if (storyFile instanceof import_obsidian8.TFile) {
+      if (storyFile instanceof import_obsidian9.TFile) {
         const storyContent = await this.fileManager.getVault().read(storyFile);
         const chapterList = parseChapterList(storyContent);
         if (chapterList.items.length > 0) {
@@ -4223,25 +4331,25 @@ var SyncService = class {
       for (const beatFilePath of beatFiles) {
         await this.pushBeatContentBlocks(beatFilePath, folderPath);
       }
-      new import_obsidian8.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
+      new import_obsidian9.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
       try {
-        new import_obsidian8.Notice(`Syncing story "${storyFrontmatter.title}" from service...`);
+        new import_obsidian9.Notice(`Syncing story "${storyFrontmatter.title}" from service...`);
         await this.pullStory(storyId);
-        new import_obsidian8.Notice(`Story "${storyFrontmatter.title}" synced successfully`);
+        new import_obsidian9.Notice(`Story "${storyFrontmatter.title}" synced successfully`);
       } catch (pullErr) {
         const pullErrorMessage = pullErr instanceof Error ? pullErr.message : "Failed to sync story after push";
-        new import_obsidian8.Notice(`Warning: ${pullErrorMessage}`, 5e3);
+        new import_obsidian9.Notice(`Warning: ${pullErrorMessage}`, 5e3);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-      new import_obsidian8.Notice(`Error pushing story: ${errorMessage}`, 5e3);
+      new import_obsidian9.Notice(`Error pushing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
   // Push prose blocks from a chapter file (hierarchical structure)
   async pushChapterContentBlocks(chapterFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
-    if (!(file instanceof import_obsidian8.TFile)) {
+    if (!(file instanceof import_obsidian9.TFile)) {
       throw new Error(`Chapter file not found: ${chapterFilePath}`);
     }
     const chapterContent = await this.fileManager.getVault().read(file);
@@ -4496,7 +4604,7 @@ var SyncService = class {
             }
             const linkNameRemoteMod = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkNameRemoteMod}|${finalContentBlock.content}]]`);
-            new import_obsidian8.Notice(`Prose block updated from remote: ${linkNameRemoteMod}`, 3e3);
+            new import_obsidian9.Notice(`Prose block updated from remote: ${linkNameRemoteMod}`, 3e3);
             proseOrderNum++;
             break;
           }
@@ -4820,7 +4928,7 @@ ${updatedBody}`;
   // Process the "## Beats" list from a scene file and update beat order
   async pushSceneBeats(sceneFilePath, storyId) {
     const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
-    if (!(file instanceof import_obsidian8.TFile)) {
+    if (!(file instanceof import_obsidian9.TFile)) {
       return;
     }
     const sceneContent = await this.fileManager.getVault().read(file);
@@ -4890,7 +4998,7 @@ ${updatedBody}`;
   // Format: # Story: title, ## Chapter: title, ### Scene: title, #### Beat: title
   async pushStoryContentBlocks(storyFilePath, storyFolderPath, storyId) {
     const file = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
-    if (!(file instanceof import_obsidian8.TFile)) {
+    if (!(file instanceof import_obsidian9.TFile)) {
       throw new Error(`Story file not found: ${storyFilePath}`);
     }
     const storyContent = await this.fileManager.getVault().read(file);
@@ -5104,7 +5212,7 @@ ${updatedBody}`;
   // Push prose blocks from a scene file (scene-level prose, not inside chapters)
   async pushSceneContentBlocks(sceneFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
-    if (!(file instanceof import_obsidian8.TFile)) {
+    if (!(file instanceof import_obsidian9.TFile)) {
       return;
     }
     const sceneContent = await this.fileManager.getVault().read(file);
@@ -5261,7 +5369,7 @@ ${updatedBody}`;
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
-            new import_obsidian8.Notice(`Scene prose block updated from remote: ${linkName}`, 3e3);
+            new import_obsidian9.Notice(`Scene prose block updated from remote: ${linkName}`, 3e3);
             proseOrderNum++;
             break;
           }
@@ -5306,7 +5414,7 @@ ${afterProse}`;
   // Push prose blocks from a beat file
   async pushBeatContentBlocks(beatFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(beatFilePath);
-    if (!(file instanceof import_obsidian8.TFile)) {
+    if (!(file instanceof import_obsidian9.TFile)) {
       return;
     }
     const beatContent = await this.fileManager.getVault().read(file);
@@ -5824,16 +5932,16 @@ ${updatedSections.join("\n\n")}
   // Find content block file by link name (searches recursively in all type subfolders)
   async findContentBlockFileByLinkName(contentsRoot, linkName) {
     const root2 = this.fileManager.getVault().getAbstractFileByPath(contentsRoot);
-    if (!(root2 instanceof import_obsidian8.TFolder))
+    if (!(root2 instanceof import_obsidian9.TFolder))
       return null;
     const target = `${linkName}.md`;
     const stack = [root2];
     while (stack.length) {
       const folder = stack.pop();
       for (const child of folder.children) {
-        if (child instanceof import_obsidian8.TFolder) {
+        if (child instanceof import_obsidian9.TFolder) {
           stack.push(child);
-        } else if (child instanceof import_obsidian8.TFile && child.name === target) {
+        } else if (child instanceof import_obsidian9.TFile && child.name === target) {
           return child.path;
         }
       }
@@ -5844,7 +5952,7 @@ ${updatedSections.join("\n\n")}
   async findContentBlockByContent(contentsFolderPath, content) {
     try {
       const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
-      if (!(folder instanceof import_obsidian8.TFolder)) {
+      if (!(folder instanceof import_obsidian9.TFolder)) {
         return null;
       }
       const normalizedContent = content.trim();
@@ -5852,9 +5960,9 @@ ${updatedSections.join("\n\n")}
       while (stack.length) {
         const currentFolder = stack.pop();
         for (const child of currentFolder.children) {
-          if (child instanceof import_obsidian8.TFolder) {
+          if (child instanceof import_obsidian9.TFolder) {
             stack.push(child);
-          } else if (child instanceof import_obsidian8.TFile && child.extension === "md") {
+          } else if (child instanceof import_obsidian9.TFile && child.extension === "md") {
             const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
             if (contentBlock && contentBlock.content.trim() === normalizedContent) {
               return contentBlock;
@@ -5871,16 +5979,16 @@ ${updatedSections.join("\n\n")}
   async findContentBlockById(contentsFolderPath, id2) {
     try {
       const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
-      if (!(folder instanceof import_obsidian8.TFolder)) {
+      if (!(folder instanceof import_obsidian9.TFolder)) {
         return null;
       }
       const stack = [folder];
       while (stack.length) {
         const currentFolder = stack.pop();
         for (const child of currentFolder.children) {
-          if (child instanceof import_obsidian8.TFolder) {
+          if (child instanceof import_obsidian9.TFolder) {
             stack.push(child);
-          } else if (child instanceof import_obsidian8.TFile && child.extension === "md") {
+          } else if (child instanceof import_obsidian9.TFile && child.extension === "md") {
             const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
             if (contentBlock && contentBlock.id === id2) {
               return contentBlock;
@@ -6107,7 +6215,7 @@ ${updatedBody}`;
       contentBlocks,
       contentBlockRefs
     });
-    new import_obsidian8.Notice(`Chapter "${chapter.title}" synced successfully`);
+    new import_obsidian9.Notice(`Chapter "${chapter.title}" synced successfully`);
   }
   async pullSceneEntity(storyId, sceneId) {
     const scene = await this.apiClient.getScene(sceneId);
@@ -6133,7 +6241,7 @@ ${updatedBody}`;
       beatContentBlockMap
     });
     await this.syncSceneContentBlocks(scene, beats, folderPath, story.title);
-    new import_obsidian8.Notice(`Scene "${scene.goal}" synced successfully`);
+    new import_obsidian9.Notice(`Scene "${scene.goal}" synced successfully`);
   }
   async pullContentBlockEntity(storyId, contentBlockId) {
     const story = await this.apiClient.getStory(storyId);
@@ -6147,7 +6255,7 @@ ${updatedBody}`;
     const folderPath = this.fileManager.getStoryFolderPath(story.title);
     await this.ensureContentFolders(folderPath);
     await this.writeContentBlockToFolder(folderPath, story.title, contentBlock);
-    new import_obsidian8.Notice("Content block synced successfully");
+    new import_obsidian9.Notice("Content block synced successfully");
   }
   async pushSingleEntity(folderPath, target, storyId, storyTitle) {
     let entityLabel;
@@ -6164,12 +6272,12 @@ ${updatedBody}`;
       default:
         throw new Error(`Unsupported entity type: ${target.type}`);
     }
-    new import_obsidian8.Notice(`${entityLabel} pushed successfully`);
+    new import_obsidian9.Notice(`${entityLabel} pushed successfully`);
     try {
       await this.pullSingleEntity(storyId, target);
     } catch (pullErr) {
       const pullErrorMessage = pullErr instanceof Error ? pullErr.message : "Failed to sync entity after push";
-      new import_obsidian8.Notice(`Warning: ${pullErrorMessage}`, 5e3);
+      new import_obsidian9.Notice(`Warning: ${pullErrorMessage}`, 5e3);
     }
   }
   async pushChapterEntity(folderPath, chapterId) {
@@ -6273,7 +6381,7 @@ ${updatedBody}`;
     const chapterFiles = await this.fileManager.listChapterFiles(folderPath);
     for (const chapterFilePath of chapterFiles) {
       const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
-      if (!(file instanceof import_obsidian8.TFile)) {
+      if (!(file instanceof import_obsidian9.TFile)) {
         continue;
       }
       const content = await this.fileManager.getVault().read(file);
@@ -6288,7 +6396,7 @@ ${updatedBody}`;
     const sceneFiles = await this.fileManager.listStorySceneFiles(folderPath);
     for (const sceneFilePath of sceneFiles) {
       const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
-      if (!(file instanceof import_obsidian8.TFile)) {
+      if (!(file instanceof import_obsidian9.TFile)) {
         continue;
       }
       const content = await this.fileManager.getVault().read(file);
@@ -6302,7 +6410,7 @@ ${updatedBody}`;
 };
 
 // src/sync/autoSyncManager.ts
-var import_obsidian9 = require("obsidian");
+var import_obsidian10 = require("obsidian");
 var IDLE_DELAY_MS = 6e4;
 var AutoSyncManager = class {
   constructor(plugin) {
@@ -6463,11 +6571,11 @@ var AutoSyncManager = class {
     while (current) {
       const storyFilePath = `${current.path}/story.md`;
       const maybeStoryFile = this.plugin.app.vault.getAbstractFileByPath(storyFilePath);
-      if (maybeStoryFile instanceof import_obsidian9.TFile) {
+      if (maybeStoryFile instanceof import_obsidian10.TFile) {
         return current.path;
       }
       const parent = current.parent;
-      if (parent instanceof import_obsidian9.TFolder) {
+      if (parent instanceof import_obsidian10.TFolder) {
         current = parent;
       } else {
         current = null;
@@ -6478,11 +6586,11 @@ var AutoSyncManager = class {
 };
 
 // src/views/StoryListView.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 
 // src/views/modals/ChapterModal.ts
-var import_obsidian10 = require("obsidian");
-var ChapterModal = class extends import_obsidian10.Modal {
+var import_obsidian11 = require("obsidian");
+var ChapterModal = class extends import_obsidian11.Modal {
   constructor(app, onSubmit, existingChapters = [], chapter) {
     super(app);
     this.chapter = {
@@ -6509,7 +6617,7 @@ var ChapterModal = class extends import_obsidian10.Modal {
       text: this.isEdit ? "Edit Chapter" : "Create Chapter"
     });
     if (this.isEdit) {
-      new import_obsidian10.Setting(contentEl).setName("Chapter Number").setDesc("The chapter number").addText(
+      new import_obsidian11.Setting(contentEl).setName("Chapter Number").setDesc("The chapter number").addText(
         (text) => {
           var _a;
           return text.setPlaceholder("1").setValue(((_a = this.chapter.number) == null ? void 0 : _a.toString()) || "1").onChange((value) => {
@@ -6521,7 +6629,7 @@ var ChapterModal = class extends import_obsidian10.Modal {
         }
       );
     }
-    new import_obsidian10.Setting(contentEl).setName("Title").setDesc("Chapter title").addText(
+    new import_obsidian11.Setting(contentEl).setName("Title").setDesc("Chapter title").addText(
       (text) => text.setPlaceholder("Chapter Title").setValue(this.chapter.title || "").onChange((value) => {
         this.chapter.title = value;
       }).inputEl.addEventListener("keypress", (e) => {
@@ -6530,7 +6638,7 @@ var ChapterModal = class extends import_obsidian10.Modal {
         }
       })
     );
-    new import_obsidian10.Setting(contentEl).setName("Status").setDesc("Chapter status").addDropdown(
+    new import_obsidian11.Setting(contentEl).setName("Status").setDesc("Chapter status").addDropdown(
       (dropdown) => dropdown.addOption("draft", "Draft").addOption("in_progress", "In Progress").addOption("completed", "Completed").setValue(this.chapter.status || "draft").onChange((value) => {
         this.chapter.status = value;
       })
@@ -6553,7 +6661,7 @@ var ChapterModal = class extends import_obsidian10.Modal {
   async submit() {
     var _a;
     if (!((_a = this.chapter.title) == null ? void 0 : _a.trim())) {
-      new import_obsidian10.Notice("Please enter a chapter title", 3e3);
+      new import_obsidian11.Notice("Please enter a chapter title", 3e3);
       return;
     }
     if (!this.isEdit) {
@@ -6561,7 +6669,7 @@ var ChapterModal = class extends import_obsidian10.Modal {
       this.chapter.number = maxNumber + 1;
     } else {
       if (!this.chapter.number || this.chapter.number < 1) {
-        new import_obsidian10.Notice("Chapter number must be greater than 0", 3e3);
+        new import_obsidian11.Notice("Chapter number must be greater than 0", 3e3);
         return;
       }
     }
@@ -6570,7 +6678,7 @@ var ChapterModal = class extends import_obsidian10.Modal {
       this.close();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save chapter";
-      new import_obsidian10.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   onClose() {
@@ -6580,8 +6688,8 @@ var ChapterModal = class extends import_obsidian10.Modal {
 };
 
 // src/views/modals/SceneModal.ts
-var import_obsidian11 = require("obsidian");
-var SceneModal = class extends import_obsidian11.Modal {
+var import_obsidian12 = require("obsidian");
+var SceneModal = class extends import_obsidian12.Modal {
   constructor(app, storyId, chapters, onSubmit, existingScenes = [], scene, defaultChapterId) {
     super(app);
     this.scene = {
@@ -6620,7 +6728,7 @@ var SceneModal = class extends import_obsidian11.Modal {
     contentEl.createEl("h2", {
       text: this.isEdit ? "Edit Scene" : "Create Scene"
     });
-    new import_obsidian11.Setting(contentEl).setName("Chapter").setDesc("Select the chapter for this scene (optional)").addDropdown((dropdown) => {
+    new import_obsidian12.Setting(contentEl).setName("Chapter").setDesc("Select the chapter for this scene (optional)").addDropdown((dropdown) => {
       dropdown.addOption("", "No Chapter");
       for (const chapter of this.chapters.sort((a, b) => a.number - b.number)) {
         dropdown.addOption(
@@ -6634,7 +6742,7 @@ var SceneModal = class extends import_obsidian11.Modal {
       });
     });
     if (this.isEdit) {
-      new import_obsidian11.Setting(contentEl).setName("Order Number").setDesc("Scene order within chapter").addText(
+      new import_obsidian12.Setting(contentEl).setName("Order Number").setDesc("Scene order within chapter").addText(
         (text) => {
           var _a;
           return text.setPlaceholder("1").setValue(((_a = this.scene.order_num) == null ? void 0 : _a.toString()) || "1").onChange((value) => {
@@ -6646,12 +6754,12 @@ var SceneModal = class extends import_obsidian11.Modal {
         }
       );
     }
-    new import_obsidian11.Setting(contentEl).setName("Goal").setDesc("Scene goal or description").addTextArea(
+    new import_obsidian12.Setting(contentEl).setName("Goal").setDesc("Scene goal or description").addTextArea(
       (text) => text.setPlaceholder("What happens in this scene?").setValue(this.scene.goal || "").onChange((value) => {
         this.scene.goal = value;
       })
     );
-    new import_obsidian11.Setting(contentEl).setName("Time Reference").setDesc("When does this scene take place?").addText(
+    new import_obsidian12.Setting(contentEl).setName("Time Reference").setDesc("When does this scene take place?").addText(
       (text) => text.setPlaceholder("Morning, Evening, etc.").setValue(this.scene.time_ref || "").onChange((value) => {
         this.scene.time_ref = value;
       })
@@ -6681,7 +6789,7 @@ var SceneModal = class extends import_obsidian11.Modal {
       this.scene.order_num = maxOrderNum + 1;
     } else {
       if (!this.scene.order_num || this.scene.order_num < 1) {
-        new import_obsidian11.Notice("Order number must be greater than 0", 3e3);
+        new import_obsidian12.Notice("Order number must be greater than 0", 3e3);
         return;
       }
     }
@@ -6690,7 +6798,7 @@ var SceneModal = class extends import_obsidian11.Modal {
       this.close();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save scene";
-      new import_obsidian11.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   onClose() {
@@ -6700,8 +6808,8 @@ var SceneModal = class extends import_obsidian11.Modal {
 };
 
 // src/views/modals/BeatModal.ts
-var import_obsidian12 = require("obsidian");
-var BeatModal = class extends import_obsidian12.Modal {
+var import_obsidian13 = require("obsidian");
+var BeatModal = class extends import_obsidian13.Modal {
   constructor(app, storyId, scenes, onSubmit, existingBeats = [], beat, chapters = [], defaultSceneId) {
     super(app);
     this.beat = {
@@ -6738,7 +6846,7 @@ var BeatModal = class extends import_obsidian12.Modal {
     contentEl.createEl("h2", {
       text: this.isEdit ? "Edit Beat" : "Create Beat"
     });
-    new import_obsidian12.Setting(contentEl).setName("Scene").setDesc("Select the scene for this beat").addDropdown((dropdown) => {
+    new import_obsidian13.Setting(contentEl).setName("Scene").setDesc("Select the scene for this beat").addDropdown((dropdown) => {
       const scenesByChapter = /* @__PURE__ */ new Map();
       for (const scene of this.scenes) {
         const chapterId = scene.chapter_id || null;
@@ -6768,7 +6876,7 @@ var BeatModal = class extends import_obsidian12.Modal {
       });
     });
     if (this.isEdit) {
-      new import_obsidian12.Setting(contentEl).setName("Order Number").setDesc("Beat order within scene").addText(
+      new import_obsidian13.Setting(contentEl).setName("Order Number").setDesc("Beat order within scene").addText(
         (text) => {
           var _a;
           return text.setPlaceholder("1").setValue(((_a = this.beat.order_num) == null ? void 0 : _a.toString()) || "1").onChange((value) => {
@@ -6780,17 +6888,17 @@ var BeatModal = class extends import_obsidian12.Modal {
         }
       );
     }
-    new import_obsidian12.Setting(contentEl).setName("Type").setDesc("Beat type").addDropdown(
+    new import_obsidian13.Setting(contentEl).setName("Type").setDesc("Beat type").addDropdown(
       (dropdown) => dropdown.addOption("setup", "Setup").addOption("turn", "Turn").addOption("reveal", "Reveal").addOption("conflict", "Conflict").addOption("climax", "Climax").addOption("resolution", "Resolution").addOption("hook", "Hook").addOption("transition", "Transition").setValue(this.beat.type || "setup").onChange((value) => {
         this.beat.type = value;
       })
     );
-    new import_obsidian12.Setting(contentEl).setName("Intent").setDesc("What is the intent of this beat?").addTextArea(
+    new import_obsidian13.Setting(contentEl).setName("Intent").setDesc("What is the intent of this beat?").addTextArea(
       (text) => text.setPlaceholder("What does the character want?").setValue(this.beat.intent || "").onChange((value) => {
         this.beat.intent = value;
       })
     );
-    new import_obsidian12.Setting(contentEl).setName("Outcome").setDesc("What is the outcome of this beat?").addTextArea(
+    new import_obsidian13.Setting(contentEl).setName("Outcome").setDesc("What is the outcome of this beat?").addTextArea(
       (text) => text.setPlaceholder("What happens as a result?").setValue(this.beat.outcome || "").onChange((value) => {
         this.beat.outcome = value;
       })
@@ -6812,11 +6920,11 @@ var BeatModal = class extends import_obsidian12.Modal {
   }
   async submit() {
     if (!this.beat.scene_id) {
-      new import_obsidian12.Notice("Please select a scene", 3e3);
+      new import_obsidian13.Notice("Please select a scene", 3e3);
       return;
     }
     if (!this.beat.type) {
-      new import_obsidian12.Notice("Please select a beat type", 3e3);
+      new import_obsidian13.Notice("Please select a beat type", 3e3);
       return;
     }
     if (!this.isEdit) {
@@ -6825,7 +6933,7 @@ var BeatModal = class extends import_obsidian12.Modal {
       this.beat.order_num = maxOrderNum + 1;
     } else {
       if (!this.beat.order_num || this.beat.order_num < 1) {
-        new import_obsidian12.Notice("Order number must be greater than 0", 3e3);
+        new import_obsidian13.Notice("Order number must be greater than 0", 3e3);
         return;
       }
     }
@@ -6834,7 +6942,7 @@ var BeatModal = class extends import_obsidian12.Modal {
       this.close();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save beat";
-      new import_obsidian12.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian13.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   onClose() {
@@ -6844,7 +6952,7 @@ var BeatModal = class extends import_obsidian12.Modal {
 };
 
 // src/views/modals/ContentBlockModal.ts
-var import_obsidian13 = require("obsidian");
+var import_obsidian14 = require("obsidian");
 
 // src/api/unsplash.ts
 var UnsplashClient = class {
@@ -6881,7 +6989,7 @@ var UnsplashClient = class {
 };
 
 // src/views/modals/ContentBlockModal.ts
-var ContentBlockModal = class extends import_obsidian13.Modal {
+var ContentBlockModal = class extends import_obsidian14.Modal {
   constructor(app, onSubmit, contentBlock, plugin) {
     var _a, _b, _c, _d;
     super(app);
@@ -6922,7 +7030,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
       text: this.isEdit ? "Edit Content Block" : "Create Content Block"
     });
     if (this.isEdit && !this.contentBlock.type) {
-      new import_obsidian13.Setting(contentEl).setName("Type").setDesc("Select the content type").addDropdown(
+      new import_obsidian14.Setting(contentEl).setName("Type").setDesc("Select the content type").addDropdown(
         (dropdown) => dropdown.addOption("text", "Text").addOption("image", "Image").setValue(this.contentBlock.type || "text").onChange((value) => {
           this.contentBlock.type = value;
           this.renderContentFields();
@@ -6948,7 +7056,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
     existingFields.forEach((el) => el.remove());
     if (this.contentBlock.type === "text") {
       const textField = contentEl.createDiv({ cls: "content-block-field" });
-      new import_obsidian13.Setting(textField).setName("Content").setDesc("Enter the text content").addTextArea(
+      new import_obsidian14.Setting(textField).setName("Content").setDesc("Enter the text content").addTextArea(
         (text) => text.setPlaceholder("Enter text...").setValue(this.contentBlock.content || "").onChange((value) => {
           this.contentBlock.content = value;
           if (!this.contentBlock.metadata) {
@@ -7002,7 +7110,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
       if (this.currentImageSourceTab === "unsplash") {
         const unsplashAccessKey = ((_c = (_b = this.plugin) == null ? void 0 : _b.settings) == null ? void 0 : _c.unsplashAccessKey) || "";
         if (unsplashAccessKey && unsplashAccessKey !== "YOUR_UNSPLASH_ACCESS_KEY") {
-          const unsplashSetting = new import_obsidian13.Setting(tabContent);
+          const unsplashSetting = new import_obsidian14.Setting(tabContent);
           unsplashSetting.setName("Search Unsplash");
           unsplashSetting.setDesc("Search for free images");
           unsplashSetting.addButton((button) => {
@@ -7012,7 +7120,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
             });
           });
         } else {
-          const unsplashSetting = new import_obsidian13.Setting(tabContent);
+          const unsplashSetting = new import_obsidian14.Setting(tabContent);
           unsplashSetting.setName("Search Unsplash");
           unsplashSetting.setDesc("Configure Unsplash Access Key and Secret Key in plugin settings to enable image search");
           unsplashSetting.addButton((button) => {
@@ -7021,12 +7129,12 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
           });
         }
         if (this.selectedImageUrl) {
-          new import_obsidian13.Setting(tabContent).setName("Selected Image URL").setDesc("Image URL from Unsplash").addText(
+          new import_obsidian14.Setting(tabContent).setName("Selected Image URL").setDesc("Image URL from Unsplash").addText(
             (text) => text.setValue(this.selectedImageUrl).setDisabled(true)
           );
         }
       } else if (this.currentImageSourceTab === "internet link") {
-        new import_obsidian13.Setting(tabContent).setName("Image URL").setDesc("Enter image URL").addText(
+        new import_obsidian14.Setting(tabContent).setName("Image URL").setDesc("Enter image URL").addText(
           (text) => text.setPlaceholder("https://example.com/image.jpg").setValue(this.selectedImageUrl).onChange((value) => {
             this.selectedImageUrl = value;
             this.contentBlock.content = value;
@@ -7037,13 +7145,13 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
           })
         );
       } else if (this.currentImageSourceTab === "local") {
-        new import_obsidian13.Setting(tabContent).setName("Upload from Computer").setDesc("Upload image from your computer (coming soon)").addButton((button) => {
+        new import_obsidian14.Setting(tabContent).setName("Upload from Computer").setDesc("Upload image from your computer (coming soon)").addButton((button) => {
           button.setButtonText("Choose File");
           button.setDisabled(true);
         });
       }
       const altTextValue = ((_d = this.contentBlock.metadata) == null ? void 0 : _d.alt_text) || "";
-      const altTextSetting = new import_obsidian13.Setting(imageField);
+      const altTextSetting = new import_obsidian14.Setting(imageField);
       altTextSetting.setName("Alt Text");
       altTextSetting.setDesc("Alt text for accessibility");
       altTextSetting.addText(
@@ -7055,7 +7163,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
         })
       );
       const authorNameValue = ((_e = this.contentBlock.metadata) == null ? void 0 : _e.author_name) || "";
-      new import_obsidian13.Setting(imageField).setName("Author Name").setDesc("Name of the image author/photographer").addText(
+      new import_obsidian14.Setting(imageField).setName("Author Name").setDesc("Name of the image author/photographer").addText(
         (text) => text.setPlaceholder("Author name").setValue(authorNameValue).onChange((value) => {
           if (!this.contentBlock.metadata) {
             this.contentBlock.metadata = {};
@@ -7064,7 +7172,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
         })
       );
       const attributionValue = ((_f = this.contentBlock.metadata) == null ? void 0 : _f.attribution) || "";
-      new import_obsidian13.Setting(imageField).setName("Attribution").setDesc("Attribution text (e.g., 'Photo by John Doe on Unsplash')").addText(
+      new import_obsidian14.Setting(imageField).setName("Attribution").setDesc("Attribution text (e.g., 'Photo by John Doe on Unsplash')").addText(
         (text) => text.setPlaceholder("Photo by Author Name on Source").setValue(attributionValue).onChange((value) => {
           if (!this.contentBlock.metadata) {
             this.contentBlock.metadata = {};
@@ -7073,7 +7181,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
         })
       );
       const attributionUrlValue = ((_g = this.contentBlock.metadata) == null ? void 0 : _g.attribution_url) || "";
-      new import_obsidian13.Setting(imageField).setName("Attribution URL").setDesc("Link to the original image or author page").addText(
+      new import_obsidian14.Setting(imageField).setName("Attribution URL").setDesc("Link to the original image or author page").addText(
         (text) => text.setPlaceholder("https://example.com/photo").setValue(attributionUrlValue).onChange((value) => {
           if (!this.contentBlock.metadata) {
             this.contentBlock.metadata = {};
@@ -7085,7 +7193,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
   }
   showUnsplashSearch() {
     const { contentEl } = this;
-    const searchModal = new import_obsidian13.Modal(this.app);
+    const searchModal = new import_obsidian14.Modal(this.app);
     searchModal.titleEl.setText("Search Unsplash");
     const searchContent = searchModal.contentEl;
     const searchInput = searchContent.createEl("input", {
@@ -7106,7 +7214,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
     const performSearch = async () => {
       const query = searchInput.value.trim();
       if (!query) {
-        new import_obsidian13.Notice("Please enter a search query", 3e3);
+        new import_obsidian14.Notice("Please enter a search query", 3e3);
         return;
       }
       this.unsplashSearching = true;
@@ -7158,13 +7266,13 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
               this.contentBlock.metadata.source = "unsplash";
               searchModal.close();
               this.renderContentFields();
-              new import_obsidian13.Notice("Image selected");
+              new import_obsidian14.Notice("Image selected");
             };
           }
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to search Unsplash";
-        new import_obsidian13.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian14.Notice(`Error: ${errorMessage}`, 5e3);
         resultsContainer.empty();
         resultsContainer.createEl("p", {
           text: `Error: ${errorMessage}`,
@@ -7193,11 +7301,11 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
       this.contentBlock.type = "text";
     }
     if (this.contentBlock.type === "text" && !((_a = this.contentBlock.content) == null ? void 0 : _a.trim())) {
-      new import_obsidian13.Notice("Please enter text content", 3e3);
+      new import_obsidian14.Notice("Please enter text content", 3e3);
       return;
     }
     if (this.contentBlock.type === "image" && !((_b = this.contentBlock.content) == null ? void 0 : _b.trim())) {
-      new import_obsidian13.Notice("Please enter an image URL or select an image", 3e3);
+      new import_obsidian14.Notice("Please enter an image URL or select an image", 3e3);
       return;
     }
     try {
@@ -7205,7 +7313,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
       this.close();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to save content block";
-      new import_obsidian13.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian14.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   onClose() {
@@ -7215,7 +7323,7 @@ var ContentBlockModal = class extends import_obsidian13.Modal {
 };
 
 // src/views/TimelineModal.ts
-var import_obsidian14 = require("obsidian");
+var import_obsidian15 = require("obsidian");
 
 // node_modules/d3-array/src/ascending.js
 function ascending(a, b) {
@@ -10604,7 +10712,7 @@ function transform(node) {
 }
 
 // src/views/TimelineModal.ts
-var TimelineModal = class extends import_obsidian14.Modal {
+var TimelineModal = class extends import_obsidian15.Modal {
   constructor(app, events, timeConfig) {
     super(app);
     this.events = events;
@@ -10655,7 +10763,7 @@ var TimelineModal = class extends import_obsidian14.Modal {
   }
   showEventDetails(event) {
     var _a;
-    new import_obsidian14.Notice(`Event: ${event.name}
+    new import_obsidian15.Notice(`Event: ${event.name}
 Year: ${(_a = event.timeline_position) != null ? _a : "N/A"}
 Importance: ${event.importance}`);
   }
@@ -10666,7 +10774,7 @@ Importance: ${event.importance}`);
 };
 
 // src/views/CharacterDetailsView.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 var CharacterDetailsView = class {
   constructor(plugin, character, headerEl, contentEl, onBack, onEditCharacter, world = null, characters = [], archetypes = [], traits = [], events = []) {
     // State
@@ -10727,7 +10835,7 @@ var CharacterDetailsView = class {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load character data";
-      new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
     }
   }
   renderHeader() {
@@ -10754,10 +10862,10 @@ var CharacterDetailsView = class {
     const uuidDiv = headerLeft.createDiv({ cls: "story-engine-uuid" });
     uuidDiv.createEl("span", { text: this.character.id });
     const copyIcon = uuidDiv.createEl("span", { cls: "story-engine-copy-icon" });
-    (0, import_obsidian15.setIcon)(copyIcon, "copy");
+    (0, import_obsidian16.setIcon)(copyIcon, "copy");
     copyIcon.onclick = () => {
       navigator.clipboard.writeText(this.character.id);
-      new import_obsidian15.Notice("UUID copied to clipboard");
+      new import_obsidian16.Notice("UUID copied to clipboard");
     };
     const headerRight = this.headerEl.createDiv({ cls: "story-engine-header-right" });
     const menuButton = headerRight.createEl("button", { text: "Edit Character" });
@@ -10834,9 +10942,9 @@ var CharacterDetailsView = class {
           description: descTextarea.value
         });
         this.character = updated;
-        new import_obsidian15.Notice("Description saved");
+        new import_obsidian16.Notice("Description saved");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const archetypeSection = container.createDiv({ cls: "story-engine-section" });
@@ -10867,9 +10975,9 @@ var CharacterDetailsView = class {
         await this.loadCharacterData();
         this.renderHeader();
         this.renderTabContent();
-        new import_obsidian15.Notice("Archetype saved");
+        new import_obsidian16.Notice("Archetype saved");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
   }
@@ -10905,9 +11013,9 @@ var CharacterDetailsView = class {
             await this.plugin.apiClient.removeCharacterTrait(this.character.id, charTrait.trait_id);
             await this.loadCharacterData();
             this.renderTabContent();
-            new import_obsidian15.Notice("Trait removed");
+            new import_obsidian16.Notice("Trait removed");
           } catch (err) {
-            new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -10941,9 +11049,9 @@ var CharacterDetailsView = class {
             await this.plugin.apiClient.removeEventCharacter(event.id, this.character.id);
             await this.loadCharacterData();
             this.renderTabContent();
-            new import_obsidian15.Notice("Character removed from event");
+            new import_obsidian16.Notice("Character removed from event");
           } catch (err) {
-            new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -11003,9 +11111,9 @@ var CharacterDetailsView = class {
             await this.plugin.apiClient.deleteCharacterRelationship(rel.id);
             await this.loadCharacterData();
             this.renderTabContent();
-            new import_obsidian15.Notice("Relationship deleted");
+            new import_obsidian16.Notice("Relationship deleted");
           } catch (err) {
-            new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -11013,7 +11121,7 @@ var CharacterDetailsView = class {
   }
   // Modal methods
   showAddTraitModal() {
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.textContent = "Add Trait";
     const content = modal.contentEl;
     content.createEl("p", { text: "Select a trait to add:" });
@@ -11052,9 +11160,9 @@ var CharacterDetailsView = class {
         await this.loadCharacterData();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Trait added");
+        new import_obsidian16.Notice("Trait added");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -11062,7 +11170,7 @@ var CharacterDetailsView = class {
     modal.open();
   }
   showEditTraitModal(charTrait) {
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.textContent = "Edit Trait";
     const content = modal.contentEl;
     content.createEl("p", { text: `Editing: ${charTrait.trait_name}` });
@@ -11089,9 +11197,9 @@ var CharacterDetailsView = class {
         await this.loadCharacterData();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Trait updated");
+        new import_obsidian16.Notice("Trait updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -11101,7 +11209,7 @@ var CharacterDetailsView = class {
   showAddEventModal() {
     if (!this.world)
       return;
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.textContent = "Add Event";
     const content = modal.contentEl;
     content.createEl("p", { text: "Select an event:" });
@@ -11135,9 +11243,9 @@ var CharacterDetailsView = class {
         await this.loadCharacterData();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Character added to event");
+        new import_obsidian16.Notice("Character added to event");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -11145,7 +11253,7 @@ var CharacterDetailsView = class {
     modal.open();
   }
   showEditEventRoleModal(event, currentRole) {
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.textContent = "Edit Role";
     const content = modal.contentEl;
     content.createEl("p", { text: `Event: ${event.name}` });
@@ -11167,9 +11275,9 @@ var CharacterDetailsView = class {
         await this.loadCharacterData();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Role updated");
+        new import_obsidian16.Notice("Role updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -11177,7 +11285,7 @@ var CharacterDetailsView = class {
     modal.open();
   }
   showAddRelationshipModal() {
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.textContent = "Add Relationship";
     const content = modal.contentEl;
     content.createEl("p", { text: "Select another character:" });
@@ -11226,9 +11334,9 @@ var CharacterDetailsView = class {
         await this.loadCharacterData();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Relationship added");
+        new import_obsidian16.Notice("Relationship added");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -11236,7 +11344,7 @@ var CharacterDetailsView = class {
     modal.open();
   }
   showEditRelationshipModal(rel) {
-    const modal = new import_obsidian15.Modal(this.plugin.app);
+    const modal = new import_obsidian16.Modal(this.plugin.app);
     modal.titleEl.textContent = "Edit Relationship";
     const content = modal.contentEl;
     const relationshipTypeSelect = content.createEl("select", { cls: "story-engine-select" });
@@ -11272,9 +11380,9 @@ var CharacterDetailsView = class {
         await this.loadCharacterData();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Relationship updated");
+        new import_obsidian16.Notice("Relationship updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -11291,7 +11399,7 @@ var CharacterDetailsView = class {
 
 // src/views/StoryListView.ts
 var STORY_LIST_VIEW_TYPE = "story-engine-list-view";
-var StoryListView = class extends import_obsidian16.ItemView {
+var StoryListView = class extends import_obsidian17.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.stories = [];
@@ -11406,7 +11514,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
       cls: "story-engine-settings-btn story-engine-tab",
       attr: { "aria-label": "Open Settings" }
     });
-    (0, import_obsidian16.setIcon)(settingsButton, "gear");
+    (0, import_obsidian17.setIcon)(settingsButton, "gear");
     settingsButton.onclick = () => {
       this.plugin.openSettings();
     };
@@ -11457,16 +11565,16 @@ var StoryListView = class extends import_obsidian16.ItemView {
     });
     syncAllButton.onclick = async () => {
       if (!this.plugin.settings.tenantId) {
-        new import_obsidian16.Notice("Please configure Tenant ID in settings", 5e3);
+        new import_obsidian17.Notice("Please configure Tenant ID in settings", 5e3);
         return;
       }
       try {
-        new import_obsidian16.Notice("Syncing all stories...");
+        new import_obsidian17.Notice("Syncing all stories...");
         await this.plugin.syncService.pullAllStories();
         await this.loadStories();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
-        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     let createButtonText = "Create Story";
@@ -11478,20 +11586,20 @@ var StoryListView = class extends import_obsidian16.ItemView {
       createButtonAction = async () => {
         new CreateWorldModal(this.app, async (name, description, genre) => {
           try {
-            new import_obsidian16.Notice(`Creating world "${name}"...`);
+            new import_obsidian17.Notice(`Creating world "${name}"...`);
             const newWorld = await this.plugin.apiClient.createWorld(name, description, genre);
-            new import_obsidian16.Notice(`World "${name}" created successfully`);
+            new import_obsidian17.Notice(`World "${name}" created successfully`);
             await this.loadStories();
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Failed to create world";
-            new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+            new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
           }
         }).open();
       };
     } else if (this.listTab === "rpg-systems") {
       createButtonText = "Create RPG System";
       createButtonAction = () => {
-        new import_obsidian16.Notice("Create RPG System - Coming soon", 3e3);
+        new import_obsidian17.Notice("Create RPG System - Coming soon", 3e3);
       };
     }
     const createButton = actionsBar.createEl("button", {
@@ -11531,7 +11639,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
       cls: "story-engine-copy-uuid-btn",
       attr: { "aria-label": "Copy UUID" }
     });
-    (0, import_obsidian16.setIcon)(copyUuidButton, "copy");
+    (0, import_obsidian17.setIcon)(copyUuidButton, "copy");
     copyUuidButton.onclick = () => {
       this.copyStoryId();
     };
@@ -11543,7 +11651,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
           cls: "story-engine-world-btn",
           attr: { "aria-label": `Go to World: ${world.name}` }
         });
-        (0, import_obsidian16.setIcon)(worldButton, "globe");
+        (0, import_obsidian17.setIcon)(worldButton, "globe");
         worldButton.createSpan({ text: "World" });
         worldButton.onclick = () => {
           this.showWorldDetails(world);
@@ -11554,13 +11662,13 @@ var StoryListView = class extends import_obsidian16.ItemView {
       cls: "story-engine-context-btn",
       attr: { "aria-label": "Story Actions" }
     });
-    (0, import_obsidian16.setIcon)(contextButton, "more-vertical");
+    (0, import_obsidian17.setIcon)(contextButton, "more-vertical");
     const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
     dropdownMenu.style.display = "none";
     const editOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian16.setIcon)(editOption, "pencil");
+    (0, import_obsidian17.setIcon)(editOption, "pencil");
     editOption.createSpan({ text: "Edit Story Name" });
     editOption.onclick = () => {
       dropdownMenu.style.display = "none";
@@ -11569,7 +11677,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const cloneOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian16.setIcon)(cloneOption, "copy");
+    (0, import_obsidian17.setIcon)(cloneOption, "copy");
     cloneOption.createSpan({ text: "Clone Story" });
     cloneOption.onclick = async () => {
       dropdownMenu.style.display = "none";
@@ -11578,27 +11686,27 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const pullOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian16.setIcon)(pullOption, "download");
+    (0, import_obsidian17.setIcon)(pullOption, "download");
     pullOption.createSpan({ text: "Pull from Service" });
     pullOption.onclick = async () => {
       dropdownMenu.style.display = "none";
       if (!this.currentStory)
         return;
       try {
-        new import_obsidian16.Notice(`Pulling story "${this.currentStory.title}"...`);
+        new import_obsidian17.Notice(`Pulling story "${this.currentStory.title}"...`);
         await this.plugin.syncService.pullStory(this.currentStory.id);
         await this.loadHierarchy();
         this.renderTabContent();
-        new import_obsidian16.Notice(`Story pulled successfully!`);
+        new import_obsidian17.Notice(`Story pulled successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to pull story";
-        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const pushOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian16.setIcon)(pushOption, "upload");
+    (0, import_obsidian17.setIcon)(pushOption, "upload");
     pushOption.createSpan({ text: "Push to Service" });
     pushOption.onclick = async () => {
       dropdownMenu.style.display = "none";
@@ -11606,12 +11714,12 @@ var StoryListView = class extends import_obsidian16.ItemView {
         return;
       try {
         const folderPath = this.plugin.fileManager.getStoryFolderPath(this.currentStory.title);
-        new import_obsidian16.Notice(`Pushing story "${this.currentStory.title}"...`);
+        new import_obsidian17.Notice(`Pushing story "${this.currentStory.title}"...`);
         await this.plugin.syncService.pushStory(folderPath);
-        new import_obsidian16.Notice(`Story pushed successfully!`);
+        new import_obsidian17.Notice(`Story pushed successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     contextButton.onclick = (e) => {
@@ -11843,7 +11951,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load hierarchy";
-      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
     } finally {
       this.loadingHierarchy = false;
     }
@@ -11968,7 +12076,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
               await this.plugin.apiClient.updateChapter(chapter.id, updatedChapter);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian16.Notice("Chapter updated successfully");
+              new import_obsidian17.Notice("Chapter updated successfully");
             } catch (err) {
               throw err;
             }
@@ -11995,9 +12103,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
               await this.plugin.apiClient.deleteChapter(chapter.id);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian16.Notice("Chapter deleted");
+              new import_obsidian17.Notice("Chapter deleted");
             } catch (err) {
-              new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+              new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
             }
           }
         };
@@ -12016,7 +12124,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.createChapter(this.currentStory.id, chapter);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian16.Notice("Chapter created successfully");
+          new import_obsidian17.Notice("Chapter created successfully");
         } catch (err) {
           throw err;
         }
@@ -12061,7 +12169,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian16.Notice("Scene created successfully");
+            new import_obsidian17.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
@@ -12091,7 +12199,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian16.Notice("Scene created successfully");
+            new import_obsidian17.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
@@ -12118,7 +12226,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.updateScene(scene.id, updatedScene);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian16.Notice("Scene updated successfully");
+          new import_obsidian17.Notice("Scene updated successfully");
         } catch (err) {
           throw err;
         }
@@ -12154,9 +12262,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.deleteScene(scene.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian16.Notice("Scene deleted");
+          new import_obsidian17.Notice("Scene deleted");
         } catch (err) {
-          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -12209,7 +12317,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
                 await this.plugin.apiClient.createBeat(beat);
                 await this.loadHierarchy();
                 this.renderTabContent();
-                new import_obsidian16.Notice("Beat created successfully");
+                new import_obsidian17.Notice("Beat created successfully");
               } catch (err) {
                 throw err;
               }
@@ -12257,7 +12365,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
               await this.plugin.apiClient.createBeat(beat);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian16.Notice("Beat created successfully");
+              new import_obsidian17.Notice("Beat created successfully");
             } catch (err) {
               throw err;
             }
@@ -12305,7 +12413,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.updateBeat(beat.id, updatedBeat);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian16.Notice("Beat updated successfully");
+          new import_obsidian17.Notice("Beat updated successfully");
         } catch (err) {
           throw err;
         }
@@ -12342,9 +12450,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.deleteBeat(beat.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian16.Notice("Beat deleted");
+          new import_obsidian17.Notice("Beat deleted");
         } catch (err) {
-          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -12352,7 +12460,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showEditStoryNameModal() {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Story Name");
     const content = modal.contentEl;
     let title = this.currentStory.title;
@@ -12365,7 +12473,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!title.trim()) {
-        new import_obsidian16.Notice("Story name is required", 3e3);
+        new import_obsidian17.Notice("Story name is required", 3e3);
         return;
       }
       try {
@@ -12374,9 +12482,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadStories();
         this.renderDetailsHeader();
         modal.close();
-        new import_obsidian16.Notice("Story name updated");
+        new import_obsidian17.Notice("Story name updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12400,12 +12508,12 @@ var StoryListView = class extends import_obsidian16.ItemView {
       const clonedStory = await this.plugin.apiClient.cloneStory(
         this.currentStory.id
       );
-      new import_obsidian16.Notice(`Story "${clonedStory.title}" cloned successfully!`);
+      new import_obsidian17.Notice(`Story "${clonedStory.title}" cloned successfully!`);
       await this.loadStories();
       await this.showStoryDetails(clonedStory);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Clone failed";
-      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       if (cloneButton) {
         cloneButton.setText("Clone Story");
         cloneButton.disabled = false;
@@ -12415,7 +12523,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showEditWorldModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit World");
     const content = modal.contentEl;
     let name = this.currentWorld.name;
@@ -12441,11 +12549,11 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("World name is required", 3e3);
+        new import_obsidian17.Notice("World name is required", 3e3);
         return;
       }
       if (!genre.trim()) {
-        new import_obsidian16.Notice("Genre is required", 3e3);
+        new import_obsidian17.Notice("Genre is required", 3e3);
         return;
       }
       try {
@@ -12459,9 +12567,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadStories();
         this.renderWorldDetails();
         modal.close();
-        new import_obsidian16.Notice("World updated");
+        new import_obsidian17.Notice("World updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12473,7 +12581,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     if (!this.currentStory)
       return;
     navigator.clipboard.writeText(this.currentStory.id).then(() => {
-      new import_obsidian16.Notice("UUID copied to clipboard");
+      new import_obsidian17.Notice("UUID copied to clipboard");
     }).catch(() => {
       const textarea = document.createElement("textarea");
       textarea.value = this.currentStory.id;
@@ -12484,9 +12592,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
       textarea.select();
       try {
         document.execCommand("copy");
-        new import_obsidian16.Notice("UUID copied to clipboard");
+        new import_obsidian17.Notice("UUID copied to clipboard");
       } catch (err) {
-        new import_obsidian16.Notice("Failed to copy UUID", 3e3);
+        new import_obsidian17.Notice("Failed to copy UUID", 3e3);
       }
       document.body.removeChild(textarea);
     });
@@ -12503,9 +12611,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
       await this.plugin.apiClient.updateChapter(previousChapter.id, { number: tempNumber });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian16.Notice("Chapter moved up");
+      new import_obsidian17.Notice("Chapter moved up");
     } catch (err) {
-      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveChapterDown(chapter) {
@@ -12520,9 +12628,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
       await this.plugin.apiClient.updateChapter(nextChapter.id, { number: tempNumber });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian16.Notice("Chapter moved down");
+      new import_obsidian17.Notice("Chapter moved down");
     } catch (err) {
-      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveSceneUp(scene) {
@@ -12537,9 +12645,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
       await this.plugin.apiClient.updateScene(previousScene.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian16.Notice("Scene moved up");
+      new import_obsidian17.Notice("Scene moved up");
     } catch (err) {
-      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveSceneDown(scene) {
@@ -12554,9 +12662,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
       await this.plugin.apiClient.updateScene(nextScene.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian16.Notice("Scene moved down");
+      new import_obsidian17.Notice("Scene moved down");
     } catch (err) {
-      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveBeatUp(beat) {
@@ -12571,9 +12679,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
       await this.plugin.apiClient.updateBeat(previousBeat.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian16.Notice("Beat moved up");
+      new import_obsidian17.Notice("Beat moved up");
     } catch (err) {
-      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveBeatDown(beat) {
@@ -12588,15 +12696,15 @@ var StoryListView = class extends import_obsidian16.ItemView {
       await this.plugin.apiClient.updateBeat(nextBeat.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian16.Notice("Beat moved down");
+      new import_obsidian17.Notice("Beat moved down");
     } catch (err) {
-      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async showMoveSceneModal(scene) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Move Scene");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move scene "${scene.goal || `Scene ${scene.order_num}`}" to:` });
@@ -12626,10 +12734,10 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian16.Notice("Scene moved successfully");
+        new import_obsidian17.Notice("Scene moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move scene";
-        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -12639,7 +12747,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   async showMoveBeatModal(beat) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Move Beat");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move beat "${beat.type}" to:` });
@@ -12682,7 +12790,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     moveButton.onclick = async () => {
       const selectedSceneId = select.value;
       if (!selectedSceneId) {
-        new import_obsidian16.Notice("Please select a scene", 3e3);
+        new import_obsidian17.Notice("Please select a scene", 3e3);
         return;
       }
       try {
@@ -12690,10 +12798,10 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian16.Notice("Beat moved successfully");
+        new import_obsidian17.Notice("Beat moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move beat";
-        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -12932,7 +13040,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     } catch (err) {
       console.error("Error loading story characters:", err);
       this.storyCharacters = [];
-      new import_obsidian16.Notice(`Error loading characters: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian17.Notice(`Error loading characters: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   renderStoryCharactersTab(container) {
@@ -12980,10 +13088,10 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateCharacterModalForStory() {
     var _a;
     if (!((_a = this.currentStory) == null ? void 0 : _a.world_id)) {
-      new import_obsidian16.Notice("This story is not linked to a world");
+      new import_obsidian17.Notice("This story is not linked to a world");
       return;
     }
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Character");
     const content = modal.contentEl;
     let name = "";
@@ -13002,7 +13110,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -13013,9 +13121,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadStoryCharacters();
         this.renderTabContent();
         modal.close();
-        new import_obsidian16.Notice("Character created");
+        new import_obsidian17.Notice("Character created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -13036,7 +13144,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
       link: "external-link"
     };
     const iconName = iconMap[contentBlock.type] || "file";
-    (0, import_obsidian16.setIcon)(iconContainer, iconName);
+    (0, import_obsidian17.setIcon)(iconContainer, iconName);
     const preview = itemContent.createDiv({ cls: "story-engine-content-preview" });
     if (contentBlock.type === "text") {
       const textPreview = contentBlock.content || "";
@@ -13069,7 +13177,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.updateContentBlock(contentBlock.id, updatedContentBlock);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian16.Notice("Content block updated successfully");
+          new import_obsidian17.Notice("Content block updated successfully");
         } catch (err) {
           throw err;
         }
@@ -13087,9 +13195,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.deleteContentBlock(contentBlock.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian16.Notice("Content block deleted");
+          new import_obsidian17.Notice("Content block deleted");
         } catch (err) {
-          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -13097,7 +13205,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   async showMoveContentModal(contentBlock, currentEntityType, currentEntityId, mode) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText(mode === "move" ? "Move Content Block" : "Link Content Block");
     const content = modal.contentEl;
     content.createEl("p", {
@@ -13188,10 +13296,10 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian16.Notice(mode === "move" ? "Content block moved successfully" : "Content block linked successfully");
+        new import_obsidian17.Notice(mode === "move" ? "Content block moved successfully" : "Content block linked successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : `Failed to ${mode} content block`;
-        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -13203,7 +13311,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
       return;
     if (!chapterId) {
       if (this.chapters.length === 0) {
-        new import_obsidian16.Notice("No chapter available. Please create a chapter first.", 5e3);
+        new import_obsidian17.Notice("No chapter available. Please create a chapter first.", 5e3);
         return;
       }
       chapterId = this.chapters[0].id;
@@ -13227,7 +13335,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.plugin.apiClient.createContentAnchor(created.id, entityType, entityId);
         await this.loadHierarchy();
         this.renderTabContent();
-        new import_obsidian16.Notice("Content block created successfully");
+        new import_obsidian17.Notice("Content block created successfully");
       } catch (err) {
         throw err;
       }
@@ -13281,7 +13389,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load world data";
-      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${errorMessage}`, 5e3);
     } finally {
       this.loadingWorldData = false;
     }
@@ -13329,14 +13437,14 @@ var StoryListView = class extends import_obsidian16.ItemView {
       cls: "story-engine-copy-uuid-btn",
       attr: { "aria-label": "Copy UUID" }
     });
-    (0, import_obsidian16.setIcon)(copyUuidButton, "copy");
+    (0, import_obsidian17.setIcon)(copyUuidButton, "copy");
     copyUuidButton.onclick = () => {
       if (!this.currentWorld)
         return;
       navigator.clipboard.writeText(this.currentWorld.id).then(() => {
-        new import_obsidian16.Notice("UUID copied to clipboard");
+        new import_obsidian17.Notice("UUID copied to clipboard");
       }).catch(() => {
-        new import_obsidian16.Notice("Failed to copy UUID", 3e3);
+        new import_obsidian17.Notice("Failed to copy UUID", 3e3);
       });
     };
     if (this.currentWorld.description) {
@@ -13348,13 +13456,13 @@ var StoryListView = class extends import_obsidian16.ItemView {
       cls: "story-engine-context-btn",
       attr: { "aria-label": "World Actions" }
     });
-    (0, import_obsidian16.setIcon)(contextButton, "more-vertical");
+    (0, import_obsidian17.setIcon)(contextButton, "more-vertical");
     const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
     dropdownMenu.style.display = "none";
     const editOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian16.setIcon)(editOption, "pencil");
+    (0, import_obsidian17.setIcon)(editOption, "pencil");
     editOption.createSpan({ text: "Edit World" });
     editOption.onclick = () => {
       dropdownMenu.style.display = "none";
@@ -13515,7 +13623,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
       }
       const actions = item.createDiv({ cls: "story-engine-item-actions" });
       const relBtn = actions.createEl("button");
-      (0, import_obsidian16.setIcon)(relBtn, "users");
+      (0, import_obsidian17.setIcon)(relBtn, "users");
       relBtn.title = "Add Relationship";
       relBtn.onclick = () => this.showAddCharacterRelationshipModal(character);
       actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -13527,9 +13635,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
             await this.plugin.apiClient.deleteCharacter(character.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian16.Notice("Character deleted");
+            new import_obsidian17.Notice("Character deleted");
           } catch (err) {
-            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -13569,9 +13677,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.deleteLocation(location.id);
           await this.loadWorldData();
           this.renderWorldTabContent();
-          new import_obsidian16.Notice("Location deleted");
+          new import_obsidian17.Notice("Location deleted");
         } catch (err) {
-          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -13608,9 +13716,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
             await this.plugin.apiClient.deleteArtifact(artifact.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian16.Notice("Artifact deleted");
+            new import_obsidian17.Notice("Artifact deleted");
           } catch (err) {
-            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -13714,11 +13822,11 @@ var StoryListView = class extends import_obsidian16.ItemView {
       }
       const actions = item.createDiv({ cls: "story-engine-item-actions" });
       const linkBtn = actions.createEl("button");
-      (0, import_obsidian16.setIcon)(linkBtn, "link");
+      (0, import_obsidian17.setIcon)(linkBtn, "link");
       linkBtn.title = "Link to Entity";
       linkBtn.onclick = () => this.showLinkEventToEntityModal(event);
       const eventLinkBtn = actions.createEl("button");
-      (0, import_obsidian16.setIcon)(eventLinkBtn, "git-branch");
+      (0, import_obsidian17.setIcon)(eventLinkBtn, "git-branch");
       eventLinkBtn.title = "Set Parent Event";
       eventLinkBtn.onclick = () => this.showSetEventParentModal(event);
       actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -13730,9 +13838,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
             await this.plugin.apiClient.deleteEvent(event.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian16.Notice("Event deleted");
+            new import_obsidian17.Notice("Event deleted");
           } catch (err) {
-            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -13741,7 +13849,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateEpochEventModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Epoch Event (Year Zero)");
     const content = modal.contentEl;
     let name = "";
@@ -13771,7 +13879,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create Epoch", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required");
+        new import_obsidian17.Notice("Name is required");
         return;
       }
       try {
@@ -13787,9 +13895,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         modal.close();
         await this.loadWorldData();
         this.renderWorldTabContent();
-        new import_obsidian16.Notice("Epoch event created!");
+        new import_obsidian17.Notice("Epoch event created!");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -13832,9 +13940,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
               await this.plugin.apiClient.deleteTrait(trait.id);
               await this.loadWorldData();
               this.renderWorldTabContent();
-              new import_obsidian16.Notice("Trait deleted");
+              new import_obsidian17.Notice("Trait deleted");
             } catch (err) {
-              new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+              new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
             }
           }
         };
@@ -13860,7 +13968,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
           const traits = await this.plugin.apiClient.getArchetypeTraits(archetype.id);
           this.showArchetypeTraitsModal(archetype, traits);
         } catch (err) {
-          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       };
       actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -13872,9 +13980,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
             await this.plugin.apiClient.deleteArchetype(archetype.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian16.Notice("Archetype deleted");
+            new import_obsidian17.Notice("Archetype deleted");
           } catch (err) {
-            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -13906,11 +14014,11 @@ var StoryListView = class extends import_obsidian16.ItemView {
     }
     const actions = item.createDiv({ cls: "story-engine-item-actions" });
     const linkBtn = actions.createEl("button");
-    (0, import_obsidian16.setIcon)(linkBtn, "link");
+    (0, import_obsidian17.setIcon)(linkBtn, "link");
     linkBtn.title = "Link to Entity";
     linkBtn.onclick = () => this.showAddLoreReferenceModal(lore);
     const subBtn = actions.createEl("button");
-    (0, import_obsidian16.setIcon)(subBtn, "folder-plus");
+    (0, import_obsidian17.setIcon)(subBtn, "folder-plus");
     subBtn.title = "Create Sub-Lore";
     subBtn.onclick = () => this.showCreateLoreModal(lore.id);
     actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -13922,9 +14030,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.deleteLore(lore.id);
           await this.loadWorldData();
           this.renderWorldTabContent();
-          new import_obsidian16.Notice("Lore deleted");
+          new import_obsidian17.Notice("Lore deleted");
         } catch (err) {
-          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -13959,11 +14067,11 @@ var StoryListView = class extends import_obsidian16.ItemView {
     }
     const actions = item.createDiv({ cls: "story-engine-item-actions" });
     const linkBtn = actions.createEl("button");
-    (0, import_obsidian16.setIcon)(linkBtn, "link");
+    (0, import_obsidian17.setIcon)(linkBtn, "link");
     linkBtn.title = "Link to Entity";
     linkBtn.onclick = () => this.showAddFactionReferenceModal(faction);
     const subBtn = actions.createEl("button");
-    (0, import_obsidian16.setIcon)(subBtn, "folder-plus");
+    (0, import_obsidian17.setIcon)(subBtn, "folder-plus");
     subBtn.title = "Create Sub-Faction";
     subBtn.onclick = () => this.showCreateFactionModal(faction.id);
     actions.createEl("button", { text: "View Details" }).onclick = () => {
@@ -13978,9 +14086,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
           await this.plugin.apiClient.deleteFaction(faction.id);
           await this.loadWorldData();
           this.renderWorldTabContent();
-          new import_obsidian16.Notice("Faction deleted");
+          new import_obsidian17.Notice("Faction deleted");
         } catch (err) {
-          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -13993,7 +14101,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateCharacterModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Character");
     const content = modal.contentEl;
     let name = "";
@@ -14012,7 +14120,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14020,9 +14128,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Character created");
+        new import_obsidian17.Notice("Character created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14030,7 +14138,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     nameInput.focus();
   }
   showEditCharacterModal(character) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Character");
     const content = modal.contentEl;
     let name = character.name;
@@ -14050,7 +14158,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14062,9 +14170,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
           this.renderWorldTabContent();
         }
         modal.close();
-        new import_obsidian16.Notice("Character updated");
+        new import_obsidian17.Notice("Character updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14073,7 +14181,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateLocationModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Location");
     const content = modal.contentEl;
     let name = "";
@@ -14108,7 +14216,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14121,9 +14229,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Location created");
+        new import_obsidian17.Notice("Location created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14131,7 +14239,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     nameInput.focus();
   }
   showEditLocationModal(location) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Location");
     const content = modal.contentEl;
     let name = location.name;
@@ -14157,7 +14265,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14165,9 +14273,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Location updated");
+        new import_obsidian17.Notice("Location updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14176,7 +14284,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateArtifactModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Artifact");
     const content = modal.contentEl;
     let name = "";
@@ -14205,7 +14313,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14217,9 +14325,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Artifact created");
+        new import_obsidian17.Notice("Artifact created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14227,7 +14335,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     nameInput.focus();
   }
   showEditArtifactModal(artifact) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Artifact");
     const content = modal.contentEl;
     let name = artifact.name;
@@ -14259,7 +14367,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14267,9 +14375,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Artifact updated");
+        new import_obsidian17.Notice("Artifact updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14278,7 +14386,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateEventModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Event");
     const content = modal.contentEl;
     let name = "";
@@ -14345,7 +14453,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create Event", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14359,9 +14467,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Event created");
+        new import_obsidian17.Notice("Event created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14370,7 +14478,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   }
   showEditEventModal(event) {
     var _a, _b;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Event");
     const content = modal.contentEl;
     let name = event.name;
@@ -14434,7 +14542,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14448,16 +14556,16 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Event updated");
+        new import_obsidian17.Notice("Event updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
   showCreateTraitModal() {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Trait");
     const content = modal.contentEl;
     let name = "";
@@ -14482,7 +14590,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14494,9 +14602,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Trait created");
+        new import_obsidian17.Notice("Trait created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14504,7 +14612,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     nameInput.focus();
   }
   showEditTraitModal(trait) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Trait");
     const content = modal.contentEl;
     let name = trait.name;
@@ -14530,7 +14638,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14538,9 +14646,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Trait updated");
+        new import_obsidian17.Notice("Trait updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14569,7 +14677,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     var _a;
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText(existingConfig ? "Edit Time Configuration" : "Create Time Configuration");
     const content = modal.contentEl;
     let baseUnit = (existingConfig == null ? void 0 : existingConfig.base_unit) || "year";
@@ -14660,9 +14768,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Time configuration saved");
+        new import_obsidian17.Notice("Time configuration saved");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14676,12 +14784,12 @@ var StoryListView = class extends import_obsidian16.ItemView {
       const modal = new TimelineModal(this.app, events, this.currentWorld.time_config || null);
       modal.open();
     } catch (err) {
-      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed to load timeline"}`, 5e3);
+      new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed to load timeline"}`, 5e3);
     }
   }
   // Placeholder methods for modals that will be implemented later
   showArchetypeTraitsModal(archetype, traits) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText(`Traits for ${archetype.name}`);
     const content = modal.contentEl;
     if (traits.length === 0) {
@@ -14696,7 +14804,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     modal.open();
   }
   showCreateArchetypeModal() {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Archetype");
     const content = modal.contentEl;
     let name = "";
@@ -14715,7 +14823,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14723,9 +14831,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Archetype created");
+        new import_obsidian17.Notice("Archetype created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14733,7 +14841,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     nameInput.focus();
   }
   showEditArchetypeModal(archetype) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Archetype");
     const content = modal.contentEl;
     let name = archetype.name;
@@ -14753,7 +14861,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14761,16 +14869,16 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Archetype updated");
+        new import_obsidian17.Notice("Archetype updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
   showLoreDetailsModal(lore) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText(lore.name);
     const content = modal.contentEl;
     content.createEl("h4", { text: "Description" });
@@ -14792,7 +14900,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateLoreModal(parentId) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Lore");
     const content = modal.contentEl;
     let name = "";
@@ -14835,7 +14943,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14851,9 +14959,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Lore created");
+        new import_obsidian17.Notice("Lore created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -14861,7 +14969,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     nameInput.focus();
   }
   showEditLoreModal(lore) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Lore");
     const content = modal.contentEl;
     let name = lore.name;
@@ -14908,7 +15016,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -14923,16 +15031,16 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Lore updated");
+        new import_obsidian17.Notice("Lore updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
   showFactionDetailsModal(faction) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText(faction.name);
     const content = modal.contentEl;
     content.createEl("h4", { text: "Description" });
@@ -14954,7 +15062,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showCreateFactionModal(parentId) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Create Faction");
     const content = modal.contentEl;
     let name = "";
@@ -14997,7 +15105,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -15013,9 +15121,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Faction created");
+        new import_obsidian17.Notice("Faction created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -15023,7 +15131,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     nameInput.focus();
   }
   showEditFactionModal(faction) {
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Edit Faction");
     const content = modal.contentEl;
     let name = faction.name;
@@ -15070,7 +15178,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian16.Notice("Name is required", 3e3);
+        new import_obsidian17.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -15085,9 +15193,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Faction updated");
+        new import_obsidian17.Notice("Faction updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -15097,7 +15205,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showAddCharacterRelationshipModal(character) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Add Character Relationship");
     const content = modal.contentEl;
     let otherCharacterId = "";
@@ -15137,7 +15245,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!otherCharacterId) {
-        new import_obsidian16.Notice("Please select a character", 3e3);
+        new import_obsidian17.Notice("Please select a character", 3e3);
         return;
       }
       try {
@@ -15150,9 +15258,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Relationship created");
+        new import_obsidian17.Notice("Relationship created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -15161,7 +15269,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showLinkEventToEntityModal(event) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText(`Link Event: ${event.name}`);
     const content = modal.contentEl;
     let entityType = "character";
@@ -15232,7 +15340,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Link Entity", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!entityId) {
-        new import_obsidian16.Notice(`Please select a ${entityType}`, 3e3);
+        new import_obsidian17.Notice(`Please select a ${entityType}`, 3e3);
         return;
       }
       try {
@@ -15240,9 +15348,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Entity linked to event");
+        new import_obsidian17.Notice("Entity linked to event");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -15251,7 +15359,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showSetEventParentModal(event) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Set Parent Event (Cause)");
     const content = modal.contentEl;
     let parentId = event.parent_id || null;
@@ -15288,9 +15396,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Event parent updated");
+        new import_obsidian17.Notice("Event parent updated");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -15299,7 +15407,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showAddFactionReferenceModal(faction) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Link Faction to Entity");
     const content = modal.contentEl;
     let entityType = "character";
@@ -15363,7 +15471,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!entityId) {
-        new import_obsidian16.Notice("Please select an entity", 3e3);
+        new import_obsidian17.Notice("Please select an entity", 3e3);
         return;
       }
       try {
@@ -15371,9 +15479,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Reference created");
+        new import_obsidian17.Notice("Reference created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -15382,7 +15490,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
   showAddLoreReferenceModal(lore) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian16.Modal(this.app);
+    const modal = new import_obsidian17.Modal(this.app);
     modal.titleEl.setText("Link Lore to Entity");
     const content = modal.contentEl;
     let entityType = "character";
@@ -15451,7 +15559,7 @@ var StoryListView = class extends import_obsidian16.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!entityId) {
-        new import_obsidian16.Notice("Please select an entity", 3e3);
+        new import_obsidian17.Notice("Please select an entity", 3e3);
         return;
       }
       try {
@@ -15459,9 +15567,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian16.Notice("Reference created");
+        new import_obsidian17.Notice("Reference created");
       } catch (err) {
-        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian17.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -15535,9 +15643,9 @@ var StoryListView = class extends import_obsidian16.ItemView {
 };
 
 // src/views/StoryEngineExtractView.ts
-var import_obsidian17 = require("obsidian");
+var import_obsidian18 = require("obsidian");
 var STORY_ENGINE_EXTRACT_VIEW_TYPE = "story-engine-extract-view";
-var StoryEngineExtractView = class extends import_obsidian17.ItemView {
+var StoryEngineExtractView = class extends import_obsidian18.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.result = null;
@@ -15905,7 +16013,7 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
   async createEntity(entity) {
     var _a, _b;
     if (!((_a = this.result) == null ? void 0 : _a.world_id)) {
-      new import_obsidian17.Notice("World ID missing. Select a story or world first.", 4e3);
+      new import_obsidian18.Notice("World ID missing. Select a story or world first.", 4e3);
       return "";
     }
     const description = ((_b = entity.summary) == null ? void 0 : _b.trim()) || entity.name;
@@ -15952,7 +16060,7 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
         break;
       }
       default:
-        new import_obsidian17.Notice(`Unsupported type: ${entity.type}`, 4e3);
+        new import_obsidian18.Notice(`Unsupported type: ${entity.type}`, 4e3);
         return "";
     }
     entity.found = false;
@@ -15965,13 +16073,13 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
       reason: "Created from extract"
     };
     this.render();
-    new import_obsidian17.Notice(`Created ${entity.type}: ${entity.name}`, 3e3);
+    new import_obsidian18.Notice(`Created ${entity.type}: ${entity.name}`, 3e3);
     return createdId;
   }
   async updateEntity(entity) {
     var _a, _b;
     if (!((_a = entity.match) == null ? void 0 : _a.source_id)) {
-      new import_obsidian17.Notice("No match available to update.", 4e3);
+      new import_obsidian18.Notice("No match available to update.", 4e3);
       return;
     }
     const description = (_b = entity.summary) != null ? _b : "";
@@ -16007,10 +16115,10 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
         });
         break;
       default:
-        new import_obsidian17.Notice(`Unsupported type: ${entity.type}`, 4e3);
+        new import_obsidian18.Notice(`Unsupported type: ${entity.type}`, 4e3);
         return;
     }
-    new import_obsidian17.Notice(`Updated ${entity.type}: ${entity.name}`, 3e3);
+    new import_obsidian18.Notice(`Updated ${entity.type}: ${entity.name}`, 3e3);
   }
   renderRelation(container, relation, index) {
     const item = container.createDiv({ cls: "story-engine-extract-item" });
@@ -16330,11 +16438,11 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
   async createRelation(relation) {
     var _a, _b;
     if (!((_a = this.result) == null ? void 0 : _a.world_id)) {
-      new import_obsidian17.Notice("World ID missing. Select a story or world first.", 4e3);
+      new import_obsidian18.Notice("World ID missing. Select a story or world first.", 4e3);
       return;
     }
     if (!relation.source.id || !relation.target.id) {
-      new import_obsidian17.Notice("Create the related entities before creating the relation.", 4e3);
+      new import_obsidian18.Notice("Create the related entities before creating the relation.", 4e3);
       return;
     }
     const created = await this.plugin.apiClient.createEntityRelation({
@@ -16350,7 +16458,7 @@ var StoryEngineExtractView = class extends import_obsidian17.ItemView {
     relation.status = "created";
     relation.created_id = created.id;
     this.render();
-    new import_obsidian17.Notice(`Relation created: ${relation.relation_type}`, 3e3);
+    new import_obsidian18.Notice(`Relation created: ${relation.relation_type}`, 3e3);
   }
   applyCreatedIdToRelation(relation, entity, createdId) {
     const updateNode = (node) => {
@@ -16417,7 +16525,7 @@ var DEFAULT_SETTINGS = {
   autoSyncOnApiUpdates: true,
   autoPushOnFileBlur: true
 };
-var StoryEnginePlugin = class extends import_obsidian18.Plugin {
+var StoryEnginePlugin = class extends import_obsidian19.Plugin {
   constructor() {
     super(...arguments);
     this.extractResult = null;
@@ -16551,28 +16659,28 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
     if (this.settings.mode === "remote") {
       const tenantId = (_a = this.settings.tenantId) == null ? void 0 : _a.trim();
       if (!tenantId) {
-        new import_obsidian18.Notice("Please configure Tenant ID in settings", 5e3);
+        new import_obsidian19.Notice("Please configure Tenant ID in settings", 5e3);
         return;
       }
       const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuidRegex.test(tenantId)) {
-        new import_obsidian18.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
+        new import_obsidian19.Notice("Invalid Tenant ID format. Please check your settings.", 5e3);
         return;
       }
     }
     new CreateStoryModal(this.app, this, async (title, worldId, shouldSync) => {
       try {
-        new import_obsidian18.Notice(`Creating story "${title}"...`);
+        new import_obsidian19.Notice(`Creating story "${title}"...`);
         const story = await this.apiClient.createStory(title, worldId);
-        new import_obsidian18.Notice(`Story "${title}" created successfully`);
+        new import_obsidian19.Notice(`Story "${title}" created successfully`);
         if (shouldSync) {
           try {
-            new import_obsidian18.Notice(`Syncing story to Obsidian...`);
+            new import_obsidian19.Notice(`Syncing story to Obsidian...`);
             await this.syncService.pullStory(story.id);
-            new import_obsidian18.Notice(`Story synced to your vault!`);
+            new import_obsidian19.Notice(`Story synced to your vault!`);
           } catch (syncErr) {
             const syncErrorMessage = syncErr instanceof Error ? syncErr.message : "Failed to sync story";
-            new import_obsidian18.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
+            new import_obsidian19.Notice(`Story created but sync failed: ${syncErrorMessage}`, 5e3);
           }
         }
         const openView = this.app.workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
@@ -16585,7 +16693,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
         }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to create story";
-        new import_obsidian18.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian19.Notice(`Error: ${errorMessage}`, 5e3);
       }
     }).open();
   }
@@ -16595,7 +16703,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
     if (!leaf) {
       const rightLeaf = workspace.getRightLeaf(false);
       if (!rightLeaf) {
-        new import_obsidian18.Notice("Could not create view. Please try again.", 3e3);
+        new import_obsidian19.Notice("Could not create view. Please try again.", 3e3);
         return;
       }
       leaf = rightLeaf;
@@ -16613,7 +16721,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
       leaf = workspace.getLeavesOfType(STORY_LIST_VIEW_TYPE)[0];
     }
     if (!leaf) {
-      new import_obsidian18.Notice("Could not open extract view. Please try again.", 3e3);
+      new import_obsidian19.Notice("Could not open extract view. Please try again.", 3e3);
       return;
     }
     await leaf.setViewState({
@@ -16641,24 +16749,33 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
     var _a, _b, _c;
     const trimmedSelection = selection2.trim();
     if (!trimmedSelection) {
-      new import_obsidian18.Notice(
+      new import_obsidian19.Notice(
         includeRelations ? "Select text to extract entities and relations" : "Select text to extract entities",
         3e3
       );
       return;
     }
+    const defaultTypes = ["character", "location", "artefact", "faction", "event"];
+    const config = await ExtractConfigModal.open(
+      this.app,
+      defaultTypes,
+      includeRelations
+    );
+    if (!config) {
+      return;
+    }
     if (this.settings.mode !== "remote") {
-      new import_obsidian18.Notice("Extraction requires the full remote version.", 5e3);
+      new import_obsidian19.Notice("Extraction requires the full remote version.", 5e3);
       return;
     }
     const tenantId = (_a = this.settings.tenantId) == null ? void 0 : _a.trim();
     if (!tenantId) {
-      new import_obsidian18.Notice("Please configure Tenant ID in settings", 5e3);
+      new import_obsidian19.Notice("Please configure Tenant ID in settings", 5e3);
       return;
     }
     const gatewayUrl = (_b = this.settings.llmGatewayUrl) == null ? void 0 : _b.trim();
     if (!gatewayUrl) {
-      new import_obsidian18.Notice("Please configure LLM Gateway URL in settings", 5e3);
+      new import_obsidian19.Notice("Please configure LLM Gateway URL in settings", 5e3);
       return;
     }
     let worldId = null;
@@ -16666,17 +16783,17 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
       worldId = await this.getActiveWorldId();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to resolve story";
-      new import_obsidian18.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian19.Notice(`Error: ${errorMessage}`, 5e3);
       return;
     }
     if (!worldId) {
-      new import_obsidian18.Notice(
+      new import_obsidian19.Notice(
         "Open a synced story document before extracting entities.",
         5e3
       );
       return;
     }
-    this.resetExtractState(trimmedSelection, worldId, includeRelations);
+    this.resetExtractState(trimmedSelection, worldId, config.includeRelations);
     await this.activateView();
     await this.activateExtractView();
     this.updateExtractViews();
@@ -16686,13 +16803,14 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
       }
     } catch (e) {
     }
-    new import_obsidian18.Notice("Starting extraction stream...", 3e3);
+    new import_obsidian19.Notice("Starting extraction stream...", 3e3);
     await this.startExtractStream({
       tenantId,
       gatewayUrl,
       worldId,
       text: trimmedSelection,
-      includeRelations
+      includeRelations: config.includeRelations,
+      entityTypes: config.entityTypes
     });
   }
   updateExtractViews() {
@@ -16747,7 +16865,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
     });
   }
   async startExtractStream(params) {
-    const { tenantId, gatewayUrl, worldId, text, includeRelations } = params;
+    const { tenantId, gatewayUrl, worldId, text, includeRelations, entityTypes } = params;
     const controller = new AbortController();
     this.extractAbortController = controller;
     this.appendExtractLog({
@@ -16768,7 +16886,8 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
           body: JSON.stringify({
             text,
             world_id: worldId,
-            include_relations: includeRelations
+            include_relations: includeRelations,
+            entity_types: entityTypes
           }),
           signal: controller.signal
         }
@@ -16830,7 +16949,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
           const foundCount = (_b = this.extractResult) == null ? void 0 : _b.entities.filter(
             (entity) => entity.found
           ).length;
-          new import_obsidian18.Notice(
+          new import_obsidian19.Notice(
             `Entities extracted: ${foundCount != null ? foundCount : 0}/${(_d = (_c = this.extractResult) == null ? void 0 : _c.entities.length) != null ? _d : 0} matched`,
             4e3
           );
@@ -16885,7 +17004,7 @@ var StoryEnginePlugin = class extends import_obsidian18.Plugin {
         type: "error",
         message: errorMessage
       });
-      new import_obsidian18.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian19.Notice(`Error: ${errorMessage}`, 5e3);
       this.updateExtractViews();
     }
   }
