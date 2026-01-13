@@ -1,4 +1,4 @@
-package entity_extraction
+package events
 
 import (
 	"context"
@@ -21,14 +21,14 @@ type NoopExtractionEventLogger struct{}
 
 func (n NoopExtractionEventLogger) Emit(_ context.Context, _ ExtractionEvent) {}
 
-func normalizeEventLogger(logger ExtractionEventLogger) ExtractionEventLogger {
+func NormalizeEventLogger(logger ExtractionEventLogger) ExtractionEventLogger {
 	if logger == nil {
 		return NoopExtractionEventLogger{}
 	}
 	return logger
 }
 
-func emitEvent(ctx context.Context, logger ExtractionEventLogger, event ExtractionEvent) {
+func EmitEvent(ctx context.Context, logger ExtractionEventLogger, event ExtractionEvent) {
 	if logger == nil {
 		return
 	}

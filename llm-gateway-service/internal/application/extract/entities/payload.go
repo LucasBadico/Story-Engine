@@ -1,4 +1,4 @@
-package entity_extraction
+package entities
 
 import "github.com/google/uuid"
 
@@ -9,8 +9,7 @@ func NewPhase4EntitiesPayloadUseCase() *Phase4EntitiesPayloadUseCase {
 }
 
 type Phase4EntitiesPayload struct {
-	Entities  []Phase4Entity         `json:"entities"`
-	Relations []Phase8RelationResult `json:"relations,omitempty"`
+	Entities []Phase4Entity `json:"entities"`
 }
 
 type Phase4Entity struct {
@@ -69,5 +68,5 @@ func (u *Phase4EntitiesPayloadUseCase) Execute(input Phase3MatchOutput) Phase4En
 		entities = append(entities, entity)
 	}
 
-	return Phase4EntitiesPayload{Entities: entities, Relations: []Phase8RelationResult{}}
+	return Phase4EntitiesPayload{Entities: entities}
 }

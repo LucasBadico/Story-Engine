@@ -6,14 +6,14 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
 func TestLoadRelationMaps(t *testing.T) {
 	t.Helper()
 
-	types := map[string]entity_extraction.Phase6RelationTypeDefinition{
+	types := map[string]relations.Phase6RelationTypeDefinition{
 		"member_of": {
 			Mirror:             "has_member",
 			Symmetric:          false,
@@ -21,10 +21,10 @@ func TestLoadRelationMaps(t *testing.T) {
 			Semantics:          "Source is a member of target.",
 		},
 	}
-	relMap := entity_extraction.Phase5PerEntityRelationMap{
+	relMap := relations.Phase5PerEntityRelationMap{
 		EntityType: "character",
 		Version:    1,
-		Relations: map[string]entity_extraction.Phase5RelationConstraintSpec{
+		Relations: map[string]relations.Phase5RelationConstraintSpec{
 			"member_of": {
 				PairCandidates: []string{"faction"},
 				Description:    "Character belongs to a group.",

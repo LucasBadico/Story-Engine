@@ -1,4 +1,4 @@
-package entity_extraction
+package relations
 
 // Phase8RelationResult represents the final relation payload with matches.
 type Phase8RelationResult struct {

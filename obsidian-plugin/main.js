@@ -15747,13 +15747,10 @@ var StoryEngineExtractView = class extends import_obsidian18.ItemView {
     if (this.result) {
       const foundCount = this.result.entities.filter((entity) => entity.found).length;
       headerMeta.createEl("div", {
-        text: `Entities: ${this.result.entities.length}`
+        text: `Entities found: ${foundCount}/${this.result.entities.length}`
       });
       headerMeta.createEl("div", {
-        text: `Relations: ${this.result.relations.length}`
-      });
-      headerMeta.createEl("div", {
-        text: `Found: ${foundCount}`
+        text: `Relations found: ${this.result.relations.length}`
       });
       headerMeta.createEl("div", {
         text: `Text length: ${this.result.text.length}`
@@ -16129,7 +16126,8 @@ var StoryEngineExtractView = class extends import_obsidian18.ItemView {
     });
     const statusText = relation.status === "pending_entities" ? "Pending" : relation.status;
     const statusClass = relation.status === "pending_entities" ? "is-new" : "is-found";
-    const typeLabel = `${relation.source.type} -> ${relation.target.type}`;
+    const relationType = relation.relation_type || "relation";
+    const typeLabel = `${relationType} | ${relation.source.type} -> ${relation.target.type}`;
     const typeLine = header.createEl("div", {
       text: typeLabel,
       cls: "story-engine-extract-entity-type"

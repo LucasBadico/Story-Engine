@@ -1,6 +1,6 @@
 //go:build integration
 
-package entity_extraction_test
+package extract_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
-	entityextraction "github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
@@ -24,7 +24,7 @@ func TestPhase2CharacterExtractor_GeminiSummary(t *testing.T) {
 	}
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
-	extractor := entityextraction.NewPhase2CharacterExtractorUseCase(
+	extractor := entities.NewPhase2CharacterExtractorUseCase(
 		gemini.NewRouterModel(apiKey, model),
 		logger.New(),
 	)
@@ -32,7 +32,7 @@ func TestPhase2CharacterExtractor_GeminiSummary(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	output, err := extractor.Execute(ctx, entityextraction.Phase2EntityExtractorInput{
+	output, err := extractor.Execute(ctx, entities.Phase2EntityExtractorInput{
 		Text:         "Aria stepped into the Obsidian Tower and met the Crimson Order.",
 		Context:      "",
 		AlreadyFound: nil,
@@ -72,7 +72,7 @@ func TestPhase2LocationExtractor_GeminiSummary(t *testing.T) {
 	}
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
-	extractor := entityextraction.NewPhase2LocationExtractorUseCase(
+	extractor := entities.NewPhase2LocationExtractorUseCase(
 		gemini.NewRouterModel(apiKey, model),
 		logger.New(),
 	)
@@ -80,7 +80,7 @@ func TestPhase2LocationExtractor_GeminiSummary(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	output, err := extractor.Execute(ctx, entityextraction.Phase2EntityExtractorInput{
+	output, err := extractor.Execute(ctx, entities.Phase2EntityExtractorInput{
 		Text:         "Aria entered the Obsidian Tower and rested inside.",
 		Context:      "",
 		AlreadyFound: nil,
@@ -119,7 +119,7 @@ func TestPhase2FactionExtractor_GeminiSummary(t *testing.T) {
 	}
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
-	extractor := entityextraction.NewPhase2FactionExtractorUseCase(
+	extractor := entities.NewPhase2FactionExtractorUseCase(
 		gemini.NewRouterModel(apiKey, model),
 		logger.New(),
 	)
@@ -127,7 +127,7 @@ func TestPhase2FactionExtractor_GeminiSummary(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 	defer cancel()
 
-	output, err := extractor.Execute(ctx, entityextraction.Phase2EntityExtractorInput{
+	output, err := extractor.Execute(ctx, entities.Phase2EntityExtractorInput{
 		Text:         "The Crimson Order declared war on the Silver Guild.",
 		Context:      "",
 		AlreadyFound: nil,
@@ -167,11 +167,11 @@ func TestPhase2Orchestrator_GeminiIntegration(t *testing.T) {
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
 	log := logger.New()
-	router := entityextraction.NewPhase1EntityTypeRouterUseCase(
+	router := entities.NewPhase1EntityTypeRouterUseCase(
 		gemini.NewRouterModel(apiKey, model),
 		log,
 	)
-	orchestrator := entityextraction.NewPhase2EntryUseCase(
+	orchestrator := entities.NewPhase2EntryUseCase(
 		gemini.NewRouterModel(apiKey, model),
 		log,
 		nil,
@@ -194,7 +194,7 @@ func TestPhase2Orchestrator_GeminiIntegration(t *testing.T) {
 		"After warning the Crimson Order of the approaching danger, Aria turned away and left the Obsidian Tower behind her.",
 	}, "\n\n")
 
-	split, err := entityextraction.SplitTextIntoParagraphChunks(entityextraction.Phase0TextSplitInput{
+	split, err := entities.SplitTextIntoParagraphChunks(entities.Phase0TextSplitInput{
 		Text:          text,
 		MaxChunkChars: 200,
 		OverlapChars:  20,
@@ -203,11 +203,11 @@ func TestPhase2Orchestrator_GeminiIntegration(t *testing.T) {
 		t.Fatalf("split failed: %v", err)
 	}
 
-	var routedChunks []entityextraction.Phase2RoutedChunk
+	var routedChunks []entities.Phase2RoutedChunk
 	for _, paragraph := range split.Paragraphs {
 		for _, chunk := range paragraph.Chunks {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
-			output, err := router.Execute(ctx, entityextraction.Phase1EntityTypeRouterInput{
+			output, err := router.Execute(ctx, entities.Phase1EntityTypeRouterInput{
 				Text:    chunk.Text,
 				Context: "",
 				EntityTypes: []string{
@@ -226,7 +226,7 @@ func TestPhase2Orchestrator_GeminiIntegration(t *testing.T) {
 			for _, candidate := range output.Candidates {
 				types = append(types, candidate.Type)
 			}
-			routedChunks = append(routedChunks, entityextraction.Phase2RoutedChunk{
+			routedChunks = append(routedChunks, entities.Phase2RoutedChunk{
 				ParagraphID: paragraph.ParagraphID,
 				ChunkID:     chunk.ChunkID,
 				StartOffset: chunk.StartOffset,
@@ -239,7 +239,7 @@ func TestPhase2Orchestrator_GeminiIntegration(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	findings, err := orchestrator.Execute(ctx, entityextraction.Phase2EntryInput{
+	findings, err := orchestrator.Execute(ctx, entities.Phase2EntryInput{
 		Context:               "",
 		MaxCandidatesPerChunk: 4,
 		Chunks:                routedChunks,

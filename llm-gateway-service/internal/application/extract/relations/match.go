@@ -1,9 +1,10 @@
-package entity_extraction
+package relations
 
 import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
@@ -70,52 +71,80 @@ func (uc *Phase7RelationMatchUseCase) Execute(ctx context.Context, input Phase7R
 		minSimilarity = 0
 	}
 
-	output := Phase7RelationMatchOutput{
-		Matches: make([]Phase7RelationMatch, 0, len(input.Relations)),
+	parallelism := getRelationMatchParallelism(uc.logger)
+	if parallelism < 1 {
+		parallelism = 1
 	}
 
+	sem := make(chan struct{}, parallelism)
+	results := make([]*Phase7RelationMatch, len(input.Relations))
+	var wg sync.WaitGroup
+
 	for idx, relation := range input.Relations {
+		idx := idx
+		relation := relation
 		query := buildRelationMatchQuery(relation)
 		if query == "" {
 			continue
 		}
 
-		searchOutput, err := uc.searcher.Execute(ctx, search.SearchMemoryInput{
-			TenantID:    input.TenantID,
-			Query:       query,
-			Limit:       limit,
-			SourceTypes: input.SourceTypes,
-		})
-		if err != nil {
-			if uc.logger != nil {
-				uc.logger.Error("relation match search failed", "relation_index", idx, "error", err)
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(query string) {
+			defer func() {
+				<-sem
+				wg.Done()
+			}()
+
+			searchOutput, err := uc.searcher.Execute(ctx, search.SearchMemoryInput{
+				TenantID:    input.TenantID,
+				Query:       query,
+				Limit:       limit,
+				SourceTypes: input.SourceTypes,
+			})
+			if err != nil {
+				if uc.logger != nil {
+					uc.logger.Error("relation match search failed", "relation_index", idx, "error", err)
+				}
+				return
 			}
+
+			candidates := make([]Phase7RelationMatchCandidate, 0, len(searchOutput.Chunks))
+			for _, chunk := range searchOutput.Chunks {
+				if chunk == nil {
+					continue
+				}
+				if minSimilarity > 0 && chunk.Similarity < minSimilarity {
+					continue
+				}
+				candidates = append(candidates, Phase7RelationMatchCandidate{
+					ChunkID:    chunk.ChunkID,
+					DocumentID: chunk.DocumentID,
+					SourceType: chunk.SourceType,
+					SourceID:   chunk.SourceID,
+					Content:    chunk.Content,
+					Similarity: chunk.Similarity,
+				})
+			}
+
+			results[idx] = &Phase7RelationMatch{
+				RelationIndex: idx,
+				RelationKey:   phase6RelationKey(relation),
+				Matches:       candidates,
+			}
+		}(query)
+	}
+
+	wg.Wait()
+
+	output := Phase7RelationMatchOutput{
+		Matches: make([]Phase7RelationMatch, 0, len(input.Relations)),
+	}
+	for _, match := range results {
+		if match == nil {
 			continue
 		}
-
-		candidates := make([]Phase7RelationMatchCandidate, 0, len(searchOutput.Chunks))
-		for _, chunk := range searchOutput.Chunks {
-			if chunk == nil {
-				continue
-			}
-			if minSimilarity > 0 && chunk.Similarity < minSimilarity {
-				continue
-			}
-			candidates = append(candidates, Phase7RelationMatchCandidate{
-				ChunkID:    chunk.ChunkID,
-				DocumentID: chunk.DocumentID,
-				SourceType: chunk.SourceType,
-				SourceID:   chunk.SourceID,
-				Content:    chunk.Content,
-				Similarity: chunk.Similarity,
-			})
-		}
-
-		output.Matches = append(output.Matches, Phase7RelationMatch{
-			RelationIndex: idx,
-			RelationKey:   phase6RelationKey(relation),
-			Matches:       candidates,
-		})
+		output.Matches = append(output.Matches, *match)
 	}
 
 	return output, nil

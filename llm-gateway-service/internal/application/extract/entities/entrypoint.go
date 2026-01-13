@@ -1,4 +1,4 @@
-package entity_extraction
+package entities
 
 import (
 	"context"
@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/events"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/llm"
 )
@@ -39,7 +40,7 @@ type Phase2EntryInput struct {
 	Context               string
 	MaxCandidatesPerChunk int
 	Chunks                []Phase2RoutedChunk
-	EventLogger           ExtractionEventLogger
+	EventLogger           events.ExtractionEventLogger
 }
 
 type Phase2RoutedChunk struct {
@@ -80,7 +81,7 @@ func (u *Phase2EntryUseCase) Execute(ctx context.Context, input Phase2EntryInput
 		maxCandidates = 5
 	}
 
-	eventLogger := normalizeEventLogger(input.EventLogger)
+	eventLogger := events.NormalizeEventLogger(input.EventLogger)
 
 	findingsByType := map[string]map[string]*Phase2EntityFinding{}
 
@@ -134,9 +135,9 @@ func (u *Phase2EntryUseCase) Execute(ctx context.Context, input Phase2EntryInput
 				start := candidate.StartOffset + chunk.StartOffset
 				end := candidate.EndOffset + chunk.StartOffset
 
-				emitEvent(ctx, eventLogger, ExtractionEvent{
+				events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 					Type:    "extract.candidate",
-					Phase:   "extractor",
+					Phase:   "entities.candidates",
 					Message: fmt.Sprintf("candidate found (%s): %s", output.EntityType, candidate.Name),
 					Data: map[string]interface{}{
 						"entity_type": output.EntityType,

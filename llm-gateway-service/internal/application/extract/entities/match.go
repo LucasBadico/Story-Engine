@@ -1,4 +1,4 @@
-package entity_extraction
+package entities
 
 import (
 	"context"
@@ -13,6 +13,7 @@ import (
 	"sync"
 
 	"github.com/google/uuid"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/events"
 	"github.com/story-engine/llm-gateway-service/internal/core/memory"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
@@ -51,7 +52,7 @@ type Phase3MatchInput struct {
 	Context       string
 	MinSimilarity float64
 	MaxCandidates int
-	EventLogger   ExtractionEventLogger
+	EventLogger   events.ExtractionEventLogger
 }
 
 type Phase3MatchOutput struct {
@@ -270,11 +271,11 @@ func (u *Phase3MatchUseCase) matchFinding(
 		match = u.confirmMatch(ctx, finding, candidates, input.Context)
 	}
 
-	eventLogger := normalizeEventLogger(input.EventLogger)
+	eventLogger := events.NormalizeEventLogger(input.EventLogger)
 	if match == nil {
-		emitEvent(ctx, eventLogger, ExtractionEvent{
+		events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 			Type:    "match.none",
-			Phase:   "matcher",
+			Phase:   "entities.resolve",
 			Message: fmt.Sprintf("no match for %s: %s", finding.EntityType, finding.Name),
 			Data: map[string]interface{}{
 				"entity_type": finding.EntityType,
@@ -283,9 +284,9 @@ func (u *Phase3MatchUseCase) matchFinding(
 			},
 		})
 	} else {
-		emitEvent(ctx, eventLogger, ExtractionEvent{
+		events.EmitEvent(ctx, eventLogger, events.ExtractionEvent{
 			Type:    "match.found",
-			Phase:   "matcher",
+			Phase:   "entities.resolve",
 			Message: fmt.Sprintf("match for %s: %s", finding.EntityType, finding.Name),
 			Data: map[string]interface{}{
 				"entity_type": finding.EntityType,

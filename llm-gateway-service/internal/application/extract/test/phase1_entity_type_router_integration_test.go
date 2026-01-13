@@ -1,6 +1,6 @@
 //go:build integration
 
-package entity_extraction_test
+package extract_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
-	entityextraction "github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
@@ -26,7 +26,7 @@ func TestPhase1EntityTypeRouter_GeminiIntegration(t *testing.T) {
 	}
 
 	model := strings.TrimSpace(os.Getenv("GEMINI_MODEL"))
-	router := entityextraction.NewPhase1EntityTypeRouterUseCase(
+	router := entities.NewPhase1EntityTypeRouterUseCase(
 		gemini.NewRouterModel(apiKey, model),
 		logger.New(),
 	)
@@ -87,7 +87,7 @@ func TestPhase1EntityTypeRouter_GeminiIntegration(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
 			defer cancel()
 
-			input := entityextraction.Phase1EntityTypeRouterInput{
+			input := entities.Phase1EntityTypeRouterInput{
 				Text:    testCase.text,
 				Context: "",
 				EntityTypes: []string{

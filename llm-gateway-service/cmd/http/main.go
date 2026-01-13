@@ -14,7 +14,9 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/openai"
 	httpadapter "github.com/story-engine/llm-gateway-service/internal/adapters/http"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
-	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
 	"github.com/story-engine/llm-gateway-service/internal/platform/config"
 	"github.com/story-engine/llm-gateway-service/internal/platform/database"
@@ -111,15 +113,15 @@ func main() {
 
 	routerModel := executor.NewRouterModelAdapter(llmExecutor, cfg.LLM.Provider)
 
-	router := entity_extraction.NewPhase1EntityTypeRouterUseCase(routerModel, log)
-	extractor := entity_extraction.NewPhase2EntryUseCase(routerModel, log, nil)
-	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, documentRepo, embedder, routerModel, log)
-	payload := entity_extraction.NewPhase4EntitiesPayloadUseCase()
-	relationDiscovery := entity_extraction.NewPhase5RelationDiscoveryUseCase(routerModel, log)
-	relationNormalize := entity_extraction.NewPhase6RelationNormalizeUseCase(log)
+	router := entities.NewPhase1EntityTypeRouterUseCase(routerModel, log)
+	extractor := entities.NewPhase2EntryUseCase(routerModel, log, nil)
+	matcher := entities.NewPhase3MatchUseCase(chunkRepo, documentRepo, embedder, routerModel, log)
+	payload := entities.NewPhase4EntitiesPayloadUseCase()
+	relationDiscovery := relations.NewPhase5RelationDiscoveryUseCase(routerModel, log)
+	relationNormalize := relations.NewPhase6RelationNormalizeUseCase(log)
 	relationNormalize.SetSummaryModel(routerModel)
-	relationMatcher := entity_extraction.NewPhase7RelationMatchUseCase(searchUseCase, log)
-	entityExtractUseCase := entity_extraction.NewEntityAndRelationshipsExtractor(
+	relationMatcher := relations.NewPhase7RelationMatchUseCase(searchUseCase, log)
+	entityExtractUseCase := extract.NewExtractOrchestrator(
 		router,
 		extractor,
 		matcher,
@@ -169,9 +171,9 @@ func main() {
 	}
 }
 
-func loadRelationMaps(log *logger.Logger, baseURL string) (map[string]entity_extraction.Phase6RelationTypeDefinition, map[string]entity_extraction.Phase5PerEntityRelationMap) {
-	types := map[string]entity_extraction.Phase6RelationTypeDefinition{}
-	suggested := map[string]entity_extraction.Phase5PerEntityRelationMap{}
+func loadRelationMaps(log *logger.Logger, baseURL string) (map[string]relations.Phase6RelationTypeDefinition, map[string]relations.Phase5PerEntityRelationMap) {
+	types := map[string]relations.Phase6RelationTypeDefinition{}
+	suggested := map[string]relations.Phase5PerEntityRelationMap{}
 
 	if strings.TrimSpace(baseURL) == "" {
 		log.Warn("main-service HTTP address missing; relation maps disabled")

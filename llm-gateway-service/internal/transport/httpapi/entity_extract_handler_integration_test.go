@@ -16,7 +16,8 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
-	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
 	"github.com/story-engine/llm-gateway-service/internal/core/memory"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 	"github.com/story-engine/llm-gateway-service/internal/ports/embeddings"
@@ -49,11 +50,11 @@ func TestEntityExtractHandler_Integration(t *testing.T) {
 	createFixtureEntity(t, ctx, docRepo, chunkRepo, tenantID, worldID, knownSourceID, knownDocID, "Aria", "Aria is a mage.")
 
 	model := gemini.NewRouterModel(apiKey, modelName)
-	router := entity_extraction.NewPhase1EntityTypeRouterUseCase(model, log)
-	extractor := entity_extraction.NewPhase2EntryUseCase(model, log, nil)
-	matcher := entity_extraction.NewPhase3MatchUseCase(chunkRepo, docRepo, embedder, model, log)
-	payload := entity_extraction.NewPhase4EntitiesPayloadUseCase()
-	useCase := entity_extraction.NewEntityAndRelationshipsExtractor(router, extractor, matcher, payload, nil, nil, nil, log)
+	router := entities.NewPhase1EntityTypeRouterUseCase(model, log)
+	extractor := entities.NewPhase2EntryUseCase(model, log, nil)
+	matcher := entities.NewPhase3MatchUseCase(chunkRepo, docRepo, embedder, model, log)
+	payload := entities.NewPhase4EntitiesPayloadUseCase()
+	useCase := extract.NewExtractOrchestrator(router, extractor, matcher, payload, nil, nil, nil, log)
 	handler := NewEntityExtractHandler(useCase, nil, nil, log)
 
 	timeoutCtx, cancel := context.WithTimeout(ctx, 60*time.Second)

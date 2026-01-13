@@ -10,21 +10,24 @@ import (
 	"time"
 
 	"github.com/google/uuid"
-	"github.com/story-engine/llm-gateway-service/internal/application/entity_extraction"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/events"
+	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
 	"github.com/story-engine/llm-gateway-service/internal/platform/logger"
 )
 
 type EntityExtractHandler struct {
-	useCase            *entity_extraction.EntityAndRelationshipsExtractor
-	relationTypes      map[string]entity_extraction.Phase6RelationTypeDefinition
-	suggestedRelations map[string]entity_extraction.Phase5PerEntityRelationMap
+	useCase            *extract.ExtractOrchestrator
+	relationTypes      map[string]relations.Phase6RelationTypeDefinition
+	suggestedRelations map[string]relations.Phase5PerEntityRelationMap
 	logger             *logger.Logger
 }
 
 func NewEntityExtractHandler(
-	useCase *entity_extraction.EntityAndRelationshipsExtractor,
-	relationTypes map[string]entity_extraction.Phase6RelationTypeDefinition,
-	suggestedRelations map[string]entity_extraction.Phase5PerEntityRelationMap,
+	useCase *extract.ExtractOrchestrator,
+	relationTypes map[string]relations.Phase6RelationTypeDefinition,
+	suggestedRelations map[string]relations.Phase5PerEntityRelationMap,
 	logger *logger.Logger,
 ) *EntityExtractHandler {
 	return &EntityExtractHandler{
@@ -52,17 +55,17 @@ type entityExtractRequest struct {
 }
 
 type entityExtractResponse struct {
-	Entities  []entityExtractEntity                    `json:"entities"`
-	Relations []entity_extraction.Phase8RelationResult `json:"relations"`
+	Entities  []entityExtractEntity            `json:"entities"`
+	Relations []relations.Phase8RelationResult `json:"relations"`
 }
 
 type entityExtractEntity struct {
-	Type       string                          `json:"type"`
-	Name       string                          `json:"name"`
-	Summary    string                          `json:"summary,omitempty"`
-	Found      bool                            `json:"found"`
-	Match      *entity_extraction.Phase4Match  `json:"match,omitempty"`
-	Candidates []entity_extraction.Phase4Match `json:"candidates,omitempty"`
+	Type       string                 `json:"type"`
+	Name       string                 `json:"name"`
+	Summary    string                 `json:"summary,omitempty"`
+	Found      bool                   `json:"found"`
+	Match      *entities.Phase4Match  `json:"match,omitempty"`
+	Candidates []entities.Phase4Match `json:"candidates,omitempty"`
 }
 
 func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
@@ -91,7 +94,7 @@ func (h *EntityExtractHandler) Extract(w http.ResponseWriter, r *http.Request) {
 		includeRelations = *req.IncludeRelations
 	}
 
-	output, err := h.useCase.Execute(r.Context(), entity_extraction.EntityAndRelationshipsExtractorInput{
+	output, err := h.useCase.Execute(r.Context(), extract.ExtractRequest{
 		TenantID:              tenantID,
 		WorldID:               worldID,
 		RequestID:             uuid.NewString(),
@@ -191,7 +194,7 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 		fmt.Sprintf("include_relations: %t", includeRelations),
 	}))
 
-	emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
+	emitEvent(r.Context(), eventLogger, events.ExtractionEvent{
 		Type:    "request.received",
 		Message: "request received",
 		Data: map[string]interface{}{
@@ -204,7 +207,7 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 		Timestamp: time.Now().UTC(),
 	})
 
-	output, err := h.useCase.Execute(r.Context(), entity_extraction.EntityAndRelationshipsExtractorInput{
+	output, err := h.useCase.Execute(r.Context(), extract.ExtractRequest{
 		TenantID:              tenantID,
 		WorldID:               worldID,
 		RequestID:             uuid.NewString(),
@@ -225,7 +228,7 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 		IncludeRelations:      includeRelations,
 	})
 	if err != nil {
-		emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
+		emitEvent(r.Context(), eventLogger, events.ExtractionEvent{
 			Type:    "error",
 			Message: "entity extraction failed",
 			Data: map[string]interface{}{
@@ -285,7 +288,7 @@ type sseEventLogger struct {
 	mu      sync.Mutex
 }
 
-func (l *sseEventLogger) Emit(ctx context.Context, event entity_extraction.ExtractionEvent) {
+func (l *sseEventLogger) Emit(ctx context.Context, event events.ExtractionEvent) {
 	if ctx.Err() != nil {
 		return
 	}
@@ -301,7 +304,7 @@ func (l *sseEventLogger) Emit(ctx context.Context, event entity_extraction.Extra
 	l.flusher.Flush()
 }
 
-func emitEvent(ctx context.Context, logger entity_extraction.ExtractionEventLogger, event entity_extraction.ExtractionEvent) {
+func emitEvent(ctx context.Context, logger events.ExtractionEventLogger, event events.ExtractionEvent) {
 	if logger == nil {
 		return
 	}
