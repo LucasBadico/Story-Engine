@@ -390,12 +390,14 @@
 .story-engine-extract-item-header {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-start;
+	gap: 0.5rem;
 	font-size: 0.8rem;
 	color: var(--text-muted);
 }
 
 .story-engine-extract-status {
+	margin-left: auto;
 	padding: 0.15rem 0.45rem;
 	border-radius: 999px;
 	font-size: 0.7rem;

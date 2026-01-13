@@ -577,7 +577,8 @@ export class StoryEngineExtractView extends ItemView {
 		const statusClass = relation.status === "pending_entities"
 			? "is-new"
 			: "is-found";
-		const typeLabel = `${relation.source.type} -> ${relation.target.type}`;
+		const relationType = relation.relation_type || "relation";
+		const typeLabel = `${relationType} | ${relation.source.type} -> ${relation.target.type}`;
 		const typeLine = header.createEl("div", {
 			text: typeLabel,
 			cls: "story-engine-extract-entity-type",
