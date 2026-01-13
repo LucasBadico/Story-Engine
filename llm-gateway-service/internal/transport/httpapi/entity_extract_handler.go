@@ -177,21 +177,32 @@ func (h *EntityExtractHandler) ExtractStream(w http.ResponseWriter, r *http.Requ
 		flusher: flusher,
 	}
 
-	emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
-		Type:    "request.received",
-		Message: "request received",
-		Data: map[string]interface{}{
-			"tenant_id": tenantID.String(),
-			"world_id":  worldID.String(),
-			"text_len":  len(req.Text),
-		},
-		Timestamp: time.Now().UTC(),
-	})
-
 	includeRelations := true
 	if req.IncludeRelations != nil {
 		includeRelations = *req.IncludeRelations
 	}
+
+	h.logger.Info(formatLogBlock("entity extract stream request", []string{
+		fmt.Sprintf("tenant_id: %s", tenantID),
+		fmt.Sprintf("world_id: %s", worldID),
+		fmt.Sprintf("text_len: %d", len(req.Text)),
+		fmt.Sprintf("context_len: %d", len(req.Context)),
+		fmt.Sprintf("entity_types: %v", req.EntityTypes),
+		fmt.Sprintf("include_relations: %t", includeRelations),
+	}))
+
+	emitEvent(r.Context(), eventLogger, entity_extraction.ExtractionEvent{
+		Type:    "request.received",
+		Message: "request received",
+		Data: map[string]interface{}{
+			"tenant_id":         tenantID.String(),
+			"world_id":          worldID.String(),
+			"text_len":          len(req.Text),
+			"entity_types":      req.EntityTypes,
+			"include_relations": includeRelations,
+		},
+		Timestamp: time.Now().UTC(),
+	})
 
 	output, err := h.useCase.Execute(r.Context(), entity_extraction.EntityAndRelationshipsExtractorInput{
 		TenantID:              tenantID,

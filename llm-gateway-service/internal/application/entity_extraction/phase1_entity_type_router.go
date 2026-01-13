@@ -86,6 +86,8 @@ func (u *Phase1EntityTypeRouterUseCase) Execute(ctx context.Context, input Phase
 		output.Candidates = output.Candidates[:maxCandidates]
 	}
 
+	output.Candidates = filterPhase1Candidates(output.Candidates, input.EntityTypes, u.logger)
+
 	return output, nil
 }
 
@@ -149,6 +151,40 @@ func parsePhase1EntityTypeRouterOutput(raw string) (Phase1EntityTypeRouterOutput
 	}
 
 	return Phase1EntityTypeRouterOutput{}, errors.New("invalid router output JSON")
+}
+
+func filterPhase1Candidates(
+	candidates []Candidate,
+	allowedTypes []string,
+	log *logger.Logger,
+) []Candidate {
+	if len(candidates) == 0 || len(allowedTypes) == 0 {
+		return candidates
+	}
+	allowed := make(map[string]struct{}, len(allowedTypes))
+	for _, t := range allowedTypes {
+		allowed[strings.ToLower(strings.TrimSpace(t))] = struct{}{}
+	}
+
+	filtered := make([]Candidate, 0, len(candidates))
+	for _, candidate := range candidates {
+		candidateType := strings.ToLower(strings.TrimSpace(candidate.Type))
+		if _, ok := allowed[candidateType]; !ok {
+			continue
+		}
+		candidate.Type = candidateType
+		filtered = append(filtered, candidate)
+	}
+
+	if log != nil && len(filtered) != len(candidates) {
+		log.Warn("router filtered unsupported entity types",
+			"received", len(candidates),
+			"kept", len(filtered),
+			"allowed", allowedTypes,
+		)
+	}
+
+	return filtered
 }
 
 func renderEntityTypesBlock(entityTypes []string) string {
