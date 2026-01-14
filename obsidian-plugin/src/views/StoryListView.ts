@@ -2530,10 +2530,10 @@ export class StoryListView extends ItemView {
 	renderWorldTabs() {
 		if (!this.contentEl) return;
 
-		// Remove existing tabs if any
-		const existingTabs = this.contentEl.querySelector(".story-engine-world-tabs");
-		if (existingTabs) {
-			existingTabs.remove();
+		// Remove existing sidebar if any
+		const existingSidebar = this.contentEl.querySelector(".story-engine-world-sidebar");
+		if (existingSidebar) {
+			existingSidebar.remove();
 		}
 
 		// Create vertical sidebar container
@@ -2568,10 +2568,6 @@ export class StoryListView extends ItemView {
 			
 			// Add icon
 			setIcon(tabButton, tab.icon);
-			
-			// Create tooltip
-			const tooltip = tabButton.createDiv({ cls: "story-engine-sidebar-tooltip" });
-			tooltip.setText(tab.label);
 			
 			tabButton.onclick = () => {
 				this.worldTab = tab.key;
@@ -2788,7 +2784,8 @@ export class StoryListView extends ItemView {
 
 	renderLocationsTab(container: HTMLElement) {
 		if (this.locations.length === 0) {
-			container.createEl("p", { text: "No locations found. Create your first location!" });
+			const emptyState = container.createDiv({ cls: "story-engine-empty-inline" });
+			emptyState.createEl("p", { text: "No locations found. Create your first location!" });
 			return;
 		}
 
@@ -2818,10 +2815,21 @@ export class StoryListView extends ItemView {
 		}
 
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
-		actions.createEl("button", { text: "Edit" }).onclick = () => {
+		const editBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Edit location", title: "Edit location" }
+		});
+		setIcon(editBtn, "pencil");
+		editBtn.onclick = () => {
 			this.showEditLocationModal(location);
 		};
-		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+
+		const deleteBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Delete location", title: "Delete location" }
+		});
+		setIcon(deleteBtn, "trash");
+		deleteBtn.onclick = async () => {
 			if (confirm(`Delete location "${location.name}"?`)) {
 				try {
 					await this.plugin.apiClient.deleteLocation(location.id);
@@ -2864,10 +2872,21 @@ export class StoryListView extends ItemView {
 			}
 
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
-			actions.createEl("button", { text: "Edit" }).onclick = () => {
+			const artifactEditBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Edit artifact", title: "Edit artifact" }
+			});
+			setIcon(artifactEditBtn, "pencil");
+			artifactEditBtn.onclick = () => {
 				this.showEditArtifactModal(artifact);
 			};
-			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+
+			const artifactDeleteBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Delete artifact", title: "Delete artifact" }
+			});
+			setIcon(artifactDeleteBtn, "trash");
+			artifactDeleteBtn.onclick = async () => {
 				if (confirm(`Delete artifact "${artifact.name}"?`)) {
 					try {
 						await this.plugin.apiClient.deleteArtifact(artifact.id);
@@ -2934,7 +2953,12 @@ export class StoryListView extends ItemView {
 			}
 			
 			const epochActions = epochItem.createDiv({ cls: "story-engine-item-actions" });
-			epochActions.createEl("button", { text: "Edit Epoch" }).onclick = () => {
+			const epochEditBtn = epochActions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Edit epoch event", title: "Edit epoch event" }
+			});
+			setIcon(epochEditBtn, "pencil");
+			epochEditBtn.onclick = () => {
 				this.showEditEventModal(epochEvent);
 			};
 		} else {
@@ -3025,21 +3049,36 @@ export class StoryListView extends ItemView {
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
 			
 			// Link to Entity
-			const linkBtn = actions.createEl("button");
+			const linkBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Link to entity", title: "Link to entity" }
+			});
 			setIcon(linkBtn, "link");
-			linkBtn.title = "Link to Entity";
 			linkBtn.onclick = () => this.showLinkEventToEntityModal(event);
 			
 			// Set Parent Event
-			const eventLinkBtn = actions.createEl("button");
+			const eventLinkBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Set parent event", title: "Set parent event" }
+			});
 			setIcon(eventLinkBtn, "git-branch");
-			eventLinkBtn.title = "Set Parent Event";
 			eventLinkBtn.onclick = () => this.showSetEventParentModal(event);
 			
-			actions.createEl("button", { text: "Edit" }).onclick = () => {
+			const eventEditBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Edit event", title: "Edit event" }
+			});
+			setIcon(eventEditBtn, "pencil");
+			eventEditBtn.onclick = () => {
 				this.showEditEventModal(event);
 			};
-			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			
+			const eventDeleteBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Delete event", title: "Delete event" }
+			});
+			setIcon(eventDeleteBtn, "trash");
+			eventDeleteBtn.onclick = async () => {
 				if (confirm(`Delete event "${event.name}"?`)) {
 					try {
 						await this.plugin.apiClient.deleteEvent(event.id);
@@ -3147,10 +3186,20 @@ export class StoryListView extends ItemView {
 				}
 
 				const actions = item.createDiv({ cls: "story-engine-item-actions" });
-				actions.createEl("button", { text: "Edit" }).onclick = () => {
+				const traitEditBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "Edit trait", title: "Edit trait" }
+				});
+				setIcon(traitEditBtn, "pencil");
+				traitEditBtn.onclick = () => {
 					this.showEditTraitModal(trait);
 				};
-				actions.createEl("button", { text: "Delete" }).onclick = async () => {
+				const traitDeleteBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "Delete trait", title: "Delete trait" }
+				});
+				setIcon(traitDeleteBtn, "trash");
+				traitDeleteBtn.onclick = async () => {
 					if (confirm(`Delete trait "${trait.name}"?`)) {
 						try {
 							await this.plugin.apiClient.deleteTrait(trait.id);
@@ -3183,7 +3232,12 @@ export class StoryListView extends ItemView {
 			}
 
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
-			actions.createEl("button", { text: "View Traits" }).onclick = async () => {
+			const viewTraitsBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "View traits", title: "View traits" }
+			});
+			setIcon(viewTraitsBtn, "list");
+			viewTraitsBtn.onclick = async () => {
 				try {
 					const traits = await this.plugin.apiClient.getArchetypeTraits(archetype.id);
 					this.showArchetypeTraitsModal(archetype, traits);
@@ -3191,10 +3245,20 @@ export class StoryListView extends ItemView {
 					new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
 				}
 			};
-			actions.createEl("button", { text: "Edit" }).onclick = () => {
+			const archetypeEditBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Edit archetype", title: "Edit archetype" }
+			});
+			setIcon(archetypeEditBtn, "pencil");
+			archetypeEditBtn.onclick = () => {
 				this.showEditArchetypeModal(archetype);
 			};
-			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			const archetypeDeleteBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Delete archetype", title: "Delete archetype" }
+			});
+			setIcon(archetypeDeleteBtn, "trash");
+			archetypeDeleteBtn.onclick = async () => {
 				if (confirm(`Delete archetype "${archetype.name}"?`)) {
 					try {
 						await this.plugin.apiClient.deleteArchetype(archetype.id);
@@ -3242,19 +3306,33 @@ export class StoryListView extends ItemView {
 
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
 		// Link to Entity
-		const linkBtn = actions.createEl("button");
+		const linkBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Link to entity", title: "Link to entity" }
+		});
 		setIcon(linkBtn, "link");
-		linkBtn.title = "Link to Entity";
 		linkBtn.onclick = () => this.showAddLoreReferenceModal(lore);
 		// Create Sub-Lore
-		const subBtn = actions.createEl("button");
+		const subBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Create sub-lore", title: "Create sub-lore" }
+		});
 		setIcon(subBtn, "folder-plus");
-		subBtn.title = "Create Sub-Lore";
 		subBtn.onclick = () => this.showCreateLoreModal(lore.id);
-		actions.createEl("button", { text: "Edit" }).onclick = () => {
+		const loreEditBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Edit lore", title: "Edit lore" }
+		});
+		setIcon(loreEditBtn, "pencil");
+		loreEditBtn.onclick = () => {
 			this.showEditLoreModal(lore);
 		};
-		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+		const loreDeleteBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Delete lore", title: "Delete lore" }
+		});
+		setIcon(loreDeleteBtn, "trash");
+		loreDeleteBtn.onclick = async () => {
 			if (confirm(`Delete lore "${lore.name}"?`)) {
 				try {
 					await this.plugin.apiClient.deleteLore(lore.id);
@@ -3307,22 +3385,41 @@ export class StoryListView extends ItemView {
 
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
 		// Link to Entity
-		const linkBtn = actions.createEl("button");
+		const linkBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Link to entity", title: "Link to entity" }
+		});
 		setIcon(linkBtn, "link");
-		linkBtn.title = "Link to Entity";
 		linkBtn.onclick = () => this.showAddFactionReferenceModal(faction);
 		// Create Sub-Faction
-		const subBtn = actions.createEl("button");
+		const subBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Create sub-faction", title: "Create sub-faction" }
+		});
 		setIcon(subBtn, "folder-plus");
-		subBtn.title = "Create Sub-Faction";
 		subBtn.onclick = () => this.showCreateFactionModal(faction.id);
-		actions.createEl("button", { text: "View Details" }).onclick = () => {
+		const factionViewBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "View faction details", title: "View faction details" }
+		});
+		setIcon(factionViewBtn, "eye");
+		factionViewBtn.onclick = () => {
 			this.showFactionDetailsModal(faction);
 		};
-		actions.createEl("button", { text: "Edit" }).onclick = () => {
+		const factionEditBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Edit faction", title: "Edit faction" }
+		});
+		setIcon(factionEditBtn, "pencil");
+		factionEditBtn.onclick = () => {
 			this.showEditFactionModal(faction);
 		};
-		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+		const factionDeleteBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Delete faction", title: "Delete faction" }
+		});
+		setIcon(factionDeleteBtn, "trash");
+		factionDeleteBtn.onclick = async () => {
 			if (confirm(`Delete faction "${faction.name}"?`)) {
 				try {
 					await this.plugin.apiClient.deleteFaction(faction.id);
