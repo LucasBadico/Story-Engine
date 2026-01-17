@@ -9,6 +9,7 @@ import { CreateWorldModal } from "./CreateWorldModal";
 import { WorldDetailsModal } from "./WorldDetailsModal";
 import { TimelineModal } from "./TimelineModal";
 import { CharacterDetailsView } from "./CharacterDetailsView";
+import { WorldHandler } from "../sync-v2/handlers/world/WorldHandler";
 
 export const STORY_LIST_VIEW_TYPE = "story-engine-list-view";
 
@@ -2502,6 +2503,37 @@ export class StoryListView extends ItemView {
 			dropdownMenu.style.display = "none";
 			this.showEditWorldModal();
 		};
+
+		// Divider
+		dropdownMenu.createDiv({ cls: "story-engine-dropdown-divider" });
+
+		// Sync header
+		dropdownMenu.createEl("div", {
+			cls: "story-engine-dropdown-section",
+			text: "Sync",
+		});
+
+		// Pull world option
+		const pullWorldOption = dropdownMenu.createEl("button", {
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(pullWorldOption, "download");
+		pullWorldOption.createSpan({ text: "Pull World Files" });
+		pullWorldOption.onclick = async () => {
+			dropdownMenu.style.display = "none";
+			await this.pullCurrentWorld();
+		};
+
+		// Push world option
+		const pushWorldOption = dropdownMenu.createEl("button", {
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(pushWorldOption, "upload");
+		pushWorldOption.createSpan({ text: "Push World Files" });
+		pushWorldOption.onclick = async () => {
+			dropdownMenu.style.display = "none";
+			await this.pushCurrentWorld();
+		};
 		
 		// Toggle dropdown
 		contextButton.onclick = (e) => {
@@ -2514,6 +2546,53 @@ export class StoryListView extends ItemView {
 		document.addEventListener("click", () => {
 			dropdownMenu.style.display = "none";
 		}, { once: true });
+	}
+
+	private async pullCurrentWorld(): Promise<void> {
+		if (!this.currentWorld) return;
+		try {
+			new Notice(`Pulling world "${this.currentWorld.name}"...`);
+			const syncService = this.plugin.syncService as any;
+			if (syncService?.pullWorld) {
+				await syncService.pullWorld(this.currentWorld.id);
+			} else if (syncService?.getOrchestrator) {
+				const result = await syncService.getOrchestrator().run({
+					type: "pull_world",
+					payload: { worldId: this.currentWorld.id },
+				});
+				if (!result?.success) {
+					throw new Error(result?.message ?? "Failed to pull world");
+				}
+			} else {
+				throw new Error("World sync is not available in this sync version");
+			}
+			await this.loadWorldData();
+			this.renderWorldTabContent();
+			new Notice(`World pulled successfully!`);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Failed to pull world";
+			new Notice(`Error: ${errorMessage}`, 5000);
+		}
+	}
+
+	private async pushCurrentWorld(): Promise<void> {
+		if (!this.currentWorld) return;
+		try {
+			new Notice(`Pushing world "${this.currentWorld.name}"...`);
+			const syncService = this.plugin.syncService as any;
+			if (syncService?.pushWorld) {
+				await syncService.pushWorld(this.currentWorld);
+			} else if (syncService?.getContext) {
+				const handler = new WorldHandler();
+				await handler.push(this.currentWorld, syncService.getContext());
+			} else {
+				throw new Error("World sync is not available in this sync version");
+			}
+			new Notice(`World pushed successfully!`);
+		} catch (err) {
+			const errorMessage = err instanceof Error ? err.message : "Failed to push world";
+			new Notice(`Error: ${errorMessage}`, 5000);
+		}
 	}
 
 	renderWorldTabs() {

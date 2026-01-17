@@ -10,10 +10,15 @@ export interface StoryEngineSettings {
 	unsplashAccessKey?: string;
 	unsplashSecretKey?: string;
 	mode: "local" | "remote";
+	syncVersion: "v1" | "v2";
 	showHelpBox: boolean;
 	localModeVideoUrl?: string;
 	autoSyncOnApiUpdates: boolean;
 	autoPushOnFileBlur: boolean;
+	backupMode?: "off" | "snapshots" | "git";
+	backupRetentionDays?: number;
+	/** Custom field name for entity ID in frontmatter. Default: "id" */
+	frontmatterIdField?: string;
 }
 
 export interface ErrorResponse {

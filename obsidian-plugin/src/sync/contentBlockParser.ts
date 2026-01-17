@@ -209,7 +209,7 @@ export function parseHierarchicalProse(chapterContent: string): HierarchicalPros
 /**
  * Parse a scene header: ## [[link|goal - timeRef]] or ## goal - timeRef or ## goal
  */
-function parseSceneHeader(text: string): ParsedScene {
+export function parseSceneHeader(text: string): ParsedScene {
 	// Check if it's a link format: [[link|text]]
 	const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
 	if (linkMatch) {
@@ -249,7 +249,7 @@ function parseSceneHeader(text: string): ParsedScene {
  * Parse scene text to extract goal and timeRef
  * Format: "goal - timeRef" or just "goal"
  */
-function parseSceneText(text: string): { goal: string; timeRef: string } {
+export function parseSceneText(text: string): { goal: string; timeRef: string } {
 	const parts = text.split(/\s*-\s*/);
 	if (parts.length >= 2) {
 		return {
@@ -266,7 +266,7 @@ function parseSceneText(text: string): { goal: string; timeRef: string } {
 /**
  * Parse a beat header: ### [[link|intent -> outcome]] or ### intent -> outcome or ### intent
  */
-function parseBeatHeader(text: string): ParsedBeat {
+export function parseBeatHeader(text: string): ParsedBeat {
 	// Check if it's a link format: [[link|text]]
 	const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
 	if (linkMatch) {
@@ -306,7 +306,7 @@ function parseBeatHeader(text: string): ParsedBeat {
  * Parse beat text to extract intent and outcome
  * Format: "intent -> outcome" or just "intent"
  */
-function parseBeatText(text: string): { intent: string; outcome: string } {
+export function parseBeatText(text: string): { intent: string; outcome: string } {
 	const parts = text.split(/\s*->\s*/);
 	if (parts.length >= 2) {
 		return {
@@ -951,7 +951,7 @@ export function parseStoryProse(storyContent: string): HierarchicalProse {
 /**
  * Helper to parse scene header text
  */
-function parseSceneHeaderText(text: string): ParsedScene {
+export function parseSceneHeaderText(text: string): ParsedScene {
 	const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
 	if (linkMatch) {
 		const linkName = linkMatch[1].trim();
@@ -987,7 +987,7 @@ function parseSceneHeaderText(text: string): ParsedScene {
 /**
  * Helper to parse beat header text
  */
-function parseBeatHeaderText(text: string): ParsedBeat {
+export function parseBeatHeaderText(text: string): ParsedBeat {
 	const linkMatch = text.match(/^\[\[([^\|]+)\|([^\]]+)\]\]$/);
 	if (linkMatch) {
 		const linkName = linkMatch[1].trim();

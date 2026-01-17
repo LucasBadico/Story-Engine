@@ -12,13 +12,16 @@ import { StoryDetailsModal } from "./views/StoryDetailsModal";
 import { CreateStoryModal } from "./views/CreateStoryModal";
 import { ExtractConfigModal } from "./views/ExtractConfigModal";
 import { FileManager } from "./sync/fileManager";
-import { SyncService } from "./sync/syncService";
 import { AutoSyncManager } from "./sync/autoSyncManager";
+import { AutoSyncManagerV2 } from "./sync-v2/autoSync/AutoSyncManagerV2";
 import { StoryListView, STORY_LIST_VIEW_TYPE } from "./views/StoryListView";
+import type { ModularSyncEngine } from "./sync-v2/core/ModularSyncEngine";
 import {
 	StoryEngineExtractView,
 	STORY_ENGINE_EXTRACT_VIEW_TYPE,
 } from "./views/StoryEngineExtractView";
+import { createSyncEngine } from "./sync/createSyncEngine";
+import type { SyncEngine } from "./sync/engine";
 
 const DEFAULT_SETTINGS: StoryEngineSettings = {
 	apiUrl: "http://localhost:8080",
@@ -30,18 +33,21 @@ const DEFAULT_SETTINGS: StoryEngineSettings = {
 	autoVersionSnapshots: true,
 	conflictResolution: "service",
 	mode: "local",
+	syncVersion: "v1",
 	showHelpBox: true,
 	localModeVideoUrl: "https://example.com/setup-video",
 	autoSyncOnApiUpdates: true,
 	autoPushOnFileBlur: true,
+	backupMode: "snapshots",
+	backupRetentionDays: 7,
 };
 
 export default class StoryEnginePlugin extends Plugin {
 	settings!: StoryEngineSettings;
 	apiClient!: StoryEngineClient;
 	fileManager!: FileManager;
-	syncService!: SyncService;
-	private autoSyncManager?: AutoSyncManager;
+	syncService!: SyncEngine;
+	private autoSyncManager?: AutoSyncManager | AutoSyncManagerV2;
 	extractResult: ExtractEntityResult | null = null;
 	extractLogs: ExtractLogEntry[] = [];
 	extractStatus: "idle" | "running" | "done" | "error" | "canceled" = "idle";
@@ -65,11 +71,14 @@ export default class StoryEnginePlugin extends Plugin {
 			this.settings.syncFolderPath || "Stories"
 		);
 
-		this.syncService = new SyncService(
-			this.apiClient,
-			this.fileManager,
-			this.settings,
-			this.app
+		this.syncService = createSyncEngine(
+			{
+				app: this.app,
+				apiClient: this.apiClient,
+				fileManager: this.fileManager,
+				settings: this.settings,
+			},
+			this.settings.syncVersion || "v1"
 		);
 		this.initializeAutoSyncManager();
 
@@ -169,11 +178,14 @@ export default class StoryEnginePlugin extends Plugin {
 		if (this.syncService) {
 			this.syncService.dispose();
 		}
-		this.syncService = new SyncService(
-			this.apiClient,
-			this.fileManager,
-			this.settings,
-			this.app
+		this.syncService = createSyncEngine(
+			{
+				app: this.app,
+				apiClient: this.apiClient,
+				fileManager: this.fileManager,
+				settings: this.settings,
+			},
+			this.settings.syncVersion || "v1"
 		);
 		this.initializeAutoSyncManager();
 	}
@@ -184,7 +196,28 @@ export default class StoryEnginePlugin extends Plugin {
 			this.autoSyncManager = undefined;
 		}
 
-		if (this.settings.autoPushOnFileBlur) {
+		if (!this.settings.autoPushOnFileBlur) {
+			return;
+		}
+
+		const syncVersion = this.settings.syncVersion || "v1";
+
+		if (syncVersion === "v2") {
+			// Use AutoSyncManagerV2 with SyncOrchestrator
+			const modularEngine = this.syncService as ModularSyncEngine;
+			if (modularEngine && "getOrchestrator" in modularEngine) {
+				const orchestrator = modularEngine.getOrchestrator();
+				const context = modularEngine.getContext();
+				this.autoSyncManager = new AutoSyncManagerV2(this, orchestrator, context);
+			} else {
+				console.warn(
+					"[AutoSyncManager] Sync V2 selected but ModularSyncEngine not available, falling back to V1"
+				);
+				// Fallback to V1 if V2 not available
+				this.autoSyncManager = new AutoSyncManager(this);
+			}
+		} else {
+			// Use AutoSyncManager V1
 			this.autoSyncManager = new AutoSyncManager(this);
 		}
 	}

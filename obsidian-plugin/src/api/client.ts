@@ -29,11 +29,21 @@ import {
 	EventReference,
 	SceneReference,
 	TimeConfig,
-	EntityRelation,
 	CreateEntityRelationInput,
 } from "../types";
+import type {
+	EntityRelation,
+	ListRelationsBySourceParams,
+	ListRelationsByTargetParams,
+	ListRelationsByWorldParams,
+	RelationsListResponse,
+	CreateRelationParams,
+	UpdateRelationParams,
+} from "../sync-v2/types/relations";
 import { SyncEntityPayload } from "../sync/entitySyncTypes";
 import { apiUpdateNotifier } from "../sync/apiUpdateNotifier";
+import { apiUpdateNotifierV2 } from "../sync-v2/apiUpdateNotifier/apiUpdateNotifier";
+import { adaptPayloadToEvent } from "../sync-v2/apiUpdateNotifier/payloadAdapter";
 
 export class StoryEngineClient {
 	private mode: "local" | "remote" = "remote";
@@ -1202,6 +1212,90 @@ export class StoryEngineClient {
 		return response.events || [];
 	}
 
+	async listRelationsBySource(params: ListRelationsBySourceParams): Promise<RelationsListResponse> {
+		const query = this.buildRelationsQuery([
+			["source_type", params.sourceType],
+			["source_id", params.sourceId],
+			["relation_type", params.relationType],
+			["cursor", params.cursor],
+			["limit", params.limit],
+			["order_by", params.orderBy],
+			["order_dir", params.orderDir],
+			["exclude_mirrors", params.excludeMirrors],
+		]);
+		const response = await this.request<RelationsListResponse>(
+			"GET",
+			`/api/v1/relations/source?${query}`
+		);
+		return this.normalizeRelationsResponse(response);
+	}
+
+	async listRelationsByTarget(params: ListRelationsByTargetParams): Promise<RelationsListResponse> {
+		const query = this.buildRelationsQuery([
+			["target_type", params.targetType],
+			["target_id", params.targetId],
+			["relation_type", params.relationType],
+			["cursor", params.cursor],
+			["limit", params.limit],
+			["order_by", params.orderBy],
+			["order_dir", params.orderDir],
+			["exclude_mirrors", params.excludeMirrors],
+		]);
+		const response = await this.request<RelationsListResponse>(
+			"GET",
+			`/api/v1/relations/target?${query}`
+		);
+		return this.normalizeRelationsResponse(response);
+	}
+
+	async listRelationsByWorld(params: ListRelationsByWorldParams): Promise<RelationsListResponse> {
+		const query = this.buildRelationsQuery([
+			["relation_type", params.relationType],
+			["cursor", params.cursor],
+			["limit", params.limit],
+			["order_by", params.orderBy],
+			["order_dir", params.orderDir],
+			["exclude_mirrors", params.excludeMirrors],
+		]);
+		const endpoint = query
+			? `/api/v1/worlds/${params.worldId}/relations?${query}`
+			: `/api/v1/worlds/${params.worldId}/relations`;
+		const response = await this.request<RelationsListResponse>("GET", endpoint);
+		return this.normalizeRelationsResponse(response);
+	}
+
+	async createRelation(params: CreateRelationParams): Promise<EntityRelation> {
+		const response = await this.request<{ relation: EntityRelation }>("POST", "/api/v1/relations", {
+			source_type: params.sourceType,
+			source_id: params.sourceId,
+			target_type: params.targetType,
+			target_id: params.targetId,
+			relation_type: params.relationType,
+			context: params.context,
+		});
+		return response.relation;
+	}
+
+	async updateRelation(params: UpdateRelationParams): Promise<EntityRelation> {
+		const payload: Record<string, unknown> = {};
+		if (params.relationType !== undefined) {
+			payload.relation_type = params.relationType;
+		}
+		if (params.context !== undefined) {
+			payload.context = params.context;
+		}
+		const response = await this.request<{ relation: EntityRelation }>(
+			"PUT",
+			`/api/v1/relations/${params.id}`,
+			payload
+		);
+		return response.relation;
+	}
+
+	async deleteRelation(id: string): Promise<void> {
+		await this.request("DELETE", `/api/v1/relations/${id}`);
+	}
+
 	// World TimeConfig methods
 	async updateWorldTimeConfig(worldId: string, timeConfig: TimeConfig): Promise<World> {
 		const response = await this.request<{ world: World }>(
@@ -1214,6 +1308,35 @@ export class StoryEngineClient {
 
 	private isAutoSyncEnabled(): boolean {
 		return this.autoSyncOnApiUpdates;
+	}
+
+	private buildRelationsQuery(
+		entries: Array<[string, string | number | boolean | undefined]>
+	): string {
+		const search = new URLSearchParams();
+		for (const [key, rawValue] of entries) {
+			if (rawValue === undefined || rawValue === null) continue;
+			if (typeof rawValue === "boolean") {
+				if (rawValue) {
+					search.set(key, "true");
+				}
+				continue;
+			}
+			search.set(key, String(rawValue));
+		}
+		return search.toString();
+	}
+
+	private normalizeRelationsResponse(
+		response: RelationsListResponse | undefined
+	): RelationsListResponse {
+		return {
+			data: response?.data ?? [],
+			pagination: {
+				has_more: response?.pagination?.has_more ?? false,
+				next_cursor: response?.pagination?.next_cursor,
+			},
+		};
 	}
 
 	private async publishChapterUpdate(chapterId: string): Promise<void> {
@@ -1320,6 +1443,16 @@ export class StoryEngineClient {
 	}
 
 	async notifyEntityUpdate(payload: SyncEntityPayload): Promise<void> {
+		// Notify V1 notifier (for backward compatibility)
 		await apiUpdateNotifier.notify(payload);
+
+		// Also notify V2 notifier (for Sync V2)
+		try {
+			const event = adaptPayloadToEvent(payload);
+			await apiUpdateNotifierV2.notify(event);
+		} catch (err) {
+			// Log but don't throw - V2 notification is optional
+			console.warn("Failed to notify V2 notifier", err);
+		}
 	}
 }
