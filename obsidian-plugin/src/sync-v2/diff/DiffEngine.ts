@@ -36,13 +36,14 @@ export class DiffEngine {
 	}
 
 	private findUntrackedSegments(content: string): string[] {
-		const ranges = this.getFenceRanges(content);
+		const trimmedContent = this.stripFrontmatter(content);
+		const ranges = this.getFenceRanges(trimmedContent);
 		const segments: string[] = [];
 		let cursor = 0;
 
 		for (const range of ranges) {
 			if (range.start > cursor) {
-				const snippet = content.slice(cursor, range.start).trim();
+				const snippet = trimmedContent.slice(cursor, range.start).trim();
 				if (snippet.length > 0) {
 					segments.push(snippet);
 				}
@@ -50,8 +51,8 @@ export class DiffEngine {
 			cursor = Math.max(cursor, range.end);
 		}
 
-		if (cursor < content.length) {
-			const snippet = content.slice(cursor).trim();
+		if (cursor < trimmedContent.length) {
+			const snippet = trimmedContent.slice(cursor).trim();
 			if (snippet.length > 0) {
 				segments.push(snippet);
 			}
@@ -84,6 +85,11 @@ export class DiffEngine {
 		}
 
 		return ranges.sort((a, b) => a.start - b.start);
+	}
+
+	private stripFrontmatter(content: string): string {
+		const match = content.match(/^---\n[\s\S]*?\n---\n?/);
+		return match ? content.slice(match[0].length) : content;
 	}
 }
 

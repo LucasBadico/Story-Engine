@@ -1167,6 +1167,20 @@
 	flex: 1;
 }
 
+.story-engine-dropdown-divider {
+	height: 1px;
+	margin: 0.25rem 0;
+	background-color: var(--background-modifier-border);
+}
+
+.story-engine-dropdown-section {
+	padding: 0.35rem 0.75rem 0.25rem;
+	font-size: 0.7rem;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: var(--text-muted);
+}
+
 /* Fix hover buttons position - move below action buttons */
 .story-engine-group-footer {
 	position: absolute;

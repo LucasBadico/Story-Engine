@@ -23,8 +23,10 @@ import { TraitHandler } from "../handlers/world/TraitHandler";
 import { ContentsGenerator } from "../generators/ContentsGenerator";
 import { PushPlanner } from "../push/PushPlanner";
 import { PushExecutor } from "../push/PushExecutor";
+import { ContentCitationService } from "../push/ContentCitationService";
 import { getFrontmatterId } from "../utils/frontmatterHelpers";
 import { ConflictResolver } from "../conflict/ConflictResolver";
+import { BackupManager } from "../backup/BackupManager";
 
 export class SyncOrchestrator {
 	private readonly context: SyncContext;
@@ -33,6 +35,8 @@ export class SyncOrchestrator {
 	private readonly pushPlanner: PushPlanner;
 	private readonly pushExecutor: PushExecutor;
 	private readonly conflictResolver: ConflictResolver;
+	private readonly backupManager: BackupManager;
+	private readonly contentCitationService: ContentCitationService;
 	private warningBuffer: SyncWarning[] = [];
 
 	constructor(context: SyncContext) {
@@ -40,8 +44,10 @@ export class SyncOrchestrator {
 		this.registry = new EntityRegistry();
 		this.contentsGenerator = new ContentsGenerator();
 		this.pushPlanner = new PushPlanner();
-		this.pushExecutor = new PushExecutor(context.apiClient);
+		this.contentCitationService = new ContentCitationService(context);
+		this.pushExecutor = new PushExecutor(context.apiClient, this.contentCitationService);
 		this.conflictResolver = new ConflictResolver(context.app, context);
+		this.backupManager = new BackupManager(context.app);
 		const originalEmitter = this.context.emitWarning;
 		this.context.emitWarning = (warning: SyncWarning) => {
 			this.warningBuffer.push(warning);
@@ -134,6 +140,7 @@ export class SyncOrchestrator {
 		if (!handler) {
 			return this.missingHandler("story");
 		}
+		await this.backupStoryBeforePull(storyId);
 		await handler.pull(storyId, this.context);
 		return {
 			success: true,
@@ -164,6 +171,7 @@ export class SyncOrchestrator {
 
 	private async handlePushStory(operation: Extract<SyncOperation, { type: "push_story" }>): Promise<SyncResult> {
 		const { folderPath } = operation.payload;
+		await this.backupStoryFolder(folderPath, "push");
 		try {
 			// Pass configured ID field name to readStoryMetadata
 			const idField = this.context.settings.frontmatterIdField;
@@ -211,7 +219,9 @@ export class SyncOrchestrator {
 				};
 			}
 
-			const execution = await this.pushExecutor.execute(plan.actions);
+			const execution = await this.pushExecutor.execute(plan.actions, {
+				worldId: remoteStory.story.world_id ?? undefined,
+			});
 			const success = execution.errors.length === 0;
 			const message = success
 				? `Push applied ${execution.applied} structural updates.`
@@ -242,6 +252,51 @@ export class SyncOrchestrator {
 					},
 				],
 			};
+		}
+	}
+
+	private async backupStoryBeforePull(storyId: string): Promise<void> {
+		if (this.context.backupMode === "off") {
+			return;
+		}
+
+		try {
+			const story = await this.context.apiClient.getStory(storyId);
+			if (!story?.title) {
+				return;
+			}
+			const folderPath = this.context.fileManager.getStoryFolderPath(story.title);
+			await this.backupStoryFolder(folderPath, "pull");
+		} catch (error) {
+			this.context.emitWarning?.({
+				code: "backup_failed",
+				message: `Failed to backup story before pull: ${error instanceof Error ? error.message : String(error)}`,
+				details: error,
+			});
+		}
+	}
+
+	private async backupStoryFolder(folderPath: string, operation: "pull" | "push"): Promise<void> {
+		if (this.context.backupMode === "off") {
+			return;
+		}
+
+		try {
+			const filesToBackup = this.backupManager.getStoryFilesForBackup(folderPath);
+			const result = await this.backupManager.createBackup(filesToBackup, operation);
+			if (!result.success) {
+				this.context.emitWarning?.({
+					code: "backup_partial",
+					message: `Backup parcial: ${result.filesCopied.length} arquivos salvos, ${result.errors.length} erros`,
+					details: result.errors,
+				});
+			}
+		} catch (error) {
+			this.context.emitWarning?.({
+				code: "backup_failed",
+				message: `Failed to create backup: ${error instanceof Error ? error.message : String(error)}`,
+				details: error,
+			});
 		}
 	}
 

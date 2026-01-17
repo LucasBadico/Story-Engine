@@ -20,8 +20,10 @@ export type RelationTargetResolver = (relation: EntityRelation) => RelationTarge
 export interface CitationSourceInfo {
 	storyId: string;
 	storyTitle: string;
+	storyPath?: string;
 	sourceTitle: string;
 	sourceType: ParsedCitationEntry["sourceType"];
+	sourcePath?: string;
 	chapterTitle?: string;
 	summary?: string;
 }
@@ -95,10 +97,12 @@ export function mapCitationsToGeneratorInput({
 		citations.push({
 			storyId: source.storyId,
 			storyTitle: source.storyTitle,
+			storyPath: source.storyPath,
 			relationType: relation.relation_type,
 			sourceType: source.sourceType,
 			sourceId: relation.source_id,
 			sourceTitle: source.sourceTitle,
+			sourcePath: source.sourcePath,
 			chapterTitle: source.chapterTitle,
 			summary: source.summary ?? relation.context,
 		});

@@ -2193,8 +2193,8 @@ var FileManager = class {
   async createSnapshot(_label) {
   }
   // Write story metadata (story.md)
-  async writeStoryMetadata(story, folderPath, chapters, orphanScenes, orphanBeats, chapterContentData) {
-    var _a, _b;
+  async writeStoryMetadata(story, folderPath, chapters, orphanScenes, orphanBeats, chapterContentData, options) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
     await this.ensureFolderExists(folderPath);
     const baseFields = {
       id: story.id,
@@ -2275,19 +2275,34 @@ Status: ${story.status}
         const chapter = chapterWithContent.chapter;
         const chapterFileName = `Chapter-${chapter.number}.md`;
         const chapterLinkName = chapterFileName.replace(/\.md$/, "");
-        content += `- [[${chapterLinkName}|Chapter ${chapter.number}: ${chapter.title}]]
+        const chapterLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" ? this.buildStoryEntityPath(folderPath, "chapter", chapter.number, chapter.title) : chapterLinkName;
+        content += `- [[${chapterLinkPath}|Chapter ${chapter.number}: ${chapter.title}]]
 `;
         for (const { scene, beats } of chapterWithContent.scenes) {
           const sceneFileName = this.generateSceneFileName(scene);
           const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+          const sceneLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" ? this.buildStoryEntityPath(
+            folderPath,
+            "scene",
+            (_a = scene.order_num) != null ? _a : 0,
+            scene.goal || "scene",
+            { chapterOrder: chapter.number }
+          ) : sceneLinkName;
           const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
-          content += `	- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+          content += `	- [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]
 `;
           for (const beat of beats) {
             const beatFileName = this.generateBeatFileName(beat);
             const beatLinkName = beatFileName.replace(/\.md$/, "");
+            const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" ? this.buildStoryEntityPath(
+              folderPath,
+              "beat",
+              (_b = beat.order_num) != null ? _b : 0,
+              beat.intent || "beat",
+              { chapterOrder: chapter.number, sceneOrder: (_c = scene.order_num) != null ? _c : 0 }
+            ) : beatLinkName;
             const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-            content += `		- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+            content += `		- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]
 `;
           }
         }
@@ -2323,14 +2338,28 @@ Status: ${story.status}
       for (const { scene, beats } of orphanScenes) {
         const sceneFileName = this.generateSceneFileName(scene);
         const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+        const sceneLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" ? this.buildStoryEntityPath(
+          folderPath,
+          "scene",
+          (_d = scene.order_num) != null ? _d : 0,
+          scene.goal || "scene",
+          { chapterOrder: 0 }
+        ) : sceneLinkName;
         const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
-        content += `- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+        content += `- [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]
 `;
         for (const beat of beats) {
           const beatFileName = this.generateBeatFileName(beat);
           const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" ? this.buildStoryEntityPath(
+            folderPath,
+            "beat",
+            (_e = beat.order_num) != null ? _e : 0,
+            beat.intent || "beat",
+            { chapterOrder: 0, sceneOrder: (_f = scene.order_num) != null ? _f : 0 }
+          ) : beatLinkName;
           const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-          content += `	- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+          content += `	- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]
 `;
         }
       }
@@ -2407,7 +2436,7 @@ Status: ${story.status}
 
 `;
           if (organization) {
-            const sceneContentBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.contentBlocks) || [];
+            const sceneContentBlocks = ((_g = organization.byScene.get(scene.id)) == null ? void 0 : _g.contentBlocks) || [];
             for (const contentBlock of sceneContentBlocks) {
               const fileName = this.generateContentBlockFileName(contentBlock);
               const linkName = fileName.replace(/\.md$/, "");
@@ -2424,7 +2453,7 @@ Status: ${story.status}
 
 `;
             if (organization) {
-              const beatContentBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.contentBlocks) || [];
+              const beatContentBlocks = ((_h = organization.byBeat.get(beat.id)) == null ? void 0 : _h.contentBlocks) || [];
               for (const contentBlock of beatContentBlocks) {
                 const fileName = this.generateContentBlockFileName(contentBlock);
                 const linkName = fileName.replace(/\.md$/, "");
@@ -2464,8 +2493,8 @@ Status: ${story.status}
     }
   }
   // Write chapter file
-  async writeChapterFile(chapterWithContent, filePath, storyName, contentBlocks, contentBlockRefs, orphanScenes) {
-    var _a, _b, _c, _d;
+  async writeChapterFile(chapterWithContent, filePath, storyName, contentBlocks, contentBlockRefs, orphanScenes, options) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j, _k;
     const { chapter, scenes } = chapterWithContent;
     const baseFields = {
       id: chapter.id,
@@ -2532,23 +2561,38 @@ Status: ${story.status}
     content += `> - **Orphan scenes** (without chapter) are shown below for easy association
 
 `;
+    const storyFolderPath = (_a = options == null ? void 0 : options.storyFolderPath) != null ? _a : this.resolveStoryFolderPath(filePath, "00-chapters");
     for (const { scene, beats } of scenes) {
       const sceneFileName = this.generateSceneFileName(scene);
       const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+      const sceneLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+        storyFolderPath,
+        "scene",
+        (_b = scene.order_num) != null ? _b : 0,
+        scene.goal || "scene",
+        { chapterOrder: chapter.number }
+      ) : sceneLinkName;
       const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
-      const sceneContentBlocks = ((_a = organization.byScene.get(scene.id)) == null ? void 0 : _a.contentBlocks) || [];
+      const sceneContentBlocks = ((_c = organization.byScene.get(scene.id)) == null ? void 0 : _c.contentBlocks) || [];
       const hasSceneContent = sceneContentBlocks.length > 0;
       const sceneMarker = hasSceneContent ? "+" : "-";
-      content += `${sceneMarker} [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+      content += `${sceneMarker} [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]
 `;
       for (const beat of beats) {
         const beatFileName = this.generateBeatFileName(beat);
         const beatLinkName = beatFileName.replace(/\.md$/, "");
+        const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+          storyFolderPath,
+          "beat",
+          (_d = beat.order_num) != null ? _d : 0,
+          beat.intent || "beat",
+          { chapterOrder: chapter.number, sceneOrder: (_e = scene.order_num) != null ? _e : 0 }
+        ) : beatLinkName;
         const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-        const beatContentBlocks = ((_b = organization.byBeat.get(beat.id)) == null ? void 0 : _b.contentBlocks) || [];
+        const beatContentBlocks = ((_f = organization.byBeat.get(beat.id)) == null ? void 0 : _f.contentBlocks) || [];
         const hasBeatContent = beatContentBlocks.length > 0;
         const beatMarker = hasBeatContent ? "+" : "-";
-        content += `	${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+        content += `	${beatMarker} [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]
 `;
       }
     }
@@ -2563,14 +2607,28 @@ Status: ${story.status}
       for (const { scene, beats } of orphanScenes) {
         const sceneFileName = this.generateSceneFileName(scene);
         const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+        const sceneLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+          storyFolderPath,
+          "scene",
+          (_g = scene.order_num) != null ? _g : 0,
+          scene.goal || "scene",
+          { chapterOrder: 0 }
+        ) : sceneLinkName;
         const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
-        content += `- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]
+        content += `- [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]
 `;
         for (const beat of beats) {
           const beatFileName = this.generateBeatFileName(beat);
           const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+            storyFolderPath,
+            "beat",
+            (_h = beat.order_num) != null ? _h : 0,
+            beat.intent || "beat",
+            { chapterOrder: 0, sceneOrder: (_i = scene.order_num) != null ? _i : 0 }
+          ) : beatLinkName;
           const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-          content += `	- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+          content += `	- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]
 `;
         }
       }
@@ -2594,7 +2652,7 @@ Status: ${story.status}
       content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]
 
 `;
-      const sceneContentBlocks = ((_c = organization.byScene.get(scene.id)) == null ? void 0 : _c.contentBlocks) || [];
+      const sceneContentBlocks = ((_j = organization.byScene.get(scene.id)) == null ? void 0 : _j.contentBlocks) || [];
       for (const contentBlock of sceneContentBlocks) {
         const fileName = this.generateContentBlockFileName(contentBlock);
         const linkName = fileName.replace(/\.md$/, "");
@@ -2609,7 +2667,7 @@ Status: ${story.status}
         content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]
 
 `;
-        const beatContentBlocks = ((_d = organization.byBeat.get(beat.id)) == null ? void 0 : _d.contentBlocks) || [];
+        const beatContentBlocks = ((_k = organization.byBeat.get(beat.id)) == null ? void 0 : _k.contentBlocks) || [];
         for (const contentBlock of beatContentBlocks) {
           const fileName = this.generateContentBlockFileName(contentBlock);
           const linkName = fileName.replace(/\.md$/, "");
@@ -2707,13 +2765,15 @@ Status: ${story.status}
     }
   }
   // Write scene file
-  async writeSceneFile(sceneWithBeats, filePath, storyName, contentBlocks, orphanBeats) {
-    var _a;
+  async writeSceneFile(sceneWithBeats, filePath, storyName, contentBlocks, orphanBeats, options) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i;
     const { scene, beats } = sceneWithBeats;
+    const storyFolderPath = (_a = options == null ? void 0 : options.storyFolderPath) != null ? _a : this.resolveStoryFolderPath(filePath, "01-scenes");
+    const chapterOrder = (_b = options == null ? void 0 : options.chapterOrder) != null ? _b : 0;
     const baseFields = {
       id: scene.id,
       story_id: scene.story_id,
-      chapter_id: (_a = scene.chapter_id) != null ? _a : null,
+      chapter_id: (_c = scene.chapter_id) != null ? _c : null,
       order_num: scene.order_num,
       time_ref: scene.time_ref || "",
       goal: scene.goal || "",
@@ -2785,10 +2845,17 @@ Status: ${story.status}
       for (const beat of beats.sort((a, b) => a.order_num - b.order_num)) {
         const beatFileName = this.generateBeatFileName(beat);
         const beatLinkName = beatFileName.replace(/\.md$/, "");
+        const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+          storyFolderPath,
+          "beat",
+          (_d = beat.order_num) != null ? _d : 0,
+          beat.intent || "beat",
+          { chapterOrder, sceneOrder: (_e = scene.order_num) != null ? _e : 0 }
+        ) : beatLinkName;
         const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
         const hasBeatProse = beatsWithProse.has(beat.id);
         const beatMarker = hasBeatProse ? "+" : "-";
-        content += `${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+        content += `${beatMarker} [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]
 `;
       }
       if (orphanBeats && orphanBeats.length > 0) {
@@ -2802,8 +2869,14 @@ Status: ${story.status}
         for (const beat of orphanBeats) {
           const beatFileName = this.generateBeatFileName(beat);
           const beatLinkName = beatFileName.replace(/\.md$/, "");
+          const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+            storyFolderPath,
+            "beat",
+            (_f = beat.order_num) != null ? _f : 0,
+            beat.intent || "beat"
+          ) : beatLinkName;
           const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-          content += `- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]
+          content += `- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]
 `;
         }
       }
@@ -2812,8 +2885,15 @@ Status: ${story.status}
     }
     const sceneFileName = this.generateSceneFileName(scene);
     const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+    const sceneLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+      storyFolderPath,
+      "scene",
+      (_g = scene.order_num) != null ? _g : 0,
+      scene.goal || "scene",
+      { chapterOrder }
+    ) : sceneLinkName;
     const sceneDisplayText = scene.time_ref ? `${scene.goal} - ${scene.time_ref}` : scene.goal;
-    content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]
+    content += `## Scene: [[${sceneLinkPath}|${sceneDisplayText}]]
 
 `;
     if (contentBlocks && contentBlocks.length > 0) {
@@ -2821,7 +2901,8 @@ Status: ${story.status}
       for (const contentBlock of sortedContentBlocks) {
         const fileName = this.generateContentBlockFileName(contentBlock);
         const linkName = fileName.replace(/\.md$/, "");
-        content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
+        const linkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildContentBlockPath(storyFolderPath, contentBlock) : linkName;
+        content += `[[${linkPath}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
       }
@@ -2829,8 +2910,15 @@ Status: ${story.status}
     for (const beat of beats.sort((a, b) => a.order_num - b.order_num)) {
       const beatFileName = this.generateBeatFileName(beat);
       const beatLinkName = beatFileName.replace(/\.md$/, "");
+      const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+        storyFolderPath,
+        "beat",
+        (_h = beat.order_num) != null ? _h : 0,
+        beat.intent || "beat",
+        { chapterOrder, sceneOrder: (_i = scene.order_num) != null ? _i : 0 }
+      ) : beatLinkName;
       const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-      content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]
+      content += `### Beat: [[${beatLinkPath}|${beatDisplayText}]]
 
 `;
     }
@@ -2842,7 +2930,8 @@ Status: ${story.status}
     }
   }
   // Write beat file
-  async writeBeatFile(beat, filePath, storyName, contentBlocks) {
+  async writeBeatFile(beat, filePath, storyName, contentBlocks, options) {
+    var _a, _b, _c, _d;
     const baseFields = {
       id: beat.id,
       scene_id: beat.scene_id,
@@ -2874,8 +2963,19 @@ Status: ${story.status}
     }
     const beatFileName = this.generateBeatFileName(beat);
     const beatLinkName = beatFileName.replace(/\.md$/, "");
+    const storyFolderPath = (_a = options == null ? void 0 : options.storyFolderPath) != null ? _a : this.resolveStoryFolderPath(filePath, "02-beats");
+    const beatLinkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildStoryEntityPath(
+      storyFolderPath,
+      "beat",
+      (_b = beat.order_num) != null ? _b : 0,
+      beat.intent || "beat",
+      {
+        chapterOrder: (_c = options == null ? void 0 : options.chapterOrder) != null ? _c : 0,
+        sceneOrder: (_d = options == null ? void 0 : options.sceneOrder) != null ? _d : 0
+      }
+    ) : beatLinkName;
     const beatDisplayText = beat.outcome ? `${beat.intent} -> ${beat.outcome}` : beat.intent;
-    content += `## Beat: [[${beatLinkName}|${beatDisplayText}]]
+    content += `## Beat: [[${beatLinkPath}|${beatDisplayText}]]
 
 `;
     if (contentBlocks && contentBlocks.length > 0) {
@@ -2883,7 +2983,8 @@ Status: ${story.status}
       for (const contentBlock of sortedContentBlocks) {
         const fileName = this.generateContentBlockFileName(contentBlock);
         const linkName = fileName.replace(/\.md$/, "");
-        content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]
+        const linkPath = (options == null ? void 0 : options.linkMode) === "full_path" && storyFolderPath ? this.buildContentBlockPath(storyFolderPath, contentBlock) : linkName;
+        content += `[[${linkPath}|${contentBlock.content.substring(0, 50)}...]]
 
 `;
       }
@@ -3082,6 +3183,43 @@ Status: ${story.status}
     const dateStr = `${year}-${month}-${day}T${hours}-${minutes}`;
     const intentSanitized = (beat.intent || "beat").trim().replace(/[<>:"/\\|?*\n\r\t]/g, "-").replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
     return `${dateStr}_${intentSanitized}.md`;
+  }
+  resolveStoryFolderPath(filePath, folderName) {
+    const marker = `/${folderName}/`;
+    const index = filePath.indexOf(marker);
+    if (index === -1) {
+      return null;
+    }
+    return filePath.slice(0, index);
+  }
+  sanitizeSlug(value) {
+    return value.normalize("NFKD").replace(/[^\w\s-]/g, "").replace(/\s+/g, " ").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+  }
+  buildStoryEntityPath(storyFolderPath, type2, order, title, overrides) {
+    var _a, _b, _c;
+    const folder = type2 === "chapter" ? "00-chapters" : type2 === "scene" ? "01-scenes" : "02-beats";
+    const prefix = type2 === "chapter" ? "ch" : type2 === "scene" ? "sc" : "bt";
+    const slug = this.sanitizeSlug(title || type2);
+    const orderTag = String(order).padStart(4, "0");
+    if (type2 === "scene") {
+      const chapterTag = String((_a = overrides == null ? void 0 : overrides.chapterOrder) != null ? _a : 0).padStart(4, "0");
+      return `${storyFolderPath}/${folder}/${prefix}-${chapterTag}-${orderTag}-${slug}.md`;
+    }
+    if (type2 === "beat") {
+      const chapterTag = String((_b = overrides == null ? void 0 : overrides.chapterOrder) != null ? _b : 0).padStart(4, "0");
+      const sceneTag = String((_c = overrides == null ? void 0 : overrides.sceneOrder) != null ? _c : 0).padStart(4, "0");
+      return `${storyFolderPath}/${folder}/${prefix}-${chapterTag}-${sceneTag}-${orderTag}-${slug}.md`;
+    }
+    return `${storyFolderPath}/${folder}/${prefix}-${orderTag}-${slug}.md`;
+  }
+  buildContentBlockPath(storyFolderPath, contentBlock) {
+    var _a, _b;
+    const type2 = contentBlock.type || "text";
+    const folder = this.getContentTypeFolder(type2);
+    const orderTag = String((_a = contentBlock.order_num) != null ? _a : 0).padStart(4, "0");
+    const titleSource = ((_b = contentBlock.metadata) == null ? void 0 : _b.title) || contentBlock.kind || contentBlock.type || "content";
+    const slug = this.sanitizeSlug(titleSource);
+    return `${storyFolderPath}/03-contents/${folder}/cb-${orderTag}-${slug}.md`;
   }
   // Write content block file
   async writeContentBlockFile(contentBlock, filePath, storyName) {
@@ -3538,6 +3676,9 @@ var AutoSyncManagerV2 = class {
     this.pendingOperations = /* @__PURE__ */ new Map();
     this.operationQueue = [];
     this.isProcessingQueue = false;
+    this.lastOnlineCheck = 0;
+    this.onlineCheckInFlight = false;
+    this.isOnlineCached = true;
     this.handleActiveLeafChange = () => {
       const previousFile = this.activeFile;
       const newFile = this.plugin.app.workspace.getActiveFile();
@@ -3837,7 +3978,27 @@ var AutoSyncManagerV2 = class {
    * For now, always return true - can be enhanced with actual network detection
    */
   isOnline() {
-    return true;
+    if (typeof navigator !== "undefined" && navigator.onLine === false) {
+      this.isOnlineCached = false;
+      return false;
+    }
+    const now2 = Date.now();
+    if (now2 - this.lastOnlineCheck > 15e3 && !this.onlineCheckInFlight) {
+      void this.refreshOnlineStatus();
+    }
+    return this.isOnlineCached;
+  }
+  async refreshOnlineStatus() {
+    this.onlineCheckInFlight = true;
+    try {
+      await this.context.apiClient.listStories();
+      this.isOnlineCached = true;
+    } catch (e) {
+      this.isOnlineCached = false;
+    } finally {
+      this.lastOnlineCheck = Date.now();
+      this.onlineCheckInFlight = false;
+    }
   }
   /**
    * Process pending queue (call this when connection is restored)
@@ -3864,7 +4025,7 @@ var AutoSyncManagerV2 = class {
 };
 
 // src/views/StoryListView.ts
-var import_obsidian15 = require("obsidian");
+var import_obsidian16 = require("obsidian");
 
 // src/views/modals/ChapterModal.ts
 var import_obsidian9 = require("obsidian");
@@ -8675,9 +8836,2167 @@ var CharacterDetailsView = class {
   }
 };
 
+// src/sync-v2/utils/slugify.ts
+var ACCENTS_REGEX = /[\u0300-\u036f]/g;
+var NON_ALNUM = /[^a-z0-9\s-]/gi;
+var SPACES = /\s+/g;
+var MULTIPLE_DASH = /-+/g;
+var EDGE_DASH = /^-+|-+$/g;
+function slugify(value, fallback = "untitled") {
+  const normalized = value.normalize("NFKD").toLowerCase().replace(ACCENTS_REGEX, "").replace(NON_ALNUM, "").trim().replace(SPACES, "-").replace(MULTIPLE_DASH, "-").replace(EDGE_DASH, "");
+  return normalized || fallback;
+}
+
+// src/sync-v2/utils/frontmatterHelpers.ts
+function getIdFieldName(idField) {
+  return idField || "id";
+}
+function getFrontmatterId(frontmatter, idField) {
+  const fieldName = getIdFieldName(idField);
+  const value = frontmatter[fieldName];
+  if (value === null || value === void 0) {
+    return void 0;
+  }
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed === "" ? void 0 : value;
+  }
+  return String(value);
+}
+
+// src/sync-v2/utils/linkBuilder.ts
+var STORY_FOLDER_MAP = {
+  chapter: { folder: "00-chapters", prefix: "ch" },
+  scene: { folder: "01-scenes", prefix: "sc" },
+  beat: { folder: "02-beats", prefix: "bt" }
+};
+var WORLD_FOLDER_MAP = {
+  character: "characters",
+  location: "locations",
+  faction: "factions",
+  artifact: "artifacts",
+  event: "events",
+  lore: "lore"
+};
+function buildWikiLink(path, label) {
+  return `[[${path}|${label}]]`;
+}
+function buildStoryEntityPath(storyFolderPath, type2, order, title, overrides) {
+  var _a, _b, _c;
+  const entry = STORY_FOLDER_MAP[type2];
+  const slug = slugify(title);
+  const orderTag = String(order).padStart(4, "0");
+  if (type2 === "scene") {
+    const chapterTag = String((_a = overrides == null ? void 0 : overrides.chapterOrder) != null ? _a : 0).padStart(4, "0");
+    return `${storyFolderPath}/${entry.folder}/${entry.prefix}-${chapterTag}-${orderTag}-${slug}.md`;
+  }
+  if (type2 === "beat") {
+    const chapterTag = String((_b = overrides == null ? void 0 : overrides.chapterOrder) != null ? _b : 0).padStart(4, "0");
+    const sceneTag = String((_c = overrides == null ? void 0 : overrides.sceneOrder) != null ? _c : 0).padStart(4, "0");
+    return `${storyFolderPath}/${entry.folder}/${entry.prefix}-${chapterTag}-${sceneTag}-${orderTag}-${slug}.md`;
+  }
+  return `${storyFolderPath}/${entry.folder}/${entry.prefix}-${orderTag}-${slug}.md`;
+}
+function buildWorldEntityPath(worldFolderPath, entityType, name) {
+  const folder = WORLD_FOLDER_MAP[entityType];
+  const slug = slugify(name);
+  return `${worldFolderPath}/${folder}/${slug}.md`;
+}
+function buildWorldFolderLink(worldFolderPath) {
+  return `${worldFolderPath}/world.md`;
+}
+function resolveLinkBasename(link) {
+  var _a;
+  const trimmed = link.split("|")[0].trim();
+  const base = (_a = trimmed.split("/").pop()) != null ? _a : trimmed;
+  return base.endsWith(".md") ? base.slice(0, -3) : base;
+}
+
+// src/sync-v2/generators/RelationsGenerator.ts
+var TARGET_LABELS = {
+  character: "Main Characters",
+  location: "Key Locations",
+  faction: "Referenced Factions",
+  event: "Timeline Events",
+  artifact: "Artifacts",
+  lore: "Lore References"
+};
+var RelationsGenerator = class {
+  constructor(now2 = () => (/* @__PURE__ */ new Date()).toISOString()) {
+    this.now = now2;
+  }
+  generate(input) {
+    var _a, _b, _c, _d, _e, _f, _g, _h;
+    const { entity, relations } = input;
+    const lines = [];
+    const idField = getIdFieldName((_a = input.options) == null ? void 0 : _a.idField);
+    lines.push(
+      "---",
+      `${idField}: ${entity.id}`,
+      `type: ${entity.type}-relations`,
+      `synced_at: ${(_c = (_b = input.options) == null ? void 0 : _b.syncedAt) != null ? _c : this.now()}`
+    );
+    if (entity.worldId) {
+      lines.push(`world_id: ${entity.worldId}`);
+    }
+    lines.push("---", "", `# ${entity.name} - Relations`, "");
+    if (((_d = input.options) == null ? void 0 : _d.showHelpBox) !== false) {
+      lines.push(
+        "> [!tip] Como editar rela\xE7\xF5es",
+        "> - **Adicionar**: Edite a linha `_Add new..._` da se\xE7\xE3o",
+        "> - **Remover**: Delete a linha da rela\xE7\xE3o",
+        "> - **Formato**: `[[path/to/file.md|Name]] - description`",
+        ""
+      );
+    }
+    if (entity.worldId && entity.worldName) {
+      lines.push("## World");
+      if ((_e = input.options) == null ? void 0 : _e.worldFolderPath) {
+        lines.push(buildWikiLink(buildWorldFolderLink(input.options.worldFolderPath), entity.worldName), "");
+      } else {
+        lines.push(`[[${entity.worldId}|${entity.worldName}]]`, "");
+      }
+    }
+    const grouped = this.groupByTarget(relations);
+    for (const [targetType, items] of grouped.entries()) {
+      lines.push(`## ${(_f = TARGET_LABELS[targetType]) != null ? _f : targetType}`);
+      if (items.length === 0) {
+        lines.push(this.placeholderLine(targetType, (_g = input.options) == null ? void 0 : _g.worldFolderPath));
+        lines.push("");
+        continue;
+      }
+      items.sort((a, b) => a.targetName.localeCompare(b.targetName)).forEach((entry) => {
+        var _a2, _b2, _c2;
+        const description = (_b2 = (_a2 = entry.summary) != null ? _a2 : entry.contextLabel) != null ? _b2 : "";
+        const desc = description ? ` - ${description}` : "";
+        if (((_c2 = input.options) == null ? void 0 : _c2.worldFolderPath) && this.isWorldEntity(entry.targetType)) {
+          const path = buildWorldEntityPath(
+            input.options.worldFolderPath,
+            entry.targetType,
+            entry.targetName
+          );
+          lines.push(`- ${buildWikiLink(path, entry.targetName)}${desc}`);
+        } else {
+          lines.push(`- [[${entry.targetId}|${entry.targetName}]]${desc}`);
+        }
+      });
+      lines.push(this.placeholderLine(targetType, (_h = input.options) == null ? void 0 : _h.worldFolderPath), "");
+    }
+    return lines.join("\n").trimEnd() + "\n";
+  }
+  groupByTarget(relations) {
+    const map2 = /* @__PURE__ */ new Map();
+    relations.forEach((relation) => {
+      const key = relation.targetType;
+      if (!map2.has(key)) {
+        map2.set(key, []);
+      }
+      map2.get(key).push(relation);
+    });
+    Object.keys(TARGET_LABELS).forEach((type2) => {
+      if (!map2.has(type2)) {
+        map2.set(type2, []);
+      }
+    });
+    return map2;
+  }
+  placeholderLine(targetType, worldFolderPath) {
+    var _a;
+    const label = (_a = TARGET_LABELS[targetType]) != null ? _a : targetType;
+    const noun = label.replace(/s$/, "").toLowerCase();
+    if (worldFolderPath && this.isWorldEntity(targetType)) {
+      const path = buildWorldEntityPath(
+        worldFolderPath,
+        targetType,
+        "file"
+      );
+      return `- _Add new ${noun}: ${buildWikiLink(path, "Name")} - description_`;
+    }
+    return `- _Add new ${noun}: [[file|Name]] - description_`;
+  }
+  isWorldEntity(targetType) {
+    return Object.prototype.hasOwnProperty.call(TARGET_LABELS, targetType);
+  }
+};
+
+// src/sync-v2/generators/CitationsGenerator.ts
+var CitationsGenerator = class {
+  constructor(now2 = () => (/* @__PURE__ */ new Date()).toISOString()) {
+    this.now = now2;
+  }
+  generate(input) {
+    var _a, _b, _c, _d;
+    const { entity, citations } = input;
+    const lines = [];
+    const idField = getIdFieldName((_a = input.options) == null ? void 0 : _a.idField);
+    lines.push(
+      "---",
+      `${idField}: ${entity.id}`,
+      `type: ${entity.type}-citations`,
+      `synced_at: ${(_c = (_b = input.options) == null ? void 0 : _b.syncedAt) != null ? _c : this.now()}`,
+      "---",
+      "",
+      `# ${entity.name} - Citations`,
+      ""
+    );
+    lines.push(
+      "> [!warning] \u26A0\uFE0F Arquivo auto-gerado - N\xC3O EDITE",
+      "> Este arquivo \xE9 atualizado automaticamente durante o sync.",
+      ">",
+      "> **Para adicionar cita\xE7\xF5es**: Atualize os arquivos `.relations.md` relevantes.",
+      ""
+    );
+    const grouped = this.groupByStory(citations);
+    for (const [storyId, entries] of grouped.entries()) {
+      const storyLabel = entries[0].storyTitle;
+      const storyPath = (_d = entries[0].storyPath) != null ? _d : storyId;
+      lines.push(`## [[${storyPath}|${storyLabel}]]`, "");
+      const byRelation = this.groupByRelationType(entries);
+      for (const [relationType, relationEntries] of byRelation.entries()) {
+        lines.push(`### ${this.titleCase(relationType)} (\`relation_type: ${relationType}\`)`);
+        relationEntries.forEach((entry) => {
+          var _a2;
+          const context = entry.chapterTitle ? ` (Chapter: ${entry.chapterTitle})` : "";
+          const sourcePath = (_a2 = entry.sourcePath) != null ? _a2 : entry.sourceId;
+          lines.push(
+            `- [[${sourcePath}|${entry.sourceTitle}]]${context}${entry.summary ? `
+  - *"${entry.summary}"*` : ""}`
+          );
+        });
+        lines.push("");
+      }
+    }
+    lines.push("---", "", "## Summary", "", "| Story | relation_type | Count |", "|-------|---------------|-------|");
+    for (const [storyId, entries] of grouped.entries()) {
+      const byRelation = this.groupByRelationType(entries);
+      for (const [relationType, relationEntries] of byRelation.entries()) {
+        lines.push(`| ${entries[0].storyTitle} | ${relationType} | ${relationEntries.length} |`);
+      }
+    }
+    const total = citations.length;
+    lines.push(`| **Total** | | **${total}** |`);
+    return lines.join("\n").trimEnd() + "\n";
+  }
+  groupByStory(citations) {
+    const map2 = /* @__PURE__ */ new Map();
+    citations.forEach((citation) => {
+      if (!map2.has(citation.storyId)) {
+        map2.set(citation.storyId, []);
+      }
+      map2.get(citation.storyId).push(citation);
+    });
+    return map2;
+  }
+  groupByRelationType(citations) {
+    const map2 = /* @__PURE__ */ new Map();
+    citations.forEach((citation) => {
+      if (!map2.has(citation.relationType)) {
+        map2.set(citation.relationType, []);
+      }
+      map2.get(citation.relationType).push(citation);
+    });
+    return map2;
+  }
+  titleCase(value) {
+    return value.split(/[_\s]/g).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
+  }
+};
+
+// src/sync-v2/relations/mappers.ts
+function mapRelationsToGeneratorInput({
+  entity,
+  relations,
+  resolveTarget,
+  options
+}) {
+  const parsed = [];
+  relations.forEach((relation) => {
+    var _a;
+    const resolved = resolveTarget == null ? void 0 : resolveTarget(relation);
+    if (!resolved) {
+      if (!resolveTarget) {
+        parsed.push({
+          targetType: relation.target_type,
+          targetId: relation.target_id,
+          targetName: relation.target_id,
+          relationType: relation.relation_type,
+          summary: relation.context
+        });
+      }
+      return;
+    }
+    parsed.push({
+      targetType: relation.target_type,
+      targetId: resolved.targetId,
+      targetName: resolved.targetName,
+      relationType: relation.relation_type,
+      summary: (_a = resolved.summary) != null ? _a : relation.context,
+      contextLabel: resolved.contextLabel
+    });
+  });
+  return {
+    entity,
+    relations: parsed,
+    options
+  };
+}
+function mapCitationsToGeneratorInput({
+  entity,
+  relations,
+  resolveSource,
+  options
+}) {
+  const citations = [];
+  relations.forEach((relation) => {
+    var _a;
+    const source = resolveSource(relation);
+    if (!source) {
+      return;
+    }
+    citations.push({
+      storyId: source.storyId,
+      storyTitle: source.storyTitle,
+      storyPath: source.storyPath,
+      relationType: relation.relation_type,
+      sourceType: source.sourceType,
+      sourceId: relation.source_id,
+      sourceTitle: source.sourceTitle,
+      sourcePath: source.sourcePath,
+      chapterTitle: source.chapterTitle,
+      summary: (_a = source.summary) != null ? _a : relation.context
+    });
+  });
+  return {
+    entity,
+    citations,
+    options
+  };
+}
+
+// src/sync-v2/parsers/relationsParser.ts
+var FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---/;
+var HEADING_REGEX = /^##\s+(.+)$/;
+var ENTRY_REGEX = /^-\s+(.*)$/;
+var LINK_REGEX = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/;
+var RelationsParser = class {
+  parse(content) {
+    var _a;
+    const frontmatter = this.parseFrontmatter(content);
+    const body = content.replace(FRONTMATTER_REGEX, "").trim();
+    const sections = [];
+    let currentSection = null;
+    for (const rawLine of body.split("\n")) {
+      const line = rawLine.trimEnd();
+      if (!line)
+        continue;
+      const headingMatch = line.match(HEADING_REGEX);
+      if (headingMatch) {
+        currentSection = {
+          name: headingMatch[1].trim(),
+          entries: []
+        };
+        sections.push(currentSection);
+        continue;
+      }
+      if (!currentSection) {
+        continue;
+      }
+      const entryMatch = line.match(ENTRY_REGEX);
+      if (!entryMatch) {
+        continue;
+      }
+      const entry = entryMatch[1].trim();
+      const placeholder = entry.startsWith("_") && entry.endsWith("_");
+      const linkMatch = entry.match(LINK_REGEX);
+      let link;
+      let displayText = entry;
+      let description;
+      if (linkMatch) {
+        link = linkMatch[1].trim();
+        displayText = ((_a = linkMatch[2]) != null ? _a : linkMatch[1]).trim();
+        const remainder = entry.slice(linkMatch[0].length).trim();
+        if (remainder.startsWith("-")) {
+          description = remainder.slice(1).trim();
+        }
+      } else if (entry.includes("-")) {
+        const [name, desc] = entry.split("-").map((part) => part.trim());
+        displayText = name;
+        description = desc;
+      }
+      currentSection.entries.push({
+        link,
+        displayText,
+        description,
+        placeholder,
+        raw: line
+      });
+    }
+    return { frontmatter, sections };
+  }
+  formatEntry(entry) {
+    const prefix = entry.placeholder ? "_" : "- ";
+    const suffix = entry.placeholder ? "_" : "";
+    const link = entry.link ? `[[${entry.link}|${entry.displayText}]]` : entry.displayText;
+    const description = entry.description ? ` - ${entry.description}` : "";
+    return `${prefix}${link}${description}${suffix}`;
+  }
+  parseFrontmatter(content) {
+    const match = content.match(FRONTMATTER_REGEX);
+    if (!match) {
+      return {};
+    }
+    const lines = match[1].split("\n");
+    const data = {};
+    for (const line of lines) {
+      const colon = line.indexOf(":");
+      if (colon === -1)
+        continue;
+      const key = line.slice(0, colon).trim();
+      const value = line.slice(colon + 1).trim().replace(/^["']|["']$/g, "");
+      data[key] = value;
+    }
+    return data;
+  }
+};
+
+// src/sync-v2/push/RelationsPushHandler.ts
+var TARGET_TYPE_MAP = {
+  "Main Characters": "character",
+  "Key Locations": "location",
+  "Referenced Factions": "faction",
+  "Timeline Events": "event",
+  "Artifacts": "artifact",
+  "Lore References": "lore"
+};
+var RelationsPushHandler = class {
+  constructor(parser = new RelationsParser()) {
+    this.parser = parser;
+  }
+  async pushRelations(relationsFilePath, sourceEntityType, sourceEntityId, context, worldId) {
+    var _a, _b;
+    const result = {
+      created: 0,
+      updated: 0,
+      deleted: 0,
+      warnings: []
+    };
+    try {
+      const currentContent = await context.fileManager.readFile(relationsFilePath);
+      const parsed = this.parser.parse(currentContent);
+      const idField = context.settings.frontmatterIdField;
+      const frontmatterId = getFrontmatterId(parsed.frontmatter, idField);
+      if (!frontmatterId || frontmatterId !== sourceEntityId) {
+        result.warnings.push(
+          `Frontmatter ID mismatch: expected ${sourceEntityId}, found ${frontmatterId != null ? frontmatterId : "none"} (using field: ${idField || "id"})`
+        );
+        return result;
+      }
+      let existingRelations;
+      if (worldId) {
+        const existingRelationsResponse = await context.apiClient.listRelationsByWorld({
+          worldId
+        });
+        existingRelations = existingRelationsResponse.data;
+      } else {
+        const existingRelationsResponse = await context.apiClient.listRelationsByTarget({
+          targetType: sourceEntityType,
+          targetId: sourceEntityId
+        });
+        existingRelations = existingRelationsResponse.data;
+      }
+      const existingRelationsMap = /* @__PURE__ */ new Map();
+      existingRelations.forEach((rel) => {
+        if (worldId) {
+          const key = `${rel.target_type}:${rel.target_id}:${rel.relation_type}`;
+          if (!existingRelationsMap.has(key)) {
+            existingRelationsMap.set(key, []);
+          }
+          existingRelationsMap.get(key).push(rel);
+        } else {
+          const key = `${rel.source_type}:${rel.source_id}:${rel.relation_type}`;
+          if (!existingRelationsMap.has(key)) {
+            existingRelationsMap.set(key, []);
+          }
+          existingRelationsMap.get(key).push(rel);
+        }
+      });
+      const fileRelationsMap = /* @__PURE__ */ new Map();
+      for (const section of parsed.sections) {
+        if (section.name === "World")
+          continue;
+        const entityType = TARGET_TYPE_MAP[section.name];
+        if (!entityType) {
+          result.warnings.push(`Unknown section type: ${section.name}`);
+          continue;
+        }
+        for (const entry of section.entries) {
+          if (entry.placeholder)
+            continue;
+          if (!entry.link) {
+            result.warnings.push(`Entry without link in section ${section.name}: ${entry.displayText}`);
+            continue;
+          }
+          const entityId = await this.resolveEntityId(entry.link, entityType, context);
+          if (!entityId) {
+            result.warnings.push(`Could not resolve entity ID for link: ${entry.link}`);
+            continue;
+          }
+          const relationType = this.inferRelationType(entityType, section.name);
+          if (worldId) {
+            const key = `${entityType}:${entityId}:${relationType}`;
+            if (!fileRelationsMap.has(key)) {
+              fileRelationsMap.set(key, { entry, sectionName: section.name });
+            }
+          } else {
+            const key = `${entityType}:${entityId}:${relationType}`;
+            fileRelationsMap.set(key, { entry, sectionName: section.name });
+          }
+        }
+      }
+      if (worldId) {
+        for (const [key, { entry, sectionName }] of fileRelationsMap.entries()) {
+          if (!entry.link)
+            continue;
+          const targetType = TARGET_TYPE_MAP[sectionName];
+          if (!targetType)
+            continue;
+          const targetId = await this.resolveEntityId(entry.link, targetType, context);
+          if (!targetId)
+            continue;
+          const relationType = this.inferRelationType(targetType, sectionName);
+          const existingRelations2 = (_a = existingRelationsMap.get(key)) != null ? _a : [];
+          if (existingRelations2.length === 0) {
+            result.warnings.push(
+              `No existing relation found for target ${targetType}:${targetId} with type ${relationType}. Cannot create new relation without source.`
+            );
+            continue;
+          }
+          const relationToUpdate = existingRelations2[0];
+          if (relationToUpdate.context !== entry.description) {
+            try {
+              await context.apiClient.updateRelation({
+                id: relationToUpdate.id,
+                context: entry.description
+              });
+              result.updated++;
+            } catch (error) {
+              result.warnings.push(`Failed to update relation ${relationToUpdate.id}: ${error}`);
+            }
+          }
+        }
+        for (const [key, relations] of existingRelationsMap.entries()) {
+          if (!fileRelationsMap.has(key)) {
+          }
+        }
+      } else {
+        for (const [key, relations] of existingRelationsMap.entries()) {
+          if (!fileRelationsMap.has(key)) {
+            for (const relation of relations) {
+              try {
+                await context.apiClient.deleteRelation(relation.id);
+                result.deleted++;
+              } catch (error) {
+                result.warnings.push(`Failed to delete relation ${relation.id}: ${error}`);
+              }
+            }
+          }
+        }
+        for (const [key, { entry, sectionName }] of fileRelationsMap.entries()) {
+          if (!entry.link)
+            continue;
+          const sourceType = TARGET_TYPE_MAP[sectionName];
+          if (!sourceType)
+            continue;
+          const sourceId = await this.resolveEntityId(entry.link, sourceType, context);
+          if (!sourceId)
+            continue;
+          const relationType = this.inferRelationType(sourceType, sectionName);
+          const existingRelations2 = (_b = existingRelationsMap.get(key)) != null ? _b : [];
+          const existingRelation = existingRelations2[0];
+          if (existingRelation) {
+            if (existingRelation.context !== entry.description) {
+              try {
+                await context.apiClient.updateRelation({
+                  id: existingRelation.id,
+                  context: entry.description
+                });
+                result.updated++;
+              } catch (error) {
+                result.warnings.push(`Failed to update relation ${existingRelation.id}: ${error}`);
+              }
+            }
+          } else {
+            try {
+              const sourceExists = await this.validateEntityExists(sourceType, sourceId, context);
+              if (!sourceExists) {
+                result.warnings.push(`Source entity ${sourceType}:${sourceId} does not exist`);
+                continue;
+              }
+              const targetExists = await this.validateEntityExists(sourceEntityType, sourceEntityId, context);
+              if (!targetExists) {
+                result.warnings.push(`Target entity ${sourceEntityType}:${sourceEntityId} does not exist`);
+                continue;
+              }
+              await context.apiClient.createRelation({
+                sourceType,
+                sourceId,
+                targetType: sourceEntityType,
+                targetId: sourceEntityId,
+                relationType,
+                context: entry.description
+              });
+              result.created++;
+            } catch (error) {
+              result.warnings.push(
+                `Failed to create relation from ${sourceType}:${sourceId} to ${sourceEntityType}:${sourceEntityId}: ${error}`
+              );
+            }
+          }
+        }
+      }
+    } catch (error) {
+      result.warnings.push(`Failed to push relations: ${error}`);
+    }
+    return result;
+  }
+  async resolveEntityId(link, entityType, context) {
+    const normalized = resolveLinkBasename(link);
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (uuidRegex.test(normalized)) {
+      return normalized;
+    }
+    try {
+      switch (entityType) {
+        case "character": {
+          try {
+            const char = await context.apiClient.getCharacter(normalized);
+            return char.id;
+          } catch (e) {
+            return null;
+          }
+        }
+        case "location": {
+          try {
+            const loc = await context.apiClient.getLocation(normalized);
+            return loc.id;
+          } catch (e) {
+            return null;
+          }
+        }
+        case "faction": {
+          try {
+            const faction = await context.apiClient.getFaction(normalized);
+            return faction.id;
+          } catch (e) {
+            return null;
+          }
+        }
+        case "artifact": {
+          try {
+            const artifact = await context.apiClient.getArtifact(normalized);
+            return artifact.id;
+          } catch (e) {
+            return null;
+          }
+        }
+        case "event": {
+          try {
+            const event = await context.apiClient.getEvent(normalized);
+            return event.id;
+          } catch (e) {
+            return null;
+          }
+        }
+        case "lore": {
+          try {
+            const lore = await context.apiClient.getLore(normalized);
+            return lore.id;
+          } catch (e) {
+            return null;
+          }
+        }
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.warn(`[RelationsPushHandler] Failed to resolve entity ID for ${entityType}:${link}`, error);
+      return null;
+    }
+  }
+  inferRelationType(targetType, sectionName) {
+    switch (sectionName) {
+      case "Main Characters":
+        return "pov";
+      case "Key Locations":
+        return "setting";
+      case "Referenced Factions":
+        return "faction_reference";
+      case "Timeline Events":
+        return "timeline_event";
+      case "Artifacts":
+        return "artifact_reference";
+      case "Lore References":
+        return "lore_reference";
+      default:
+        return "reference";
+    }
+  }
+  async validateEntityExists(entityType, entityId, context) {
+    try {
+      switch (entityType) {
+        case "character":
+          await context.apiClient.getCharacter(entityId);
+          return true;
+        case "location":
+          await context.apiClient.getLocation(entityId);
+          return true;
+        case "faction":
+          await context.apiClient.getFaction(entityId);
+          return true;
+        case "artifact":
+          await context.apiClient.getArtifact(entityId);
+          return true;
+        case "event":
+          await context.apiClient.getEvent(entityId);
+          return true;
+        case "lore":
+          await context.apiClient.getLore(entityId);
+          return true;
+        case "story":
+          await context.apiClient.getStory(entityId);
+          return true;
+        case "world":
+          await context.apiClient.getWorld(entityId);
+          return true;
+        default:
+          return true;
+      }
+    } catch (error) {
+      return false;
+    }
+  }
+};
+
+// src/sync-v2/fileRenamer/PathResolver.ts
+var import_obsidian15 = require("obsidian");
+var CONTENT_FOLDER_BY_TYPE = {
+  text: "00-texts",
+  image: "01-images",
+  video: "02-videos",
+  audio: "03-audios",
+  embed: "04-embeds",
+  link: "05-links"
+};
+var PathResolver = class {
+  constructor(storyFolder) {
+    this.storyFolder = storyFolder;
+  }
+  getChapterPath(chapter, overrides) {
+    var _a, _b, _c, _d;
+    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : chapter.number) != null ? _b : 0;
+    const title = (_d = (_c = overrides == null ? void 0 : overrides.title) != null ? _c : chapter.title) != null ? _d : "chapter";
+    return (0, import_obsidian15.normalizePath)(
+      `${this.storyFolder}/00-chapters/${this.buildFileName("ch", order, title)}`
+    );
+  }
+  getScenePath(scene, overrides) {
+    var _a, _b, _c, _d, _e;
+    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : scene.order_num) != null ? _b : 0;
+    const chapterOrder = (_c = overrides == null ? void 0 : overrides.chapterOrder) != null ? _c : 0;
+    const goal = (_e = (_d = overrides == null ? void 0 : overrides.goal) != null ? _d : scene.goal) != null ? _e : "scene";
+    return (0, import_obsidian15.normalizePath)(
+      `${this.storyFolder}/01-scenes/${this.buildCompositeFileName(
+        "sc",
+        [chapterOrder, order],
+        goal
+      )}`
+    );
+  }
+  getBeatPath(beat, overrides) {
+    var _a, _b, _c, _d, _e, _f;
+    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : beat.order_num) != null ? _b : 0;
+    const chapterOrder = (_c = overrides == null ? void 0 : overrides.chapterOrder) != null ? _c : 0;
+    const sceneOrder = (_d = overrides == null ? void 0 : overrides.sceneOrder) != null ? _d : 0;
+    const intent = (_f = (_e = overrides == null ? void 0 : overrides.intent) != null ? _e : beat.intent) != null ? _f : "beat";
+    return (0, import_obsidian15.normalizePath)(
+      `${this.storyFolder}/02-beats/${this.buildCompositeFileName(
+        "bt",
+        [chapterOrder, sceneOrder, order],
+        intent
+      )}`
+    );
+  }
+  getContentBlockPath(contentBlock, overrides) {
+    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
+    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : contentBlock.order_num) != null ? _b : 0;
+    const title = (_g = (_f = (_e = (_d = overrides == null ? void 0 : overrides.title) != null ? _d : (_c = contentBlock.metadata) == null ? void 0 : _c.title) != null ? _e : contentBlock.kind) != null ? _f : contentBlock.type) != null ? _g : "content";
+    const type2 = ((_i = (_h = overrides == null ? void 0 : overrides.type) != null ? _h : contentBlock.type) != null ? _i : "text").toLowerCase();
+    const folder = (_j = CONTENT_FOLDER_BY_TYPE[type2]) != null ? _j : "99-other";
+    return (0, import_obsidian15.normalizePath)(
+      `${this.storyFolder}/03-contents/${folder}/${this.buildFileName("cb", order, title)}`
+    );
+  }
+  buildFileName(prefix, order, label) {
+    return `${prefix}-${this.padOrder(order)}-${this.sanitize(label)}.md`;
+  }
+  buildCompositeFileName(prefix, orders, label) {
+    const orderTags = orders.map((order) => this.padOrder(order)).join("-");
+    return `${prefix}-${orderTags}-${this.sanitize(label)}.md`;
+  }
+  padOrder(order) {
+    const value = typeof order === "number" && Number.isFinite(order) ? Math.max(0, order) : 0;
+    return String(value).padStart(4, "0");
+  }
+  sanitize(value) {
+    const sanitized = value.normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
+    return sanitized || "untitled";
+  }
+};
+
+// src/sync-v2/generators/FrontmatterGenerator.ts
+var FrontmatterGenerator = class {
+  generate(baseFields, extraFields, options) {
+    const idField = options == null ? void 0 : options.idField;
+    const customIdField = getIdFieldName(idField);
+    let fields = { ...baseFields };
+    if (customIdField !== "id" && "id" in fields) {
+      const idValue = fields.id;
+      delete fields.id;
+      fields = {
+        [customIdField]: idValue,
+        ...fields
+      };
+    }
+    if (extraFields) {
+      const sanitizedExtraFields = { ...extraFields };
+      if (customIdField !== "id" && "id" in sanitizedExtraFields) {
+        delete sanitizedExtraFields.id;
+      }
+      Object.assign(fields, sanitizedExtraFields);
+    }
+    if (customIdField !== "id" && "id" in fields) {
+      delete fields.id;
+    }
+    const tags = [];
+    if (options) {
+      tags.push(`story-engine/${options.entityType}`);
+      if (options.storyName) {
+        const sanitizedStoryName = this.sanitizeForTag(options.storyName);
+        tags.push(`story/${sanitizedStoryName}`);
+      }
+      if (options.worldName) {
+        const sanitizedWorldName = this.sanitizeForTag(options.worldName);
+        tags.push(`world/${sanitizedWorldName}`);
+      }
+      if (options.date) {
+        const date = typeof options.date === "string" ? new Date(options.date) : options.date;
+        if (!isNaN(date.getTime())) {
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          tags.push(`date/${year}/${month}/${day}`);
+        }
+      }
+    }
+    const lines = ["---"];
+    for (const [key, value] of Object.entries(fields)) {
+      if (value === null || value === void 0) {
+        lines.push(`${key}: null`);
+      } else if (typeof value === "string") {
+        const escaped = value.replace(/"/g, '\\"');
+        if (value.includes(":") || value.includes("\n") || value.includes('"')) {
+          lines.push(`${key}: "${escaped}"`);
+        } else {
+          lines.push(`${key}: ${escaped}`);
+        }
+      } else {
+        lines.push(`${key}: ${value}`);
+      }
+    }
+    if (tags.length > 0) {
+      lines.push(`tags:`);
+      for (const tag of tags) {
+        lines.push(`  - ${tag}`);
+      }
+    }
+    lines.push("---");
+    return lines.join("\n");
+  }
+  sanitizeForTag(value) {
+    return value.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+  }
+};
+
+// src/sync-v2/utils/detectEntityMentions.ts
+function detectEntityMentions(content) {
+  const mentions = [];
+  const linkRegex = /\[\[([^\]]+)\]\]/g;
+  let match;
+  while ((match = linkRegex.exec(content)) !== null) {
+    const fullLink = match[0];
+    const linkContent = match[1];
+    const [filenamePath, displayLabel] = linkContent.split("|").map((s) => s.trim());
+    const format2 = filenamePath.includes("/") ? "official" : "obsidian";
+    mentions.push({
+      linkText: fullLink,
+      filenamePath,
+      displayLabel: displayLabel || void 0,
+      format: format2
+    });
+  }
+  return mentions;
+}
+async function resolveEntityMention(mention, context) {
+  try {
+    const vault = context.app.vault;
+    const metadataCache = context.app.metadataCache;
+    let file = null;
+    if (mention.format === "official") {
+      const filePath = mention.filenamePath.endsWith(".md") ? mention.filenamePath : `${mention.filenamePath}.md`;
+      const abstractFile = vault.getAbstractFileByPath(filePath);
+      if (abstractFile && "path" in abstractFile && !("children" in abstractFile)) {
+        file = abstractFile;
+      }
+    } else {
+      const markdownFiles = vault.getMarkdownFiles();
+      file = markdownFiles.find((f) => {
+        return f.basename === mention.filenamePath;
+      }) || null;
+      if (!file) {
+        const resolvedFile = metadataCache.getFirstLinkpathDest(mention.filenamePath, "");
+        if (resolvedFile && "path" in resolvedFile && !("children" in resolvedFile)) {
+          file = resolvedFile;
+        }
+      }
+      if (!file) {
+        file = markdownFiles.find((f) => {
+          return f.name === `${mention.filenamePath}.md`;
+        }) || null;
+      }
+    }
+    if (!file) {
+      return null;
+    }
+    const fileContent = await vault.read(file);
+    const frontmatter = parseFrontmatter(fileContent);
+    const entityType = inferEntityTypeFromFile(file.path, frontmatter);
+    if (!entityType) {
+      return null;
+    }
+    const idField = context.settings.frontmatterIdField;
+    const entityId = getFrontmatterId(frontmatter, idField);
+    if (!entityId) {
+      return null;
+    }
+    const worldId = frontmatter.world_id;
+    return {
+      entityId,
+      entityType,
+      worldId: worldId === null ? void 0 : worldId
+    };
+  } catch (error) {
+    console.warn("[Sync V2] Failed to resolve entity mention", {
+      mention,
+      error
+    });
+    return null;
+  }
+}
+function parseFrontmatter(content) {
+  const match = content.match(/^---\n([\s\S]*?)\n---/);
+  if (!match) {
+    return {};
+  }
+  const frontmatterText = match[1];
+  const result = {};
+  const lines = frontmatterText.split("\n");
+  let i = 0;
+  while (i < lines.length) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith("#")) {
+      i++;
+      continue;
+    }
+    const colonIndex = line.indexOf(":");
+    if (colonIndex > 0) {
+      const key = line.slice(0, colonIndex).trim();
+      let value = line.slice(colonIndex + 1).trim();
+      if (key === "tags" && (value === "" || value === "[]")) {
+        const tags = [];
+        i++;
+        while (i < lines.length) {
+          const nextLine = lines[i].trim();
+          if (nextLine.startsWith("-")) {
+            const tagMatch = nextLine.match(/^\s*-\s*(.+)/);
+            if (tagMatch) {
+              let tagValue = tagMatch[1].trim().replace(/^["']|["']$/g, "");
+              tags.push(tagValue);
+            }
+            i++;
+          } else if (nextLine === "" || nextLine.startsWith("#")) {
+            i++;
+          } else {
+            break;
+          }
+        }
+        result[key] = tags;
+        continue;
+      }
+      if (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'")) {
+        value = value.slice(1, -1);
+      }
+      if (value === "null" || value === "") {
+        result[key] = null;
+      } else if (value === "true" || value === "false") {
+        result[key] = value === "true";
+      } else if (/^-?\d+$/.test(value)) {
+        result[key] = parseInt(value, 10);
+      } else if (/^-?\d+\.\d+$/.test(value)) {
+        result[key] = parseFloat(value);
+      } else {
+        result[key] = value;
+      }
+    } else if (line.startsWith("-")) {
+    }
+    i++;
+  }
+  return result;
+}
+function inferEntityTypeFromFile(filePath, frontmatter) {
+  if (frontmatter.entity_type && typeof frontmatter.entity_type === "string") {
+    return frontmatter.entity_type;
+  }
+  if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
+    for (const tag of frontmatter.tags) {
+      if (typeof tag === "string" && tag.startsWith("story-engine/")) {
+        const entityType = tag.replace("story-engine/", "");
+        return entityType;
+      }
+    }
+  }
+  const pathPatterns = {
+    "/_archetypes/": "archetype",
+    // More specific patterns first
+    "/_traits/": "trait",
+    "/worlds/": "world",
+    "/characters/": "character",
+    "/locations/": "location",
+    "/factions/": "faction",
+    "/artifacts/": "artifact",
+    "/events/": "event",
+    "/lore/": "lore",
+    "/chapters/": "chapter",
+    "/scenes/": "scene",
+    "/beats/": "beat",
+    "/contents/": "content_block"
+  };
+  for (const [pattern, entityType] of Object.entries(pathPatterns)) {
+    if (filePath.includes(pattern)) {
+      return entityType;
+    }
+  }
+  return null;
+}
+
+// src/sync-v2/parsers/worldEntityParser.ts
+function parseWorldEntityFile(content) {
+  var _a;
+  const frontmatter = parseFrontmatter(content);
+  const nameMatch = content.match(/^#\s+(.+)$/m);
+  const name = nameMatch ? nameMatch[1].trim() : "";
+  const descriptionMatch = content.match(/##\s+Description\n([\s\S]*?)(?=\n##|$)/);
+  let description = null;
+  if (descriptionMatch) {
+    const desc = descriptionMatch[1].trim();
+    if (desc && desc !== "_No description yet._") {
+      description = desc;
+    }
+  }
+  return {
+    id: (_a = frontmatter.id) != null ? _a : "",
+    name,
+    description,
+    frontmatter
+  };
+}
+
+// src/sync-v2/handlers/world/CharacterHandler.ts
+var CharacterHandler = class {
+  constructor() {
+    this.entityType = "character";
+    this.frontmatterGenerator = new FrontmatterGenerator();
+  }
+  async pull(id2, context) {
+    const character = await context.apiClient.getCharacter(id2);
+    const world = await context.apiClient.getWorld(character.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const charactersFolder = `${folderPath}/characters`;
+    await context.fileManager.ensureFolderExists(charactersFolder);
+    const filePath = `${charactersFolder}/${slugify(character.name)}.md`;
+    await context.fileManager.writeFile(filePath, this.renderCharacter(character, world, context));
+    return character;
+  }
+  async push(entity, context) {
+    var _a, _b;
+    const world = await context.apiClient.getWorld(entity.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const filePath = `${folderPath}/characters/${slugify(entity.name)}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const normalizedDescription = (_a = parsed.description) != null ? _a : void 0;
+    const existingDescription = (_b = entity.description) != null ? _b : void 0;
+    if (parsed.name === entity.name && (normalizedDescription != null ? normalizedDescription : "") === (existingDescription != null ? existingDescription : "")) {
+      return;
+    }
+    await context.apiClient.updateCharacter(entity.id, {
+      name: parsed.name,
+      description: normalizedDescription
+    });
+  }
+  async delete(id2, context) {
+    await context.apiClient.deleteCharacter(id2);
+  }
+  renderCharacter(character, world, context) {
+    var _a, _b, _c;
+    const baseFields = {
+      id: character.id,
+      world_id: character.world_id,
+      class_level: character.class_level,
+      archetype_id: (_a = character.archetype_id) != null ? _a : null,
+      current_class_id: (_b = character.current_class_id) != null ? _b : null,
+      created_at: character.created_at,
+      updated_at: character.updated_at
+    };
+    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
+      entityType: "character",
+      worldName: world.name,
+      date: character.created_at,
+      idField: context.settings.frontmatterIdField
+    });
+    return [
+      frontmatter,
+      "",
+      `# ${character.name}`,
+      "",
+      "## Description",
+      character.description || "_No description yet._",
+      "",
+      "## Metadata",
+      `- Tenant: ${character.tenant_id}`,
+      `- Archetype: ${(_c = character.archetype_id) != null ? _c : "\u2014"}`,
+      `- Class Level: ${character.class_level}`,
+      ""
+    ].join("\n");
+  }
+};
+
+// src/sync-v2/handlers/world/LocationHandler.ts
+var LocationHandler = class {
+  constructor() {
+    this.entityType = "location";
+    this.frontmatterGenerator = new FrontmatterGenerator();
+  }
+  async pull(id2, context) {
+    const location = await context.apiClient.getLocation(id2);
+    const world = await context.apiClient.getWorld(location.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const locationsFolder = `${folderPath}/locations`;
+    await context.fileManager.ensureFolderExists(locationsFolder);
+    const filePath = `${locationsFolder}/${slugify(location.name)}.md`;
+    await context.fileManager.writeFile(filePath, this.renderLocation(location, world, context));
+    return location;
+  }
+  async push(entity, context) {
+    var _a, _b, _c;
+    const world = await context.apiClient.getWorld((_a = entity.world_id) != null ? _a : "");
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const filePath = `${folderPath}/locations/${slugify(entity.name) || entity.id}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const description = (_b = parsed.description) != null ? _b : void 0;
+    if (parsed.name === entity.name && (description != null ? description : "") === ((_c = entity.description) != null ? _c : "")) {
+      return;
+    }
+    await context.apiClient.updateLocation(entity.id, {
+      name: parsed.name,
+      description
+    });
+  }
+  async delete(id2, context) {
+    await context.apiClient.deleteLocation(id2);
+  }
+  renderLocation(location, world, context) {
+    var _a;
+    const baseFields = {
+      id: location.id,
+      world_id: location.world_id,
+      type: location.type,
+      hierarchy_level: location.hierarchy_level,
+      parent_id: (_a = location.parent_id) != null ? _a : null,
+      created_at: location.created_at,
+      updated_at: location.updated_at
+    };
+    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
+      entityType: "location",
+      worldName: world.name,
+      date: location.created_at,
+      idField: context.settings.frontmatterIdField
+    });
+    return [
+      frontmatter,
+      "",
+      `# ${location.name}`,
+      "",
+      "## Description",
+      location.description || "_No description yet._",
+      "",
+      "## Notes",
+      location.type ? `- Type: ${location.type}` : "- Type: \u2014",
+      ""
+    ].join("\n");
+  }
+};
+
+// src/sync-v2/handlers/world/FactionHandler.ts
+var FactionHandler = class {
+  constructor() {
+    this.entityType = "faction";
+    this.frontmatterGenerator = new FrontmatterGenerator();
+  }
+  async pull(id2, context) {
+    const faction = await context.apiClient.getFaction(id2);
+    const world = await context.apiClient.getWorld(faction.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const factionsFolder = `${folderPath}/factions`;
+    await context.fileManager.ensureFolderExists(factionsFolder);
+    const filePath = `${factionsFolder}/${slugify(faction.name)}.md`;
+    await context.fileManager.writeFile(filePath, this.renderFaction(faction, world, context));
+    return faction;
+  }
+  async push(entity, context) {
+    var _a, _b;
+    const world = await context.apiClient.getWorld(entity.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const filePath = `${folderPath}/factions/${slugify(entity.name)}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const description = (_a = parsed.description) != null ? _a : void 0;
+    if (parsed.name === entity.name && (description != null ? description : "") === ((_b = entity.description) != null ? _b : "")) {
+      return;
+    }
+    await context.apiClient.updateFaction(entity.id, {
+      name: parsed.name,
+      description
+    });
+  }
+  async delete(id2, context) {
+    await context.apiClient.deleteFaction(id2);
+  }
+  renderFaction(faction, world, context) {
+    var _a, _b;
+    const baseFields = {
+      id: faction.id,
+      world_id: faction.world_id,
+      type: (_a = faction.type) != null ? _a : null,
+      hierarchy_level: faction.hierarchy_level,
+      parent_id: (_b = faction.parent_id) != null ? _b : null,
+      created_at: faction.created_at,
+      updated_at: faction.updated_at
+    };
+    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
+      entityType: "faction",
+      worldName: world.name,
+      date: faction.created_at,
+      idField: context.settings.frontmatterIdField
+    });
+    return [
+      frontmatter,
+      "",
+      `# ${faction.name}`,
+      "",
+      "## Description",
+      faction.description || "_No description yet._",
+      "",
+      "## Beliefs & Structure",
+      faction.beliefs || "_Beliefs pending._",
+      "",
+      faction.structure || "_Structure pending._",
+      ""
+    ].join("\n");
+  }
+};
+
+// src/sync-v2/handlers/world/ArtifactHandler.ts
+var ArtifactHandler = class {
+  constructor() {
+    this.entityType = "artifact";
+    this.frontmatterGenerator = new FrontmatterGenerator();
+  }
+  async pull(id2, context) {
+    const artifact = await context.apiClient.getArtifact(id2);
+    const world = await context.apiClient.getWorld(artifact.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const artifactsFolder = `${folderPath}/artifacts`;
+    await context.fileManager.ensureFolderExists(artifactsFolder);
+    const filePath = `${artifactsFolder}/${slugify(artifact.name)}.md`;
+    await context.fileManager.writeFile(filePath, this.renderArtifact(artifact, world, context));
+    return artifact;
+  }
+  async push(entity, context) {
+    var _a, _b;
+    const world = await context.apiClient.getWorld(entity.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const filePath = `${folderPath}/artifacts/${slugify(entity.name)}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const description = (_a = parsed.description) != null ? _a : void 0;
+    if (parsed.name === entity.name && (description != null ? description : "") === ((_b = entity.description) != null ? _b : "")) {
+      return;
+    }
+    await context.apiClient.updateArtifact(entity.id, {
+      name: parsed.name,
+      description
+    });
+  }
+  async delete(id2, context) {
+    await context.apiClient.deleteArtifact(id2);
+  }
+  renderArtifact(artifact, world, context) {
+    const baseFields = {
+      id: artifact.id,
+      world_id: artifact.world_id,
+      rarity: artifact.rarity,
+      created_at: artifact.created_at,
+      updated_at: artifact.updated_at
+    };
+    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
+      entityType: "artifact",
+      worldName: world.name,
+      date: artifact.created_at,
+      idField: context.settings.frontmatterIdField
+    });
+    return [
+      frontmatter,
+      "",
+      `# ${artifact.name}`,
+      "",
+      "## Description",
+      artifact.description || "_No description yet._",
+      ""
+    ].join("\n");
+  }
+};
+
+// src/sync-v2/handlers/world/EventHandler.ts
+var EventHandler = class {
+  constructor() {
+    this.entityType = "event";
+    this.frontmatterGenerator = new FrontmatterGenerator();
+  }
+  async pull(id2, context) {
+    const event = await context.apiClient.getEvent(id2);
+    const world = await context.apiClient.getWorld(event.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const eventsFolder = `${folderPath}/events`;
+    await context.fileManager.ensureFolderExists(eventsFolder);
+    const filePath = `${eventsFolder}/${slugify(event.name)}.md`;
+    await context.fileManager.writeFile(filePath, this.renderEvent(event, world, context));
+    return event;
+  }
+  async push(entity, context) {
+    var _a, _b;
+    const world = await context.apiClient.getWorld(entity.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const filePath = `${folderPath}/events/${slugify(entity.name)}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const description = (_a = parsed.description) != null ? _a : null;
+    if (parsed.name === entity.name && description === ((_b = entity.description) != null ? _b : null)) {
+      return;
+    }
+    await context.apiClient.updateEvent(entity.id, {
+      name: parsed.name,
+      description
+    });
+  }
+  async delete(id2, context) {
+    await context.apiClient.deleteEvent(id2);
+  }
+  renderEvent(event, world, context) {
+    var _a, _b, _c;
+    const baseFields = {
+      id: event.id,
+      world_id: event.world_id,
+      type: (_a = event.type) != null ? _a : null,
+      importance: event.importance,
+      timeline: (_b = event.timeline) != null ? _b : null,
+      parent_id: (_c = event.parent_id) != null ? _c : null,
+      created_at: event.created_at,
+      updated_at: event.updated_at
+    };
+    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
+      entityType: "event",
+      worldName: world.name,
+      date: event.created_at,
+      idField: context.settings.frontmatterIdField
+    });
+    return [
+      frontmatter,
+      "",
+      `# ${event.name}`,
+      "",
+      "## Description",
+      event.description || "_No description yet._",
+      ""
+    ].join("\n");
+  }
+};
+
+// src/sync-v2/handlers/world/LoreHandler.ts
+var LoreHandler = class {
+  constructor() {
+    this.entityType = "lore";
+    this.frontmatterGenerator = new FrontmatterGenerator();
+  }
+  async pull(id2, context) {
+    const lore = await context.apiClient.getLore(id2);
+    const world = await context.apiClient.getWorld(lore.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const loreFolder = `${folderPath}/lore`;
+    await context.fileManager.ensureFolderExists(loreFolder);
+    const filePath = `${loreFolder}/${slugify(lore.name)}.md`;
+    await context.fileManager.writeFile(filePath, this.renderLore(lore, world, context));
+    return lore;
+  }
+  async push(entity, context) {
+    var _a, _b;
+    const world = await context.apiClient.getWorld(entity.world_id);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    const filePath = `${folderPath}/lore/${slugify(entity.name)}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const description = (_a = parsed.description) != null ? _a : void 0;
+    if (parsed.name === entity.name && (description != null ? description : "") === ((_b = entity.description) != null ? _b : "")) {
+      return;
+    }
+    await context.apiClient.updateLore(entity.id, {
+      name: parsed.name,
+      description
+    });
+  }
+  async delete(id2, context) {
+    await context.apiClient.deleteLore(id2);
+  }
+  renderLore(lore, world, context) {
+    var _a, _b;
+    const baseFields = {
+      id: lore.id,
+      world_id: lore.world_id,
+      category: (_a = lore.category) != null ? _a : null,
+      parent_id: (_b = lore.parent_id) != null ? _b : null,
+      hierarchy_level: lore.hierarchy_level,
+      created_at: lore.created_at,
+      updated_at: lore.updated_at
+    };
+    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
+      entityType: "lore",
+      worldName: world.name,
+      date: lore.created_at,
+      idField: context.settings.frontmatterIdField
+    });
+    return [
+      frontmatter,
+      "",
+      `# ${lore.name}`,
+      "",
+      "## Description",
+      lore.description || "_No description yet._",
+      "",
+      "## Rules",
+      lore.rules || "_Rules not documented._",
+      ""
+    ].join("\n");
+  }
+};
+
+// src/sync-v2/handlers/world/WorldHandler.ts
+var WorldHandler = class {
+  constructor(now2 = () => (/* @__PURE__ */ new Date()).toISOString(), relationsGenerator = new RelationsGenerator(), citationsGenerator = new CitationsGenerator(), relationsPushHandler = new RelationsPushHandler()) {
+    this.now = now2;
+    this.relationsGenerator = relationsGenerator;
+    this.citationsGenerator = citationsGenerator;
+    this.relationsPushHandler = relationsPushHandler;
+    this.entityType = "world";
+  }
+  async pull(id2, context) {
+    const world = await context.apiClient.getWorld(id2);
+    const folderPath = context.fileManager.getWorldFolderPath(world.name);
+    await context.fileManager.ensureFolderExists(folderPath);
+    await context.fileManager.ensureFolderExists(`${folderPath}/characters`);
+    await context.fileManager.ensureFolderExists(`${folderPath}/locations`);
+    await context.fileManager.ensureFolderExists(`${folderPath}/factions`);
+    await context.fileManager.ensureFolderExists(`${folderPath}/artifacts`);
+    await context.fileManager.ensureFolderExists(`${folderPath}/events`);
+    await context.fileManager.ensureFolderExists(`${folderPath}/lore`);
+    await context.fileManager.writeWorldMetadata(world, folderPath);
+    const [characters, locations, factions, artifacts, events, loreList] = await Promise.all([
+      context.apiClient.getCharacters(world.id),
+      context.apiClient.getLocations(world.id),
+      context.apiClient.getFactions(world.id),
+      context.apiClient.getArtifacts(world.id),
+      context.apiClient.getEvents(world.id),
+      context.apiClient.getLores(world.id)
+    ]);
+    await context.fileManager.writeFile(
+      `${folderPath}/world.outline.md`,
+      this.renderOutline(world, { characters, locations, factions, artifacts, events, loreList }, folderPath)
+    );
+    await context.fileManager.writeFile(
+      `${folderPath}/world.contents.md`,
+      this.renderContents(world, { characters, locations, factions, artifacts, events, loreList }, folderPath)
+    );
+    await this.writeWorldEntityFiles(
+      { characters, locations, factions, artifacts, events, loreList },
+      context
+    );
+    await this.generateRelations(world, folderPath, context);
+    await this.generateCitations(world, folderPath, context);
+    return world;
+  }
+  async push(entity, context) {
+    var _a, _b;
+    const folderPath = context.fileManager.getWorldFolderPath(entity.name);
+    const relationsFilePath = `${folderPath}/world.relations.md`;
+    try {
+      await context.fileManager.readFile(relationsFilePath);
+      const result = await this.relationsPushHandler.pushRelations(
+        relationsFilePath,
+        "world",
+        entity.id,
+        context,
+        entity.id
+      );
+      if (result.warnings.length > 0) {
+        result.warnings.forEach(
+          (warning) => {
+            var _a2;
+            return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
+              code: "relations_push_warning",
+              message: warning,
+              filePath: relationsFilePath
+            });
+          }
+        );
+      }
+    } catch (error) {
+      if (((_a = error == null ? void 0 : error.message) == null ? void 0 : _a.includes("missing")) || (error == null ? void 0 : error.code) === "ENOENT") {
+        return;
+      }
+      (_b = context.emitWarning) == null ? void 0 : _b.call(context, {
+        code: "relations_push_error",
+        message: `Failed to push relations: ${error}`,
+        filePath: relationsFilePath
+      });
+    }
+  }
+  async delete(_id, _context) {
+  }
+  renderOutline(world, opts, folderPath) {
+    const sections = [
+      {
+        label: "Characters",
+        items: opts.characters.map((character) => ({
+          name: character.name,
+          extra: `Lvl ${character.class_level}`
+        }))
+      },
+      {
+        label: "Locations",
+        items: opts.locations.map((location) => {
+          var _a;
+          return {
+            name: location.name,
+            extra: (_a = location.type) != null ? _a : void 0
+          };
+        })
+      },
+      {
+        label: "Factions",
+        items: opts.factions.map((faction) => {
+          var _a;
+          return {
+            name: faction.name,
+            extra: (_a = faction.type) != null ? _a : void 0
+          };
+        })
+      },
+      {
+        label: "Artifacts",
+        items: opts.artifacts.map((artifact) => ({
+          name: artifact.name,
+          extra: artifact.rarity
+        }))
+      },
+      {
+        label: "Events",
+        items: opts.events.map((event) => {
+          var _a;
+          return {
+            name: event.name,
+            extra: (_a = event.timeline) != null ? _a : void 0
+          };
+        })
+      },
+      {
+        label: "Lore",
+        items: opts.loreList.map((lore) => {
+          var _a;
+          return {
+            name: lore.name,
+            extra: (_a = lore.category) != null ? _a : void 0
+          };
+        })
+      }
+    ];
+    const lines = [
+      `# ${world.name} - Outline`,
+      "",
+      `_Atualizado em ${this.now()}_`,
+      ""
+    ];
+    const linkFor = (name, folder) => `[[${folderPath}/${folder}/${slugify(name)}.md|${name}]]`;
+    for (const section of sections) {
+      lines.push(`## ${section.label}`, "");
+      if (!section.items.length) {
+        lines.push("_Nenhum item sincronizado ainda._", "");
+        continue;
+      }
+      section.items.forEach((item) => {
+        const folder = section.label === "Characters" ? "characters" : section.label === "Locations" ? "locations" : section.label === "Factions" ? "factions" : section.label === "Artifacts" ? "artifacts" : section.label === "Events" ? "events" : "lore";
+        const link = linkFor(item.name, folder);
+        lines.push(`- ${link}${item.extra ? ` (${item.extra})` : ""}`);
+      });
+      lines.push("");
+    }
+    return lines.join("\n").trimEnd() + "\n";
+  }
+  async writeWorldEntityFiles(entities, context) {
+    const characterHandler = new CharacterHandler();
+    const locationHandler = new LocationHandler();
+    const factionHandler = new FactionHandler();
+    const artifactHandler = new ArtifactHandler();
+    const eventHandler = new EventHandler();
+    const loreHandler = new LoreHandler();
+    await Promise.all([
+      Promise.all(entities.characters.map((character) => characterHandler.pull(character.id, context))),
+      Promise.all(entities.locations.map((location) => locationHandler.pull(location.id, context))),
+      Promise.all(entities.factions.map((faction) => factionHandler.pull(faction.id, context))),
+      Promise.all(entities.artifacts.map((artifact) => artifactHandler.pull(artifact.id, context))),
+      Promise.all(entities.events.map((event) => eventHandler.pull(event.id, context))),
+      Promise.all(entities.loreList.map((lore) => loreHandler.pull(lore.id, context)))
+    ]);
+  }
+  renderContents(world, opts, folderPath) {
+    const lines = [
+      `# ${world.name} - Contents`,
+      "",
+      "## Overview",
+      world.description || "_Sem descri\xE7\xE3o._",
+      "",
+      "## Time Configuration",
+      world.time_config ? "```json\n" + JSON.stringify(world.time_config, null, 2) + "\n```" : "_N\xE3o configurado._",
+      ""
+    ];
+    const addSection = (label, items) => {
+      lines.push(`## ${label}`, "");
+      if (!items.length) {
+        lines.push("_Nenhum item sincronizado ainda._", "");
+        return;
+      }
+      items.forEach((item) => {
+        const link = `[[${item.path}|${item.name}]]`;
+        lines.push(`- ${link}${item.extra ? ` (${item.extra})` : ""}`);
+      });
+      lines.push("");
+    };
+    addSection(
+      "Characters",
+      opts.characters.map((character) => ({
+        name: character.name,
+        path: `${folderPath}/characters/${slugify(character.name)}.md`,
+        extra: `Lvl ${character.class_level}`
+      }))
+    );
+    addSection(
+      "Locations",
+      opts.locations.map((location) => {
+        var _a;
+        return {
+          name: location.name,
+          path: `${folderPath}/locations/${slugify(location.name)}.md`,
+          extra: (_a = location.type) != null ? _a : void 0
+        };
+      })
+    );
+    addSection(
+      "Factions",
+      opts.factions.map((faction) => {
+        var _a;
+        return {
+          name: faction.name,
+          path: `${folderPath}/factions/${slugify(faction.name)}.md`,
+          extra: (_a = faction.type) != null ? _a : void 0
+        };
+      })
+    );
+    addSection(
+      "Artifacts",
+      opts.artifacts.map((artifact) => ({
+        name: artifact.name,
+        path: `${folderPath}/artifacts/${slugify(artifact.name)}.md`,
+        extra: artifact.rarity
+      }))
+    );
+    addSection(
+      "Events",
+      opts.events.map((event) => {
+        var _a;
+        return {
+          name: event.name,
+          path: `${folderPath}/events/${slugify(event.name)}.md`,
+          extra: (_a = event.timeline) != null ? _a : void 0
+        };
+      })
+    );
+    addSection(
+      "Lore",
+      opts.loreList.map((lore) => {
+        var _a;
+        return {
+          name: lore.name,
+          path: `${folderPath}/lore/${slugify(lore.name)}.md`,
+          extra: (_a = lore.category) != null ? _a : void 0
+        };
+      })
+    );
+    return lines.join("\n");
+  }
+  renderRelationsPlaceholder(world) {
+    return [
+      `# ${world.name} - Relations`,
+      "",
+      "_As rela\xE7\xF5es entre characters, locations e stories ser\xE3o preenchidas na Fase 8._",
+      ""
+    ].join("\n");
+  }
+  async generateRelations(world, folderPath, context) {
+    try {
+      const relationsResponse = await context.apiClient.listRelationsByWorld({
+        worldId: world.id
+      });
+      const entityCache = /* @__PURE__ */ new Map();
+      const resolvedRelations = await Promise.all(
+        relationsResponse.data.map(async (relation) => {
+          try {
+            let targetName = relation.target_id;
+            let targetId = relation.target_id;
+            let targetType = relation.target_type;
+            const cacheKey = `${relation.target_type}:${relation.target_id}`;
+            if (entityCache.has(cacheKey)) {
+              const cached = entityCache.get(cacheKey);
+              targetName = cached.name;
+              targetId = relation.target_id;
+              targetType = cached.type;
+            } else {
+              switch (relation.target_type) {
+                case "character": {
+                  const char = await context.apiClient.getCharacter(relation.target_id);
+                  targetName = char.name;
+                  targetId = char.id;
+                  entityCache.set(cacheKey, { name: char.name, type: "character" });
+                  break;
+                }
+                case "location": {
+                  const loc = await context.apiClient.getLocation(relation.target_id);
+                  targetName = loc.name;
+                  targetId = loc.id;
+                  entityCache.set(cacheKey, { name: loc.name, type: "location" });
+                  break;
+                }
+                case "faction": {
+                  const faction = await context.apiClient.getFaction(relation.target_id);
+                  targetName = faction.name;
+                  targetId = faction.id;
+                  entityCache.set(cacheKey, { name: faction.name, type: "faction" });
+                  break;
+                }
+                case "artifact": {
+                  const artifact = await context.apiClient.getArtifact(relation.target_id);
+                  targetName = artifact.name;
+                  targetId = artifact.id;
+                  entityCache.set(cacheKey, { name: artifact.name, type: "artifact" });
+                  break;
+                }
+                case "event": {
+                  const event = await context.apiClient.getEvent(relation.target_id);
+                  targetName = event.name;
+                  targetId = event.id;
+                  entityCache.set(cacheKey, { name: event.name, type: "event" });
+                  break;
+                }
+                case "lore": {
+                  const lore = await context.apiClient.getLore(relation.target_id);
+                  targetName = lore.name;
+                  targetId = lore.id;
+                  entityCache.set(cacheKey, { name: lore.name, type: "lore" });
+                  break;
+                }
+                case "story": {
+                  const story = await context.apiClient.getStory(relation.target_id);
+                  targetName = story.title;
+                  targetId = story.id;
+                  entityCache.set(cacheKey, { name: story.title, type: "story" });
+                  break;
+                }
+              }
+            }
+            return {
+              targetType,
+              targetId,
+              targetName,
+              relationType: relation.relation_type,
+              summary: relation.context
+            };
+          } catch (error) {
+            console.warn(`[Sync V2] Failed to resolve target for world relation`, {
+              relation,
+              error
+            });
+            return {
+              targetType: relation.target_type,
+              targetId: relation.target_id,
+              targetName: relation.target_id,
+              relationType: relation.relation_type,
+              summary: relation.context
+            };
+          }
+        })
+      );
+      const entityMap = new Map(
+        resolvedRelations.map((r) => [`${r.targetType}:${r.targetId}`, r])
+      );
+      const resolveTarget = (relation) => {
+        const key = `${relation.target_type}:${relation.target_id}`;
+        const resolved = entityMap.get(key);
+        if (!resolved)
+          return null;
+        return {
+          targetId: resolved.targetId,
+          targetName: resolved.targetName,
+          summary: resolved.summary
+        };
+      };
+      const input = mapRelationsToGeneratorInput({
+        entity: {
+          id: world.id,
+          name: world.name,
+          type: "world"
+        },
+        relations: relationsResponse.data,
+        resolveTarget,
+        options: {
+          syncedAt: this.now(),
+          showHelpBox: context.settings.showHelpBox,
+          idField: context.settings.frontmatterIdField,
+          worldFolderPath: folderPath
+        }
+      });
+      const relationsContent = this.relationsGenerator.generate(input);
+      await context.fileManager.writeFile(`${folderPath}/world.relations.md`, relationsContent);
+    } catch (error) {
+      console.warn("[Sync V2] Failed to generate world relations file", { worldId: world.id, error });
+      await context.fileManager.writeFile(
+        `${folderPath}/world.relations.md`,
+        this.renderRelationsPlaceholder(world)
+      );
+    }
+  }
+  async generateCitations(world, folderPath, context) {
+    try {
+      const relationsResponse = await context.apiClient.listRelationsByWorld({
+        worldId: world.id
+      });
+      const storyElementRelations = relationsResponse.data.filter(
+        (rel) => ["chapter", "scene", "beat", "content_block"].includes(rel.source_type)
+      );
+      if (storyElementRelations.length === 0) {
+        const input2 = mapCitationsToGeneratorInput({
+          entity: {
+            id: world.id,
+            name: world.name,
+            type: "world"
+          },
+          relations: [],
+          resolveSource: () => null,
+          options: {
+            syncedAt: this.now(),
+            idField: context.settings.frontmatterIdField
+          }
+        });
+        const citationsContent2 = this.citationsGenerator.generate(input2);
+        await context.fileManager.writeFile(`${folderPath}/world.citations.md`, citationsContent2);
+        return;
+      }
+      const relationsBySource = /* @__PURE__ */ new Map();
+      for (const rel of storyElementRelations) {
+        if (!relationsBySource.has(rel.source_id)) {
+          relationsBySource.set(rel.source_id, []);
+        }
+        relationsBySource.get(rel.source_id).push(rel);
+      }
+      const storyCache = /* @__PURE__ */ new Map();
+      const chapterCache = /* @__PURE__ */ new Map();
+      const sceneCache = /* @__PURE__ */ new Map();
+      const beatCache = /* @__PURE__ */ new Map();
+      const contentBlockCache = /* @__PURE__ */ new Map();
+      const resolverCache = /* @__PURE__ */ new Map();
+      const storyIdsToFetch = /* @__PURE__ */ new Set();
+      for (const [sourceId, relations] of relationsBySource.entries()) {
+        const firstRel = relations[0];
+        if (firstRel.source_type === "chapter") {
+          try {
+          } catch (error) {
+            console.warn(`[Sync V2] Failed to resolve story for chapter`, { sourceId, error });
+          }
+        }
+      }
+      const getStory = async (storyId) => {
+        const cached = storyCache.get(storyId);
+        if (cached)
+          return cached;
+        const story = await context.apiClient.getStory(storyId);
+        storyCache.set(storyId, story);
+        return story;
+      };
+      const getChapter = async (chapterId) => {
+        const cached = chapterCache.get(chapterId);
+        if (cached)
+          return cached;
+        const chapter = await context.apiClient.getChapter(chapterId);
+        chapterCache.set(chapterId, chapter);
+        return chapter;
+      };
+      const getScene = async (sceneId) => {
+        const cached = sceneCache.get(sceneId);
+        if (cached)
+          return cached;
+        const scene = await context.apiClient.getScene(sceneId);
+        sceneCache.set(sceneId, scene);
+        return scene;
+      };
+      const getBeat = async (beatId) => {
+        const cached = beatCache.get(beatId);
+        if (cached)
+          return cached;
+        const beat = await context.apiClient.getBeat(beatId);
+        beatCache.set(beatId, beat);
+        return beat;
+      };
+      const getContentBlock = async (contentBlockId) => {
+        const cached = contentBlockCache.get(contentBlockId);
+        if (cached)
+          return cached;
+        const contentBlock = await context.apiClient.getContentBlock(contentBlockId);
+        contentBlockCache.set(contentBlockId, contentBlock);
+        return contentBlock;
+      };
+      const getResolver = (story) => {
+        const cached = resolverCache.get(story.id);
+        if (cached)
+          return cached;
+        const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+        const resolver = new PathResolver(storyFolder);
+        resolverCache.set(story.id, resolver);
+        return resolver;
+      };
+      const resolveSource = (relation) => {
+        if (!["chapter", "scene", "beat", "content_block"].includes(relation.source_type)) {
+          return null;
+        }
+        return {
+          storyId: "unknown",
+          storyTitle: "Unknown Story",
+          sourceTitle: relation.source_id,
+          sourceType: relation.source_type,
+          summary: relation.context
+        };
+      };
+      const resolveSourceAsync = async (relation) => {
+        var _a, _b, _c, _d, _e, _f, _g, _h, _i;
+        if (relation.source_type === "chapter") {
+          const chapter = await getChapter(relation.source_id);
+          const story = await getStory(chapter.story_id);
+          const resolver = getResolver(story);
+          const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+          return {
+            storyId: story.id,
+            storyTitle: story.title,
+            storyPath: `${storyFolder}/story.md`,
+            sourceTitle: `Chapter ${chapter.number}: ${chapter.title}`,
+            sourceType: "chapter",
+            sourcePath: resolver.getChapterPath(chapter),
+            chapterTitle: chapter.title,
+            summary: relation.context
+          };
+        }
+        if (relation.source_type === "scene") {
+          const scene = await getScene(relation.source_id);
+          const story = await getStory(scene.story_id);
+          const resolver = getResolver(story);
+          const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+          let chapterTitle;
+          let chapterOrder = 0;
+          if (scene.chapter_id) {
+            const chapter = await getChapter(scene.chapter_id);
+            chapterTitle = chapter.title;
+            chapterOrder = (_a = chapter.number) != null ? _a : 0;
+          }
+          return {
+            storyId: story.id,
+            storyTitle: story.title,
+            storyPath: `${storyFolder}/story.md`,
+            sourceTitle: `Scene ${(_b = scene.order_num) != null ? _b : 0}: ${scene.goal || "Untitled"}`,
+            sourceType: "scene",
+            sourcePath: resolver.getScenePath(scene, { chapterOrder }),
+            chapterTitle,
+            summary: relation.context
+          };
+        }
+        if (relation.source_type === "beat") {
+          const beat = await getBeat(relation.source_id);
+          const scene = await getScene(beat.scene_id);
+          const story = await getStory(scene.story_id);
+          const resolver = getResolver(story);
+          const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+          let chapterTitle;
+          let chapterOrder = 0;
+          if (scene.chapter_id) {
+            const chapter = await getChapter(scene.chapter_id);
+            chapterTitle = chapter.title;
+            chapterOrder = (_c = chapter.number) != null ? _c : 0;
+          }
+          return {
+            storyId: story.id,
+            storyTitle: story.title,
+            storyPath: `${storyFolder}/story.md`,
+            sourceTitle: `Beat ${(_d = beat.order_num) != null ? _d : 0}: ${beat.intent || "Untitled"}`,
+            sourceType: "beat",
+            sourcePath: resolver.getBeatPath(beat, {
+              chapterOrder,
+              sceneOrder: (_e = scene.order_num) != null ? _e : 0
+            }),
+            chapterTitle,
+            summary: relation.context
+          };
+        }
+        if (relation.source_type === "content_block") {
+          const block = await getContentBlock(relation.source_id);
+          if (!block.chapter_id) {
+            return null;
+          }
+          const chapter = await getChapter(block.chapter_id);
+          const story = await getStory(chapter.story_id);
+          const resolver = getResolver(story);
+          const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+          const sourceTitle = (_i = (_h = (_g = (_f = block.metadata) == null ? void 0 : _f.title) != null ? _g : block.kind) != null ? _h : block.type) != null ? _i : "Content Block";
+          return {
+            storyId: story.id,
+            storyTitle: story.title,
+            storyPath: `${storyFolder}/story.md`,
+            sourceTitle,
+            sourceType: "content_block",
+            sourcePath: resolver.getContentBlockPath(block),
+            chapterTitle: chapter.title,
+            summary: relation.context
+          };
+        }
+        return null;
+      };
+      const resolvedSources = await Promise.all(
+        storyElementRelations.map(async (relation) => ({
+          relation,
+          source: await resolveSourceAsync(relation)
+        }))
+      );
+      const input = mapCitationsToGeneratorInput({
+        entity: {
+          id: world.id,
+          name: world.name,
+          type: "world"
+        },
+        relations: storyElementRelations,
+        resolveSource: (relation) => {
+          var _a, _b;
+          return (_b = (_a = resolvedSources.find((item) => item.relation === relation)) == null ? void 0 : _a.source) != null ? _b : resolveSource(relation);
+        },
+        options: {
+          syncedAt: this.now(),
+          idField: context.settings.frontmatterIdField
+        }
+      });
+      const citationsContent = this.citationsGenerator.generate(input);
+      await context.fileManager.writeFile(`${folderPath}/world.citations.md`, citationsContent);
+    } catch (error) {
+      console.warn("[Sync V2] Failed to generate world citations file", { worldId: world.id, error });
+      await context.fileManager.writeFile(
+        `${folderPath}/world.citations.md`,
+        this.renderCitationsPlaceholder(world)
+      );
+    }
+  }
+  renderCitationsPlaceholder(world) {
+    return [
+      `# ${world.name} - Citations`,
+      "",
+      "_Cita\xE7\xF5es para este world ser\xE3o sincronizadas quando o Relations/Citations pipeline estiver ativo._",
+      ""
+    ].join("\n");
+  }
+};
+
 // src/views/StoryListView.ts
 var STORY_LIST_VIEW_TYPE = "story-engine-list-view";
-var StoryListView = class extends import_obsidian15.ItemView {
+var StoryListView = class extends import_obsidian16.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.stories = [];
@@ -8792,7 +11111,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       cls: "story-engine-settings-btn story-engine-tab",
       attr: { "aria-label": "Open Settings" }
     });
-    (0, import_obsidian15.setIcon)(settingsButton, "gear");
+    (0, import_obsidian16.setIcon)(settingsButton, "gear");
     settingsButton.onclick = () => {
       this.plugin.openSettings();
     };
@@ -8843,16 +11162,16 @@ var StoryListView = class extends import_obsidian15.ItemView {
     });
     syncAllButton.onclick = async () => {
       if (!this.plugin.settings.tenantId) {
-        new import_obsidian15.Notice("Please configure Tenant ID in settings", 5e3);
+        new import_obsidian16.Notice("Please configure Tenant ID in settings", 5e3);
         return;
       }
       try {
-        new import_obsidian15.Notice("Syncing all stories...");
+        new import_obsidian16.Notice("Syncing all stories...");
         await this.plugin.syncService.pullAllStories();
         await this.loadStories();
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to sync stories";
-        new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     let createButtonText = "Create Story";
@@ -8864,20 +11183,20 @@ var StoryListView = class extends import_obsidian15.ItemView {
       createButtonAction = async () => {
         new CreateWorldModal(this.app, async (name, description, genre) => {
           try {
-            new import_obsidian15.Notice(`Creating world "${name}"...`);
+            new import_obsidian16.Notice(`Creating world "${name}"...`);
             const newWorld = await this.plugin.apiClient.createWorld(name, description, genre);
-            new import_obsidian15.Notice(`World "${name}" created successfully`);
+            new import_obsidian16.Notice(`World "${name}" created successfully`);
             await this.loadStories();
           } catch (err) {
             const errorMessage = err instanceof Error ? err.message : "Failed to create world";
-            new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
           }
         }).open();
       };
     } else if (this.listTab === "rpg-systems") {
       createButtonText = "Create RPG System";
       createButtonAction = () => {
-        new import_obsidian15.Notice("Create RPG System - Coming soon", 3e3);
+        new import_obsidian16.Notice("Create RPG System - Coming soon", 3e3);
       };
     }
     const createButton = actionsBar.createEl("button", {
@@ -8917,7 +11236,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       cls: "story-engine-copy-uuid-btn",
       attr: { "aria-label": "Copy UUID" }
     });
-    (0, import_obsidian15.setIcon)(copyUuidButton, "copy");
+    (0, import_obsidian16.setIcon)(copyUuidButton, "copy");
     copyUuidButton.onclick = () => {
       this.copyStoryId();
     };
@@ -8929,7 +11248,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
           cls: "story-engine-world-btn",
           attr: { "aria-label": `Go to World: ${world.name}` }
         });
-        (0, import_obsidian15.setIcon)(worldButton, "globe");
+        (0, import_obsidian16.setIcon)(worldButton, "globe");
         worldButton.createSpan({ text: "World" });
         worldButton.onclick = () => {
           this.showWorldDetails(world);
@@ -8940,13 +11259,13 @@ var StoryListView = class extends import_obsidian15.ItemView {
       cls: "story-engine-context-btn",
       attr: { "aria-label": "Story Actions" }
     });
-    (0, import_obsidian15.setIcon)(contextButton, "more-vertical");
+    (0, import_obsidian16.setIcon)(contextButton, "more-vertical");
     const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
     dropdownMenu.style.display = "none";
     const editOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian15.setIcon)(editOption, "pencil");
+    (0, import_obsidian16.setIcon)(editOption, "pencil");
     editOption.createSpan({ text: "Edit Story Name" });
     editOption.onclick = () => {
       dropdownMenu.style.display = "none";
@@ -8955,7 +11274,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const cloneOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian15.setIcon)(cloneOption, "copy");
+    (0, import_obsidian16.setIcon)(cloneOption, "copy");
     cloneOption.createSpan({ text: "Clone Story" });
     cloneOption.onclick = async () => {
       dropdownMenu.style.display = "none";
@@ -8964,27 +11283,27 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const pullOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian15.setIcon)(pullOption, "download");
+    (0, import_obsidian16.setIcon)(pullOption, "download");
     pullOption.createSpan({ text: "Pull from Service" });
     pullOption.onclick = async () => {
       dropdownMenu.style.display = "none";
       if (!this.currentStory)
         return;
       try {
-        new import_obsidian15.Notice(`Pulling story "${this.currentStory.title}"...`);
+        new import_obsidian16.Notice(`Pulling story "${this.currentStory.title}"...`);
         await this.plugin.syncService.pullStory(this.currentStory.id);
         await this.loadHierarchy();
         this.renderTabContent();
-        new import_obsidian15.Notice(`Story pulled successfully!`);
+        new import_obsidian16.Notice(`Story pulled successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to pull story";
-        new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const pushOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian15.setIcon)(pushOption, "upload");
+    (0, import_obsidian16.setIcon)(pushOption, "upload");
     pushOption.createSpan({ text: "Push to Service" });
     pushOption.onclick = async () => {
       dropdownMenu.style.display = "none";
@@ -8992,12 +11311,12 @@ var StoryListView = class extends import_obsidian15.ItemView {
         return;
       try {
         const folderPath = this.plugin.fileManager.getStoryFolderPath(this.currentStory.title);
-        new import_obsidian15.Notice(`Pushing story "${this.currentStory.title}"...`);
+        new import_obsidian16.Notice(`Pushing story "${this.currentStory.title}"...`);
         await this.plugin.syncService.pushStory(folderPath);
-        new import_obsidian15.Notice(`Story pushed successfully!`);
+        new import_obsidian16.Notice(`Story pushed successfully!`);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-        new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     contextButton.onclick = (e) => {
@@ -9229,7 +11548,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load hierarchy";
-      new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
     } finally {
       this.loadingHierarchy = false;
     }
@@ -9354,7 +11673,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
               await this.plugin.apiClient.updateChapter(chapter.id, updatedChapter);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian15.Notice("Chapter updated successfully");
+              new import_obsidian16.Notice("Chapter updated successfully");
             } catch (err) {
               throw err;
             }
@@ -9381,9 +11700,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
               await this.plugin.apiClient.deleteChapter(chapter.id);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian15.Notice("Chapter deleted");
+              new import_obsidian16.Notice("Chapter deleted");
             } catch (err) {
-              new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+              new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
             }
           }
         };
@@ -9402,7 +11721,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.createChapter(this.currentStory.id, chapter);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian15.Notice("Chapter created successfully");
+          new import_obsidian16.Notice("Chapter created successfully");
         } catch (err) {
           throw err;
         }
@@ -9447,7 +11766,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian15.Notice("Scene created successfully");
+            new import_obsidian16.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
@@ -9477,7 +11796,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
             await this.plugin.apiClient.createScene(scene);
             await this.loadHierarchy();
             this.renderTabContent();
-            new import_obsidian15.Notice("Scene created successfully");
+            new import_obsidian16.Notice("Scene created successfully");
           } catch (err) {
             throw err;
           }
@@ -9504,7 +11823,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.updateScene(scene.id, updatedScene);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian15.Notice("Scene updated successfully");
+          new import_obsidian16.Notice("Scene updated successfully");
         } catch (err) {
           throw err;
         }
@@ -9540,9 +11859,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.deleteScene(scene.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian15.Notice("Scene deleted");
+          new import_obsidian16.Notice("Scene deleted");
         } catch (err) {
-          new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -9595,7 +11914,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
                 await this.plugin.apiClient.createBeat(beat);
                 await this.loadHierarchy();
                 this.renderTabContent();
-                new import_obsidian15.Notice("Beat created successfully");
+                new import_obsidian16.Notice("Beat created successfully");
               } catch (err) {
                 throw err;
               }
@@ -9643,7 +11962,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
               await this.plugin.apiClient.createBeat(beat);
               await this.loadHierarchy();
               this.renderTabContent();
-              new import_obsidian15.Notice("Beat created successfully");
+              new import_obsidian16.Notice("Beat created successfully");
             } catch (err) {
               throw err;
             }
@@ -9691,7 +12010,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.updateBeat(beat.id, updatedBeat);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian15.Notice("Beat updated successfully");
+          new import_obsidian16.Notice("Beat updated successfully");
         } catch (err) {
           throw err;
         }
@@ -9728,9 +12047,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.deleteBeat(beat.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian15.Notice("Beat deleted");
+          new import_obsidian16.Notice("Beat deleted");
         } catch (err) {
-          new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -9738,7 +12057,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showEditStoryNameModal() {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Story Name");
     const content = modal.contentEl;
     let title = this.currentStory.title;
@@ -9751,7 +12070,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!title.trim()) {
-        new import_obsidian15.Notice("Story name is required", 3e3);
+        new import_obsidian16.Notice("Story name is required", 3e3);
         return;
       }
       try {
@@ -9760,9 +12079,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadStories();
         this.renderDetailsHeader();
         modal.close();
-        new import_obsidian15.Notice("Story name updated");
+        new import_obsidian16.Notice("Story name updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -9786,12 +12105,12 @@ var StoryListView = class extends import_obsidian15.ItemView {
       const clonedStory = await this.plugin.apiClient.cloneStory(
         this.currentStory.id
       );
-      new import_obsidian15.Notice(`Story "${clonedStory.title}" cloned successfully!`);
+      new import_obsidian16.Notice(`Story "${clonedStory.title}" cloned successfully!`);
       await this.loadStories();
       await this.showStoryDetails(clonedStory);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Clone failed";
-      new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
       if (cloneButton) {
         cloneButton.setText("Clone Story");
         cloneButton.disabled = false;
@@ -9801,7 +12120,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showEditWorldModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit World");
     const content = modal.contentEl;
     let name = this.currentWorld.name;
@@ -9827,11 +12146,11 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("World name is required", 3e3);
+        new import_obsidian16.Notice("World name is required", 3e3);
         return;
       }
       if (!genre.trim()) {
-        new import_obsidian15.Notice("Genre is required", 3e3);
+        new import_obsidian16.Notice("Genre is required", 3e3);
         return;
       }
       try {
@@ -9845,9 +12164,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadStories();
         this.renderWorldDetails();
         modal.close();
-        new import_obsidian15.Notice("World updated");
+        new import_obsidian16.Notice("World updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -9859,7 +12178,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     if (!this.currentStory)
       return;
     navigator.clipboard.writeText(this.currentStory.id).then(() => {
-      new import_obsidian15.Notice("UUID copied to clipboard");
+      new import_obsidian16.Notice("UUID copied to clipboard");
     }).catch(() => {
       const textarea = document.createElement("textarea");
       textarea.value = this.currentStory.id;
@@ -9870,9 +12189,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
       textarea.select();
       try {
         document.execCommand("copy");
-        new import_obsidian15.Notice("UUID copied to clipboard");
+        new import_obsidian16.Notice("UUID copied to clipboard");
       } catch (err) {
-        new import_obsidian15.Notice("Failed to copy UUID", 3e3);
+        new import_obsidian16.Notice("Failed to copy UUID", 3e3);
       }
       document.body.removeChild(textarea);
     });
@@ -9889,9 +12208,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
       await this.plugin.apiClient.updateChapter(previousChapter.id, { number: tempNumber });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian15.Notice("Chapter moved up");
+      new import_obsidian16.Notice("Chapter moved up");
     } catch (err) {
-      new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveChapterDown(chapter) {
@@ -9906,9 +12225,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
       await this.plugin.apiClient.updateChapter(nextChapter.id, { number: tempNumber });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian15.Notice("Chapter moved down");
+      new import_obsidian16.Notice("Chapter moved down");
     } catch (err) {
-      new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveSceneUp(scene) {
@@ -9923,9 +12242,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
       await this.plugin.apiClient.updateScene(previousScene.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian15.Notice("Scene moved up");
+      new import_obsidian16.Notice("Scene moved up");
     } catch (err) {
-      new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveSceneDown(scene) {
@@ -9940,9 +12259,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
       await this.plugin.apiClient.updateScene(nextScene.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian15.Notice("Scene moved down");
+      new import_obsidian16.Notice("Scene moved down");
     } catch (err) {
-      new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveBeatUp(beat) {
@@ -9957,9 +12276,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
       await this.plugin.apiClient.updateBeat(previousBeat.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian15.Notice("Beat moved up");
+      new import_obsidian16.Notice("Beat moved up");
     } catch (err) {
-      new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async moveBeatDown(beat) {
@@ -9974,15 +12293,15 @@ var StoryListView = class extends import_obsidian15.ItemView {
       await this.plugin.apiClient.updateBeat(nextBeat.id, { order_num: tempOrderNum });
       await this.loadHierarchy();
       this.renderTabContent();
-      new import_obsidian15.Notice("Beat moved down");
+      new import_obsidian16.Notice("Beat moved down");
     } catch (err) {
-      new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   async showMoveSceneModal(scene) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Move Scene");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move scene "${scene.goal || `Scene ${scene.order_num}`}" to:` });
@@ -10012,10 +12331,10 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Scene moved successfully");
+        new import_obsidian16.Notice("Scene moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move scene";
-        new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -10025,7 +12344,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   async showMoveBeatModal(beat) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Move Beat");
     const content = modal.contentEl;
     content.createEl("p", { text: `Move beat "${beat.type}" to:` });
@@ -10068,7 +12387,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     moveButton.onclick = async () => {
       const selectedSceneId = select.value;
       if (!selectedSceneId) {
-        new import_obsidian15.Notice("Please select a scene", 3e3);
+        new import_obsidian16.Notice("Please select a scene", 3e3);
         return;
       }
       try {
@@ -10076,10 +12395,10 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Beat moved successfully");
+        new import_obsidian16.Notice("Beat moved successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : "Failed to move beat";
-        new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -10318,7 +12637,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     } catch (err) {
       console.error("Error loading story characters:", err);
       this.storyCharacters = [];
-      new import_obsidian15.Notice(`Error loading characters: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+      new import_obsidian16.Notice(`Error loading characters: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
     }
   }
   renderStoryCharactersTab(container) {
@@ -10366,10 +12685,10 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateCharacterModalForStory() {
     var _a;
     if (!((_a = this.currentStory) == null ? void 0 : _a.world_id)) {
-      new import_obsidian15.Notice("This story is not linked to a world");
+      new import_obsidian16.Notice("This story is not linked to a world");
       return;
     }
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Character");
     const content = modal.contentEl;
     let name = "";
@@ -10388,7 +12707,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -10399,9 +12718,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadStoryCharacters();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice("Character created");
+        new import_obsidian16.Notice("Character created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -10422,7 +12741,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       link: "external-link"
     };
     const iconName = iconMap[contentBlock.type] || "file";
-    (0, import_obsidian15.setIcon)(iconContainer, iconName);
+    (0, import_obsidian16.setIcon)(iconContainer, iconName);
     const preview = itemContent.createDiv({ cls: "story-engine-content-preview" });
     if (contentBlock.type === "text") {
       const textPreview = contentBlock.content || "";
@@ -10455,7 +12774,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.updateContentBlock(contentBlock.id, updatedContentBlock);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian15.Notice("Content block updated successfully");
+          new import_obsidian16.Notice("Content block updated successfully");
         } catch (err) {
           throw err;
         }
@@ -10473,9 +12792,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.deleteContentBlock(contentBlock.id);
           await this.loadHierarchy();
           this.renderTabContent();
-          new import_obsidian15.Notice("Content block deleted");
+          new import_obsidian16.Notice("Content block deleted");
         } catch (err) {
-          new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -10483,7 +12802,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   async showMoveContentModal(contentBlock, currentEntityType, currentEntityId, mode) {
     if (!this.currentStory)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText(mode === "move" ? "Move Content Block" : "Link Content Block");
     const content = modal.contentEl;
     content.createEl("p", {
@@ -10574,10 +12893,10 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadHierarchy();
         this.renderTabContent();
         modal.close();
-        new import_obsidian15.Notice(mode === "move" ? "Content block moved successfully" : "Content block linked successfully");
+        new import_obsidian16.Notice(mode === "move" ? "Content block moved successfully" : "Content block linked successfully");
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : `Failed to ${mode} content block`;
-        new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
       }
     };
     const cancelButton = buttonContainer.createEl("button", { text: "Cancel" });
@@ -10589,7 +12908,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       return;
     if (!chapterId) {
       if (this.chapters.length === 0) {
-        new import_obsidian15.Notice("No chapter available. Please create a chapter first.", 5e3);
+        new import_obsidian16.Notice("No chapter available. Please create a chapter first.", 5e3);
         return;
       }
       chapterId = this.chapters[0].id;
@@ -10613,7 +12932,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.plugin.apiClient.createContentAnchor(created.id, entityType, entityId);
         await this.loadHierarchy();
         this.renderTabContent();
-        new import_obsidian15.Notice("Content block created successfully");
+        new import_obsidian16.Notice("Content block created successfully");
       } catch (err) {
         throw err;
       }
@@ -10667,7 +12986,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to load world data";
-      new import_obsidian15.Notice(`Error: ${errorMessage}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
     } finally {
       this.loadingWorldData = false;
     }
@@ -10715,14 +13034,14 @@ var StoryListView = class extends import_obsidian15.ItemView {
       cls: "story-engine-copy-uuid-btn",
       attr: { "aria-label": "Copy UUID" }
     });
-    (0, import_obsidian15.setIcon)(copyUuidButton, "copy");
+    (0, import_obsidian16.setIcon)(copyUuidButton, "copy");
     copyUuidButton.onclick = () => {
       if (!this.currentWorld)
         return;
       navigator.clipboard.writeText(this.currentWorld.id).then(() => {
-        new import_obsidian15.Notice("UUID copied to clipboard");
+        new import_obsidian16.Notice("UUID copied to clipboard");
       }).catch(() => {
-        new import_obsidian15.Notice("Failed to copy UUID", 3e3);
+        new import_obsidian16.Notice("Failed to copy UUID", 3e3);
       });
     };
     if (this.currentWorld.description) {
@@ -10734,17 +13053,40 @@ var StoryListView = class extends import_obsidian15.ItemView {
       cls: "story-engine-context-btn",
       attr: { "aria-label": "World Actions" }
     });
-    (0, import_obsidian15.setIcon)(contextButton, "more-vertical");
+    (0, import_obsidian16.setIcon)(contextButton, "more-vertical");
     const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
     dropdownMenu.style.display = "none";
     const editOption = dropdownMenu.createEl("button", {
       cls: "story-engine-dropdown-item"
     });
-    (0, import_obsidian15.setIcon)(editOption, "pencil");
+    (0, import_obsidian16.setIcon)(editOption, "pencil");
     editOption.createSpan({ text: "Edit World" });
     editOption.onclick = () => {
       dropdownMenu.style.display = "none";
       this.showEditWorldModal();
+    };
+    dropdownMenu.createDiv({ cls: "story-engine-dropdown-divider" });
+    dropdownMenu.createEl("div", {
+      cls: "story-engine-dropdown-section",
+      text: "Sync"
+    });
+    const pullWorldOption = dropdownMenu.createEl("button", {
+      cls: "story-engine-dropdown-item"
+    });
+    (0, import_obsidian16.setIcon)(pullWorldOption, "download");
+    pullWorldOption.createSpan({ text: "Pull World Files" });
+    pullWorldOption.onclick = async () => {
+      dropdownMenu.style.display = "none";
+      await this.pullCurrentWorld();
+    };
+    const pushWorldOption = dropdownMenu.createEl("button", {
+      cls: "story-engine-dropdown-item"
+    });
+    (0, import_obsidian16.setIcon)(pushWorldOption, "upload");
+    pushWorldOption.createSpan({ text: "Push World Files" });
+    pushWorldOption.onclick = async () => {
+      dropdownMenu.style.display = "none";
+      await this.pushCurrentWorld();
     };
     contextButton.onclick = (e) => {
       e.stopPropagation();
@@ -10754,6 +13096,54 @@ var StoryListView = class extends import_obsidian15.ItemView {
     document.addEventListener("click", () => {
       dropdownMenu.style.display = "none";
     }, { once: true });
+  }
+  async pullCurrentWorld() {
+    var _a;
+    if (!this.currentWorld)
+      return;
+    try {
+      new import_obsidian16.Notice(`Pulling world "${this.currentWorld.name}"...`);
+      const syncService = this.plugin.syncService;
+      if (syncService == null ? void 0 : syncService.pullWorld) {
+        await syncService.pullWorld(this.currentWorld.id);
+      } else if (syncService == null ? void 0 : syncService.getOrchestrator) {
+        const result = await syncService.getOrchestrator().run({
+          type: "pull_world",
+          payload: { worldId: this.currentWorld.id }
+        });
+        if (!(result == null ? void 0 : result.success)) {
+          throw new Error((_a = result == null ? void 0 : result.message) != null ? _a : "Failed to pull world");
+        }
+      } else {
+        throw new Error("World sync is not available in this sync version");
+      }
+      await this.loadWorldData();
+      this.renderWorldTabContent();
+      new import_obsidian16.Notice(`World pulled successfully!`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to pull world";
+      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+    }
+  }
+  async pushCurrentWorld() {
+    if (!this.currentWorld)
+      return;
+    try {
+      new import_obsidian16.Notice(`Pushing world "${this.currentWorld.name}"...`);
+      const syncService = this.plugin.syncService;
+      if (syncService == null ? void 0 : syncService.pushWorld) {
+        await syncService.pushWorld(this.currentWorld);
+      } else if (syncService == null ? void 0 : syncService.getContext) {
+        const handler = new WorldHandler();
+        await handler.push(this.currentWorld, syncService.getContext());
+      } else {
+        throw new Error("World sync is not available in this sync version");
+      }
+      new import_obsidian16.Notice(`World pushed successfully!`);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Failed to push world";
+      new import_obsidian16.Notice(`Error: ${errorMessage}`, 5e3);
+    }
   }
   renderWorldTabs() {
     if (!this.contentEl)
@@ -10901,7 +13291,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
       }
       const actions = item.createDiv({ cls: "story-engine-item-actions" });
       const relBtn = actions.createEl("button");
-      (0, import_obsidian15.setIcon)(relBtn, "users");
+      (0, import_obsidian16.setIcon)(relBtn, "users");
       relBtn.title = "Add Relationship";
       relBtn.onclick = () => this.showAddCharacterRelationshipModal(character);
       actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -10913,9 +13303,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
             await this.plugin.apiClient.deleteCharacter(character.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian15.Notice("Character deleted");
+            new import_obsidian16.Notice("Character deleted");
           } catch (err) {
-            new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -10955,9 +13345,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.deleteLocation(location.id);
           await this.loadWorldData();
           this.renderWorldTabContent();
-          new import_obsidian15.Notice("Location deleted");
+          new import_obsidian16.Notice("Location deleted");
         } catch (err) {
-          new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -10994,9 +13384,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
             await this.plugin.apiClient.deleteArtifact(artifact.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian15.Notice("Artifact deleted");
+            new import_obsidian16.Notice("Artifact deleted");
           } catch (err) {
-            new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -11100,11 +13490,11 @@ var StoryListView = class extends import_obsidian15.ItemView {
       }
       const actions = item.createDiv({ cls: "story-engine-item-actions" });
       const linkBtn = actions.createEl("button");
-      (0, import_obsidian15.setIcon)(linkBtn, "link");
+      (0, import_obsidian16.setIcon)(linkBtn, "link");
       linkBtn.title = "Link to Entity";
       linkBtn.onclick = () => this.showLinkEventToEntityModal(event);
       const eventLinkBtn = actions.createEl("button");
-      (0, import_obsidian15.setIcon)(eventLinkBtn, "git-branch");
+      (0, import_obsidian16.setIcon)(eventLinkBtn, "git-branch");
       eventLinkBtn.title = "Set Parent Event";
       eventLinkBtn.onclick = () => this.showSetEventParentModal(event);
       actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -11116,9 +13506,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
             await this.plugin.apiClient.deleteEvent(event.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian15.Notice("Event deleted");
+            new import_obsidian16.Notice("Event deleted");
           } catch (err) {
-            new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -11127,7 +13517,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateEpochEventModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Epoch Event (Year Zero)");
     const content = modal.contentEl;
     let name = "";
@@ -11157,7 +13547,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create Epoch", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required");
+        new import_obsidian16.Notice("Name is required");
         return;
       }
       try {
@@ -11173,9 +13563,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         modal.close();
         await this.loadWorldData();
         this.renderWorldTabContent();
-        new import_obsidian15.Notice("Epoch event created!");
+        new import_obsidian16.Notice("Epoch event created!");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     const cancelBtn = buttonContainer.createEl("button", { text: "Cancel" });
@@ -11218,9 +13608,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
               await this.plugin.apiClient.deleteTrait(trait.id);
               await this.loadWorldData();
               this.renderWorldTabContent();
-              new import_obsidian15.Notice("Trait deleted");
+              new import_obsidian16.Notice("Trait deleted");
             } catch (err) {
-              new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+              new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
             }
           }
         };
@@ -11246,7 +13636,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
           const traits = await this.plugin.apiClient.getArchetypeTraits(archetype.id);
           this.showArchetypeTraitsModal(archetype, traits);
         } catch (err) {
-          new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       };
       actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -11258,9 +13648,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
             await this.plugin.apiClient.deleteArchetype(archetype.id);
             await this.loadWorldData();
             this.renderWorldTabContent();
-            new import_obsidian15.Notice("Archetype deleted");
+            new import_obsidian16.Notice("Archetype deleted");
           } catch (err) {
-            new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+            new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
           }
         }
       };
@@ -11292,11 +13682,11 @@ var StoryListView = class extends import_obsidian15.ItemView {
     }
     const actions = item.createDiv({ cls: "story-engine-item-actions" });
     const linkBtn = actions.createEl("button");
-    (0, import_obsidian15.setIcon)(linkBtn, "link");
+    (0, import_obsidian16.setIcon)(linkBtn, "link");
     linkBtn.title = "Link to Entity";
     linkBtn.onclick = () => this.showAddLoreReferenceModal(lore);
     const subBtn = actions.createEl("button");
-    (0, import_obsidian15.setIcon)(subBtn, "folder-plus");
+    (0, import_obsidian16.setIcon)(subBtn, "folder-plus");
     subBtn.title = "Create Sub-Lore";
     subBtn.onclick = () => this.showCreateLoreModal(lore.id);
     actions.createEl("button", { text: "Edit" }).onclick = () => {
@@ -11308,9 +13698,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.deleteLore(lore.id);
           await this.loadWorldData();
           this.renderWorldTabContent();
-          new import_obsidian15.Notice("Lore deleted");
+          new import_obsidian16.Notice("Lore deleted");
         } catch (err) {
-          new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -11345,11 +13735,11 @@ var StoryListView = class extends import_obsidian15.ItemView {
     }
     const actions = item.createDiv({ cls: "story-engine-item-actions" });
     const linkBtn = actions.createEl("button");
-    (0, import_obsidian15.setIcon)(linkBtn, "link");
+    (0, import_obsidian16.setIcon)(linkBtn, "link");
     linkBtn.title = "Link to Entity";
     linkBtn.onclick = () => this.showAddFactionReferenceModal(faction);
     const subBtn = actions.createEl("button");
-    (0, import_obsidian15.setIcon)(subBtn, "folder-plus");
+    (0, import_obsidian16.setIcon)(subBtn, "folder-plus");
     subBtn.title = "Create Sub-Faction";
     subBtn.onclick = () => this.showCreateFactionModal(faction.id);
     actions.createEl("button", { text: "View Details" }).onclick = () => {
@@ -11364,9 +13754,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
           await this.plugin.apiClient.deleteFaction(faction.id);
           await this.loadWorldData();
           this.renderWorldTabContent();
-          new import_obsidian15.Notice("Faction deleted");
+          new import_obsidian16.Notice("Faction deleted");
         } catch (err) {
-          new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+          new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
         }
       }
     };
@@ -11379,7 +13769,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateCharacterModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Character");
     const content = modal.contentEl;
     let name = "";
@@ -11398,7 +13788,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11406,9 +13796,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Character created");
+        new import_obsidian16.Notice("Character created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11416,7 +13806,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditCharacterModal(character) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Character");
     const content = modal.contentEl;
     let name = character.name;
@@ -11436,7 +13826,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11448,9 +13838,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
           this.renderWorldTabContent();
         }
         modal.close();
-        new import_obsidian15.Notice("Character updated");
+        new import_obsidian16.Notice("Character updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11459,7 +13849,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateLocationModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Location");
     const content = modal.contentEl;
     let name = "";
@@ -11494,7 +13884,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11507,9 +13897,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Location created");
+        new import_obsidian16.Notice("Location created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11517,7 +13907,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditLocationModal(location) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Location");
     const content = modal.contentEl;
     let name = location.name;
@@ -11543,7 +13933,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11551,9 +13941,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Location updated");
+        new import_obsidian16.Notice("Location updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11562,7 +13952,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateArtifactModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Artifact");
     const content = modal.contentEl;
     let name = "";
@@ -11591,7 +13981,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11603,9 +13993,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Artifact created");
+        new import_obsidian16.Notice("Artifact created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11613,7 +14003,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditArtifactModal(artifact) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Artifact");
     const content = modal.contentEl;
     let name = artifact.name;
@@ -11645,7 +14035,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11653,9 +14043,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Artifact updated");
+        new import_obsidian16.Notice("Artifact updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11664,7 +14054,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateEventModal() {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Event");
     const content = modal.contentEl;
     let name = "";
@@ -11731,7 +14121,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create Event", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11745,9 +14135,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Event created");
+        new import_obsidian16.Notice("Event created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11756,7 +14146,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   }
   showEditEventModal(event) {
     var _a, _b;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Event");
     const content = modal.contentEl;
     let name = event.name;
@@ -11820,7 +14210,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11834,16 +14224,16 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Event updated");
+        new import_obsidian16.Notice("Event updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
   showCreateTraitModal() {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Trait");
     const content = modal.contentEl;
     let name = "";
@@ -11868,7 +14258,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11880,9 +14270,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Trait created");
+        new import_obsidian16.Notice("Trait created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11890,7 +14280,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditTraitModal(trait) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Trait");
     const content = modal.contentEl;
     let name = trait.name;
@@ -11916,7 +14306,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -11924,9 +14314,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Trait updated");
+        new import_obsidian16.Notice("Trait updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -11955,7 +14345,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     var _a;
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText(existingConfig ? "Edit Time Configuration" : "Create Time Configuration");
     const content = modal.contentEl;
     let baseUnit = (existingConfig == null ? void 0 : existingConfig.base_unit) || "year";
@@ -12046,9 +14436,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Time configuration saved");
+        new import_obsidian16.Notice("Time configuration saved");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12062,12 +14452,12 @@ var StoryListView = class extends import_obsidian15.ItemView {
       const modal = new TimelineModal(this.app, events, this.currentWorld.time_config || null);
       modal.open();
     } catch (err) {
-      new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed to load timeline"}`, 5e3);
+      new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed to load timeline"}`, 5e3);
     }
   }
   // Placeholder methods for modals that will be implemented later
   showArchetypeTraitsModal(archetype, traits) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText(`Traits for ${archetype.name}`);
     const content = modal.contentEl;
     if (traits.length === 0) {
@@ -12082,7 +14472,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     modal.open();
   }
   showCreateArchetypeModal() {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Archetype");
     const content = modal.contentEl;
     let name = "";
@@ -12101,7 +14491,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -12109,9 +14499,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Archetype created");
+        new import_obsidian16.Notice("Archetype created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12119,7 +14509,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditArchetypeModal(archetype) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Archetype");
     const content = modal.contentEl;
     let name = archetype.name;
@@ -12139,7 +14529,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -12147,16 +14537,16 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Archetype updated");
+        new import_obsidian16.Notice("Archetype updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
   showLoreDetailsModal(lore) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText(lore.name);
     const content = modal.contentEl;
     content.createEl("h4", { text: "Description" });
@@ -12178,7 +14568,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateLoreModal(parentId) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Lore");
     const content = modal.contentEl;
     let name = "";
@@ -12221,7 +14611,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -12237,9 +14627,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Lore created");
+        new import_obsidian16.Notice("Lore created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12247,7 +14637,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditLoreModal(lore) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Lore");
     const content = modal.contentEl;
     let name = lore.name;
@@ -12294,7 +14684,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -12309,16 +14699,16 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Lore updated");
+        new import_obsidian16.Notice("Lore updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
     modal.open();
   }
   showFactionDetailsModal(faction) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText(faction.name);
     const content = modal.contentEl;
     content.createEl("h4", { text: "Description" });
@@ -12340,7 +14730,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showCreateFactionModal(parentId) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Create Faction");
     const content = modal.contentEl;
     let name = "";
@@ -12383,7 +14773,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -12399,9 +14789,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Faction created");
+        new import_obsidian16.Notice("Faction created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12409,7 +14799,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     nameInput.focus();
   }
   showEditFactionModal(faction) {
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Edit Faction");
     const content = modal.contentEl;
     let name = faction.name;
@@ -12456,7 +14846,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const saveBtn = buttonContainer.createEl("button", { text: "Save", cls: "mod-cta" });
     saveBtn.onclick = async () => {
       if (!name.trim()) {
-        new import_obsidian15.Notice("Name is required", 3e3);
+        new import_obsidian16.Notice("Name is required", 3e3);
         return;
       }
       try {
@@ -12471,9 +14861,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Faction updated");
+        new import_obsidian16.Notice("Faction updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12483,7 +14873,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showAddCharacterRelationshipModal(character) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Add Character Relationship");
     const content = modal.contentEl;
     let otherCharacterId = "";
@@ -12523,7 +14913,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!otherCharacterId) {
-        new import_obsidian15.Notice("Please select a character", 3e3);
+        new import_obsidian16.Notice("Please select a character", 3e3);
         return;
       }
       try {
@@ -12536,9 +14926,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Relationship created");
+        new import_obsidian16.Notice("Relationship created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12547,7 +14937,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showLinkEventToEntityModal(event) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText(`Link Event: ${event.name}`);
     const content = modal.contentEl;
     let entityType = "character";
@@ -12618,7 +15008,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Link Entity", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!entityId) {
-        new import_obsidian15.Notice(`Please select a ${entityType}`, 3e3);
+        new import_obsidian16.Notice(`Please select a ${entityType}`, 3e3);
         return;
       }
       try {
@@ -12626,9 +15016,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Entity linked to event");
+        new import_obsidian16.Notice("Entity linked to event");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12637,7 +15027,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showSetEventParentModal(event) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Set Parent Event (Cause)");
     const content = modal.contentEl;
     let parentId = event.parent_id || null;
@@ -12674,9 +15064,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Event parent updated");
+        new import_obsidian16.Notice("Event parent updated");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12685,7 +15075,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showAddFactionReferenceModal(faction) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Link Faction to Entity");
     const content = modal.contentEl;
     let entityType = "character";
@@ -12749,7 +15139,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!entityId) {
-        new import_obsidian15.Notice("Please select an entity", 3e3);
+        new import_obsidian16.Notice("Please select an entity", 3e3);
         return;
       }
       try {
@@ -12757,9 +15147,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Reference created");
+        new import_obsidian16.Notice("Reference created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12768,7 +15158,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
   showAddLoreReferenceModal(lore) {
     if (!this.currentWorld)
       return;
-    const modal = new import_obsidian15.Modal(this.app);
+    const modal = new import_obsidian16.Modal(this.app);
     modal.titleEl.setText("Link Lore to Entity");
     const content = modal.contentEl;
     let entityType = "character";
@@ -12837,7 +15227,7 @@ var StoryListView = class extends import_obsidian15.ItemView {
     const createBtn = buttonContainer.createEl("button", { text: "Create", cls: "mod-cta" });
     createBtn.onclick = async () => {
       if (!entityId) {
-        new import_obsidian15.Notice("Please select an entity", 3e3);
+        new import_obsidian16.Notice("Please select an entity", 3e3);
         return;
       }
       try {
@@ -12845,9 +15235,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
         await this.loadWorldData();
         this.renderWorldTabContent();
         modal.close();
-        new import_obsidian15.Notice("Reference created");
+        new import_obsidian16.Notice("Reference created");
       } catch (err) {
-        new import_obsidian15.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
+        new import_obsidian16.Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5e3);
       }
     };
     buttonContainer.createEl("button", { text: "Cancel" }).onclick = () => modal.close();
@@ -12921,9 +15311,9 @@ var StoryListView = class extends import_obsidian15.ItemView {
 };
 
 // src/views/StoryEngineExtractView.ts
-var import_obsidian16 = require("obsidian");
+var import_obsidian17 = require("obsidian");
 var STORY_ENGINE_EXTRACT_VIEW_TYPE = "story-engine-extract-view";
-var StoryEngineExtractView = class extends import_obsidian16.ItemView {
+var StoryEngineExtractView = class extends import_obsidian17.ItemView {
   constructor(leaf, plugin) {
     super(leaf);
     this.result = null;
@@ -13288,7 +15678,7 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
   async createEntity(entity) {
     var _a, _b;
     if (!((_a = this.result) == null ? void 0 : _a.world_id)) {
-      new import_obsidian16.Notice("World ID missing. Select a story or world first.", 4e3);
+      new import_obsidian17.Notice("World ID missing. Select a story or world first.", 4e3);
       return "";
     }
     const description = ((_b = entity.summary) == null ? void 0 : _b.trim()) || entity.name;
@@ -13335,7 +15725,7 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
         break;
       }
       default:
-        new import_obsidian16.Notice(`Unsupported type: ${entity.type}`, 4e3);
+        new import_obsidian17.Notice(`Unsupported type: ${entity.type}`, 4e3);
         return "";
     }
     entity.found = false;
@@ -13348,13 +15738,13 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
       reason: "Created from extract"
     };
     this.render();
-    new import_obsidian16.Notice(`Created ${entity.type}: ${entity.name}`, 3e3);
+    new import_obsidian17.Notice(`Created ${entity.type}: ${entity.name}`, 3e3);
     return createdId;
   }
   async updateEntity(entity) {
     var _a, _b;
     if (!((_a = entity.match) == null ? void 0 : _a.source_id)) {
-      new import_obsidian16.Notice("No match available to update.", 4e3);
+      new import_obsidian17.Notice("No match available to update.", 4e3);
       return;
     }
     const description = (_b = entity.summary) != null ? _b : "";
@@ -13390,10 +15780,10 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
         });
         break;
       default:
-        new import_obsidian16.Notice(`Unsupported type: ${entity.type}`, 4e3);
+        new import_obsidian17.Notice(`Unsupported type: ${entity.type}`, 4e3);
         return;
     }
-    new import_obsidian16.Notice(`Updated ${entity.type}: ${entity.name}`, 3e3);
+    new import_obsidian17.Notice(`Updated ${entity.type}: ${entity.name}`, 3e3);
   }
   renderRelation(container, relation, index) {
     const item = container.createDiv({ cls: "story-engine-extract-item" });
@@ -13714,11 +16104,11 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
   async createRelation(relation) {
     var _a, _b;
     if (!((_a = this.result) == null ? void 0 : _a.world_id)) {
-      new import_obsidian16.Notice("World ID missing. Select a story or world first.", 4e3);
+      new import_obsidian17.Notice("World ID missing. Select a story or world first.", 4e3);
       return;
     }
     if (!relation.source.id || !relation.target.id) {
-      new import_obsidian16.Notice("Create the related entities before creating the relation.", 4e3);
+      new import_obsidian17.Notice("Create the related entities before creating the relation.", 4e3);
       return;
     }
     const created = await this.plugin.apiClient.createEntityRelation({
@@ -13734,7 +16124,7 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
     relation.status = "created";
     relation.created_id = created.id;
     this.render();
-    new import_obsidian16.Notice(`Relation created: ${relation.relation_type}`, 3e3);
+    new import_obsidian17.Notice(`Relation created: ${relation.relation_type}`, 3e3);
   }
   applyCreatedIdToRelation(relation, entity, createdId) {
     const updateNode = (node) => {
@@ -13786,7 +16176,7 @@ var StoryEngineExtractView = class extends import_obsidian16.ItemView {
 };
 
 // src/sync/syncService.ts
-var import_obsidian18 = require("obsidian");
+var import_obsidian19 = require("obsidian");
 
 // src/sync/contentBlockParser.ts
 function parseHierarchicalProse(chapterContent) {
@@ -14596,8 +16986,8 @@ function parseBeatProse(beatContent) {
 }
 
 // src/views/modals/ConflictModal.ts
-var import_obsidian17 = require("obsidian");
-var ConflictModal = class extends import_obsidian17.Modal {
+var import_obsidian18 = require("obsidian");
+var ConflictModal = class extends import_obsidian18.Modal {
   constructor(app, localContentBlock, remoteContentBlock, onResolve) {
     super(app);
     this.resolution = null;
@@ -14857,10 +17247,10 @@ var SyncService = class {
         );
       }
       await this.syncVersionHistory(storyData.story.root_story_id, folderPath);
-      new import_obsidian18.Notice(`Story "${storyData.story.title}" synced successfully`);
+      new import_obsidian19.Notice(`Story "${storyData.story.title}" synced successfully`);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to sync story";
-      new import_obsidian18.Notice(`Error syncing story: ${errorMessage}`, 5e3);
+      new import_obsidian19.Notice(`Error syncing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
@@ -14973,7 +17363,7 @@ var SyncService = class {
         console.error(`Failed to sync story ${story.id}:`, err);
       }
     }
-    new import_obsidian18.Notice(`Synced ${stories.length} stories`);
+    new import_obsidian19.Notice(`Synced ${stories.length} stories`);
   }
   // Apply entity data received from API without fetching
   async applyEntityData(payload) {
@@ -14986,7 +17376,7 @@ var SyncService = class {
           contentBlocks: payload.contentBlocks,
           contentBlockRefs: payload.contentBlockRefs
         });
-        new import_obsidian18.Notice(`Chapter "${payload.chapter.title}" synced successfully`);
+        new import_obsidian19.Notice(`Chapter "${payload.chapter.title}" synced successfully`);
         break;
       }
       case "scene": {
@@ -15017,7 +17407,7 @@ var SyncService = class {
             await this.writeContentBlockToFolder(folderPath, payload.story.title, contentBlock);
           }
         }
-        new import_obsidian18.Notice(`Scene "${payload.scene.goal}" synced successfully`);
+        new import_obsidian19.Notice(`Scene "${payload.scene.goal}" synced successfully`);
         break;
       }
       case "content": {
@@ -15028,7 +17418,7 @@ var SyncService = class {
           payload.story.title,
           payload.contentBlock
         );
-        new import_obsidian18.Notice("Content block synced successfully");
+        new import_obsidian19.Notice("Content block synced successfully");
         break;
       }
     }
@@ -15047,7 +17437,7 @@ var SyncService = class {
       }
       const storyFilePath = `${folderPath}/story.md`;
       const storyFile = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
-      if (storyFile instanceof import_obsidian18.TFile) {
+      if (storyFile instanceof import_obsidian19.TFile) {
         const storyContent = await this.fileManager.getVault().read(storyFile);
         const chapterList = parseChapterList(storyContent);
         if (chapterList.items.length > 0) {
@@ -15087,25 +17477,25 @@ var SyncService = class {
       for (const beatFilePath of beatFiles) {
         await this.pushBeatContentBlocks(beatFilePath, folderPath);
       }
-      new import_obsidian18.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
+      new import_obsidian19.Notice(`Story "${storyFrontmatter.title}" pushed successfully`);
       try {
-        new import_obsidian18.Notice(`Syncing story "${storyFrontmatter.title}" from service...`);
+        new import_obsidian19.Notice(`Syncing story "${storyFrontmatter.title}" from service...`);
         await this.pullStory(storyId);
-        new import_obsidian18.Notice(`Story "${storyFrontmatter.title}" synced successfully`);
+        new import_obsidian19.Notice(`Story "${storyFrontmatter.title}" synced successfully`);
       } catch (pullErr) {
         const pullErrorMessage = pullErr instanceof Error ? pullErr.message : "Failed to sync story after push";
-        new import_obsidian18.Notice(`Warning: ${pullErrorMessage}`, 5e3);
+        new import_obsidian19.Notice(`Warning: ${pullErrorMessage}`, 5e3);
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Failed to push story";
-      new import_obsidian18.Notice(`Error pushing story: ${errorMessage}`, 5e3);
+      new import_obsidian19.Notice(`Error pushing story: ${errorMessage}`, 5e3);
       throw err;
     }
   }
   // Push prose blocks from a chapter file (hierarchical structure)
   async pushChapterContentBlocks(chapterFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
-    if (!(file instanceof import_obsidian18.TFile)) {
+    if (!(file instanceof import_obsidian19.TFile)) {
       throw new Error(`Chapter file not found: ${chapterFilePath}`);
     }
     const chapterContent = await this.fileManager.getVault().read(file);
@@ -15360,7 +17750,7 @@ var SyncService = class {
             }
             const linkNameRemoteMod = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkNameRemoteMod}|${finalContentBlock.content}]]`);
-            new import_obsidian18.Notice(`Prose block updated from remote: ${linkNameRemoteMod}`, 3e3);
+            new import_obsidian19.Notice(`Prose block updated from remote: ${linkNameRemoteMod}`, 3e3);
             proseOrderNum++;
             break;
           }
@@ -15684,7 +18074,7 @@ ${updatedBody}`;
   // Process the "## Beats" list from a scene file and update beat order
   async pushSceneBeats(sceneFilePath, storyId) {
     const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
-    if (!(file instanceof import_obsidian18.TFile)) {
+    if (!(file instanceof import_obsidian19.TFile)) {
       return;
     }
     const sceneContent = await this.fileManager.getVault().read(file);
@@ -15754,7 +18144,7 @@ ${updatedBody}`;
   // Format: # Story: title, ## Chapter: title, ### Scene: title, #### Beat: title
   async pushStoryContentBlocks(storyFilePath, storyFolderPath, storyId) {
     const file = this.fileManager.getVault().getAbstractFileByPath(storyFilePath);
-    if (!(file instanceof import_obsidian18.TFile)) {
+    if (!(file instanceof import_obsidian19.TFile)) {
       throw new Error(`Story file not found: ${storyFilePath}`);
     }
     const storyContent = await this.fileManager.getVault().read(file);
@@ -15968,7 +18358,7 @@ ${updatedBody}`;
   // Push prose blocks from a scene file (scene-level prose, not inside chapters)
   async pushSceneContentBlocks(sceneFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
-    if (!(file instanceof import_obsidian18.TFile)) {
+    if (!(file instanceof import_obsidian19.TFile)) {
       return;
     }
     const sceneContent = await this.fileManager.getVault().read(file);
@@ -16125,7 +18515,7 @@ ${updatedBody}`;
             await this.fileManager.writeContentBlockFile(finalContentBlock, filePath, void 0);
             const linkName = this.fileManager.generateContentBlockFileName(finalContentBlock).replace(/\.md$/, "");
             updatedSections.push(`[[${linkName}|${finalContentBlock.content}]]`);
-            new import_obsidian18.Notice(`Scene prose block updated from remote: ${linkName}`, 3e3);
+            new import_obsidian19.Notice(`Scene prose block updated from remote: ${linkName}`, 3e3);
             proseOrderNum++;
             break;
           }
@@ -16170,7 +18560,7 @@ ${afterProse}`;
   // Push prose blocks from a beat file
   async pushBeatContentBlocks(beatFilePath, storyFolderPath) {
     const file = this.fileManager.getVault().getAbstractFileByPath(beatFilePath);
-    if (!(file instanceof import_obsidian18.TFile)) {
+    if (!(file instanceof import_obsidian19.TFile)) {
       return;
     }
     const beatContent = await this.fileManager.getVault().read(file);
@@ -16688,16 +19078,16 @@ ${updatedSections.join("\n\n")}
   // Find content block file by link name (searches recursively in all type subfolders)
   async findContentBlockFileByLinkName(contentsRoot, linkName) {
     const root2 = this.fileManager.getVault().getAbstractFileByPath(contentsRoot);
-    if (!(root2 instanceof import_obsidian18.TFolder))
+    if (!(root2 instanceof import_obsidian19.TFolder))
       return null;
     const target = `${linkName}.md`;
     const stack = [root2];
     while (stack.length) {
       const folder = stack.pop();
       for (const child of folder.children) {
-        if (child instanceof import_obsidian18.TFolder) {
+        if (child instanceof import_obsidian19.TFolder) {
           stack.push(child);
-        } else if (child instanceof import_obsidian18.TFile && child.name === target) {
+        } else if (child instanceof import_obsidian19.TFile && child.name === target) {
           return child.path;
         }
       }
@@ -16708,7 +19098,7 @@ ${updatedSections.join("\n\n")}
   async findContentBlockByContent(contentsFolderPath, content) {
     try {
       const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
-      if (!(folder instanceof import_obsidian18.TFolder)) {
+      if (!(folder instanceof import_obsidian19.TFolder)) {
         return null;
       }
       const normalizedContent = content.trim();
@@ -16716,9 +19106,9 @@ ${updatedSections.join("\n\n")}
       while (stack.length) {
         const currentFolder = stack.pop();
         for (const child of currentFolder.children) {
-          if (child instanceof import_obsidian18.TFolder) {
+          if (child instanceof import_obsidian19.TFolder) {
             stack.push(child);
-          } else if (child instanceof import_obsidian18.TFile && child.extension === "md") {
+          } else if (child instanceof import_obsidian19.TFile && child.extension === "md") {
             const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
             if (contentBlock && contentBlock.content.trim() === normalizedContent) {
               return contentBlock;
@@ -16735,16 +19125,16 @@ ${updatedSections.join("\n\n")}
   async findContentBlockById(contentsFolderPath, id2) {
     try {
       const folder = this.fileManager.getVault().getAbstractFileByPath(contentsFolderPath);
-      if (!(folder instanceof import_obsidian18.TFolder)) {
+      if (!(folder instanceof import_obsidian19.TFolder)) {
         return null;
       }
       const stack = [folder];
       while (stack.length) {
         const currentFolder = stack.pop();
         for (const child of currentFolder.children) {
-          if (child instanceof import_obsidian18.TFolder) {
+          if (child instanceof import_obsidian19.TFolder) {
             stack.push(child);
-          } else if (child instanceof import_obsidian18.TFile && child.extension === "md") {
+          } else if (child instanceof import_obsidian19.TFile && child.extension === "md") {
             const contentBlock = await this.fileManager.readContentBlockFromFile(child.path);
             if (contentBlock && contentBlock.id === id2) {
               return contentBlock;
@@ -16971,7 +19361,7 @@ ${updatedBody}`;
       contentBlocks,
       contentBlockRefs
     });
-    new import_obsidian18.Notice(`Chapter "${chapter.title}" synced successfully`);
+    new import_obsidian19.Notice(`Chapter "${chapter.title}" synced successfully`);
   }
   async pullSceneEntity(storyId, sceneId) {
     const scene = await this.apiClient.getScene(sceneId);
@@ -16997,7 +19387,7 @@ ${updatedBody}`;
       beatContentBlockMap
     });
     await this.syncSceneContentBlocks(scene, beats, folderPath, story.title);
-    new import_obsidian18.Notice(`Scene "${scene.goal}" synced successfully`);
+    new import_obsidian19.Notice(`Scene "${scene.goal}" synced successfully`);
   }
   async pullContentBlockEntity(storyId, contentBlockId) {
     const story = await this.apiClient.getStory(storyId);
@@ -17011,7 +19401,7 @@ ${updatedBody}`;
     const folderPath = this.fileManager.getStoryFolderPath(story.title);
     await this.ensureContentFolders(folderPath);
     await this.writeContentBlockToFolder(folderPath, story.title, contentBlock);
-    new import_obsidian18.Notice("Content block synced successfully");
+    new import_obsidian19.Notice("Content block synced successfully");
   }
   async pushSingleEntity(folderPath, target, storyId, storyTitle) {
     let entityLabel;
@@ -17028,12 +19418,12 @@ ${updatedBody}`;
       default:
         throw new Error(`Unsupported entity type: ${target.type}`);
     }
-    new import_obsidian18.Notice(`${entityLabel} pushed successfully`);
+    new import_obsidian19.Notice(`${entityLabel} pushed successfully`);
     try {
       await this.pullSingleEntity(storyId, target);
     } catch (pullErr) {
       const pullErrorMessage = pullErr instanceof Error ? pullErr.message : "Failed to sync entity after push";
-      new import_obsidian18.Notice(`Warning: ${pullErrorMessage}`, 5e3);
+      new import_obsidian19.Notice(`Warning: ${pullErrorMessage}`, 5e3);
     }
   }
   async pushChapterEntity(folderPath, chapterId) {
@@ -17137,7 +19527,7 @@ ${updatedBody}`;
     const chapterFiles = await this.fileManager.listChapterFiles(folderPath);
     for (const chapterFilePath of chapterFiles) {
       const file = this.fileManager.getVault().getAbstractFileByPath(chapterFilePath);
-      if (!(file instanceof import_obsidian18.TFile)) {
+      if (!(file instanceof import_obsidian19.TFile)) {
         continue;
       }
       const content = await this.fileManager.getVault().read(file);
@@ -17152,7 +19542,7 @@ ${updatedBody}`;
     const sceneFiles = await this.fileManager.listStorySceneFiles(folderPath);
     for (const sceneFilePath of sceneFiles) {
       const file = this.fileManager.getVault().getAbstractFileByPath(sceneFilePath);
-      if (!(file instanceof import_obsidian18.TFile)) {
+      if (!(file instanceof import_obsidian19.TFile)) {
         continue;
       }
       const content = await this.fileManager.getVault().read(file);
@@ -17180,23 +19570,6 @@ var EntityRegistry = class {
     return this.handlers.get(key);
   }
 };
-
-// src/sync-v2/utils/frontmatterHelpers.ts
-function getIdFieldName(idField) {
-  return idField || "id";
-}
-function getFrontmatterId(frontmatter, idField) {
-  const fieldName = getIdFieldName(idField);
-  const value = frontmatter[fieldName];
-  if (value === null || value === void 0) {
-    return void 0;
-  }
-  if (typeof value === "string") {
-    const trimmed = value.trim();
-    return trimmed === "" ? void 0 : value;
-  }
-  return String(value);
-}
 
 // src/sync-v2/generators/OutlineGenerator.ts
 var OutlineGenerator = class {
@@ -17230,7 +19603,11 @@ var OutlineGenerator = class {
         ""
       );
     }
-    const sections = this.buildSections(story.chapters, options.includePlaceholders !== false);
+    const sections = this.buildSections(
+      story.chapters,
+      options.includePlaceholders !== false,
+      options.storyFolderPath
+    );
     sections.forEach((section) => {
       const indent = "	".repeat(section.depth);
       lines.push(`${indent}- ${section.link} ${section.status}`.trimEnd());
@@ -17240,15 +19617,16 @@ var OutlineGenerator = class {
     }
     return lines.join("\n").trimEnd() + "\n";
   }
-  buildSections(chapters, includePlaceholders) {
+  buildSections(chapters, includePlaceholders, storyFolderPath) {
     const sections = [];
     chapters.forEach((chapter, chapterIdx) => {
+      var _a;
       const chapterLink = this.buildLink(
-        "ch",
-        chapterIdx + 1,
+        "chapter",
+        (_a = chapter.chapter.number) != null ? _a : chapterIdx + 1,
         chapter.chapter.title,
-        chapter.chapter.id,
-        `Chapter ${chapterIdx + 1}: ${chapter.chapter.title}`
+        `Chapter ${chapterIdx + 1}: ${chapter.chapter.title}`,
+        storyFolderPath
       );
       sections.push({
         type: "chapter",
@@ -17258,13 +19636,15 @@ var OutlineGenerator = class {
         depth: 0
       });
       chapter.scenes.forEach((sceneWrapper, sceneIdx) => {
+        var _a2, _b;
         const sceneLabel = this.composeSceneLabel(sceneWrapper);
         const sceneLink = this.buildLink(
-          "sc",
-          sceneIdx + 1,
+          "scene",
+          (_a2 = sceneWrapper.scene.order_num) != null ? _a2 : sceneIdx + 1,
           sceneWrapper.scene.goal || `Scene ${sceneIdx + 1}`,
-          sceneWrapper.scene.id,
-          `Scene ${sceneIdx + 1}: ${sceneLabel}`
+          `Scene ${sceneIdx + 1}: ${sceneLabel}`,
+          storyFolderPath,
+          { chapterOrder: (_b = chapter.chapter.number) != null ? _b : chapterIdx + 1 }
         );
         sections.push({
           type: "scene",
@@ -17274,14 +19654,19 @@ var OutlineGenerator = class {
           depth: 1
         });
         sceneWrapper.beats.forEach((beat, beatIdx) => {
+          var _a3, _b2, _c;
           sections.push({
             type: "beat",
             link: this.buildLink(
-              "bt",
-              beatIdx + 1,
+              "beat",
+              (_a3 = beat.order_num) != null ? _a3 : beatIdx + 1,
               beat.intent || `Beat ${beatIdx + 1}`,
-              beat.id,
-              `Beat ${beatIdx + 1}: ${beat.intent || ""}`
+              `Beat ${beatIdx + 1}: ${beat.intent || ""}`,
+              storyFolderPath,
+              {
+                chapterOrder: (_b2 = chapter.chapter.number) != null ? _b2 : chapterIdx + 1,
+                sceneOrder: (_c = sceneWrapper.scene.order_num) != null ? _c : sceneIdx + 1
+              }
             ),
             label: beat.intent,
             status: beat.outcome ? "+" : "-",
@@ -17310,9 +19695,14 @@ var OutlineGenerator = class {
     });
     return sections;
   }
-  buildLink(prefix, order, title, id2, display) {
-    const slug = this.slugify(title);
+  buildLink(type2, order, title, display, storyFolderPath, overrides) {
     const label = display != null ? display : title;
+    if (storyFolderPath) {
+      const path = buildStoryEntityPath(storyFolderPath, type2, order, title, overrides);
+      return buildWikiLink(path, label);
+    }
+    const slug = this.slugify(title);
+    const prefix = type2 === "chapter" ? "ch" : type2 === "scene" ? "sc" : "bt";
     return `[[${prefix}-${order.toString().padStart(2, "0")}-${slug}|${label}]]`;
   }
   composeSceneLabel(scene) {
@@ -17324,7 +19714,7 @@ var OutlineGenerator = class {
     return scenes.some((scene) => scene.beats.length > 0);
   }
   generateChapterOutline(chapter, options = {}) {
-    var _a;
+    var _a, _b;
     const lines = [];
     const enableHelpBox = options.showHelpBox !== false;
     const idField = getIdFieldName(options.idField);
@@ -17350,7 +19740,12 @@ var OutlineGenerator = class {
         ""
       );
     }
-    const sections = this.buildChapterSections(chapter.scenes, options.includePlaceholders !== false);
+    const sections = this.buildChapterSections(
+      chapter.scenes,
+      options.includePlaceholders !== false,
+      options.storyFolderPath,
+      (_b = chapter.chapter.number) != null ? _b : 0
+    );
     sections.forEach((section) => {
       const indent = "	".repeat(section.depth);
       lines.push(`${indent}- ${section.link} ${section.status}`.trimEnd());
@@ -17360,17 +19755,18 @@ var OutlineGenerator = class {
     }
     return lines.join("\n").trimEnd() + "\n";
   }
-  buildChapterSections(scenes, includePlaceholders) {
+  buildChapterSections(scenes, includePlaceholders, storyFolderPath, chapterOrder = 0) {
     const sections = [];
     scenes.forEach((sceneWrapper, sceneIdx) => {
       var _a;
       const sceneLabel = this.composeSceneLabel(sceneWrapper);
       const sceneLink = this.buildLink(
-        "sc",
+        "scene",
         (_a = sceneWrapper.scene.order_num) != null ? _a : sceneIdx + 1,
         sceneWrapper.scene.goal || `Scene ${sceneIdx + 1}`,
-        sceneWrapper.scene.id,
-        `Scene ${sceneIdx + 1}: ${sceneLabel}`
+        `Scene ${sceneIdx + 1}: ${sceneLabel}`,
+        storyFolderPath,
+        { chapterOrder }
       );
       sections.push({
         type: "scene",
@@ -17380,15 +19776,19 @@ var OutlineGenerator = class {
         depth: 0
       });
       sceneWrapper.beats.forEach((beat, beatIdx) => {
-        var _a2;
+        var _a2, _b;
         sections.push({
           type: "beat",
           link: this.buildLink(
-            "bt",
+            "beat",
             (_a2 = beat.order_num) != null ? _a2 : beatIdx + 1,
             beat.intent || `Beat ${beatIdx + 1}`,
-            beat.id,
-            `Beat ${beatIdx + 1}: ${beat.intent || ""}`
+            `Beat ${beatIdx + 1}: ${beat.intent || ""}`,
+            storyFolderPath,
+            {
+              chapterOrder,
+              sceneOrder: (_b = sceneWrapper.scene.order_num) != null ? _b : sceneIdx + 1
+            }
           ),
           label: beat.intent,
           status: beat.outcome ? "+" : "-",
@@ -17434,13 +19834,14 @@ var OutlineGenerator = class {
       );
     }
     scene.beats.forEach((beat, beatIdx) => {
-      var _a2, _b;
+      var _a2, _b, _c;
       const beatLink = this.buildLink(
-        "bt",
+        "beat",
         (_a2 = beat.order_num) != null ? _a2 : beatIdx + 1,
         beat.intent || `Beat ${beatIdx + 1}`,
-        beat.id,
-        `Beat ${(_b = beat.order_num) != null ? _b : beatIdx + 1}: ${beat.intent || ""}`
+        `Beat ${(_b = beat.order_num) != null ? _b : beatIdx + 1}: ${beat.intent || ""}`,
+        options.storyFolderPath,
+        { chapterOrder: 0, sceneOrder: (_c = scene.scene.order_num) != null ? _c : 0 }
       );
       lines.push(`- ${beatLink} ${beat.outcome ? "+" : "-"}`);
     });
@@ -17891,6 +20292,33 @@ var ContentsGenerator = class {
     lines.push(this.parser.generatePlaceholder("beat"));
     return lines.join("\n").trimEnd() + "\n";
   }
+  generateBeatContents(beat, beatContentBlocks, options = {}) {
+    var _a, _b, _c;
+    const lines = [];
+    const idField = getIdFieldName(options.idField);
+    lines.push(
+      "---",
+      `${idField}: ${beat.id}`,
+      "type: beat-contents",
+      `synced_at: ${(_a = options.syncedAt) != null ? _a : this.now()}`,
+      "---",
+      "",
+      `# Beat ${(_b = beat.order_num) != null ? _b : 0}: ${beat.intent || "Untitled"} - Contents`,
+      ""
+    );
+    const beatBlocks = (_c = beatContentBlocks.get(beat.id)) != null ? _c : [];
+    if (beatBlocks.length === 0) {
+      lines.push(this.parser.generatePlaceholder("content"));
+    } else {
+      beatBlocks.sort((a, b) => {
+        var _a2, _b2;
+        return ((_a2 = a.order_num) != null ? _a2 : 0) - ((_b2 = b.order_num) != null ? _b2 : 0);
+      }).forEach((block) => {
+        lines.push(this.renderContentBlock(block));
+      });
+    }
+    return lines.join("\n").trimEnd() + "\n";
+  }
   renderContentBlock(block) {
     var _a, _b;
     const name = this.slugify(((_a = block.metadata) == null ? void 0 : _a.title) || block.kind || `content-${block.id}`);
@@ -17992,20 +20420,21 @@ var DiffEngine = class {
     };
   }
   findUntrackedSegments(content) {
-    const ranges = this.getFenceRanges(content);
+    const trimmedContent = this.stripFrontmatter(content);
+    const ranges = this.getFenceRanges(trimmedContent);
     const segments = [];
     let cursor = 0;
     for (const range of ranges) {
       if (range.start > cursor) {
-        const snippet = content.slice(cursor, range.start).trim();
+        const snippet = trimmedContent.slice(cursor, range.start).trim();
         if (snippet.length > 0) {
           segments.push(snippet);
         }
       }
       cursor = Math.max(cursor, range.end);
     }
-    if (cursor < content.length) {
-      const snippet = content.slice(cursor).trim();
+    if (cursor < trimmedContent.length) {
+      const snippet = trimmedContent.slice(cursor).trim();
       if (snippet.length > 0) {
         segments.push(snippet);
       }
@@ -18034,6 +20463,10 @@ var DiffEngine = class {
       }
     }
     return ranges.sort((a, b) => a.start - b.start);
+  }
+  stripFrontmatter(content) {
+    const match = content.match(/^---\n[\s\S]*?\n---\n?/);
+    return match ? content.slice(match[0].length) : content;
   }
 };
 
@@ -18292,621 +20725,579 @@ var FileRenamer = class {
   }
 };
 
-// src/sync-v2/fileRenamer/PathResolver.ts
-var import_obsidian19 = require("obsidian");
-var CONTENT_FOLDER_BY_TYPE = {
-  text: "00-texts",
-  image: "01-images",
-  video: "02-videos",
-  audio: "03-audios",
-  embed: "04-embeds",
-  link: "05-links"
-};
-var PathResolver = class {
-  constructor(storyFolder) {
-    this.storyFolder = storyFolder;
-  }
-  getChapterPath(chapter, overrides) {
-    var _a, _b, _c, _d;
-    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : chapter.number) != null ? _b : 0;
-    const title = (_d = (_c = overrides == null ? void 0 : overrides.title) != null ? _c : chapter.title) != null ? _d : "chapter";
-    return (0, import_obsidian19.normalizePath)(
-      `${this.storyFolder}/00-chapters/${this.buildFileName("ch", order, title)}`
-    );
-  }
-  getScenePath(scene, overrides) {
-    var _a, _b, _c, _d;
-    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : scene.order_num) != null ? _b : 0;
-    const goal = (_d = (_c = overrides == null ? void 0 : overrides.goal) != null ? _c : scene.goal) != null ? _d : "scene";
-    return (0, import_obsidian19.normalizePath)(
-      `${this.storyFolder}/01-scenes/${this.buildFileName("sc", order, goal)}`
-    );
-  }
-  getBeatPath(beat, overrides) {
-    var _a, _b, _c, _d;
-    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : beat.order_num) != null ? _b : 0;
-    const intent = (_d = (_c = overrides == null ? void 0 : overrides.intent) != null ? _c : beat.intent) != null ? _d : "beat";
-    return (0, import_obsidian19.normalizePath)(
-      `${this.storyFolder}/02-beats/${this.buildFileName("bt", order, intent)}`
-    );
-  }
-  getContentBlockPath(contentBlock, overrides) {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _i, _j;
-    const order = (_b = (_a = overrides == null ? void 0 : overrides.order) != null ? _a : contentBlock.order_num) != null ? _b : 0;
-    const title = (_g = (_f = (_e = (_d = overrides == null ? void 0 : overrides.title) != null ? _d : (_c = contentBlock.metadata) == null ? void 0 : _c.title) != null ? _e : contentBlock.kind) != null ? _f : contentBlock.type) != null ? _g : "content";
-    const type2 = ((_i = (_h = overrides == null ? void 0 : overrides.type) != null ? _h : contentBlock.type) != null ? _i : "text").toLowerCase();
-    const folder = (_j = CONTENT_FOLDER_BY_TYPE[type2]) != null ? _j : "99-other";
-    return (0, import_obsidian19.normalizePath)(
-      `${this.storyFolder}/03-contents/${folder}/${this.buildFileName("cb", order, title)}`
-    );
-  }
-  buildFileName(prefix, order, label) {
-    return `${prefix}-${this.padOrder(order)}-${this.sanitize(label)}.md`;
-  }
-  padOrder(order) {
-    const value = typeof order === "number" && Number.isFinite(order) ? Math.max(0, order) : 0;
-    return String(value).padStart(4, "0");
-  }
-  sanitize(value) {
-    const sanitized = value.normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "").toLowerCase();
-    return sanitized || "untitled";
-  }
-};
-
-// src/sync-v2/generators/RelationsGenerator.ts
-var TARGET_LABELS = {
-  character: "Main Characters",
-  location: "Key Locations",
-  faction: "Referenced Factions",
-  event: "Timeline Events",
-  artifact: "Artifacts",
-  lore: "Lore References"
-};
-var RelationsGenerator = class {
-  constructor(now2 = () => (/* @__PURE__ */ new Date()).toISOString()) {
-    this.now = now2;
-  }
-  generate(input) {
-    var _a, _b, _c, _d, _e;
-    const { entity, relations } = input;
-    const lines = [];
-    const idField = getIdFieldName((_a = input.options) == null ? void 0 : _a.idField);
-    lines.push(
-      "---",
-      `${idField}: ${entity.id}`,
-      `type: ${entity.type}-relations`,
-      `synced_at: ${(_c = (_b = input.options) == null ? void 0 : _b.syncedAt) != null ? _c : this.now()}`
-    );
-    if (entity.worldId) {
-      lines.push(`world_id: ${entity.worldId}`);
-    }
-    lines.push("---", "", `# ${entity.name} - Relations`, "");
-    if (((_d = input.options) == null ? void 0 : _d.showHelpBox) !== false) {
-      lines.push(
-        "> [!tip] Como editar rela\xE7\xF5es",
-        "> - **Adicionar**: Edite a linha `_Add new..._` da se\xE7\xE3o",
-        "> - **Remover**: Delete a linha da rela\xE7\xE3o",
-        "> - **Formato**: `[[entity|Name]] - description`",
-        ""
-      );
-    }
-    if (entity.worldId && entity.worldName) {
-      lines.push("## World");
-      lines.push(`[[${entity.worldId}|${entity.worldName}]]`, "");
-    }
-    const grouped = this.groupByTarget(relations);
-    for (const [targetType, items] of grouped.entries()) {
-      lines.push(`## ${(_e = TARGET_LABELS[targetType]) != null ? _e : targetType}`);
-      if (items.length === 0) {
-        lines.push(this.placeholderLine(targetType));
-        lines.push("");
-        continue;
-      }
-      items.sort((a, b) => a.targetName.localeCompare(b.targetName)).forEach((entry) => {
-        var _a2, _b2;
-        const description = (_b2 = (_a2 = entry.summary) != null ? _a2 : entry.contextLabel) != null ? _b2 : "";
-        const desc = description ? ` - ${description}` : "";
-        lines.push(`- [[${entry.targetId}|${entry.targetName}]]${desc}`);
-      });
-      lines.push(this.placeholderLine(targetType), "");
-    }
-    return lines.join("\n").trimEnd() + "\n";
-  }
-  groupByTarget(relations) {
-    const map2 = /* @__PURE__ */ new Map();
-    relations.forEach((relation) => {
-      const key = relation.targetType;
-      if (!map2.has(key)) {
-        map2.set(key, []);
-      }
-      map2.get(key).push(relation);
-    });
-    Object.keys(TARGET_LABELS).forEach((type2) => {
-      if (!map2.has(type2)) {
-        map2.set(type2, []);
-      }
-    });
-    return map2;
-  }
-  placeholderLine(targetType) {
-    var _a;
-    const label = (_a = TARGET_LABELS[targetType]) != null ? _a : targetType;
-    const noun = label.replace(/s$/, "").toLowerCase();
-    return `- _Add new ${noun}: [[file|Name]] - description_`;
-  }
-};
-
-// src/sync-v2/relations/mappers.ts
-function mapRelationsToGeneratorInput({
-  entity,
-  relations,
-  resolveTarget,
-  options
-}) {
-  const parsed = [];
-  relations.forEach((relation) => {
-    var _a;
-    const resolved = resolveTarget == null ? void 0 : resolveTarget(relation);
-    if (!resolved) {
-      if (!resolveTarget) {
-        parsed.push({
-          targetType: relation.target_type,
-          targetId: relation.target_id,
-          targetName: relation.target_id,
-          relationType: relation.relation_type,
-          summary: relation.context
-        });
-      }
-      return;
-    }
-    parsed.push({
-      targetType: relation.target_type,
-      targetId: resolved.targetId,
-      targetName: resolved.targetName,
-      relationType: relation.relation_type,
-      summary: (_a = resolved.summary) != null ? _a : relation.context,
-      contextLabel: resolved.contextLabel
-    });
-  });
-  return {
-    entity,
-    relations: parsed,
-    options
-  };
-}
-function mapCitationsToGeneratorInput({
-  entity,
-  relations,
-  resolveSource,
-  options
-}) {
-  const citations = [];
-  relations.forEach((relation) => {
-    var _a;
-    const source = resolveSource(relation);
-    if (!source) {
-      return;
-    }
-    citations.push({
-      storyId: source.storyId,
-      storyTitle: source.storyTitle,
-      relationType: relation.relation_type,
-      sourceType: source.sourceType,
-      sourceId: relation.source_id,
-      sourceTitle: source.sourceTitle,
-      chapterTitle: source.chapterTitle,
-      summary: (_a = source.summary) != null ? _a : relation.context
-    });
-  });
-  return {
-    entity,
-    citations,
-    options
-  };
-}
-
-// src/sync-v2/parsers/relationsParser.ts
-var FRONTMATTER_REGEX = /^---\n([\s\S]*?)\n---/;
-var HEADING_REGEX = /^##\s+(.+)$/;
-var ENTRY_REGEX = /^-\s+(.*)$/;
-var LINK_REGEX = /\[\[([^[\]|]+)(?:\|([^[\]]+))?\]\]/;
-var RelationsParser = class {
-  parse(content) {
-    var _a;
-    const frontmatter = this.parseFrontmatter(content);
-    const body = content.replace(FRONTMATTER_REGEX, "").trim();
-    const sections = [];
-    let currentSection = null;
-    for (const rawLine of body.split("\n")) {
-      const line = rawLine.trimEnd();
-      if (!line)
-        continue;
-      const headingMatch = line.match(HEADING_REGEX);
-      if (headingMatch) {
-        currentSection = {
-          name: headingMatch[1].trim(),
-          entries: []
-        };
-        sections.push(currentSection);
-        continue;
-      }
-      if (!currentSection) {
-        continue;
-      }
-      const entryMatch = line.match(ENTRY_REGEX);
-      if (!entryMatch) {
-        continue;
-      }
-      const entry = entryMatch[1].trim();
-      const placeholder = entry.startsWith("_") && entry.endsWith("_");
-      const linkMatch = entry.match(LINK_REGEX);
-      let link;
-      let displayText = entry;
-      let description;
-      if (linkMatch) {
-        link = linkMatch[1].trim();
-        displayText = ((_a = linkMatch[2]) != null ? _a : linkMatch[1]).trim();
-        const remainder = entry.slice(linkMatch[0].length).trim();
-        if (remainder.startsWith("-")) {
-          description = remainder.slice(1).trim();
-        }
-      } else if (entry.includes("-")) {
-        const [name, desc] = entry.split("-").map((part) => part.trim());
-        displayText = name;
-        description = desc;
-      }
-      currentSection.entries.push({
-        link,
-        displayText,
-        description,
-        placeholder,
-        raw: line
-      });
-    }
-    return { frontmatter, sections };
-  }
-  formatEntry(entry) {
-    const prefix = entry.placeholder ? "_" : "- ";
-    const suffix = entry.placeholder ? "_" : "";
-    const link = entry.link ? `[[${entry.link}|${entry.displayText}]]` : entry.displayText;
-    const description = entry.description ? ` - ${entry.description}` : "";
-    return `${prefix}${link}${description}${suffix}`;
-  }
-  parseFrontmatter(content) {
-    const match = content.match(FRONTMATTER_REGEX);
-    if (!match) {
-      return {};
-    }
-    const lines = match[1].split("\n");
-    const data = {};
-    for (const line of lines) {
-      const colon = line.indexOf(":");
-      if (colon === -1)
-        continue;
-      const key = line.slice(0, colon).trim();
-      const value = line.slice(colon + 1).trim().replace(/^["']|["']$/g, "");
-      data[key] = value;
-    }
-    return data;
-  }
-};
-
-// src/sync-v2/push/RelationsPushHandler.ts
-var TARGET_TYPE_MAP = {
-  "Main Characters": "character",
-  "Key Locations": "location",
-  "Referenced Factions": "faction",
-  "Timeline Events": "event",
-  "Artifacts": "artifact",
-  "Lore References": "lore"
-};
-var RelationsPushHandler = class {
-  constructor(parser = new RelationsParser()) {
+// src/sync-v2/push/OutlinePushHandler.ts
+var OutlinePushHandler = class {
+  constructor(parser = new OutlineParser()) {
     this.parser = parser;
   }
-  async pushRelations(relationsFilePath, sourceEntityType, sourceEntityId, context, worldId) {
-    var _a, _b;
-    const result = {
-      created: 0,
-      updated: 0,
-      deleted: 0,
-      warnings: []
-    };
+  async analyzeOutline(outlineFilePath, storyId, context) {
+    const warnings = [];
+    const actions = [];
+    let outlineContent;
     try {
-      const currentContent = await context.fileManager.readFile(relationsFilePath);
-      const parsed = this.parser.parse(currentContent);
-      const idField = context.settings.frontmatterIdField;
-      const frontmatterId = getFrontmatterId(parsed.frontmatter, idField);
-      if (!frontmatterId || frontmatterId !== sourceEntityId) {
-        result.warnings.push(
-          `Frontmatter ID mismatch: expected ${sourceEntityId}, found ${frontmatterId != null ? frontmatterId : "none"} (using field: ${idField || "id"})`
-        );
-        return result;
-      }
-      let existingRelations;
-      if (worldId) {
-        const existingRelationsResponse = await context.apiClient.listRelationsByWorld({
-          worldId
-        });
-        existingRelations = existingRelationsResponse.data;
-      } else {
-        const existingRelationsResponse = await context.apiClient.listRelationsByTarget({
-          targetType: sourceEntityType,
-          targetId: sourceEntityId
-        });
-        existingRelations = existingRelationsResponse.data;
-      }
-      const existingRelationsMap = /* @__PURE__ */ new Map();
-      existingRelations.forEach((rel) => {
-        if (worldId) {
-          const key = `${rel.target_type}:${rel.target_id}:${rel.relation_type}`;
-          if (!existingRelationsMap.has(key)) {
-            existingRelationsMap.set(key, []);
-          }
-          existingRelationsMap.get(key).push(rel);
-        } else {
-          const key = `${rel.source_type}:${rel.source_id}:${rel.relation_type}`;
-          if (!existingRelationsMap.has(key)) {
-            existingRelationsMap.set(key, []);
-          }
-          existingRelationsMap.get(key).push(rel);
-        }
-      });
-      const fileRelationsMap = /* @__PURE__ */ new Map();
-      for (const section of parsed.sections) {
-        if (section.name === "World")
-          continue;
-        const entityType = TARGET_TYPE_MAP[section.name];
-        if (!entityType) {
-          result.warnings.push(`Unknown section type: ${section.name}`);
-          continue;
-        }
-        for (const entry of section.entries) {
-          if (entry.placeholder)
-            continue;
-          if (!entry.link) {
-            result.warnings.push(`Entry without link in section ${section.name}: ${entry.displayText}`);
-            continue;
-          }
-          const entityId = await this.resolveEntityId(entry.link, entityType, context);
-          if (!entityId) {
-            result.warnings.push(`Could not resolve entity ID for link: ${entry.link}`);
-            continue;
-          }
-          const relationType = this.inferRelationType(entityType, section.name);
-          if (worldId) {
-            const key = `${entityType}:${entityId}:${relationType}`;
-            if (!fileRelationsMap.has(key)) {
-              fileRelationsMap.set(key, { entry, sectionName: section.name });
-            }
-          } else {
-            const key = `${entityType}:${entityId}:${relationType}`;
-            fileRelationsMap.set(key, { entry, sectionName: section.name });
-          }
-        }
-      }
-      if (worldId) {
-        for (const [key, { entry, sectionName }] of fileRelationsMap.entries()) {
-          if (!entry.link)
-            continue;
-          const targetType = TARGET_TYPE_MAP[sectionName];
-          if (!targetType)
-            continue;
-          const targetId = await this.resolveEntityId(entry.link, targetType, context);
-          if (!targetId)
-            continue;
-          const relationType = this.inferRelationType(targetType, sectionName);
-          const existingRelations2 = (_a = existingRelationsMap.get(key)) != null ? _a : [];
-          if (existingRelations2.length === 0) {
-            result.warnings.push(
-              `No existing relation found for target ${targetType}:${targetId} with type ${relationType}. Cannot create new relation without source.`
-            );
-            continue;
-          }
-          const relationToUpdate = existingRelations2[0];
-          if (relationToUpdate.context !== entry.description) {
-            try {
-              await context.apiClient.updateRelation({
-                id: relationToUpdate.id,
-                context: entry.description
-              });
-              result.updated++;
-            } catch (error) {
-              result.warnings.push(`Failed to update relation ${relationToUpdate.id}: ${error}`);
-            }
-          }
-        }
-        for (const [key, relations] of existingRelationsMap.entries()) {
-          if (!fileRelationsMap.has(key)) {
-          }
-        }
-      } else {
-        for (const [key, relations] of existingRelationsMap.entries()) {
-          if (!fileRelationsMap.has(key)) {
-            for (const relation of relations) {
-              try {
-                await context.apiClient.deleteRelation(relation.id);
-                result.deleted++;
-              } catch (error) {
-                result.warnings.push(`Failed to delete relation ${relation.id}: ${error}`);
-              }
-            }
-          }
-        }
-        for (const [key, { entry, sectionName }] of fileRelationsMap.entries()) {
-          if (!entry.link)
-            continue;
-          const sourceType = TARGET_TYPE_MAP[sectionName];
-          if (!sourceType)
-            continue;
-          const sourceId = await this.resolveEntityId(entry.link, sourceType, context);
-          if (!sourceId)
-            continue;
-          const relationType = this.inferRelationType(sourceType, sectionName);
-          const existingRelations2 = (_b = existingRelationsMap.get(key)) != null ? _b : [];
-          const existingRelation = existingRelations2[0];
-          if (existingRelation) {
-            if (existingRelation.context !== entry.description) {
-              try {
-                await context.apiClient.updateRelation({
-                  id: existingRelation.id,
-                  context: entry.description
-                });
-                result.updated++;
-              } catch (error) {
-                result.warnings.push(`Failed to update relation ${existingRelation.id}: ${error}`);
-              }
-            }
-          } else {
-            try {
-              const sourceExists = await this.validateEntityExists(sourceType, sourceId, context);
-              if (!sourceExists) {
-                result.warnings.push(`Source entity ${sourceType}:${sourceId} does not exist`);
-                continue;
-              }
-              const targetExists = await this.validateEntityExists(sourceEntityType, sourceEntityId, context);
-              if (!targetExists) {
-                result.warnings.push(`Target entity ${sourceEntityType}:${sourceEntityId} does not exist`);
-                continue;
-              }
-              await context.apiClient.createRelation({
-                sourceType,
-                sourceId,
-                targetType: sourceEntityType,
-                targetId: sourceEntityId,
-                relationType,
-                context: entry.description
-              });
-              result.created++;
-            } catch (error) {
-              result.warnings.push(
-                `Failed to create relation from ${sourceType}:${sourceId} to ${sourceEntityType}:${sourceEntityId}: ${error}`
-              );
-            }
-          }
-        }
-      }
-    } catch (error) {
-      result.warnings.push(`Failed to push relations: ${error}`);
+      outlineContent = await context.fileManager.readFile(outlineFilePath);
+    } catch (e) {
+      warnings.push("Outline file not found");
+      return { actions, warnings };
     }
+    const entries = this.parser.parse(outlineContent).filter(
+      (entry) => entry.type === "chapter" && entry.link
+    );
+    const story = await context.apiClient.getStory(storyId);
+    const hierarchy = await context.apiClient.getStoryWithHierarchy(storyId);
+    const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+    const localOrderByChapterId = /* @__PURE__ */ new Map();
+    for (const entry of entries) {
+      const chapterId = await this.resolveChapterId(storyFolder, entry.link, context);
+      if (chapterId) {
+        localOrderByChapterId.set(chapterId, entry.order);
+      } else {
+        warnings.push(`Could not resolve chapter ID for link: ${entry.link}`);
+      }
+    }
+    for (const chapterWithContent of hierarchy.chapters) {
+      const remoteChapter = chapterWithContent.chapter;
+      const localOrder = localOrderByChapterId.get(remoteChapter.id);
+      if (localOrder !== void 0 && localOrder !== remoteChapter.number) {
+        actions.push({
+          type: "chapter_reorder",
+          chapterId: remoteChapter.id,
+          oldOrder: remoteChapter.number,
+          newOrder: localOrder
+        });
+      }
+    }
+    return { actions, warnings };
+  }
+  /**
+   * Resolve a chapter link to its ID by reading the chapter file's frontmatter.
+   * Tries both `00-chapters/` and `chapters/` folder conventions.
+   */
+  async resolveChapterId(storyFolder, link, context) {
+    const isFullPath = link.includes("/") || link.endsWith(".md");
+    if (isFullPath) {
+      const path = link.endsWith(".md") ? link : `${link}.md`;
+      try {
+        const content = await context.fileManager.readFile(path);
+        const frontmatter = parseFrontmatter(content);
+        const id2 = getFrontmatterId(frontmatter, context.settings.frontmatterIdField);
+        if (id2)
+          return id2;
+      } catch (e) {
+      }
+    }
+    const possiblePaths = [
+      `${storyFolder}/00-chapters/${link}.md`,
+      `${storyFolder}/chapters/${link}.md`
+    ];
+    for (const path of possiblePaths) {
+      try {
+        const content = await context.fileManager.readFile(path);
+        const frontmatter = parseFrontmatter(content);
+        const id2 = getFrontmatterId(frontmatter, context.settings.frontmatterIdField);
+        if (id2)
+          return id2;
+      } catch (e) {
+      }
+    }
+    return null;
+  }
+};
+
+// src/sync-v2/push/PushPlanner.ts
+var PushPlanner = class {
+  constructor(diffEngine = new DiffEngine(), contentsParser = new ContentsParser()) {
+    this.diffEngine = diffEngine;
+    this.contentsParser = contentsParser;
+  }
+  buildPlan(remoteContents, localContents) {
+    const diffRemoteVsLocal = this.diffEngine.diffContents(remoteContents, localContents);
+    const diffLocalVsRemote = this.diffEngine.diffContents(localContents, remoteContents);
+    const localMap = this.buildFenceMap(localContents);
+    const actions = [];
+    const unsupported = [];
+    const warnings = [];
+    for (const op of diffRemoteVsLocal.operations) {
+      switch (op.fenceType) {
+        case "chapter":
+          this.handleChapterOperation(op, actions, unsupported);
+          break;
+        case "scene":
+          this.handleSceneOperation(op, actions, unsupported, localMap);
+          break;
+        case "beat":
+          this.handleBeatOperation(op, actions, unsupported, localMap);
+          break;
+        case "content":
+          this.handleContentOperation(op, actions, unsupported, localMap);
+          break;
+        default:
+          unsupported.push(op);
+          break;
+      }
+    }
+    if (unsupported.length > 0) {
+      warnings.push({
+        code: "push_unsupported_operations",
+        message: `Detectamos ${unsupported.length} mudan\xE7as locais ainda n\xE3o suportadas pelo push autom\xE1tico.`,
+        details: unsupported,
+        severity: "warning"
+      });
+    }
+    if (diffLocalVsRemote.untrackedSegments.length > 0) {
+      warnings.push({
+        code: "push_untracked_segments",
+        message: `H\xE1 ${diffLocalVsRemote.untrackedSegments.length} trechos fora das fences; revise antes de tentar enviar.`,
+        details: diffLocalVsRemote.untrackedSegments,
+        severity: "warning"
+      });
+    }
+    return {
+      actions,
+      unsupportedOperations: unsupported,
+      untrackedSegments: diffLocalVsRemote.untrackedSegments,
+      warnings
+    };
+  }
+  handleChapterOperation(op, actions, unsupported) {
+    var _a;
+    if (op.kind === "reordered" && ((_a = op.metadata) == null ? void 0 : _a.newOrder)) {
+      actions.push({
+        type: "chapter_reorder",
+        chapterId: op.fenceId,
+        oldOrder: op.metadata.oldOrder,
+        newOrder: op.metadata.newOrder
+      });
+      return;
+    }
+    unsupported.push(op);
+  }
+  handleSceneOperation(op, actions, unsupported, localMap) {
+    var _a, _b, _c, _d, _e;
+    if (op.kind === "reordered" && ((_a = op.metadata) == null ? void 0 : _a.newOrder)) {
+      const scene = localMap.get(op.fenceId);
+      actions.push({
+        type: "scene_reorder",
+        sceneId: op.fenceId,
+        chapterId: scene == null ? void 0 : scene.parentId,
+        oldOrder: op.metadata.oldOrder,
+        newOrder: op.metadata.newOrder
+      });
+      return;
+    }
+    if (op.kind === "moved") {
+      actions.push({
+        type: "scene_move",
+        sceneId: op.fenceId,
+        fromChapterId: (_c = (_b = op.metadata) == null ? void 0 : _b.oldParentId) != null ? _c : null,
+        toChapterId: (_e = (_d = op.metadata) == null ? void 0 : _d.newParentId) != null ? _e : null
+      });
+      return;
+    }
+    unsupported.push(op);
+  }
+  handleBeatOperation(op, actions, unsupported, localMap) {
+    var _a, _b, _c;
+    if (op.kind === "reordered" && ((_a = op.metadata) == null ? void 0 : _a.newOrder)) {
+      const beat = localMap.get(op.fenceId);
+      actions.push({
+        type: "beat_reorder",
+        beatId: op.fenceId,
+        sceneId: beat == null ? void 0 : beat.parentId,
+        oldOrder: op.metadata.oldOrder,
+        newOrder: op.metadata.newOrder
+      });
+      return;
+    }
+    if (op.kind === "moved" && ((_b = op.metadata) == null ? void 0 : _b.newParentId)) {
+      actions.push({
+        type: "beat_move",
+        beatId: op.fenceId,
+        fromSceneId: (_c = op.metadata.oldParentId) != null ? _c : null,
+        toSceneId: op.metadata.newParentId
+      });
+      return;
+    }
+    unsupported.push(op);
+  }
+  handleContentOperation(op, actions, unsupported, localMap) {
+    if (op.kind === "updated") {
+      const fence = localMap.get(op.fenceId);
+      if (fence && fence.innerText.trim().length > 0) {
+        actions.push({
+          type: "content_update",
+          contentBlockId: op.fenceId,
+          newContent: fence.innerText.trim()
+        });
+        return;
+      }
+    }
+    unsupported.push(op);
+  }
+  buildFenceMap(content) {
+    const hierarchy = this.contentsParser.parseHierarchy(content);
+    const flattened = this.flattenHierarchy(hierarchy);
+    return new Map(flattened.map((fence) => [fence.id, fence]));
+  }
+  flattenHierarchy(hierarchy) {
+    const result = [];
+    const visit = (fence) => {
+      result.push(fence);
+      fence.children.forEach(visit);
+    };
+    const buckets = [
+      hierarchy.chapters,
+      hierarchy.orphanScenes,
+      hierarchy.orphanBeats,
+      hierarchy.orphanContents
+    ];
+    buckets.forEach((bucket) => bucket.forEach(visit));
     return result;
   }
-  async resolveEntityId(link, entityType, context) {
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (uuidRegex.test(link)) {
-      return link;
-    }
-    try {
-      switch (entityType) {
-        case "character": {
-          try {
-            const char = await context.apiClient.getCharacter(link);
-            return char.id;
-          } catch (e) {
-            return null;
-          }
-        }
-        case "location": {
-          try {
-            const loc = await context.apiClient.getLocation(link);
-            return loc.id;
-          } catch (e) {
-            return null;
-          }
-        }
-        case "faction": {
-          try {
-            const faction = await context.apiClient.getFaction(link);
-            return faction.id;
-          } catch (e) {
-            return null;
-          }
-        }
-        case "artifact": {
-          try {
-            const artifact = await context.apiClient.getArtifact(link);
-            return artifact.id;
-          } catch (e) {
-            return null;
-          }
-        }
-        case "event": {
-          try {
-            const event = await context.apiClient.getEvent(link);
-            return event.id;
-          } catch (e) {
-            return null;
-          }
-        }
-        case "lore": {
-          try {
-            const lore = await context.apiClient.getLore(link);
-            return lore.id;
-          } catch (e) {
-            return null;
-          }
-        }
-        default:
-          return null;
-      }
-    } catch (error) {
-      console.warn(`[RelationsPushHandler] Failed to resolve entity ID for ${entityType}:${link}`, error);
-      return null;
-    }
+};
+
+// src/sync-v2/push/PushExecutor.ts
+var PushExecutor = class {
+  constructor(apiClient, citationService) {
+    this.apiClient = apiClient;
+    this.citationService = citationService;
   }
-  inferRelationType(targetType, sectionName) {
-    switch (sectionName) {
-      case "Main Characters":
-        return "pov";
-      case "Key Locations":
-        return "setting";
-      case "Referenced Factions":
-        return "faction_reference";
-      case "Timeline Events":
-        return "timeline_event";
-      case "Artifacts":
-        return "artifact_reference";
-      case "Lore References":
-        return "lore_reference";
-      default:
-        return "reference";
-    }
-  }
-  async validateEntityExists(entityType, entityId, context) {
-    try {
-      switch (entityType) {
-        case "character":
-          await context.apiClient.getCharacter(entityId);
-          return true;
-        case "location":
-          await context.apiClient.getLocation(entityId);
-          return true;
-        case "faction":
-          await context.apiClient.getFaction(entityId);
-          return true;
-        case "artifact":
-          await context.apiClient.getArtifact(entityId);
-          return true;
-        case "event":
-          await context.apiClient.getEvent(entityId);
-          return true;
-        case "lore":
-          await context.apiClient.getLore(entityId);
-          return true;
-        case "story":
-          await context.apiClient.getStory(entityId);
-          return true;
-        case "world":
-          await context.apiClient.getWorld(entityId);
-          return true;
-        default:
-          return true;
+  async execute(actions, options) {
+    const summary = {
+      applied: 0,
+      errors: []
+    };
+    for (const action of actions) {
+      try {
+        await this.applyAction(action, options == null ? void 0 : options.worldId);
+        summary.applied += 1;
+      } catch (error) {
+        summary.errors.push({
+          code: `push_${action.type}`,
+          message: error instanceof Error ? error.message : "Unknown error while executing push action.",
+          details: action,
+          recoverable: true
+        });
       }
-    } catch (error) {
-      return false;
+    }
+    return summary;
+  }
+  async applyAction(action, worldId) {
+    var _a, _b;
+    switch (action.type) {
+      case "chapter_reorder":
+        await this.apiClient.updateChapter(action.chapterId, {
+          number: action.newOrder
+        });
+        return;
+      case "scene_reorder":
+        await this.apiClient.updateScene(action.sceneId, {
+          order_num: action.newOrder
+        });
+        return;
+      case "scene_move":
+        await this.apiClient.moveScene(action.sceneId, (_a = action.toChapterId) != null ? _a : null);
+        return;
+      case "beat_reorder":
+        await this.apiClient.updateBeat(action.beatId, {
+          order_num: action.newOrder
+        });
+        return;
+      case "beat_move":
+        await this.apiClient.moveBeat(action.beatId, action.toSceneId);
+        return;
+      case "content_update":
+        await this.apiClient.updateContentBlock(action.contentBlockId, {
+          content: action.newContent
+        });
+        await ((_b = this.citationService) == null ? void 0 : _b.syncCitations(action.contentBlockId, action.newContent, worldId));
+        return;
     }
   }
 };
+
+// src/sync-v2/push/ContentCitationService.ts
+var ContentCitationService = class {
+  constructor(context) {
+    this.context = context;
+  }
+  async syncCitations(contentBlockId, content, worldId) {
+    var _a, _b, _c, _d, _e, _f;
+    const mentions = detectEntityMentions(content);
+    const created = /* @__PURE__ */ new Set();
+    for (const mention of mentions) {
+      const resolved = await resolveEntityMention(mention, this.context);
+      if (!resolved) {
+        (_b = (_a = this.context).emitWarning) == null ? void 0 : _b.call(_a, {
+          code: "citation_resolution_failed",
+          message: `N\xE3o consegui resolver a men\xE7\xE3o ${mention.linkText}`,
+          details: { mention },
+          severity: "info"
+        });
+        continue;
+      }
+      const resolvedWorldId = worldId != null ? worldId : resolved.worldId;
+      if (!resolvedWorldId) {
+        (_d = (_c = this.context).emitWarning) == null ? void 0 : _d.call(_c, {
+          code: "citation_world_missing",
+          message: `N\xE3o foi poss\xEDvel determinar o world_id para ${mention.linkText}`,
+          details: { mention },
+          severity: "warning"
+        });
+        continue;
+      }
+      const targetKey = `${resolved.entityType}:${resolved.entityId}`;
+      if (created.has(targetKey)) {
+        continue;
+      }
+      created.add(targetKey);
+      const payload = {
+        world_id: resolvedWorldId,
+        source_type: "content_block",
+        source_id: contentBlockId,
+        target_type: resolved.entityType,
+        target_id: resolved.entityId,
+        relation_type: "citation",
+        summary: mention.displayLabel ? `Referenciado como ${mention.displayLabel}` : void 0,
+        create_mirror: true
+      };
+      try {
+        await this.context.apiClient.createEntityRelation(payload);
+      } catch (error) {
+        (_f = (_e = this.context).emitWarning) == null ? void 0 : _f.call(_e, {
+          code: "citation_push_failed",
+          message: `N\xE3o foi poss\xEDvel criar a citation para ${mention.linkText}`,
+          details: error,
+          severity: "warning"
+        });
+      }
+    }
+  }
+};
+
+// src/sync-v2/handlers/story/services/StoryRelationsService.ts
+var StoryRelationsService = class {
+  constructor(relationsGenerator = new RelationsGenerator(), relationsPushHandler = new RelationsPushHandler()) {
+    this.relationsGenerator = relationsGenerator;
+    this.relationsPushHandler = relationsPushHandler;
+  }
+  /**
+   * Generate the story.relations.md file by fetching relations from API
+   * and resolving entity names.
+   */
+  async generateRelationsFile(story, folderPath, context) {
+    var _a;
+    try {
+      let worldFolderPath;
+      if (story.story.world_id) {
+        try {
+          const world = await context.apiClient.getWorld(story.story.world_id);
+          if (world == null ? void 0 : world.name) {
+            worldFolderPath = context.fileManager.getWorldFolderPath(world.name);
+          }
+        } catch (e) {
+        }
+      }
+      const relationsResponse = await context.apiClient.listRelationsByTarget({
+        targetType: "story",
+        targetId: story.story.id
+      });
+      const entityCache = /* @__PURE__ */ new Map();
+      const resolvedRelations = await Promise.all(
+        relationsResponse.data.map(async (relation) => {
+          return this.resolveRelationTarget(relation, entityCache, context);
+        })
+      );
+      const entityMap = new Map(
+        resolvedRelations.map((r) => [`${r.targetType}:${r.targetId}`, r])
+      );
+      const resolveTarget = (relation) => {
+        const key = `${relation.source_type}:${relation.source_id}`;
+        const resolved = entityMap.get(key);
+        if (!resolved)
+          return null;
+        return {
+          targetId: resolved.targetId,
+          targetName: resolved.targetName,
+          summary: resolved.summary
+        };
+      };
+      const mappedRelations = relationsResponse.data.map((rel) => ({
+        ...rel,
+        target_type: rel.source_type,
+        target_id: rel.source_id
+      }));
+      const input = mapRelationsToGeneratorInput({
+        entity: {
+          id: story.story.id,
+          name: story.story.title,
+          type: "story",
+          worldId: (_a = story.story.world_id) != null ? _a : void 0
+        },
+        relations: mappedRelations,
+        resolveTarget,
+        options: {
+          syncedAt: context.timestamp(),
+          showHelpBox: context.settings.showHelpBox,
+          idField: context.settings.frontmatterIdField,
+          worldFolderPath
+        }
+      });
+      const relationsContent = this.relationsGenerator.generate(input);
+      await context.fileManager.writeFile(`${folderPath}/story.relations.md`, relationsContent);
+    } catch (error) {
+      console.warn("[Sync V2] Failed to generate story relations file", {
+        storyId: story.story.id,
+        error
+      });
+      await context.fileManager.writeFile(
+        `${folderPath}/story.relations.md`,
+        this.renderRelationsPlaceholder(story)
+      );
+    }
+  }
+  /**
+   * Push local relations changes to the API.
+   */
+  async pushRelations(entity, folderPath, context) {
+    var _a, _b, _c;
+    const relationsFilePath = `${folderPath}/story.relations.md`;
+    try {
+      await context.fileManager.readFile(relationsFilePath);
+      const result = await this.relationsPushHandler.pushRelations(
+        relationsFilePath,
+        "story",
+        entity.story.id,
+        context,
+        (_a = entity.story.world_id) != null ? _a : void 0
+      );
+      if (result.warnings.length > 0) {
+        result.warnings.forEach(
+          (warning) => {
+            var _a2;
+            return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
+              code: "relations_push_warning",
+              message: warning,
+              filePath: relationsFilePath
+            });
+          }
+        );
+      }
+    } catch (error) {
+      if (!((_b = error == null ? void 0 : error.message) == null ? void 0 : _b.includes("missing")) && (error == null ? void 0 : error.code) !== "ENOENT") {
+        (_c = context.emitWarning) == null ? void 0 : _c.call(context, {
+          code: "relations_push_error",
+          message: `Failed to push relations: ${error}`,
+          filePath: relationsFilePath
+        });
+      }
+    }
+  }
+  async resolveRelationTarget(relation, entityCache, context) {
+    try {
+      let targetName = relation.source_id;
+      let targetId = relation.source_id;
+      let targetType = relation.source_type;
+      const cacheKey = `${relation.source_type}:${relation.source_id}`;
+      if (entityCache.has(cacheKey)) {
+        const cached = entityCache.get(cacheKey);
+        targetName = cached.name;
+        targetType = cached.type;
+      } else {
+        const resolved = await this.fetchEntityName(relation.source_type, relation.source_id, context);
+        if (resolved) {
+          targetName = resolved.name;
+          targetId = resolved.id;
+          entityCache.set(cacheKey, { name: resolved.name, type: relation.source_type });
+        }
+      }
+      return {
+        targetType,
+        targetId,
+        targetName,
+        relationType: relation.relation_type,
+        summary: relation.context
+      };
+    } catch (error) {
+      console.warn("[Sync V2] Failed to resolve target for story relation", {
+        relation,
+        error
+      });
+      return {
+        targetType: relation.source_type,
+        targetId: relation.source_id,
+        targetName: relation.source_id,
+        relationType: relation.relation_type,
+        summary: relation.context
+      };
+    }
+  }
+  async fetchEntityName(entityType, entityId, context) {
+    switch (entityType) {
+      case "character": {
+        const char = await context.apiClient.getCharacter(entityId);
+        return { id: char.id, name: char.name };
+      }
+      case "location": {
+        const loc = await context.apiClient.getLocation(entityId);
+        return { id: loc.id, name: loc.name };
+      }
+      case "faction": {
+        const faction = await context.apiClient.getFaction(entityId);
+        return { id: faction.id, name: faction.name };
+      }
+      case "artifact": {
+        const artifact = await context.apiClient.getArtifact(entityId);
+        return { id: artifact.id, name: artifact.name };
+      }
+      case "event": {
+        const event = await context.apiClient.getEvent(entityId);
+        return { id: event.id, name: event.name };
+      }
+      case "lore": {
+        const lore = await context.apiClient.getLore(entityId);
+        return { id: lore.id, name: lore.name };
+      }
+      case "world": {
+        const world = await context.apiClient.getWorld(entityId);
+        return { id: world.id, name: world.name };
+      }
+      default:
+        return null;
+    }
+  }
+  renderRelationsPlaceholder(story) {
+    return [
+      `# ${story.story.title} - Relations`,
+      "",
+      "_Relations will be populated when synced with the server._",
+      ""
+    ].join("\n");
+  }
+};
+
+// src/sync-v2/conflict/ConflictModal.ts
+var _ConflictModal = class _ConflictModal {
+  constructor(app, conflict) {
+    this.app = app;
+    this.conflict = conflict;
+    void this.app;
+    void this.conflict;
+  }
+  static setNextChoice(choice) {
+    _ConflictModal.nextChoice = choice;
+  }
+  async open() {
+    if (_ConflictModal.nextChoice) {
+      const choice = _ConflictModal.nextChoice;
+      _ConflictModal.nextChoice = null;
+      return choice;
+    }
+    return "local";
+  }
+};
+_ConflictModal.nextChoice = null;
+var ConflictModal2 = _ConflictModal;
 
 // src/sync-v2/conflict/ConflictResolver.ts
 var ConflictResolver = class {
@@ -19101,194 +21492,570 @@ var ConflictResolver = class {
    */
   async resolveManual(conflict) {
     var _a, _b;
+    const choice = await new ConflictModal2(this.app, conflict).open();
+    const resolvedData = choice === "remote" ? conflict.remoteData : conflict.localData;
     (_b = (_a = this.context).emitWarning) == null ? void 0 : _b.call(_a, {
       code: "conflict_detected",
-      message: `Conflict detected for ${conflict.entityType} ${conflict.entityId}. Using local version.`,
+      message: `Conflict detected for ${conflict.entityType} ${conflict.entityId}. Manual resolution selected (${choice}).`,
       filePath: conflict.filePath,
       severity: "warning"
     });
     return {
       strategy: "manual",
-      resolvedData: conflict.localData,
+      resolvedData,
       autoResolved: false
     };
   }
 };
 
-// src/sync-v2/utils/detectEntityMentions.ts
-function detectEntityMentions(content) {
-  const mentions = [];
-  const linkRegex = /\[\[([^\]]+)\]\]/g;
-  let match;
-  while ((match = linkRegex.exec(content)) !== null) {
-    const fullLink = match[0];
-    const linkContent = match[1];
-    const [filenamePath, displayLabel] = linkContent.split("|").map((s) => s.trim());
-    const format2 = filenamePath.includes("/") ? "official" : "obsidian";
-    mentions.push({
-      linkText: fullLink,
-      filenamePath,
-      displayLabel: displayLabel || void 0,
-      format: format2
-    });
+// src/sync-v2/handlers/story/services/StoryConflictService.ts
+var StoryConflictService = class {
+  constructor(resolverFactory = (app, ctx) => new ConflictResolver(app, ctx)) {
+    this.resolverFactory = resolverFactory;
   }
-  return mentions;
-}
-async function resolveEntityMention(mention, context) {
-  try {
-    const vault = context.app.vault;
-    const metadataCache = context.app.metadataCache;
-    let file = null;
-    if (mention.format === "official") {
-      const filePath = `${mention.filenamePath}.md`;
-      const abstractFile = vault.getAbstractFileByPath(filePath);
-      if (abstractFile && "path" in abstractFile && !("children" in abstractFile)) {
-        file = abstractFile;
-      }
-    } else {
-      const markdownFiles = vault.getMarkdownFiles();
-      file = markdownFiles.find((f) => {
-        return f.basename === mention.filenamePath;
-      }) || null;
-      if (!file) {
-        const resolvedFile = metadataCache.getFirstLinkpathDest(mention.filenamePath, "");
-        if (resolvedFile && "path" in resolvedFile && !("children" in resolvedFile)) {
-          file = resolvedFile;
-        }
-      }
-      if (!file) {
-        file = markdownFiles.find((f) => {
-          return f.name === `${mention.filenamePath}.md`;
-        }) || null;
-      }
+  /**
+   * Check for conflicts between local and remote versions of a file.
+   * Emits warnings through context.emitWarning when conflicts are detected.
+   */
+  async checkConflicts(path, story, context, opts) {
+    var _a, _b, _c, _d;
+    const local = (opts == null ? void 0 : opts.localContentPath) ? await this.readFileSilently(context, opts.localContentPath) : await this.readFileSilently(context, path);
+    if (!local) {
+      return;
     }
-    if (!file) {
-      return null;
+    const parsed = parseFrontmatter(local);
+    const localTimestamp = (_a = parsed.updated_at) != null ? _a : parsed.synced_at;
+    if (!localTimestamp) {
+      return;
     }
-    const fileContent = await vault.read(file);
-    const frontmatter = parseFrontmatter(fileContent);
-    const entityType = inferEntityTypeFromFile(file.path, frontmatter);
-    if (!entityType) {
-      return null;
-    }
-    const idField = context.settings.frontmatterIdField;
-    const entityId = getFrontmatterId(frontmatter, idField);
-    if (!entityId) {
-      return null;
-    }
-    const worldId = frontmatter.world_id;
-    return {
-      entityId,
+    const remoteTimestamp = story.updated_at;
+    const entityType = (_b = opts == null ? void 0 : opts.entityType) != null ? _b : "story";
+    const resolver = this.resolverFactory(context.app, context);
+    const conflict = resolver.detectConflict(
       entityType,
-      worldId: worldId === null ? void 0 : worldId
+      story.id,
+      path,
+      { updated_at: localTimestamp },
+      { updated_at: remoteTimestamp },
+      localTimestamp,
+      remoteTimestamp
+    );
+    if (!conflict) {
+      return;
+    }
+    const resolution = await resolver.resolve(conflict);
+    if (!resolution.success) {
+      (_c = context.emitWarning) == null ? void 0 : _c.call(context, {
+        code: "conflict_resolution_failed",
+        message: `Failed to resolve conflict for ${entityType.replace("-", " ")}: ${resolution.error}`,
+        filePath: path,
+        severity: "warning"
+      });
+      return;
+    }
+    if (!resolution.resolution.autoResolved && resolution.resolution.strategy === "manual") {
+      (_d = context.emitWarning) == null ? void 0 : _d.call(context, {
+        code: "conflict_requires_manual_resolution",
+        message: `Conflict detected for ${entityType.replace("-", " ")}. Manual resolution required.`,
+        filePath: path,
+        severity: "warning",
+        details: conflict
+      });
+    }
+  }
+  async readFileSilently(context, path) {
+    try {
+      return await context.fileManager.readFile(path);
+    } catch (e) {
+      return null;
+    }
+  }
+};
+
+// src/sync-v2/handlers/story/services/StoryRenameService.ts
+var StoryRenameService = class {
+  constructor(fileRenamerFactory = (ctx) => new FileRenamer(ctx)) {
+    this.fileRenamerFactory = fileRenamerFactory;
+  }
+  /**
+   * Handle file renames based on reorder operations from the diff.
+   */
+  async handleReorders(operations, story, folderPath, context) {
+    const renamer = this.fileRenamerFactory(context);
+    const pathResolver = new PathResolver(folderPath);
+    const sceneMap = new Map(
+      story.chapters.flatMap(
+        (chapter) => chapter.scenes.map((scene) => {
+          var _a;
+          return [
+            scene.scene.id,
+            { scene: scene.scene, chapterOrder: (_a = chapter.chapter.number) != null ? _a : 0 }
+          ];
+        })
+      )
+    );
+    const beatMap = new Map(
+      story.chapters.flatMap(
+        (chapter) => chapter.scenes.flatMap(
+          (scene) => scene.beats.map((beat) => {
+            var _a, _b;
+            return [
+              beat.id,
+              {
+                beat,
+                chapterOrder: (_a = chapter.chapter.number) != null ? _a : 0,
+                sceneOrder: (_b = scene.scene.order_num) != null ? _b : 0
+              }
+            ];
+          })
+        )
+      )
+    );
+    const chapterMap = new Map(
+      story.chapters.map((chapter) => [chapter.chapter.id, chapter.chapter])
+    );
+    for (const op of operations) {
+      if (op.kind !== "reordered")
+        continue;
+      if (op.fenceType === "chapter") {
+        await this.handleChapterReorder(op, chapterMap, pathResolver, renamer);
+      } else if (op.fenceType === "scene") {
+        await this.handleSceneReorder(op, sceneMap, pathResolver, renamer);
+      } else if (op.fenceType === "beat") {
+        await this.handleBeatReorder(op, beatMap, pathResolver, renamer);
+      } else if (op.fenceType === "content") {
+        await this.handleContentReorder(op, pathResolver, renamer, context);
+      }
+    }
+  }
+  async handleChapterReorder(op, chapterMap, pathResolver, renamer) {
+    var _a;
+    const chapter = chapterMap.get(op.fenceId);
+    if (!chapter || ((_a = op.metadata) == null ? void 0 : _a.newOrder) === void 0 || op.metadata.oldOrder === void 0) {
+      return;
+    }
+    const oldPath = pathResolver.getChapterPath(chapter, { order: op.metadata.oldOrder });
+    const newPath = pathResolver.getChapterPath(chapter, { order: op.metadata.newOrder });
+    if (oldPath === newPath)
+      return;
+    await this.renameSafely(renamer, oldPath, newPath, "chapter");
+  }
+  async handleSceneReorder(op, sceneMap, pathResolver, renamer) {
+    var _a;
+    const sceneEntry = sceneMap.get(op.fenceId);
+    if (!sceneEntry || ((_a = op.metadata) == null ? void 0 : _a.newOrder) === void 0 || op.metadata.oldOrder === void 0) {
+      return;
+    }
+    const oldPath = pathResolver.getScenePath(sceneEntry.scene, {
+      order: op.metadata.oldOrder,
+      chapterOrder: sceneEntry.chapterOrder
+    });
+    const newPath = pathResolver.getScenePath(sceneEntry.scene, {
+      order: op.metadata.newOrder,
+      chapterOrder: sceneEntry.chapterOrder
+    });
+    if (oldPath === newPath)
+      return;
+    await this.renameSafely(renamer, oldPath, newPath, "scene");
+  }
+  async handleBeatReorder(op, beatMap, pathResolver, renamer) {
+    var _a;
+    const beatEntry = beatMap.get(op.fenceId);
+    if (!beatEntry || ((_a = op.metadata) == null ? void 0 : _a.newOrder) === void 0 || op.metadata.oldOrder === void 0) {
+      return;
+    }
+    const oldPath = pathResolver.getBeatPath(beatEntry.beat, {
+      order: op.metadata.oldOrder,
+      chapterOrder: beatEntry.chapterOrder,
+      sceneOrder: beatEntry.sceneOrder
+    });
+    const newPath = pathResolver.getBeatPath(beatEntry.beat, {
+      order: op.metadata.newOrder,
+      chapterOrder: beatEntry.chapterOrder,
+      sceneOrder: beatEntry.sceneOrder
+    });
+    if (oldPath === newPath)
+      return;
+    await this.renameSafely(renamer, oldPath, newPath, "beat");
+  }
+  async handleContentReorder(op, pathResolver, renamer, context) {
+    var _a;
+    if (((_a = op.metadata) == null ? void 0 : _a.newOrder) === void 0 || op.metadata.oldOrder === void 0) {
+      return;
+    }
+    try {
+      const contentBlock = await context.apiClient.getContentBlock(op.fenceId);
+      if (!contentBlock)
+        return;
+      const oldPath = pathResolver.getContentBlockPath(contentBlock, {
+        order: op.metadata.oldOrder
+      });
+      const newPath = pathResolver.getContentBlockPath(contentBlock, {
+        order: op.metadata.newOrder
+      });
+      if (oldPath === newPath)
+        return;
+      await this.renameSafely(renamer, oldPath, newPath, "content block");
+    } catch (err) {
+      console.warn(`[Sync V2] Failed to get content block for rename`, err);
+    }
+  }
+  async renameSafely(renamer, oldPath, newPath, entity) {
+    try {
+      await renamer.rename({ oldPath, newPath });
+    } catch (err) {
+      console.warn(`[Sync V2] Failed to rename ${entity} file`, err);
+    }
+  }
+};
+
+// src/sync-v2/relations/relationsFileWriter.ts
+async function writeRelationsFile({
+  entity,
+  outputPath,
+  context,
+  worldFolderPath
+}) {
+  const relationsGenerator = new RelationsGenerator();
+  try {
+    const relationsResponse = await context.apiClient.listRelationsByTarget({
+      targetType: entity.type,
+      targetId: entity.id
+    });
+    const entityCache = /* @__PURE__ */ new Map();
+    const resolvedRelations = await Promise.all(
+      relationsResponse.data.map(async (relation) => {
+        return resolveRelationTarget(relation, entityCache, context);
+      })
+    );
+    const entityMap = new Map(
+      resolvedRelations.map((r) => [`${r.targetType}:${r.targetId}`, r])
+    );
+    const resolveTarget = (relation) => {
+      const key = `${relation.source_type}:${relation.source_id}`;
+      const resolved = entityMap.get(key);
+      if (!resolved)
+        return null;
+      return {
+        targetId: resolved.targetId,
+        targetName: resolved.targetName,
+        summary: resolved.summary
+      };
     };
+    const mappedRelations = relationsResponse.data.map((rel) => ({
+      ...rel,
+      target_type: rel.source_type,
+      target_id: rel.source_id
+    }));
+    const input = mapRelationsToGeneratorInput({
+      entity,
+      relations: mappedRelations,
+      resolveTarget,
+      options: {
+        syncedAt: context.timestamp(),
+        showHelpBox: context.settings.showHelpBox,
+        idField: context.settings.frontmatterIdField,
+        worldFolderPath
+      }
+    });
+    const relationsContent = relationsGenerator.generate(input);
+    await context.fileManager.writeFile(outputPath, relationsContent);
   } catch (error) {
-    console.warn("[Sync V2] Failed to resolve entity mention", {
-      mention,
+    console.warn("[Sync V2] Failed to generate relations file", {
+      entity,
       error
     });
-    return null;
+    await context.fileManager.writeFile(outputPath, renderRelationsPlaceholder(entity.name));
   }
 }
-function parseFrontmatter(content) {
-  const match = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!match) {
-    return {};
-  }
-  const frontmatterText = match[1];
-  const result = {};
-  const lines = frontmatterText.split("\n");
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i].trim();
-    if (!line || line.startsWith("#")) {
-      i++;
-      continue;
+async function resolveRelationTarget(relation, entityCache, context) {
+  try {
+    let targetName = relation.source_id;
+    let targetId = relation.source_id;
+    let targetType = relation.source_type;
+    const cacheKey = `${relation.source_type}:${relation.source_id}`;
+    if (entityCache.has(cacheKey)) {
+      const cached = entityCache.get(cacheKey);
+      targetName = cached.name;
+      targetId = cached.id;
+      targetType = cached.type;
+    } else {
+      const resolved = await fetchEntityName(relation.source_type, relation.source_id, context);
+      if (resolved) {
+        targetName = resolved.name;
+        targetId = resolved.id;
+        entityCache.set(cacheKey, { name: resolved.name, type: relation.source_type, id: resolved.id });
+      }
     }
-    const colonIndex = line.indexOf(":");
-    if (colonIndex > 0) {
-      const key = line.slice(0, colonIndex).trim();
-      let value = line.slice(colonIndex + 1).trim();
-      if (key === "tags" && (value === "" || value === "[]")) {
-        const tags = [];
-        i++;
-        while (i < lines.length) {
-          const nextLine = lines[i].trim();
-          if (nextLine.startsWith("-")) {
-            const tagMatch = nextLine.match(/^\s*-\s*(.+)/);
-            if (tagMatch) {
-              let tagValue = tagMatch[1].trim().replace(/^["']|["']$/g, "");
-              tags.push(tagValue);
-            }
-            i++;
-          } else if (nextLine === "" || nextLine.startsWith("#")) {
-            i++;
-          } else {
-            break;
-          }
+    return {
+      targetType,
+      targetId,
+      targetName,
+      relationType: relation.relation_type,
+      summary: relation.context
+    };
+  } catch (error) {
+    console.warn("[Sync V2] Failed to resolve relation target", {
+      relation,
+      error
+    });
+    return {
+      targetType: relation.source_type,
+      targetId: relation.source_id,
+      targetName: relation.source_id,
+      relationType: relation.relation_type,
+      summary: relation.context
+    };
+  }
+}
+async function fetchEntityName(entityType, entityId, context) {
+  var _a, _b, _c, _d;
+  switch (entityType) {
+    case "character": {
+      const char = await context.apiClient.getCharacter(entityId);
+      return { id: char.id, name: char.name };
+    }
+    case "location": {
+      const loc = await context.apiClient.getLocation(entityId);
+      return { id: loc.id, name: loc.name };
+    }
+    case "faction": {
+      const faction = await context.apiClient.getFaction(entityId);
+      return { id: faction.id, name: faction.name };
+    }
+    case "artifact": {
+      const artifact = await context.apiClient.getArtifact(entityId);
+      return { id: artifact.id, name: artifact.name };
+    }
+    case "event": {
+      const event = await context.apiClient.getEvent(entityId);
+      return { id: event.id, name: event.name };
+    }
+    case "lore": {
+      const lore = await context.apiClient.getLore(entityId);
+      return { id: lore.id, name: lore.name };
+    }
+    case "world": {
+      const world = await context.apiClient.getWorld(entityId);
+      return { id: world.id, name: world.name };
+    }
+    case "chapter": {
+      const chapter = await context.apiClient.getChapter(entityId);
+      return { id: chapter.id, name: `Chapter ${chapter.number}: ${chapter.title}` };
+    }
+    case "scene": {
+      const scene = await context.apiClient.getScene(entityId);
+      return { id: scene.id, name: `Scene ${(_a = scene.order_num) != null ? _a : 0}: ${scene.goal || "Untitled"}` };
+    }
+    case "beat": {
+      const beat = await context.apiClient.getBeat(entityId);
+      return { id: beat.id, name: `Beat ${(_b = beat.order_num) != null ? _b : 0}: ${beat.intent || "Untitled"}` };
+    }
+    case "content_block": {
+      const block = await context.apiClient.getContentBlock(entityId);
+      const name = ((_c = block.metadata) == null ? void 0 : _c.title) || block.kind || block.type || ((_d = block.content) == null ? void 0 : _d.slice(0, 40)) || "Content Block";
+      return { id: block.id, name };
+    }
+    default:
+      return null;
+  }
+}
+function renderRelationsPlaceholder(name) {
+  return [`# ${name} - Relations`, "", "_Relations will be populated when synced._", ""].join("\n");
+}
+
+// src/sync-v2/handlers/story/services/StoryFileService.ts
+var StoryFileService = class {
+  constructor() {
+    this.contentsGenerator = new ContentsGenerator();
+    this.outlineGenerator = new OutlineGenerator();
+  }
+  /**
+   * Read a file silently, returning null if it doesn't exist or on error.
+   */
+  async readFileSilently(context, path) {
+    try {
+      return await context.fileManager.readFile(path);
+    } catch (e) {
+      return null;
+    }
+  }
+  /**
+   * Write individual entity files (chapters, scenes, beats) as placeholders.
+   */
+  async writeIndividualEntityFiles(story, folderPath, context) {
+    var _a, _b, _c, _d, _e, _f, _g;
+    const pathResolver = new PathResolver(folderPath);
+    let worldFolderPath;
+    if (story.story.world_id) {
+      try {
+        const world = await context.apiClient.getWorld(story.story.world_id);
+        if (world == null ? void 0 : world.name) {
+          worldFolderPath = context.fileManager.getWorldFolderPath(world.name);
         }
-        result[key] = tags;
+      } catch (e) {
+      }
+    }
+    const chaptersFolderPath = `${folderPath}/00-chapters`;
+    const scenesFolderPath = `${folderPath}/01-scenes`;
+    const beatsFolderPath = `${folderPath}/02-beats`;
+    await context.fileManager.ensureFolderExists(chaptersFolderPath);
+    await context.fileManager.ensureFolderExists(scenesFolderPath);
+    await context.fileManager.ensureFolderExists(beatsFolderPath);
+    const contentBlocksByScene = /* @__PURE__ */ new Map();
+    const contentBlocksByBeat = /* @__PURE__ */ new Map();
+    for (const chapterWithContent of story.chapters) {
+      const chapter = chapterWithContent.chapter;
+      const chapterOrder = (_a = chapter.number) != null ? _a : 0;
+      const chapterBasePath = pathResolver.getChapterPath(chapter);
+      await context.fileManager.ensureFolderExists(chapterBasePath.replace(/\/[^/]+$/, ""));
+      await context.fileManager.writeChapterFile(
+        chapterWithContent,
+        chapterBasePath,
+        story.story.title,
+        void 0,
+        void 0,
+        void 0,
+        { linkMode: "full_path", storyFolderPath: folderPath }
+      );
+      const chapterOutlinePath = chapterBasePath.replace(/\.md$/, ".outline.md");
+      const chapterContentsPath = chapterBasePath.replace(/\.md$/, ".contents.md");
+      const chapterRelationsPath = chapterBasePath.replace(/\.md$/, ".relations.md");
+      const chapterOutline = this.outlineGenerator.generateChapterOutline(chapterWithContent, {
+        syncedAt: context.timestamp(),
+        showHelpBox: context.settings.showHelpBox,
+        idField: context.settings.frontmatterIdField,
+        storyFolderPath: folderPath
+      });
+      await context.fileManager.writeFile(chapterOutlinePath, chapterOutline);
+      const sceneContentBlocks = /* @__PURE__ */ new Map();
+      const beatContentBlocks = /* @__PURE__ */ new Map();
+      for (const sceneWrapper of chapterWithContent.scenes) {
+        const scene = sceneWrapper.scene;
+        const sceneOrder = (_b = scene.order_num) != null ? _b : 0;
+        const scenePath = pathResolver.getScenePath(scene, { chapterOrder });
+        const sceneBlocks = await context.apiClient.getContentBlocksByScene(scene.id);
+        contentBlocksByScene.set(scene.id, sceneBlocks);
+        sceneContentBlocks.set(scene.id, sceneBlocks);
+        await context.fileManager.writeSceneFile(
+          sceneWrapper,
+          scenePath,
+          story.story.title,
+          sceneBlocks,
+          [],
+          {
+            linkMode: "full_path",
+            storyFolderPath: folderPath,
+            chapterOrder
+          }
+        );
+        for (const beat of sceneWrapper.beats) {
+          const beatPath = pathResolver.getBeatPath(beat, {
+            chapterOrder,
+            sceneOrder
+          });
+          const beatBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+          contentBlocksByBeat.set(beat.id, beatBlocks);
+          beatContentBlocks.set(beat.id, beatBlocks);
+          await context.fileManager.writeBeatFile(
+            beat,
+            beatPath,
+            story.story.title,
+            beatBlocks,
+            {
+              linkMode: "full_path",
+              storyFolderPath: folderPath,
+              chapterOrder,
+              sceneOrder
+            }
+          );
+          const beatContentsPath = beatPath.replace(/\.md$/, ".contents.md");
+          const beatRelationsPath = beatPath.replace(/\.md$/, ".relations.md");
+          const beatContents = this.contentsGenerator.generateBeatContents(
+            beat,
+            beatContentBlocks,
+            { syncedAt: context.timestamp(), idField: context.settings.frontmatterIdField }
+          );
+          await context.fileManager.writeFile(beatContentsPath, beatContents);
+          await writeRelationsFile({
+            entity: {
+              id: beat.id,
+              name: `Beat ${(_c = beat.order_num) != null ? _c : 0}: ${beat.intent || "Untitled"}`,
+              type: "beat",
+              worldId: (_d = story.story.world_id) != null ? _d : void 0
+            },
+            outputPath: beatRelationsPath,
+            context,
+            worldFolderPath
+          });
+        }
+        const sceneOutlinePath = scenePath.replace(/\.md$/, ".outline.md");
+        const sceneContentsPath = scenePath.replace(/\.md$/, ".contents.md");
+        const sceneRelationsPath = scenePath.replace(/\.md$/, ".relations.md");
+        const sceneOutline = this.outlineGenerator.generateSceneOutline(sceneWrapper, {
+          syncedAt: context.timestamp(),
+          showHelpBox: context.settings.showHelpBox,
+          idField: context.settings.frontmatterIdField,
+          storyFolderPath: folderPath
+        });
+        await context.fileManager.writeFile(sceneOutlinePath, sceneOutline);
+        const sceneContents = this.contentsGenerator.generateSceneContents(
+          sceneWrapper,
+          sceneContentBlocks,
+          beatContentBlocks,
+          { syncedAt: context.timestamp(), idField: context.settings.frontmatterIdField }
+        );
+        await context.fileManager.writeFile(sceneContentsPath, sceneContents);
+        await writeRelationsFile({
+          entity: {
+            id: scene.id,
+            name: `Scene ${(_e = scene.order_num) != null ? _e : 0}: ${scene.goal || "Untitled"}`,
+            type: "scene",
+            worldId: (_f = story.story.world_id) != null ? _f : void 0
+          },
+          outputPath: sceneRelationsPath,
+          context,
+          worldFolderPath
+        });
+      }
+      const chapterContents = this.contentsGenerator.generateChapterContents(
+        chapterWithContent,
+        /* @__PURE__ */ new Map(),
+        sceneContentBlocks,
+        beatContentBlocks,
+        { syncedAt: context.timestamp(), idField: context.settings.frontmatterIdField }
+      );
+      await context.fileManager.writeFile(chapterContentsPath, chapterContents);
+      await writeRelationsFile({
+        entity: {
+          id: chapter.id,
+          name: `Chapter ${chapter.number}: ${chapter.title}`,
+          type: "chapter",
+          worldId: (_g = story.story.world_id) != null ? _g : void 0
+        },
+        outputPath: chapterRelationsPath,
+        context,
+        worldFolderPath
+      });
+    }
+    const writtenBlocks = /* @__PURE__ */ new Set();
+    const allBlocks = [...contentBlocksByScene.values(), ...contentBlocksByBeat.values()].flat();
+    for (const block of allBlocks) {
+      if (writtenBlocks.has(block.id)) {
         continue;
       }
-      if (value.startsWith('"') && value.endsWith('"') || value.startsWith("'") && value.endsWith("'")) {
-        value = value.slice(1, -1);
-      }
-      if (value === "null" || value === "") {
-        result[key] = null;
-      } else if (value === "true" || value === "false") {
-        result[key] = value === "true";
-      } else if (/^-?\d+$/.test(value)) {
-        result[key] = parseInt(value, 10);
-      } else if (/^-?\d+\.\d+$/.test(value)) {
-        result[key] = parseFloat(value);
-      } else {
-        result[key] = value;
-      }
-    } else if (line.startsWith("-")) {
-    }
-    i++;
-  }
-  return result;
-}
-function inferEntityTypeFromFile(filePath, frontmatter) {
-  if (frontmatter.entity_type && typeof frontmatter.entity_type === "string") {
-    return frontmatter.entity_type;
-  }
-  if (frontmatter.tags && Array.isArray(frontmatter.tags)) {
-    for (const tag of frontmatter.tags) {
-      if (typeof tag === "string" && tag.startsWith("story-engine/")) {
-        const entityType = tag.replace("story-engine/", "");
-        return entityType;
-      }
+      writtenBlocks.add(block.id);
+      const blockPath = pathResolver.getContentBlockPath(block);
+      const blockFolder = blockPath.replace(/\/[^/]+$/, "");
+      await context.fileManager.ensureFolderExists(blockFolder);
+      await context.fileManager.writeContentBlockFile(block, blockPath, story.story.title);
     }
   }
-  const pathPatterns = {
-    "/_archetypes/": "archetype",
-    // More specific patterns first
-    "/_traits/": "trait",
-    "/worlds/": "world",
-    "/characters/": "character",
-    "/locations/": "location",
-    "/factions/": "faction",
-    "/artifacts/": "artifact",
-    "/events/": "event",
-    "/lore/": "lore",
-    "/chapters/": "chapter",
-    "/scenes/": "scene",
-    "/beats/": "beat",
-    "/contents/": "content_block"
-  };
-  for (const [pattern, entityType] of Object.entries(pathPatterns)) {
-    if (filePath.includes(pattern)) {
-      return entityType;
-    }
-  }
-  return null;
-}
+};
 
 // src/sync-v2/handlers/story/StoryHandler.ts
 var StoryHandler = class {
-  constructor(outlineGenerator = new OutlineGenerator(), contentsGenerator = new ContentsGenerator(), contentsReconciler = new ContentsReconciler(), outlineReconciler = new OutlineReconciler(), relationsGenerator = new RelationsGenerator(), relationsPushHandler = new RelationsPushHandler(), fileRenamerFactory = (context) => new FileRenamer(context), conflictResolverFactory = (context) => new ConflictResolver(context.app, context)) {
+  constructor(outlineGenerator = new OutlineGenerator(), contentsGenerator = new ContentsGenerator(), contentsReconciler = new ContentsReconciler(), outlineReconciler = new OutlineReconciler(), relationsGenerator = new RelationsGenerator(), relationsPushHandler = new RelationsPushHandler(), fileRenamerFactory = (ctx) => new FileRenamer(ctx)) {
     this.outlineGenerator = outlineGenerator;
     this.contentsGenerator = contentsGenerator;
     this.contentsReconciler = contentsReconciler;
@@ -19296,118 +22063,33 @@ var StoryHandler = class {
     this.relationsGenerator = relationsGenerator;
     this.relationsPushHandler = relationsPushHandler;
     this.fileRenamerFactory = fileRenamerFactory;
-    this.conflictResolverFactory = conflictResolverFactory;
     this.entityType = "story";
-    this.contentBlockCache = /* @__PURE__ */ new Map();
+    this.relationsService = new StoryRelationsService(relationsGenerator, relationsPushHandler);
+    this.conflictService = new StoryConflictService();
+    this.renameService = new StoryRenameService(fileRenamerFactory);
+    this.fileService = new StoryFileService();
   }
   async pull(id2, context) {
-    var _a, _b, _c, _d, _e, _f, _g;
     const story = await context.apiClient.getStoryWithHierarchy(id2);
     const folderPath = context.fileManager.getStoryFolderPath(story.story.title);
     await context.fileManager.ensureFolderExists(folderPath);
-    const conflictResolver = this.conflictResolverFactory(context);
-    const storyMetadataPath = `${folderPath}/story.md`;
-    let existingStoryMetadata = null;
-    let localStoryTimestamp;
-    try {
-      existingStoryMetadata = await context.fileManager.readFile(storyMetadataPath);
-      const parsed = parseFrontmatter(existingStoryMetadata);
-      localStoryTimestamp = parsed.updated_at || parsed.synced_at;
-    } catch (e) {
-      existingStoryMetadata = null;
-    }
-    if (existingStoryMetadata && localStoryTimestamp) {
-      const conflict = conflictResolver.detectConflict(
-        "story",
-        story.story.id,
-        storyMetadataPath,
-        { updated_at: localStoryTimestamp },
-        { updated_at: story.story.updated_at },
-        localStoryTimestamp,
-        story.story.updated_at
-      );
-      if (conflict) {
-        const resolution = await conflictResolver.resolve(conflict);
-        if (!resolution.success) {
-          (_a = context.emitWarning) == null ? void 0 : _a.call(context, {
-            code: "conflict_resolution_failed",
-            message: `Failed to resolve conflict for story ${story.story.id}: ${resolution.error || "Unknown error"}`,
-            filePath: storyMetadataPath,
-            severity: "warning"
-          });
-        } else if (!resolution.resolution.autoResolved) {
-          (_b = context.emitWarning) == null ? void 0 : _b.call(context, {
-            code: "conflict_requires_manual_resolution",
-            message: `Conflict detected for story ${story.story.id}. Manual resolution may be required.`,
-            filePath: storyMetadataPath,
-            severity: "warning",
-            details: conflict
-          });
-        }
-      }
-    }
-    await context.fileManager.writeStoryMetadata(
+    await context.fileManager.writeStoryMetadata(story.story, folderPath, story.chapters, void 0, void 0, void 0, {
+      linkMode: "full_path"
+    });
+    await this.conflictService.checkConflicts(
+      `${folderPath}/story.md`,
       story.story,
-      folderPath,
-      story.chapters
+      context
     );
     const outlinePath = `${folderPath}/story.outline.md`;
+    const contentsPath = `${folderPath}/story.contents.md`;
     const outlineGenerated = this.outlineGenerator.generateStoryOutline(story, {
       syncedAt: context.timestamp(),
       showHelpBox: context.settings.showHelpBox,
-      idField: context.settings.frontmatterIdField
+      idField: context.settings.frontmatterIdField,
+      storyFolderPath: folderPath
     });
-    let existingOutline = null;
-    let localOutlineTimestamp;
-    try {
-      existingOutline = await context.fileManager.readFile(outlinePath);
-      const parsed = parseFrontmatter(existingOutline);
-      localOutlineTimestamp = parsed.synced_at;
-    } catch (e) {
-      existingOutline = null;
-    }
-    if (existingOutline && localOutlineTimestamp) {
-      const conflict = conflictResolver.detectConflict(
-        "story-outline",
-        story.story.id,
-        outlinePath,
-        { synced_at: localOutlineTimestamp, content: existingOutline },
-        { updated_at: story.story.updated_at, content: outlineGenerated },
-        localOutlineTimestamp,
-        story.story.updated_at
-      );
-      if (conflict) {
-        const resolution = await conflictResolver.resolve(conflict);
-        if (!resolution.success) {
-          (_c = context.emitWarning) == null ? void 0 : _c.call(context, {
-            code: "conflict_resolution_failed",
-            message: `Failed to resolve conflict for story outline ${story.story.id}: ${resolution.error || "Unknown error"}`,
-            filePath: outlinePath,
-            severity: "warning"
-          });
-        } else if (!resolution.resolution.autoResolved) {
-          (_d = context.emitWarning) == null ? void 0 : _d.call(context, {
-            code: "conflict_requires_manual_resolution",
-            message: `Conflict detected for story outline ${story.story.id}. Manual resolution may be required.`,
-            filePath: outlinePath,
-            severity: "warning",
-            details: conflict
-          });
-        }
-      }
-    }
-    const outlineMerged = this.outlineReconciler.reconcile(existingOutline, outlineGenerated);
-    const contentsPath = `${folderPath}/story.contents.md`;
-    let existingContents = null;
-    let localContentsTimestamp;
-    try {
-      existingContents = await context.fileManager.readFile(contentsPath);
-      const parsed = parseFrontmatter(existingContents);
-      localContentsTimestamp = parsed.synced_at;
-    } catch (e) {
-      existingContents = null;
-    }
-    const generatedContents = this.contentsGenerator.generateStoryContents({
+    const contentsGenerated = this.contentsGenerator.generateStoryContents({
       story: story.story,
       chapters: story.chapters,
       options: {
@@ -19415,42 +22097,25 @@ var StoryHandler = class {
         idField: context.settings.frontmatterIdField
       }
     });
-    if (existingContents && localContentsTimestamp) {
-      const conflict = conflictResolver.detectConflict(
-        "story-contents",
-        story.story.id,
-        contentsPath,
-        { synced_at: localContentsTimestamp, content: existingContents },
-        { updated_at: story.story.updated_at, content: generatedContents },
-        localContentsTimestamp,
-        story.story.updated_at
-      );
-      if (conflict) {
-        const resolution = await conflictResolver.resolve(conflict);
-        if (!resolution.success) {
-          (_e = context.emitWarning) == null ? void 0 : _e.call(context, {
-            code: "conflict_resolution_failed",
-            message: `Failed to resolve conflict for story contents ${story.story.id}: ${resolution.error || "Unknown error"}`,
-            filePath: contentsPath,
-            severity: "warning"
-          });
-        } else if (!resolution.resolution.autoResolved) {
-          (_f = context.emitWarning) == null ? void 0 : _f.call(context, {
-            code: "conflict_requires_manual_resolution",
-            message: `Conflict detected for story contents ${story.story.id}. Manual resolution may be required.`,
-            filePath: contentsPath,
-            severity: "warning",
-            details: conflict
-          });
-        }
-      }
-    }
-    const reconciled = this.contentsReconciler.reconcile(existingContents, generatedContents);
-    if (reconciled.warnings.length) {
-      reconciled.warnings.forEach(
+    await this.conflictService.checkConflicts(outlinePath, story.story, context, {
+      localContentPath: outlinePath,
+      remoteContent: outlineGenerated,
+      entityType: "story-outline"
+    });
+    await this.conflictService.checkConflicts(contentsPath, story.story, context, {
+      localContentPath: contentsPath,
+      remoteContent: contentsGenerated,
+      entityType: "story-contents"
+    });
+    const existingOutline = await this.fileService.readFileSilently(context, outlinePath);
+    const existingContents = await this.fileService.readFileSilently(context, contentsPath);
+    const outlineMerged = this.outlineReconciler.reconcile(existingOutline, outlineGenerated);
+    const contentsReconciled = this.contentsReconciler.reconcile(existingContents, contentsGenerated);
+    if (contentsReconciled.warnings.length) {
+      contentsReconciled.warnings.forEach(
         (warning) => {
-          var _a2;
-          return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
+          var _a;
+          return (_a = context.emitWarning) == null ? void 0 : _a.call(context, {
             ...warning,
             filePath: contentsPath
           });
@@ -19458,508 +22123,105 @@ var StoryHandler = class {
       );
     }
     await context.fileManager.writeFile(outlinePath, outlineMerged);
-    await context.fileManager.writeFile(contentsPath, reconciled.mergedContent);
-    await this.handleReorders(
-      reconciled.diff.operations,
-      story,
-      folderPath,
-      context
-    );
-    await this.generateRelations(story, folderPath, context);
-    try {
-      await this.writeIndividualEntityFiles(story, folderPath, context);
-    } catch (error) {
-      console.error("[Sync V2] Failed to write individual entity files", error);
-      (_g = context.emitWarning) == null ? void 0 : _g.call(context, {
-        code: "individual_files_write_failed",
-        message: `Failed to write individual entity files: ${error instanceof Error ? error.message : String(error)}`,
-        severity: "warning"
-      });
-    }
+    await context.fileManager.writeFile(contentsPath, contentsReconciled.mergedContent);
+    await this.renameService.handleReorders(contentsReconciled.diff.operations, story, folderPath, context);
+    await this.relationsService.generateRelationsFile(story, folderPath, context);
+    await this.fileService.writeIndividualEntityFiles(story, folderPath, context);
     return story;
   }
   async push(entity, context) {
-    var _a, _b, _c;
+    var _a, _b, _c, _d, _e;
     const folderPath = context.fileManager.getStoryFolderPath(entity.story.title);
-    const relationsFilePath = `${folderPath}/story.relations.md`;
+    await this.relationsService.pushRelations(entity, folderPath, context);
+    const outlineFilePath = `${folderPath}/story.outline.md`;
     try {
-      await context.fileManager.readFile(relationsFilePath);
-      const result = await this.relationsPushHandler.pushRelations(
-        relationsFilePath,
-        "story",
+      const outlinePushHandler = new OutlinePushHandler();
+      const outlineResult = await outlinePushHandler.analyzeOutline(
+        outlineFilePath,
         entity.story.id,
-        context,
-        (_a = entity.story.world_id) != null ? _a : void 0
+        context
       );
-      if (result.warnings.length > 0) {
-        result.warnings.forEach(
-          (warning) => {
-            var _a2;
-            return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
-              code: "relations_push_warning",
-              message: warning,
-              filePath: relationsFilePath
-            });
-          }
-        );
-      }
-    } catch (error) {
-      if (((_b = error == null ? void 0 : error.message) == null ? void 0 : _b.includes("missing")) || (error == null ? void 0 : error.code) === "ENOENT") {
-        return;
-      }
-      (_c = context.emitWarning) == null ? void 0 : _c.call(context, {
-        code: "relations_push_error",
-        message: `Failed to push relations: ${error}`,
-        filePath: relationsFilePath
-      });
-    }
-  }
-  async delete(_id, _context) {
-  }
-  async handleReorders(operations, story, folderPath, context) {
-    var _a, _b, _c, _d;
-    const renamer = this.fileRenamerFactory(context);
-    const pathResolver = new PathResolver(folderPath);
-    const sceneMap = new Map(
-      story.chapters.flatMap((chapter) => chapter.scenes.map((scene) => [scene.scene.id, scene.scene]))
-    );
-    const beatMap = new Map(
-      story.chapters.flatMap(
-        (chapter) => chapter.scenes.flatMap((scene) => scene.beats.map((beat) => [beat.id, beat]))
-      )
-    );
-    const chapterMap = new Map(story.chapters.map((chapter) => [chapter.chapter.id, chapter.chapter]));
-    for (const op of operations) {
-      if (op.kind !== "reordered")
-        continue;
-      if (op.fenceType === "chapter") {
-        const chapter = chapterMap.get(op.fenceId);
-        if (!chapter || ((_a = op.metadata) == null ? void 0 : _a.newOrder) === void 0 || op.metadata.oldOrder === void 0) {
-          continue;
-        }
-        const oldPath = pathResolver.getChapterPath(chapter, { order: op.metadata.oldOrder });
-        const newPath = pathResolver.getChapterPath(chapter, { order: op.metadata.newOrder });
-        if (oldPath === newPath)
-          continue;
-        await this.safeRename(renamer, oldPath, newPath, "chapter");
-      } else if (op.fenceType === "scene") {
-        const scene = sceneMap.get(op.fenceId);
-        if (!scene || ((_b = op.metadata) == null ? void 0 : _b.newOrder) === void 0 || op.metadata.oldOrder === void 0)
-          continue;
-        const oldPath = pathResolver.getScenePath(scene, { order: op.metadata.oldOrder });
-        const newPath = pathResolver.getScenePath(scene, { order: op.metadata.newOrder });
-        if (oldPath === newPath)
-          continue;
-        await this.safeRename(renamer, oldPath, newPath, "scene");
-      } else if (op.fenceType === "beat") {
-        const beat = beatMap.get(op.fenceId);
-        if (!beat || ((_c = op.metadata) == null ? void 0 : _c.newOrder) === void 0 || op.metadata.oldOrder === void 0)
-          continue;
-        const oldPath = pathResolver.getBeatPath(beat, { order: op.metadata.oldOrder });
-        const newPath = pathResolver.getBeatPath(beat, { order: op.metadata.newOrder });
-        if (oldPath === newPath)
-          continue;
-        await this.safeRename(renamer, oldPath, newPath, "beat");
-      } else if (op.fenceType === "content") {
-        if (((_d = op.metadata) == null ? void 0 : _d.newOrder) === void 0 || op.metadata.oldOrder === void 0) {
-          continue;
-        }
-        const block = await this.getContentBlock(op.fenceId, context);
-        if (!block)
-          continue;
-        const oldPath = pathResolver.getContentBlockPath(block, { order: op.metadata.oldOrder });
-        const newPath = pathResolver.getContentBlockPath(block, { order: op.metadata.newOrder });
-        if (oldPath === newPath)
-          continue;
-        await this.safeRename(renamer, oldPath, newPath, "content");
-      }
-    }
-  }
-  async getContentBlock(id2, context) {
-    if (this.contentBlockCache.has(id2)) {
-      return this.contentBlockCache.get(id2);
-    }
-    try {
-      const block = await context.apiClient.getContentBlock(id2);
-      this.contentBlockCache.set(id2, block);
-      return block;
-    } catch (error) {
-      console.warn("[Sync V2] Failed to load content block", { id: id2, error });
-      return null;
-    }
-  }
-  async safeRename(renamer, oldPath, newPath, entity) {
-    try {
-      await renamer.rename({
-        oldPath,
-        newPath
-      });
-    } catch (err) {
-      console.warn(`[Sync V2] Failed to rename ${entity} file`, err);
-    }
-  }
-  /**
-   * Write individual entity files (chapters, scenes, beats, content blocks)
-   * Similar to V1 behavior - creates individual files for each entity
-   */
-  async writeIndividualEntityFiles(story, folderPath, context) {
-    var _a, _b;
-    const chaptersFolderPath = `${folderPath}/00-chapters`;
-    const scenesFolderPath = `${folderPath}/01-scenes`;
-    const beatsFolderPath = `${folderPath}/02-beats`;
-    const contentsFolderPath = `${folderPath}/03-contents`;
-    await context.fileManager.ensureFolderExists(chaptersFolderPath);
-    await context.fileManager.ensureFolderExists(scenesFolderPath);
-    await context.fileManager.ensureFolderExists(beatsFolderPath);
-    await context.fileManager.ensureFolderExists(contentsFolderPath);
-    for (const typeFolder of ["00-texts", "01-images", "02-videos", "03-audios", "04-embeds", "05-links"]) {
-      await context.fileManager.ensureFolderExists(`${contentsFolderPath}/${typeFolder}`);
-    }
-    const allScenes = await context.apiClient.getScenesByStory(story.story.id);
-    const orphanScenes = [];
-    for (const scene of allScenes) {
-      if (!scene.chapter_id) {
-        const beats = await context.apiClient.getBeats(scene.id);
-        orphanScenes.push({ scene, beats });
-      }
-    }
-    orphanScenes.sort((a, b) => a.scene.order_num - b.scene.order_num);
-    const allBeats = await context.apiClient.getBeatsByStory(story.story.id);
-    const orphanBeats = [];
-    const sceneIdSet = new Set(allScenes.map((s) => s.id));
-    for (const beat of allBeats) {
-      if (!beat.scene_id || !sceneIdSet.has(beat.scene_id)) {
-        orphanBeats.push(beat);
-      }
-    }
-    orphanBeats.sort((a, b) => a.order_num - b.order_num);
-    const chapterContentBlocks = /* @__PURE__ */ new Map();
-    const sceneContentBlocks = /* @__PURE__ */ new Map();
-    const beatContentBlocks = /* @__PURE__ */ new Map();
-    for (const chapterWithContent of story.chapters) {
-      const chapterBlocks = await context.apiClient.getContentBlocks(chapterWithContent.chapter.id);
-      chapterContentBlocks.set(chapterWithContent.chapter.id, chapterBlocks);
-      for (const contentBlock of chapterBlocks) {
-        const contentBlockFileName = context.fileManager.generateContentBlockFileName(contentBlock);
-        const typeFolderPath = context.fileManager.getContentBlockFolderPath(folderPath, contentBlock.type || "text");
-        await context.fileManager.ensureFolderExists(typeFolderPath);
-        const contentBlockFilePath = `${typeFolderPath}/${contentBlockFileName}`;
-        await context.fileManager.writeContentBlockFile(
-          contentBlock,
-          contentBlockFilePath,
-          story.story.title
-        );
-      }
-      for (const { scene, beats } of chapterWithContent.scenes) {
-        const sceneBlocks = await context.apiClient.getContentBlocksByScene(scene.id);
-        sceneContentBlocks.set(scene.id, sceneBlocks);
-        for (const beat of beats) {
-          const beatBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
-          beatContentBlocks.set(beat.id, beatBlocks);
-        }
-      }
-    }
-    const pathResolver = new PathResolver(folderPath);
-    for (const chapterWithContent of story.chapters) {
-      const chapterBasePath = pathResolver.getChapterPath(chapterWithContent.chapter);
-      const chapterBasePathWithoutExt = chapterBasePath.replace(/\.md$/, "");
-      const outlineContent = this.outlineGenerator.generateChapterOutline(chapterWithContent, {
-        syncedAt: context.timestamp(),
-        showHelpBox: context.settings.showHelpBox,
-        idField: context.settings.frontmatterIdField
-      });
-      await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.outline.md`, outlineContent);
-      const contentsContent = this.contentsGenerator.generateChapterContents(
-        chapterWithContent,
-        chapterContentBlocks,
-        sceneContentBlocks,
-        beatContentBlocks,
-        {
-          syncedAt: context.timestamp(),
-          idField: context.settings.frontmatterIdField
-        }
-      );
-      await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.contents.md`, contentsContent);
-      try {
-        const relationsResponse = await context.apiClient.listRelationsBySource({
-          sourceType: "chapter",
-          sourceId: chapterWithContent.chapter.id
-        });
-        const nonCitationRelations = relationsResponse.data.filter(
-          (rel) => rel.relation_type !== "citation"
-        );
-        if (nonCitationRelations.length > 0) {
-          const resolvedRelations = await Promise.all(
-            nonCitationRelations.map(async (relation) => {
-              try {
-                let targetName = relation.target_id;
-                let targetId = relation.target_id;
-                switch (relation.target_type) {
-                  case "character": {
-                    const char = await context.apiClient.getCharacter(relation.target_id);
-                    targetName = char.name;
-                    targetId = char.id;
-                    break;
-                  }
-                  case "location": {
-                    const loc = await context.apiClient.getLocation(relation.target_id);
-                    targetName = loc.name;
-                    targetId = loc.id;
-                    break;
-                  }
-                  case "faction": {
-                    const faction = await context.apiClient.getFaction(relation.target_id);
-                    targetName = faction.name;
-                    targetId = faction.id;
-                    break;
-                  }
-                  case "artifact": {
-                    const artifact = await context.apiClient.getArtifact(relation.target_id);
-                    targetName = artifact.name;
-                    targetId = artifact.id;
-                    break;
-                  }
-                  case "event": {
-                    const event = await context.apiClient.getEvent(relation.target_id);
-                    targetName = event.name;
-                    targetId = event.id;
-                    break;
-                  }
-                  case "lore": {
-                    const lore = await context.apiClient.getLore(relation.target_id);
-                    targetName = lore.name;
-                    targetId = lore.id;
-                    break;
-                  }
-                }
-                return {
-                  targetType: relation.target_type,
-                  targetId,
-                  targetName,
-                  relationType: relation.relation_type,
-                  summary: relation.context
-                };
-              } catch (error) {
-                console.warn(`[Sync V2] Failed to resolve target for chapter relation`, {
-                  relation,
-                  error
-                });
-                return {
-                  targetType: relation.target_type,
-                  targetId: relation.target_id,
-                  targetName: relation.target_id,
-                  relationType: relation.relation_type,
-                  summary: relation.context
-                };
-              }
-            })
-          );
-          const relationsInput = {
-            entity: {
-              id: chapterWithContent.chapter.id,
-              name: chapterWithContent.chapter.title,
-              type: "chapter",
-              worldId: (_a = story.story.world_id) != null ? _a : void 0,
-              worldName: void 0
-              // TODO: fetch world name if needed
-            },
-            relations: resolvedRelations,
-            options: {
-              syncedAt: context.timestamp(),
-              showHelpBox: context.settings.showHelpBox,
-              idField: context.settings.frontmatterIdField
-            }
-          };
-          const relationsContent = this.relationsGenerator.generate(relationsInput);
-          await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.relations.md`, relationsContent);
-        } else {
-          const emptyRelationsInput = {
-            entity: {
-              id: chapterWithContent.chapter.id,
-              name: chapterWithContent.chapter.title,
-              type: "chapter",
-              worldId: (_b = story.story.world_id) != null ? _b : void 0,
-              worldName: void 0
-            },
-            relations: [],
-            options: {
-              syncedAt: context.timestamp(),
-              showHelpBox: context.settings.showHelpBox,
-              idField: context.settings.frontmatterIdField
-            }
-          };
-          const relationsContent = this.relationsGenerator.generate(emptyRelationsInput);
-          await context.fileManager.writeFile(`${chapterBasePathWithoutExt}.relations.md`, relationsContent);
-        }
-      } catch (error) {
-        console.warn("[Sync V2] Failed to generate chapter relations file", {
-          chapterId: chapterWithContent.chapter.id,
-          error
-        });
-      }
-      for (const { scene, beats } of chapterWithContent.scenes) {
-        const sceneBlocks = sceneContentBlocks.get(scene.id) || [];
-        const sceneFilePath = pathResolver.getScenePath(scene);
-        await context.fileManager.writeSceneFile(
-          { scene, beats },
-          sceneFilePath,
-          story.story.title,
-          sceneBlocks,
-          orphanBeats
-        );
-        for (const beat of beats) {
-          const beatBlocks = beatContentBlocks.get(beat.id) || [];
-          const beatFilePath = pathResolver.getBeatPath(beat);
-          await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatBlocks);
-        }
-      }
-    }
-    for (const { scene, beats } of orphanScenes) {
-      const sceneContentBlocks2 = await context.apiClient.getContentBlocksByScene(scene.id);
-      const sceneFileName = context.fileManager.generateSceneFileName(scene);
-      const sceneFilePath = `${scenesFolderPath}/${sceneFileName}`;
-      await context.fileManager.writeSceneFile(
-        { scene, beats },
-        sceneFilePath,
-        story.story.title,
-        sceneContentBlocks2,
-        orphanBeats
-      );
-      for (const beat of beats) {
-        const beatContentBlocks2 = await context.apiClient.getContentBlocksByBeat(beat.id);
-        const beatFileName = context.fileManager.generateBeatFileName(beat);
-        const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
-        await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatContentBlocks2);
-      }
-    }
-    for (const beat of orphanBeats) {
-      const beatContentBlocks2 = await context.apiClient.getContentBlocksByBeat(beat.id);
-      const beatFileName = context.fileManager.generateBeatFileName(beat);
-      const beatFilePath = `${beatsFolderPath}/${beatFileName}`;
-      await context.fileManager.writeBeatFile(beat, beatFilePath, story.story.title, beatContentBlocks2);
-    }
-  }
-  async generateRelations(story, folderPath, context) {
-    var _a;
-    try {
-      const relationsResponse = await context.apiClient.listRelationsByTarget({
-        targetType: "story",
-        targetId: story.story.id
-      });
-      const resolvedRelations = await Promise.all(
-        relationsResponse.data.map(async (relation) => {
-          try {
-            let targetName = relation.source_id;
-            let targetId = relation.source_id;
-            switch (relation.source_type) {
-              case "character": {
-                const char = await context.apiClient.getCharacter(relation.source_id);
-                targetName = char.name;
-                targetId = char.id;
-                break;
-              }
-              case "location": {
-                const loc = await context.apiClient.getLocation(relation.source_id);
-                targetName = loc.name;
-                targetId = loc.id;
-                break;
-              }
-              case "faction": {
-                const faction = await context.apiClient.getFaction(relation.source_id);
-                targetName = faction.name;
-                targetId = faction.id;
-                break;
-              }
-              case "artifact": {
-                const artifact = await context.apiClient.getArtifact(relation.source_id);
-                targetName = artifact.name;
-                targetId = artifact.id;
-                break;
-              }
-              case "event": {
-                const event = await context.apiClient.getEvent(relation.source_id);
-                targetName = event.name;
-                targetId = event.id;
-                break;
-              }
-              case "lore": {
-                const lore = await context.apiClient.getLore(relation.source_id);
-                targetName = lore.name;
-                targetId = lore.id;
-                break;
-              }
-            }
-            return {
-              targetType: relation.source_type,
-              targetId,
-              targetName,
-              relationType: relation.relation_type,
-              summary: relation.context
-            };
-          } catch (error) {
-            console.warn(`[Sync V2] Failed to resolve target for relation`, {
-              relation,
-              error
-            });
-            return {
-              targetType: relation.source_type,
-              targetId: relation.source_id,
-              targetName: relation.source_id,
-              relationType: relation.relation_type,
-              summary: relation.context
-            };
-          }
-        })
-      );
-      const entityMap = /* @__PURE__ */ new Map();
-      relationsResponse.data.forEach((rel, idx) => {
-        const key = `${rel.source_type}:${rel.source_id}`;
-        entityMap.set(key, resolvedRelations[idx]);
-      });
-      const resolveTarget = (relation) => {
-        const key = `${relation.source_type}:${relation.source_id}`;
-        const resolved = entityMap.get(key);
-        if (!resolved)
-          return null;
-        return {
-          targetId: resolved.targetId,
-          targetName: resolved.targetName,
-          summary: resolved.summary
-        };
-      };
-      let worldName;
-      if (story.story.world_id) {
-        try {
-          const world = await context.apiClient.getWorld(story.story.world_id);
-          worldName = world.name;
-        } catch (error) {
-          console.warn("[Sync V2] Failed to fetch world name", {
-            worldId: story.story.world_id,
-            error
+      for (const action of outlineResult.actions) {
+        if (action.type === "chapter_reorder") {
+          await context.apiClient.updateChapter(action.chapterId, {
+            number: action.newOrder
           });
         }
       }
-      const input = mapRelationsToGeneratorInput({
-        entity: {
-          id: story.story.id,
-          name: story.story.title,
-          type: "story",
-          worldId: (_a = story.story.world_id) != null ? _a : void 0,
-          worldName
-        },
-        relations: relationsResponse.data,
-        resolveTarget,
+      if (outlineResult.warnings.length > 0) {
+        outlineResult.warnings.forEach(
+          (warning) => {
+            var _a2;
+            return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
+              code: "outline_push_warning",
+              message: warning,
+              filePath: outlineFilePath
+            });
+          }
+        );
+      }
+    } catch (error) {
+      if (!((_a = error == null ? void 0 : error.message) == null ? void 0 : _a.includes("missing")) && (error == null ? void 0 : error.code) !== "ENOENT") {
+        (_b = context.emitWarning) == null ? void 0 : _b.call(context, {
+          code: "outline_push_error",
+          message: `Failed to push outline: ${error}`,
+          filePath: outlineFilePath
+        });
+      }
+    }
+    const contentsFilePath = `${folderPath}/story.contents.md`;
+    try {
+      const localContents = await context.fileManager.readFile(contentsFilePath);
+      const remoteContents = this.contentsGenerator.generateStoryContents({
+        story: entity.story,
+        chapters: entity.chapters,
         options: {
           syncedAt: context.timestamp(),
-          showHelpBox: context.settings.showHelpBox,
           idField: context.settings.frontmatterIdField
         }
       });
-      const relationsContent = this.relationsGenerator.generate(input);
-      await context.fileManager.writeFile(`${folderPath}/story.relations.md`, relationsContent);
+      const planner = new PushPlanner();
+      const plan = planner.buildPlan(remoteContents, localContents);
+      if (plan.actions.length > 0) {
+        const citationService = new ContentCitationService(context);
+        const executor = new PushExecutor(context.apiClient, citationService);
+        const result = await executor.execute(plan.actions, {
+          worldId: (_c = entity.story.world_id) != null ? _c : void 0
+        });
+        if (result.errors.length > 0) {
+          result.errors.forEach(
+            (error) => {
+              var _a2;
+              return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
+                ...error,
+                filePath: contentsFilePath
+              });
+            }
+          );
+        }
+      }
+      if (plan.warnings.length > 0) {
+        plan.warnings.forEach(
+          (warning) => {
+            var _a2;
+            return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
+              ...warning,
+              filePath: contentsFilePath
+            });
+          }
+        );
+      }
     } catch (error) {
-      console.warn("[Sync V2] Failed to generate relations file", { storyId: story.story.id, error });
+      if (!((_d = error == null ? void 0 : error.message) == null ? void 0 : _d.includes("missing")) && (error == null ? void 0 : error.code) !== "ENOENT") {
+        (_e = context.emitWarning) == null ? void 0 : _e.call(context, {
+          code: "contents_push_error",
+          message: `Failed to push contents: ${error}`,
+          filePath: contentsFilePath
+        });
+      }
     }
+  }
+  async delete(_id, _context) {
   }
 };
 
@@ -19967,8 +22229,11 @@ var StoryHandler = class {
 var ChapterHandler = class {
   constructor() {
     this.entityType = "chapter";
+    this.contentsGenerator = new ContentsGenerator();
+    this.outlineGenerator = new OutlineGenerator();
   }
   async pull(id2, context) {
+    var _a;
     const chapter = await context.apiClient.getChapter(id2);
     const scenes = await context.apiClient.getScenes(chapter.id);
     const scenesWithBeats = await Promise.all(
@@ -19987,7 +22252,64 @@ var ChapterHandler = class {
     await context.fileManager.ensureFolderExists(chaptersFolder);
     const pathResolver = new PathResolver(folderPath);
     const filePath = pathResolver.getChapterPath(chapter);
-    await context.fileManager.writeChapterFile(data, filePath, story.title);
+    await context.fileManager.writeChapterFile(
+      data,
+      filePath,
+      story.title,
+      void 0,
+      void 0,
+      void 0,
+      { linkMode: "full_path", storyFolderPath: folderPath }
+    );
+    const outlinePath = filePath.replace(/\.md$/, ".outline.md");
+    const contentsPath = filePath.replace(/\.md$/, ".contents.md");
+    const relationsPath = filePath.replace(/\.md$/, ".relations.md");
+    const outline = this.outlineGenerator.generateChapterOutline(data, {
+      syncedAt: context.timestamp(),
+      showHelpBox: context.settings.showHelpBox,
+      idField: context.settings.frontmatterIdField,
+      storyFolderPath: folderPath
+    });
+    await context.fileManager.writeFile(outlinePath, outline);
+    const sceneContentBlocks = /* @__PURE__ */ new Map();
+    const beatContentBlocks = /* @__PURE__ */ new Map();
+    for (const sceneWrapper of data.scenes) {
+      const sceneBlocks = await context.apiClient.getContentBlocksByScene(sceneWrapper.scene.id);
+      sceneContentBlocks.set(sceneWrapper.scene.id, sceneBlocks);
+      for (const beat of sceneWrapper.beats) {
+        const beatBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+        beatContentBlocks.set(beat.id, beatBlocks);
+      }
+    }
+    const contents = this.contentsGenerator.generateChapterContents(
+      data,
+      /* @__PURE__ */ new Map(),
+      sceneContentBlocks,
+      beatContentBlocks,
+      { syncedAt: context.timestamp(), idField: context.settings.frontmatterIdField }
+    );
+    await context.fileManager.writeFile(contentsPath, contents);
+    let worldFolderPath;
+    if (story.world_id) {
+      try {
+        const world = await context.apiClient.getWorld(story.world_id);
+        if (world == null ? void 0 : world.name) {
+          worldFolderPath = context.fileManager.getWorldFolderPath(world.name);
+        }
+      } catch (e) {
+      }
+    }
+    await writeRelationsFile({
+      entity: {
+        id: chapter.id,
+        name: `Chapter ${chapter.number}: ${chapter.title}`,
+        type: "chapter",
+        worldId: (_a = story.world_id) != null ? _a : void 0
+      },
+      outputPath: relationsPath,
+      context,
+      worldFolderPath
+    });
     return data;
   }
   async push(_entity, _context) {
@@ -20001,40 +22323,91 @@ var ChapterHandler = class {
 var SceneHandler = class {
   constructor() {
     this.entityType = "scene";
+    this.contentsGenerator = new ContentsGenerator();
+    this.outlineGenerator = new OutlineGenerator();
   }
   async pull(id2, context) {
+    var _a, _b, _c;
     const scene = await context.apiClient.getScene(id2);
     const beats = await context.apiClient.getBeats(scene.id);
     const sceneWithBeats = { scene, beats };
     const story = await context.apiClient.getStory(scene.story_id);
+    const chapterOrder = scene.chapter_id ? (_a = (await context.apiClient.getChapter(scene.chapter_id)).number) != null ? _a : 0 : 0;
     const folderPath = context.fileManager.getStoryFolderPath(story.title);
     const scenesFolder = `${folderPath}/01-scenes`;
     await context.fileManager.ensureFolderExists(scenesFolder);
     const pathResolver = new PathResolver(folderPath);
-    const filePath = pathResolver.getScenePath(scene);
+    const filePath = pathResolver.getScenePath(scene, { chapterOrder });
     const contentBlocks = await context.apiClient.getContentBlocksByScene(scene.id);
     await context.fileManager.writeSceneFile(
       sceneWithBeats,
       filePath,
       story.title,
       contentBlocks,
-      []
+      [],
+      { linkMode: "full_path", storyFolderPath: folderPath, chapterOrder }
     );
+    const outlinePath = filePath.replace(/\.md$/, ".outline.md");
+    const contentsPath = filePath.replace(/\.md$/, ".contents.md");
+    const relationsPath = filePath.replace(/\.md$/, ".relations.md");
+    const outline = this.outlineGenerator.generateSceneOutline(sceneWithBeats, {
+      syncedAt: context.timestamp(),
+      showHelpBox: context.settings.showHelpBox,
+      idField: context.settings.frontmatterIdField,
+      storyFolderPath: folderPath
+    });
+    await context.fileManager.writeFile(outlinePath, outline);
+    const sceneContentBlocks = /* @__PURE__ */ new Map();
+    sceneContentBlocks.set(scene.id, contentBlocks);
+    const beatContentBlocks = /* @__PURE__ */ new Map();
+    for (const beat of beats) {
+      const beatBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+      beatContentBlocks.set(beat.id, beatBlocks);
+    }
+    const contents = this.contentsGenerator.generateSceneContents(
+      sceneWithBeats,
+      sceneContentBlocks,
+      beatContentBlocks,
+      { syncedAt: context.timestamp(), idField: context.settings.frontmatterIdField }
+    );
+    await context.fileManager.writeFile(contentsPath, contents);
+    let worldFolderPath;
+    if (story.world_id) {
+      try {
+        const world = await context.apiClient.getWorld(story.world_id);
+        if (world == null ? void 0 : world.name) {
+          worldFolderPath = context.fileManager.getWorldFolderPath(world.name);
+        }
+      } catch (e) {
+      }
+    }
+    await writeRelationsFile({
+      entity: {
+        id: scene.id,
+        name: `Scene ${(_b = scene.order_num) != null ? _b : 0}: ${scene.goal || "Untitled"}`,
+        type: "scene",
+        worldId: (_c = story.world_id) != null ? _c : void 0
+      },
+      outputPath: relationsPath,
+      context,
+      worldFolderPath
+    });
     return sceneWithBeats;
   }
   async push(entity, context) {
-    var _a, _b;
+    var _a, _b, _c;
     const scene = entity.scene;
     const story = await context.apiClient.getStory(scene.story_id);
+    const chapterOrder = scene.chapter_id ? (_a = (await context.apiClient.getChapter(scene.chapter_id)).number) != null ? _a : 0 : 0;
     const folderPath = context.fileManager.getStoryFolderPath(story.title);
     const pathResolver = new PathResolver(folderPath);
-    const filePath = pathResolver.getScenePath(scene);
+    const filePath = pathResolver.getScenePath(scene, { chapterOrder });
     let fileContent;
     try {
       fileContent = await context.fileManager.readFile(filePath);
     } catch (error) {
-      if (((_a = error == null ? void 0 : error.message) == null ? void 0 : _a.includes("missing")) || (error == null ? void 0 : error.code) === "ENOENT") {
-        (_b = context.emitWarning) == null ? void 0 : _b.call(context, {
+      if (((_b = error == null ? void 0 : error.message) == null ? void 0 : _b.includes("missing")) || (error == null ? void 0 : error.code) === "ENOENT") {
+        (_c = context.emitWarning) == null ? void 0 : _c.call(context, {
           code: "scene_file_not_found",
           message: `Scene file not found: ${filePath}`,
           filePath
@@ -20206,18 +22579,60 @@ var SceneHandler = class {
 var BeatHandler = class {
   constructor() {
     this.entityType = "beat";
+    this.contentsGenerator = new ContentsGenerator();
   }
   async pull(id2, context) {
+    var _a, _b, _c, _d, _e;
     const beat = await context.apiClient.getBeat(id2);
     const scene = await context.apiClient.getScene(beat.scene_id);
+    const chapterOrder = scene.chapter_id ? (_a = (await context.apiClient.getChapter(scene.chapter_id)).number) != null ? _a : 0 : 0;
     const story = await context.apiClient.getStory(scene.story_id);
     const folderPath = context.fileManager.getStoryFolderPath(story.title);
     const beatsFolder = `${folderPath}/02-beats`;
     await context.fileManager.ensureFolderExists(beatsFolder);
     const pathResolver = new PathResolver(folderPath);
-    const filePath = pathResolver.getBeatPath(beat);
+    const filePath = pathResolver.getBeatPath(beat, {
+      chapterOrder,
+      sceneOrder: (_b = scene.order_num) != null ? _b : 0
+    });
     const contentBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
-    await context.fileManager.writeBeatFile(beat, filePath, story.title, contentBlocks);
+    await context.fileManager.writeBeatFile(beat, filePath, story.title, contentBlocks, {
+      linkMode: "full_path",
+      storyFolderPath: folderPath,
+      chapterOrder,
+      sceneOrder: (_c = scene.order_num) != null ? _c : 0
+    });
+    const contentsPath = filePath.replace(/\.md$/, ".contents.md");
+    const relationsPath = filePath.replace(/\.md$/, ".relations.md");
+    const beatContentBlocks = /* @__PURE__ */ new Map();
+    beatContentBlocks.set(beat.id, contentBlocks);
+    const contents = this.contentsGenerator.generateBeatContents(
+      beat,
+      beatContentBlocks,
+      { syncedAt: context.timestamp(), idField: context.settings.frontmatterIdField }
+    );
+    await context.fileManager.writeFile(contentsPath, contents);
+    let worldFolderPath;
+    if (story.world_id) {
+      try {
+        const world = await context.apiClient.getWorld(story.world_id);
+        if (world == null ? void 0 : world.name) {
+          worldFolderPath = context.fileManager.getWorldFolderPath(world.name);
+        }
+      } catch (e) {
+      }
+    }
+    await writeRelationsFile({
+      entity: {
+        id: beat.id,
+        name: `Beat ${(_d = beat.order_num) != null ? _d : 0}: ${beat.intent || "Untitled"}`,
+        type: "beat",
+        worldId: (_e = story.world_id) != null ? _e : void 0
+      },
+      outputPath: relationsPath,
+      context,
+      worldFolderPath
+    });
     return beat;
   }
   async push(_entity, _context) {
@@ -20701,880 +23116,6 @@ var ContentBlockHandler = class {
   }
 };
 
-// src/sync-v2/generators/CitationsGenerator.ts
-var CitationsGenerator = class {
-  constructor(now2 = () => (/* @__PURE__ */ new Date()).toISOString()) {
-    this.now = now2;
-  }
-  generate(input) {
-    var _a, _b, _c;
-    const { entity, citations } = input;
-    const lines = [];
-    const idField = getIdFieldName((_a = input.options) == null ? void 0 : _a.idField);
-    lines.push(
-      "---",
-      `${idField}: ${entity.id}`,
-      `type: ${entity.type}-citations`,
-      `synced_at: ${(_c = (_b = input.options) == null ? void 0 : _b.syncedAt) != null ? _c : this.now()}`,
-      "---",
-      "",
-      `# ${entity.name} - Citations`,
-      ""
-    );
-    lines.push(
-      "> [!warning] \u26A0\uFE0F Arquivo auto-gerado - N\xC3O EDITE",
-      "> Este arquivo \xE9 atualizado automaticamente durante o sync.",
-      ">",
-      "> **Para adicionar cita\xE7\xF5es**: Atualize os arquivos `.relations.md` relevantes.",
-      ""
-    );
-    const grouped = this.groupByStory(citations);
-    for (const [storyId, entries] of grouped.entries()) {
-      lines.push(`## [[${storyId}|${entries[0].storyTitle}]]`, "");
-      const byRelation = this.groupByRelationType(entries);
-      for (const [relationType, relationEntries] of byRelation.entries()) {
-        lines.push(`### ${this.titleCase(relationType)} (\`relation_type: ${relationType}\`)`);
-        relationEntries.forEach((entry) => {
-          const context = entry.chapterTitle ? ` (Chapter: ${entry.chapterTitle})` : "";
-          lines.push(
-            `- [[${entry.sourceId}|${entry.sourceTitle}]]${context}${entry.summary ? `
-  - *"${entry.summary}"*` : ""}`
-          );
-        });
-        lines.push("");
-      }
-    }
-    lines.push("---", "", "## Summary", "", "| Story | relation_type | Count |", "|-------|---------------|-------|");
-    for (const [storyId, entries] of grouped.entries()) {
-      const byRelation = this.groupByRelationType(entries);
-      for (const [relationType, relationEntries] of byRelation.entries()) {
-        lines.push(`| ${entries[0].storyTitle} | ${relationType} | ${relationEntries.length} |`);
-      }
-    }
-    const total = citations.length;
-    lines.push(`| **Total** | | **${total}** |`);
-    return lines.join("\n").trimEnd() + "\n";
-  }
-  groupByStory(citations) {
-    const map2 = /* @__PURE__ */ new Map();
-    citations.forEach((citation) => {
-      if (!map2.has(citation.storyId)) {
-        map2.set(citation.storyId, []);
-      }
-      map2.get(citation.storyId).push(citation);
-    });
-    return map2;
-  }
-  groupByRelationType(citations) {
-    const map2 = /* @__PURE__ */ new Map();
-    citations.forEach((citation) => {
-      if (!map2.has(citation.relationType)) {
-        map2.set(citation.relationType, []);
-      }
-      map2.get(citation.relationType).push(citation);
-    });
-    return map2;
-  }
-  titleCase(value) {
-    return value.split(/[_\s]/g).map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
-  }
-};
-
-// src/sync-v2/handlers/world/WorldHandler.ts
-var WorldHandler = class {
-  constructor(now2 = () => (/* @__PURE__ */ new Date()).toISOString(), relationsGenerator = new RelationsGenerator(), citationsGenerator = new CitationsGenerator(), relationsPushHandler = new RelationsPushHandler()) {
-    this.now = now2;
-    this.relationsGenerator = relationsGenerator;
-    this.citationsGenerator = citationsGenerator;
-    this.relationsPushHandler = relationsPushHandler;
-    this.entityType = "world";
-  }
-  async pull(id2, context) {
-    const world = await context.apiClient.getWorld(id2);
-    const folderPath = context.fileManager.getWorldFolderPath(world.name);
-    await context.fileManager.ensureFolderExists(folderPath);
-    await context.fileManager.ensureFolderExists(`${folderPath}/characters`);
-    await context.fileManager.ensureFolderExists(`${folderPath}/locations`);
-    await context.fileManager.ensureFolderExists(`${folderPath}/factions`);
-    await context.fileManager.ensureFolderExists(`${folderPath}/artifacts`);
-    await context.fileManager.ensureFolderExists(`${folderPath}/events`);
-    await context.fileManager.ensureFolderExists(`${folderPath}/lore`);
-    await context.fileManager.writeWorldMetadata(world, folderPath);
-    const [characters, locations, factions, artifacts, events, loreList] = await Promise.all([
-      context.apiClient.getCharacters(world.id),
-      context.apiClient.getLocations(world.id),
-      context.apiClient.getFactions(world.id),
-      context.apiClient.getArtifacts(world.id),
-      context.apiClient.getEvents(world.id),
-      context.apiClient.getLores(world.id)
-    ]);
-    await context.fileManager.writeFile(
-      `${folderPath}/world.outline.md`,
-      this.renderOutline(world, { characters, locations, factions, artifacts, events, loreList })
-    );
-    await context.fileManager.writeFile(
-      `${folderPath}/world.contents.md`,
-      this.renderContents(world)
-    );
-    await this.generateRelations(world, folderPath, context);
-    await this.generateCitations(world, folderPath, context);
-    return world;
-  }
-  async push(entity, context) {
-    var _a, _b;
-    const folderPath = context.fileManager.getWorldFolderPath(entity.name);
-    const relationsFilePath = `${folderPath}/world.relations.md`;
-    try {
-      await context.fileManager.readFile(relationsFilePath);
-      const result = await this.relationsPushHandler.pushRelations(
-        relationsFilePath,
-        "world",
-        entity.id,
-        context,
-        entity.id
-      );
-      if (result.warnings.length > 0) {
-        result.warnings.forEach(
-          (warning) => {
-            var _a2;
-            return (_a2 = context.emitWarning) == null ? void 0 : _a2.call(context, {
-              code: "relations_push_warning",
-              message: warning,
-              filePath: relationsFilePath
-            });
-          }
-        );
-      }
-    } catch (error) {
-      if (((_a = error == null ? void 0 : error.message) == null ? void 0 : _a.includes("missing")) || (error == null ? void 0 : error.code) === "ENOENT") {
-        return;
-      }
-      (_b = context.emitWarning) == null ? void 0 : _b.call(context, {
-        code: "relations_push_error",
-        message: `Failed to push relations: ${error}`,
-        filePath: relationsFilePath
-      });
-    }
-  }
-  async delete(_id, _context) {
-  }
-  renderOutline(world, opts) {
-    const sections = [
-      {
-        label: "Characters",
-        items: opts.characters.map((character) => ({
-          name: character.name,
-          extra: `Lvl ${character.class_level}`
-        }))
-      },
-      {
-        label: "Locations",
-        items: opts.locations.map((location) => {
-          var _a;
-          return {
-            name: location.name,
-            extra: (_a = location.type) != null ? _a : void 0
-          };
-        })
-      },
-      {
-        label: "Factions",
-        items: opts.factions.map((faction) => {
-          var _a;
-          return {
-            name: faction.name,
-            extra: (_a = faction.type) != null ? _a : void 0
-          };
-        })
-      },
-      {
-        label: "Artifacts",
-        items: opts.artifacts.map((artifact) => ({
-          name: artifact.name,
-          extra: artifact.rarity
-        }))
-      },
-      {
-        label: "Events",
-        items: opts.events.map((event) => {
-          var _a;
-          return {
-            name: event.name,
-            extra: (_a = event.timeline) != null ? _a : void 0
-          };
-        })
-      },
-      {
-        label: "Lore",
-        items: opts.loreList.map((lore) => {
-          var _a;
-          return {
-            name: lore.name,
-            extra: (_a = lore.category) != null ? _a : void 0
-          };
-        })
-      }
-    ];
-    const lines = [
-      `# ${world.name} - Outline`,
-      "",
-      `_Atualizado em ${this.now()}_`,
-      ""
-    ];
-    for (const section of sections) {
-      lines.push(`## ${section.label}`, "");
-      if (!section.items.length) {
-        lines.push("_Nenhum item sincronizado ainda._", "");
-        continue;
-      }
-      section.items.forEach(
-        (item) => lines.push(`- ${item.name}${item.extra ? ` (${item.extra})` : ""}`)
-      );
-      lines.push("");
-    }
-    return lines.join("\n").trimEnd() + "\n";
-  }
-  renderContents(world) {
-    return [
-      `# ${world.name} - Contents`,
-      "",
-      "## Overview",
-      world.description || "_Sem descri\xE7\xE3o._",
-      "",
-      "## Time Configuration",
-      world.time_config ? "```json\n" + JSON.stringify(world.time_config, null, 2) + "\n```" : "_N\xE3o configurado._",
-      ""
-    ].join("\n");
-  }
-  renderRelationsPlaceholder(world) {
-    return [
-      `# ${world.name} - Relations`,
-      "",
-      "_As rela\xE7\xF5es entre characters, locations e stories ser\xE3o preenchidas na Fase 8._",
-      ""
-    ].join("\n");
-  }
-  async generateRelations(world, folderPath, context) {
-    try {
-      const relationsResponse = await context.apiClient.listRelationsByWorld({
-        worldId: world.id
-      });
-      const entityCache = /* @__PURE__ */ new Map();
-      const resolvedRelations = await Promise.all(
-        relationsResponse.data.map(async (relation) => {
-          try {
-            let targetName = relation.target_id;
-            let targetId = relation.target_id;
-            let targetType = relation.target_type;
-            const cacheKey = `${relation.target_type}:${relation.target_id}`;
-            if (entityCache.has(cacheKey)) {
-              const cached = entityCache.get(cacheKey);
-              targetName = cached.name;
-              targetId = relation.target_id;
-              targetType = cached.type;
-            } else {
-              switch (relation.target_type) {
-                case "character": {
-                  const char = await context.apiClient.getCharacter(relation.target_id);
-                  targetName = char.name;
-                  targetId = char.id;
-                  entityCache.set(cacheKey, { name: char.name, type: "character" });
-                  break;
-                }
-                case "location": {
-                  const loc = await context.apiClient.getLocation(relation.target_id);
-                  targetName = loc.name;
-                  targetId = loc.id;
-                  entityCache.set(cacheKey, { name: loc.name, type: "location" });
-                  break;
-                }
-                case "faction": {
-                  const faction = await context.apiClient.getFaction(relation.target_id);
-                  targetName = faction.name;
-                  targetId = faction.id;
-                  entityCache.set(cacheKey, { name: faction.name, type: "faction" });
-                  break;
-                }
-                case "artifact": {
-                  const artifact = await context.apiClient.getArtifact(relation.target_id);
-                  targetName = artifact.name;
-                  targetId = artifact.id;
-                  entityCache.set(cacheKey, { name: artifact.name, type: "artifact" });
-                  break;
-                }
-                case "event": {
-                  const event = await context.apiClient.getEvent(relation.target_id);
-                  targetName = event.name;
-                  targetId = event.id;
-                  entityCache.set(cacheKey, { name: event.name, type: "event" });
-                  break;
-                }
-                case "lore": {
-                  const lore = await context.apiClient.getLore(relation.target_id);
-                  targetName = lore.name;
-                  targetId = lore.id;
-                  entityCache.set(cacheKey, { name: lore.name, type: "lore" });
-                  break;
-                }
-                case "story": {
-                  const story = await context.apiClient.getStory(relation.target_id);
-                  targetName = story.title;
-                  targetId = story.id;
-                  entityCache.set(cacheKey, { name: story.title, type: "story" });
-                  break;
-                }
-              }
-            }
-            return {
-              targetType,
-              targetId,
-              targetName,
-              relationType: relation.relation_type,
-              summary: relation.context
-            };
-          } catch (error) {
-            console.warn(`[Sync V2] Failed to resolve target for world relation`, {
-              relation,
-              error
-            });
-            return {
-              targetType: relation.target_type,
-              targetId: relation.target_id,
-              targetName: relation.target_id,
-              relationType: relation.relation_type,
-              summary: relation.context
-            };
-          }
-        })
-      );
-      const entityMap = new Map(
-        resolvedRelations.map((r) => [`${r.targetType}:${r.targetId}`, r])
-      );
-      const resolveTarget = (relation) => {
-        const key = `${relation.target_type}:${relation.target_id}`;
-        const resolved = entityMap.get(key);
-        if (!resolved)
-          return null;
-        return {
-          targetId: resolved.targetId,
-          targetName: resolved.targetName,
-          summary: resolved.summary
-        };
-      };
-      const input = mapRelationsToGeneratorInput({
-        entity: {
-          id: world.id,
-          name: world.name,
-          type: "world"
-        },
-        relations: relationsResponse.data,
-        resolveTarget,
-        options: {
-          syncedAt: this.now(),
-          showHelpBox: context.settings.showHelpBox,
-          idField: context.settings.frontmatterIdField
-        }
-      });
-      const relationsContent = this.relationsGenerator.generate(input);
-      await context.fileManager.writeFile(`${folderPath}/world.relations.md`, relationsContent);
-    } catch (error) {
-      console.warn("[Sync V2] Failed to generate world relations file", { worldId: world.id, error });
-      await context.fileManager.writeFile(
-        `${folderPath}/world.relations.md`,
-        this.renderRelationsPlaceholder(world)
-      );
-    }
-  }
-  async generateCitations(world, folderPath, context) {
-    try {
-      const relationsResponse = await context.apiClient.listRelationsByWorld({
-        worldId: world.id
-      });
-      const storyElementRelations = relationsResponse.data.filter(
-        (rel) => ["chapter", "scene", "beat", "content_block"].includes(rel.source_type)
-      );
-      if (storyElementRelations.length === 0) {
-        const input2 = mapCitationsToGeneratorInput({
-          entity: {
-            id: world.id,
-            name: world.name,
-            type: "world"
-          },
-          relations: [],
-          resolveSource: () => null,
-          options: {
-            syncedAt: this.now(),
-            idField: context.settings.frontmatterIdField
-          }
-        });
-        const citationsContent2 = this.citationsGenerator.generate(input2);
-        await context.fileManager.writeFile(`${folderPath}/world.citations.md`, citationsContent2);
-        return;
-      }
-      const relationsBySource = /* @__PURE__ */ new Map();
-      for (const rel of storyElementRelations) {
-        if (!relationsBySource.has(rel.source_id)) {
-          relationsBySource.set(rel.source_id, []);
-        }
-        relationsBySource.get(rel.source_id).push(rel);
-      }
-      const storyCache = /* @__PURE__ */ new Map();
-      const storyHierarchyCache = /* @__PURE__ */ new Map();
-      const storyIdsToFetch = /* @__PURE__ */ new Set();
-      for (const [sourceId, relations] of relationsBySource.entries()) {
-        const firstRel = relations[0];
-        if (firstRel.source_type === "chapter") {
-          try {
-          } catch (error) {
-            console.warn(`[Sync V2] Failed to resolve story for chapter`, { sourceId, error });
-          }
-        }
-      }
-      const resolveSource = (relation) => {
-        if (!["chapter", "scene", "beat", "content_block"].includes(relation.source_type)) {
-          return null;
-        }
-        return {
-          storyId: "unknown",
-          // Would need to fetch story hierarchy to resolve
-          storyTitle: "Unknown Story",
-          sourceTitle: relation.source_id,
-          sourceType: relation.source_type,
-          summary: relation.context
-        };
-      };
-      const input = mapCitationsToGeneratorInput({
-        entity: {
-          id: world.id,
-          name: world.name,
-          type: "world"
-        },
-        relations: storyElementRelations,
-        resolveSource,
-        options: {
-          syncedAt: this.now(),
-          idField: context.settings.frontmatterIdField
-        }
-      });
-      const citationsContent = this.citationsGenerator.generate(input);
-      await context.fileManager.writeFile(`${folderPath}/world.citations.md`, citationsContent);
-    } catch (error) {
-      console.warn("[Sync V2] Failed to generate world citations file", { worldId: world.id, error });
-      await context.fileManager.writeFile(
-        `${folderPath}/world.citations.md`,
-        this.renderCitationsPlaceholder(world)
-      );
-    }
-  }
-  renderCitationsPlaceholder(world) {
-    return [
-      `# ${world.name} - Citations`,
-      "",
-      "_Cita\xE7\xF5es para este world ser\xE3o sincronizadas quando o Relations/Citations pipeline estiver ativo._",
-      ""
-    ].join("\n");
-  }
-};
-
-// src/sync-v2/generators/FrontmatterGenerator.ts
-var FrontmatterGenerator = class {
-  generate(baseFields, extraFields, options) {
-    const idField = options == null ? void 0 : options.idField;
-    const customIdField = getIdFieldName(idField);
-    let fields = { ...baseFields };
-    if (customIdField !== "id" && "id" in fields) {
-      const idValue = fields.id;
-      delete fields.id;
-      fields = {
-        [customIdField]: idValue,
-        ...fields
-      };
-    }
-    if (extraFields) {
-      const sanitizedExtraFields = { ...extraFields };
-      if (customIdField !== "id" && "id" in sanitizedExtraFields) {
-        delete sanitizedExtraFields.id;
-      }
-      Object.assign(fields, sanitizedExtraFields);
-    }
-    if (customIdField !== "id" && "id" in fields) {
-      delete fields.id;
-    }
-    const tags = [];
-    if (options) {
-      tags.push(`story-engine/${options.entityType}`);
-      if (options.storyName) {
-        const sanitizedStoryName = this.sanitizeForTag(options.storyName);
-        tags.push(`story/${sanitizedStoryName}`);
-      }
-      if (options.worldName) {
-        const sanitizedWorldName = this.sanitizeForTag(options.worldName);
-        tags.push(`world/${sanitizedWorldName}`);
-      }
-      if (options.date) {
-        const date = typeof options.date === "string" ? new Date(options.date) : options.date;
-        if (!isNaN(date.getTime())) {
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          tags.push(`date/${year}/${month}/${day}`);
-        }
-      }
-    }
-    const lines = ["---"];
-    for (const [key, value] of Object.entries(fields)) {
-      if (value === null || value === void 0) {
-        lines.push(`${key}: null`);
-      } else if (typeof value === "string") {
-        const escaped = value.replace(/"/g, '\\"');
-        if (value.includes(":") || value.includes("\n") || value.includes('"')) {
-          lines.push(`${key}: "${escaped}"`);
-        } else {
-          lines.push(`${key}: ${escaped}`);
-        }
-      } else {
-        lines.push(`${key}: ${value}`);
-      }
-    }
-    if (tags.length > 0) {
-      lines.push(`tags:`);
-      for (const tag of tags) {
-        lines.push(`  - ${tag}`);
-      }
-    }
-    lines.push("---");
-    return lines.join("\n");
-  }
-  sanitizeForTag(value) {
-    return value.toLowerCase().normalize("NFKD").replace(/[^\w\s-]/g, "").trim().replace(/\s+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
-  }
-};
-
-// src/sync-v2/utils/slugify.ts
-var ACCENTS_REGEX = /[\u0300-\u036f]/g;
-var NON_ALNUM = /[^a-z0-9\s-]/gi;
-var SPACES = /\s+/g;
-var MULTIPLE_DASH = /-+/g;
-var EDGE_DASH = /^-+|-+$/g;
-function slugify(value, fallback = "untitled") {
-  const normalized = value.normalize("NFKD").toLowerCase().replace(ACCENTS_REGEX, "").replace(NON_ALNUM, "").trim().replace(SPACES, "-").replace(MULTIPLE_DASH, "-").replace(EDGE_DASH, "");
-  return normalized || fallback;
-}
-
-// src/sync-v2/handlers/world/CharacterHandler.ts
-var CharacterHandler = class {
-  constructor() {
-    this.entityType = "character";
-    this.frontmatterGenerator = new FrontmatterGenerator();
-  }
-  async pull(id2, context) {
-    const character = await context.apiClient.getCharacter(id2);
-    const world = await context.apiClient.getWorld(character.world_id);
-    const folderPath = context.fileManager.getWorldFolderPath(world.name);
-    const charactersFolder = `${folderPath}/characters`;
-    await context.fileManager.ensureFolderExists(charactersFolder);
-    const filePath = `${charactersFolder}/${slugify(character.name)}.md`;
-    await context.fileManager.writeFile(filePath, this.renderCharacter(character, world, context));
-    return character;
-  }
-  async push(_entity, _context) {
-  }
-  async delete(id2, context) {
-    await context.apiClient.deleteCharacter(id2);
-  }
-  renderCharacter(character, world, context) {
-    var _a, _b, _c;
-    const baseFields = {
-      id: character.id,
-      world_id: character.world_id,
-      class_level: character.class_level,
-      archetype_id: (_a = character.archetype_id) != null ? _a : null,
-      current_class_id: (_b = character.current_class_id) != null ? _b : null,
-      created_at: character.created_at,
-      updated_at: character.updated_at
-    };
-    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
-      entityType: "character",
-      worldName: world.name,
-      date: character.created_at,
-      idField: context.settings.frontmatterIdField
-    });
-    return [
-      frontmatter,
-      "",
-      `# ${character.name}`,
-      "",
-      "## Description",
-      character.description || "_No description yet._",
-      "",
-      "## Metadata",
-      `- Tenant: ${character.tenant_id}`,
-      `- Archetype: ${(_c = character.archetype_id) != null ? _c : "\u2014"}`,
-      `- Class Level: ${character.class_level}`,
-      ""
-    ].join("\n");
-  }
-};
-
-// src/sync-v2/handlers/world/LocationHandler.ts
-var LocationHandler = class {
-  constructor() {
-    this.entityType = "location";
-    this.frontmatterGenerator = new FrontmatterGenerator();
-  }
-  async pull(id2, context) {
-    const location = await context.apiClient.getLocation(id2);
-    const world = await context.apiClient.getWorld(location.world_id);
-    const folderPath = context.fileManager.getWorldFolderPath(world.name);
-    const locationsFolder = `${folderPath}/locations`;
-    await context.fileManager.ensureFolderExists(locationsFolder);
-    const filePath = `${locationsFolder}/${slugify(location.name)}.md`;
-    await context.fileManager.writeFile(filePath, this.renderLocation(location, world, context));
-    return location;
-  }
-  async push(_entity, _context) {
-  }
-  async delete(id2, context) {
-    await context.apiClient.deleteLocation(id2);
-  }
-  renderLocation(location, world, context) {
-    var _a;
-    const baseFields = {
-      id: location.id,
-      world_id: location.world_id,
-      type: location.type,
-      hierarchy_level: location.hierarchy_level,
-      parent_id: (_a = location.parent_id) != null ? _a : null,
-      created_at: location.created_at,
-      updated_at: location.updated_at
-    };
-    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
-      entityType: "location",
-      worldName: world.name,
-      date: location.created_at,
-      idField: context.settings.frontmatterIdField
-    });
-    return [
-      frontmatter,
-      "",
-      `# ${location.name}`,
-      "",
-      "## Description",
-      location.description || "_No description yet._",
-      "",
-      "## Notes",
-      location.type ? `- Type: ${location.type}` : "- Type: \u2014",
-      ""
-    ].join("\n");
-  }
-};
-
-// src/sync-v2/handlers/world/FactionHandler.ts
-var FactionHandler = class {
-  constructor() {
-    this.entityType = "faction";
-    this.frontmatterGenerator = new FrontmatterGenerator();
-  }
-  async pull(id2, context) {
-    const faction = await context.apiClient.getFaction(id2);
-    const world = await context.apiClient.getWorld(faction.world_id);
-    const folderPath = context.fileManager.getWorldFolderPath(world.name);
-    const factionsFolder = `${folderPath}/factions`;
-    await context.fileManager.ensureFolderExists(factionsFolder);
-    const filePath = `${factionsFolder}/${slugify(faction.name)}.md`;
-    await context.fileManager.writeFile(filePath, this.renderFaction(faction, world, context));
-    return faction;
-  }
-  async push(_entity, _context) {
-  }
-  async delete(id2, context) {
-    await context.apiClient.deleteFaction(id2);
-  }
-  renderFaction(faction, world, context) {
-    var _a, _b;
-    const baseFields = {
-      id: faction.id,
-      world_id: faction.world_id,
-      type: (_a = faction.type) != null ? _a : null,
-      hierarchy_level: faction.hierarchy_level,
-      parent_id: (_b = faction.parent_id) != null ? _b : null,
-      created_at: faction.created_at,
-      updated_at: faction.updated_at
-    };
-    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
-      entityType: "faction",
-      worldName: world.name,
-      date: faction.created_at,
-      idField: context.settings.frontmatterIdField
-    });
-    return [
-      frontmatter,
-      "",
-      `# ${faction.name}`,
-      "",
-      "## Description",
-      faction.description || "_No description yet._",
-      "",
-      "## Beliefs & Structure",
-      faction.beliefs || "_Beliefs pending._",
-      "",
-      faction.structure || "_Structure pending._",
-      ""
-    ].join("\n");
-  }
-};
-
-// src/sync-v2/handlers/world/ArtifactHandler.ts
-var ArtifactHandler = class {
-  constructor() {
-    this.entityType = "artifact";
-    this.frontmatterGenerator = new FrontmatterGenerator();
-  }
-  async pull(id2, context) {
-    const artifact = await context.apiClient.getArtifact(id2);
-    const world = await context.apiClient.getWorld(artifact.world_id);
-    const folderPath = context.fileManager.getWorldFolderPath(world.name);
-    const artifactsFolder = `${folderPath}/artifacts`;
-    await context.fileManager.ensureFolderExists(artifactsFolder);
-    const filePath = `${artifactsFolder}/${slugify(artifact.name)}.md`;
-    await context.fileManager.writeFile(filePath, this.renderArtifact(artifact, world, context));
-    return artifact;
-  }
-  async push(_entity, _context) {
-  }
-  async delete(id2, context) {
-    await context.apiClient.deleteArtifact(id2);
-  }
-  renderArtifact(artifact, world, context) {
-    const baseFields = {
-      id: artifact.id,
-      world_id: artifact.world_id,
-      rarity: artifact.rarity,
-      created_at: artifact.created_at,
-      updated_at: artifact.updated_at
-    };
-    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
-      entityType: "artifact",
-      worldName: world.name,
-      date: artifact.created_at,
-      idField: context.settings.frontmatterIdField
-    });
-    return [
-      frontmatter,
-      "",
-      `# ${artifact.name}`,
-      "",
-      "## Description",
-      artifact.description || "_No description yet._",
-      ""
-    ].join("\n");
-  }
-};
-
-// src/sync-v2/handlers/world/EventHandler.ts
-var EventHandler = class {
-  constructor() {
-    this.entityType = "event";
-    this.frontmatterGenerator = new FrontmatterGenerator();
-  }
-  async pull(id2, context) {
-    const event = await context.apiClient.getEvent(id2);
-    const world = await context.apiClient.getWorld(event.world_id);
-    const folderPath = context.fileManager.getWorldFolderPath(world.name);
-    const eventsFolder = `${folderPath}/events`;
-    await context.fileManager.ensureFolderExists(eventsFolder);
-    const filePath = `${eventsFolder}/${slugify(event.name)}.md`;
-    await context.fileManager.writeFile(filePath, this.renderEvent(event, world, context));
-    return event;
-  }
-  async push(_entity, _context) {
-  }
-  async delete(id2, context) {
-    await context.apiClient.deleteEvent(id2);
-  }
-  renderEvent(event, world, context) {
-    var _a, _b, _c;
-    const baseFields = {
-      id: event.id,
-      world_id: event.world_id,
-      type: (_a = event.type) != null ? _a : null,
-      importance: event.importance,
-      timeline: (_b = event.timeline) != null ? _b : null,
-      parent_id: (_c = event.parent_id) != null ? _c : null,
-      created_at: event.created_at,
-      updated_at: event.updated_at
-    };
-    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
-      entityType: "event",
-      worldName: world.name,
-      date: event.created_at,
-      idField: context.settings.frontmatterIdField
-    });
-    return [
-      frontmatter,
-      "",
-      `# ${event.name}`,
-      "",
-      "## Description",
-      event.description || "_No description yet._",
-      ""
-    ].join("\n");
-  }
-};
-
-// src/sync-v2/handlers/world/LoreHandler.ts
-var LoreHandler = class {
-  constructor() {
-    this.entityType = "lore";
-    this.frontmatterGenerator = new FrontmatterGenerator();
-  }
-  async pull(id2, context) {
-    const lore = await context.apiClient.getLore(id2);
-    const world = await context.apiClient.getWorld(lore.world_id);
-    const folderPath = context.fileManager.getWorldFolderPath(world.name);
-    const loreFolder = `${folderPath}/lore`;
-    await context.fileManager.ensureFolderExists(loreFolder);
-    const filePath = `${loreFolder}/${slugify(lore.name)}.md`;
-    await context.fileManager.writeFile(filePath, this.renderLore(lore, world, context));
-    return lore;
-  }
-  async push(_entity, _context) {
-  }
-  async delete(id2, context) {
-    await context.apiClient.deleteLore(id2);
-  }
-  renderLore(lore, world, context) {
-    var _a, _b;
-    const baseFields = {
-      id: lore.id,
-      world_id: lore.world_id,
-      category: (_a = lore.category) != null ? _a : null,
-      parent_id: (_b = lore.parent_id) != null ? _b : null,
-      hierarchy_level: lore.hierarchy_level,
-      created_at: lore.created_at,
-      updated_at: lore.updated_at
-    };
-    const frontmatter = this.frontmatterGenerator.generate(baseFields, void 0, {
-      entityType: "lore",
-      worldName: world.name,
-      date: lore.created_at,
-      idField: context.settings.frontmatterIdField
-    });
-    return [
-      frontmatter,
-      "",
-      `# ${lore.name}`,
-      "",
-      "## Description",
-      lore.description || "_No description yet._",
-      "",
-      "## Rules",
-      lore.rules || "_Rules not documented._",
-      ""
-    ].join("\n");
-  }
-};
-
 // src/sync-v2/handlers/world/ArchetypeHandler.ts
 var ArchetypeHandler = class {
   constructor() {
@@ -21593,7 +23134,26 @@ var ArchetypeHandler = class {
     await context.fileManager.writeFile(filePath, this.renderArchetype(archetype, context));
     return archetype;
   }
-  async push(_entity, _context) {
+  async push(entity, context) {
+    var _a, _b;
+    const worldsRoot = context.fileManager.getWorldsRootPath();
+    const archetypeFolder = `${worldsRoot}/characters/_archetypes`;
+    const filePath = `${archetypeFolder}/${slugify(entity.name)}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const description = (_a = parsed.description) != null ? _a : void 0;
+    if (parsed.name === entity.name && description === ((_b = entity.description) != null ? _b : void 0)) {
+      return;
+    }
+    await context.apiClient.updateArchetype(entity.id, {
+      name: parsed.name,
+      description
+    });
   }
   async delete(id2, context) {
     await context.apiClient.deleteArchetype(id2);
@@ -21640,7 +23200,26 @@ var TraitHandler = class {
     await context.fileManager.writeFile(filePath, this.renderTrait(trait, context));
     return trait;
   }
-  async push(_entity, _context) {
+  async push(entity, context) {
+    var _a, _b;
+    const worldsRoot = context.fileManager.getWorldsRootPath();
+    const folderPath = `${worldsRoot}/characters/_traits`;
+    const filePath = `${folderPath}/${slugify(entity.name)}.md`;
+    let localContent;
+    try {
+      localContent = await context.fileManager.readFile(filePath);
+    } catch (e) {
+      return;
+    }
+    const parsed = parseWorldEntityFile(localContent);
+    const description = (_a = parsed.description) != null ? _a : void 0;
+    if (parsed.name === entity.name && (description != null ? description : "") === ((_b = entity.description) != null ? _b : "")) {
+      return;
+    }
+    await context.apiClient.updateTrait(entity.id, {
+      name: parsed.name,
+      description
+    });
   }
   async delete(id2, context) {
     await context.apiClient.deleteTrait(id2);
@@ -21670,190 +23249,87 @@ var TraitHandler = class {
   }
 };
 
-// src/sync-v2/push/PushPlanner.ts
-var PushPlanner = class {
-  constructor(diffEngine = new DiffEngine(), contentsParser = new ContentsParser()) {
-    this.diffEngine = diffEngine;
-    this.contentsParser = contentsParser;
+// src/sync-v2/backup/BackupManager.ts
+var BackupManager = class {
+  constructor(app) {
+    this.app = app;
   }
-  buildPlan(remoteContents, localContents) {
-    const diffRemoteVsLocal = this.diffEngine.diffContents(remoteContents, localContents);
-    const diffLocalVsRemote = this.diffEngine.diffContents(localContents, remoteContents);
-    const localMap = this.buildFenceMap(localContents);
-    const actions = [];
-    const unsupported = [];
-    const warnings = [];
-    for (const op of diffRemoteVsLocal.operations) {
-      switch (op.fenceType) {
-        case "chapter":
-          this.handleChapterOperation(op, actions, unsupported);
-          break;
-        case "scene":
-          this.handleSceneOperation(op, actions, unsupported, localMap);
-          break;
-        case "beat":
-          this.handleBeatOperation(op, actions, unsupported, localMap);
-          break;
-        default:
-          unsupported.push(op);
-          break;
+  async createBackup(filePaths, operationType) {
+    const timestamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
+    const backupFolderPath = `.story-engine/backups/${timestamp}-${operationType}`;
+    const filesCopied = [];
+    const errors = [];
+    try {
+      await this.ensureFolderExists(backupFolderPath);
+    } catch (error) {
+      return {
+        success: false,
+        backupPath: backupFolderPath,
+        filesCopied,
+        errors: [`Failed to create backup folder: ${error}`]
+      };
+    }
+    for (const filePath of filePaths) {
+      try {
+        const abstract = this.app.vault.getAbstractFileByPath(filePath);
+        if (!abstract || !("path" in abstract) || "children" in abstract) {
+          continue;
+        }
+        const content = await this.app.vault.read(abstract);
+        const backupFilePath = `${backupFolderPath}/${filePath}`;
+        const backupFolder = backupFilePath.substring(0, backupFilePath.lastIndexOf("/"));
+        await this.ensureFolderExists(backupFolder);
+        await this.app.vault.create(backupFilePath, content);
+        filesCopied.push(filePath);
+      } catch (error) {
+        errors.push(`Failed to backup ${filePath}: ${error}`);
       }
     }
-    if (unsupported.length > 0) {
-      warnings.push({
-        code: "push_unsupported_operations",
-        message: `Detectamos ${unsupported.length} mudan\xE7as locais ainda n\xE3o suportadas pelo push autom\xE1tico.`,
-        details: unsupported,
-        severity: "warning"
-      });
-    }
-    if (diffLocalVsRemote.untrackedSegments.length > 0) {
-      warnings.push({
-        code: "push_untracked_segments",
-        message: `H\xE1 ${diffLocalVsRemote.untrackedSegments.length} trechos fora das fences; revise antes de tentar enviar.`,
-        details: diffLocalVsRemote.untrackedSegments,
-        severity: "warning"
-      });
+    const manifest = {
+      timestamp,
+      operationType,
+      filesCopied,
+      errors
+    };
+    try {
+      await this.app.vault.create(
+        `${backupFolderPath}/manifest.json`,
+        JSON.stringify(manifest, null, 2)
+      );
+    } catch (error) {
+      errors.push(`Failed to write manifest: ${error}`);
     }
     return {
-      actions,
-      unsupportedOperations: unsupported,
-      untrackedSegments: diffLocalVsRemote.untrackedSegments,
-      warnings
+      success: errors.length === 0,
+      backupPath: backupFolderPath,
+      filesCopied,
+      errors
     };
   }
-  handleChapterOperation(op, actions, unsupported) {
-    var _a;
-    if (op.kind === "reordered" && ((_a = op.metadata) == null ? void 0 : _a.newOrder)) {
-      actions.push({
-        type: "chapter_reorder",
-        chapterId: op.fenceId,
-        oldOrder: op.metadata.oldOrder,
-        newOrder: op.metadata.newOrder
-      });
-      return;
-    }
-    unsupported.push(op);
-  }
-  handleSceneOperation(op, actions, unsupported, localMap) {
-    var _a, _b, _c, _d, _e;
-    if (op.kind === "reordered" && ((_a = op.metadata) == null ? void 0 : _a.newOrder)) {
-      const scene = localMap.get(op.fenceId);
-      actions.push({
-        type: "scene_reorder",
-        sceneId: op.fenceId,
-        chapterId: scene == null ? void 0 : scene.parentId,
-        oldOrder: op.metadata.oldOrder,
-        newOrder: op.metadata.newOrder
-      });
-      return;
-    }
-    if (op.kind === "moved") {
-      actions.push({
-        type: "scene_move",
-        sceneId: op.fenceId,
-        fromChapterId: (_c = (_b = op.metadata) == null ? void 0 : _b.oldParentId) != null ? _c : null,
-        toChapterId: (_e = (_d = op.metadata) == null ? void 0 : _d.newParentId) != null ? _e : null
-      });
-      return;
-    }
-    unsupported.push(op);
-  }
-  handleBeatOperation(op, actions, unsupported, localMap) {
-    var _a, _b, _c;
-    if (op.kind === "reordered" && ((_a = op.metadata) == null ? void 0 : _a.newOrder)) {
-      const beat = localMap.get(op.fenceId);
-      actions.push({
-        type: "beat_reorder",
-        beatId: op.fenceId,
-        sceneId: beat == null ? void 0 : beat.parentId,
-        oldOrder: op.metadata.oldOrder,
-        newOrder: op.metadata.newOrder
-      });
-      return;
-    }
-    if (op.kind === "moved" && ((_b = op.metadata) == null ? void 0 : _b.newParentId)) {
-      actions.push({
-        type: "beat_move",
-        beatId: op.fenceId,
-        fromSceneId: (_c = op.metadata.oldParentId) != null ? _c : null,
-        toSceneId: op.metadata.newParentId
-      });
-      return;
-    }
-    unsupported.push(op);
-  }
-  buildFenceMap(content) {
-    const hierarchy = this.contentsParser.parseHierarchy(content);
-    const flattened = this.flattenHierarchy(hierarchy);
-    return new Map(flattened.map((fence) => [fence.id, fence]));
-  }
-  flattenHierarchy(hierarchy) {
-    const result = [];
-    const visit = (fence) => {
-      result.push(fence);
-      fence.children.forEach(visit);
-    };
-    const buckets = [
-      hierarchy.chapters,
-      hierarchy.orphanScenes,
-      hierarchy.orphanBeats,
-      hierarchy.orphanContents
+  getStoryFilesForBackup(storyFolderPath) {
+    return [
+      `${storyFolderPath}/story.md`,
+      `${storyFolderPath}/story.outline.md`,
+      `${storyFolderPath}/story.contents.md`,
+      `${storyFolderPath}/story.relations.md`
     ];
-    buckets.forEach((bucket) => bucket.forEach(visit));
-    return result;
   }
-};
-
-// src/sync-v2/push/PushExecutor.ts
-var PushExecutor = class {
-  constructor(apiClient) {
-    this.apiClient = apiClient;
+  getWorldFilesForBackup(worldFolderPath) {
+    return [
+      `${worldFolderPath}/world.md`,
+      `${worldFolderPath}/world.outline.md`,
+      `${worldFolderPath}/world.relations.md`
+    ];
   }
-  async execute(actions) {
-    const summary = {
-      applied: 0,
-      errors: []
-    };
-    for (const action of actions) {
-      try {
-        await this.applyAction(action);
-        summary.applied += 1;
-      } catch (error) {
-        summary.errors.push({
-          code: `push_${action.type}`,
-          message: error instanceof Error ? error.message : "Unknown error while executing push action.",
-          details: action,
-          recoverable: true
-        });
+  async ensureFolderExists(path) {
+    const parts = path.split("/");
+    let current = "";
+    for (const part of parts) {
+      current = current ? `${current}/${part}` : part;
+      const existing = this.app.vault.getAbstractFileByPath(current);
+      if (!existing) {
+        await this.app.vault.createFolder(current);
       }
-    }
-    return summary;
-  }
-  async applyAction(action) {
-    var _a;
-    switch (action.type) {
-      case "chapter_reorder":
-        await this.apiClient.updateChapter(action.chapterId, {
-          number: action.newOrder
-        });
-        return;
-      case "scene_reorder":
-        await this.apiClient.updateScene(action.sceneId, {
-          order_num: action.newOrder
-        });
-        return;
-      case "scene_move":
-        await this.apiClient.moveScene(action.sceneId, (_a = action.toChapterId) != null ? _a : null);
-        return;
-      case "beat_reorder":
-        await this.apiClient.updateBeat(action.beatId, {
-          order_num: action.newOrder
-        });
-        return;
-      case "beat_move":
-        await this.apiClient.moveBeat(action.beatId, action.toSceneId);
-        return;
     }
   }
 };
@@ -21866,8 +23342,10 @@ var SyncOrchestrator = class {
     this.registry = new EntityRegistry();
     this.contentsGenerator = new ContentsGenerator();
     this.pushPlanner = new PushPlanner();
-    this.pushExecutor = new PushExecutor(context.apiClient);
+    this.contentCitationService = new ContentCitationService(context);
+    this.pushExecutor = new PushExecutor(context.apiClient, this.contentCitationService);
     this.conflictResolver = new ConflictResolver(context.app, context);
+    this.backupManager = new BackupManager(context.app);
     const originalEmitter = this.context.emitWarning;
     this.context.emitWarning = (warning) => {
       this.warningBuffer.push(warning);
@@ -21951,6 +23429,7 @@ var SyncOrchestrator = class {
     if (!handler) {
       return this.missingHandler("story");
     }
+    await this.backupStoryBeforePull(storyId);
     await handler.pull(storyId, this.context);
     return {
       success: true,
@@ -21977,7 +23456,9 @@ var SyncOrchestrator = class {
     };
   }
   async handlePushStory(operation) {
+    var _a;
     const { folderPath } = operation.payload;
+    await this.backupStoryFolder(folderPath, "push");
     try {
       const idField = this.context.settings.frontmatterIdField;
       const metadata = await this.context.fileManager.readStoryMetadata(folderPath, idField);
@@ -22016,7 +23497,9 @@ var SyncOrchestrator = class {
           warnings: plan.warnings
         };
       }
-      const execution = await this.pushExecutor.execute(plan.actions);
+      const execution = await this.pushExecutor.execute(plan.actions, {
+        worldId: (_a = remoteStory.story.world_id) != null ? _a : void 0
+      });
       const success = execution.errors.length === 0;
       const message = success ? `Push applied ${execution.applied} structural updates.` : `Push applied ${execution.applied} updates. ${execution.errors.length} actions failed.`;
       return {
@@ -22043,6 +23526,49 @@ var SyncOrchestrator = class {
           }
         ]
       };
+    }
+  }
+  async backupStoryBeforePull(storyId) {
+    var _a, _b;
+    if (this.context.backupMode === "off") {
+      return;
+    }
+    try {
+      const story = await this.context.apiClient.getStory(storyId);
+      if (!(story == null ? void 0 : story.title)) {
+        return;
+      }
+      const folderPath = this.context.fileManager.getStoryFolderPath(story.title);
+      await this.backupStoryFolder(folderPath, "pull");
+    } catch (error) {
+      (_b = (_a = this.context).emitWarning) == null ? void 0 : _b.call(_a, {
+        code: "backup_failed",
+        message: `Failed to backup story before pull: ${error instanceof Error ? error.message : String(error)}`,
+        details: error
+      });
+    }
+  }
+  async backupStoryFolder(folderPath, operation) {
+    var _a, _b, _c, _d;
+    if (this.context.backupMode === "off") {
+      return;
+    }
+    try {
+      const filesToBackup = this.backupManager.getStoryFilesForBackup(folderPath);
+      const result = await this.backupManager.createBackup(filesToBackup, operation);
+      if (!result.success) {
+        (_b = (_a = this.context).emitWarning) == null ? void 0 : _b.call(_a, {
+          code: "backup_partial",
+          message: `Backup parcial: ${result.filesCopied.length} arquivos salvos, ${result.errors.length} erros`,
+          details: result.errors
+        });
+      }
+    } catch (error) {
+      (_d = (_c = this.context).emitWarning) == null ? void 0 : _d.call(_c, {
+        code: "backup_failed",
+        message: `Failed to create backup: ${error instanceof Error ? error.message : String(error)}`,
+        details: error
+      });
     }
   }
   notImplemented(operation) {

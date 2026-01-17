@@ -62,10 +62,15 @@ const story: StoryWithHierarchy = {
 describe("OutlineGenerator", () => {
 	it("generates hierarchy with placeholders", () => {
 		const generator = new OutlineGenerator(() => "2025-01-01T00:00:00Z");
-		const output = generator.generateStoryOutline(story);
+		const output = generator.generateStoryOutline(story, {
+			storyFolderPath: "Stories/The Great Adventure",
+		});
 
 		expect(output).toContain("type: story-outline");
 		expect(output).toContain("Chapter 1: Beginning");
+		expect(output).toContain(
+			"[[Stories/The Great Adventure/00-chapters/ch-0001-beginning.md|Chapter 1: Beginning]]"
+		);
 		expect(output).toContain("_New scene: goal - time_");
 		expect(output).toContain("_New beat: intent here..._");
 	});
@@ -112,7 +117,9 @@ describe("OutlineGenerator", () => {
 			],
 		};
 
-		const output = generator.generateChapterOutline(chapter);
+		const output = generator.generateChapterOutline(chapter, {
+			storyFolderPath: "Stories/The Great Adventure",
+		});
 
 		expect(output).toContain("type: chapter-outline");
 		expect(output).toContain("# Beginning");

@@ -39,14 +39,18 @@ const createContext = () => {
 	const apiClient = {
 		getScene: vi.fn().mockResolvedValue(scene),
 		getBeats: vi.fn().mockResolvedValue([]),
+		getChapter: vi.fn().mockResolvedValue({ id: "ch-1", number: 1 }),
 		getStory: vi.fn().mockResolvedValue({ id: "story-1", title: "Test Story" }),
 		getContentBlocksByScene: vi.fn().mockResolvedValue([]),
+		getContentBlocksByBeat: vi.fn().mockResolvedValue([]),
+		listRelationsByTarget: vi.fn().mockResolvedValue({ data: [], pagination: { has_more: false } }),
 		deleteScene: vi.fn(),
 	};
 	const fileManager = {
 		getStoryFolderPath: vi.fn().mockReturnValue("StoryFolder"),
 		ensureFolderExists: vi.fn(),
 		writeSceneFile: vi.fn(),
+		writeFile: vi.fn(),
 	};
 
 	const context: SyncContext = {
@@ -71,10 +75,11 @@ describe("SceneHandler", () => {
 		expect(apiClient.getScene).toHaveBeenCalledWith("sc-1");
 		expect(fileManager.writeSceneFile).toHaveBeenCalledWith(
 			expect.objectContaining({ scene }),
-			"StoryFolder/01-scenes/sc-0001-meet-hero.md",
+			"StoryFolder/01-scenes/sc-0001-0001-meet-hero.md",
 			"Test Story",
 			[],
-			[]
+			[],
+			{ linkMode: "full_path", storyFolderPath: "StoryFolder", chapterOrder: 1 }
 		);
 	});
 });

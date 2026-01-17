@@ -12,10 +12,12 @@ const input: CitationsGeneratorInput = {
 		{
 			storyId: "story-1",
 			storyTitle: "The Great Adventure",
+			storyPath: "Stories/The Great Adventure/story.md",
 			relationType: "pov",
 			sourceType: "scene",
 			sourceId: "sc-1",
 			sourceTitle: "Scene 1: Introduction",
+			sourcePath: "Stories/The Great Adventure/01-scenes/sc-0001-0001-introduction.md",
 			chapterTitle: "Chapter 1",
 			summary: "First POV scene",
 		},
@@ -28,7 +30,7 @@ describe("CitationsGenerator", () => {
 		const output = generator.generate(input);
 
 		expect(output).toContain("type: character-citations");
-		expect(output).toContain("## [[story-1|The Great Adventure]]");
+		expect(output).toContain("## [[Stories/The Great Adventure/story.md|The Great Adventure]]");
 		expect(output).toContain("### Pov (`relation_type: pov`)");
 		expect(output).toContain("Scene 1: Introduction");
 		expect(output).toContain("## Summary");

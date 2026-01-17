@@ -2,6 +2,7 @@ import type { Archetype } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { FrontmatterGenerator } from "../../generators/FrontmatterGenerator";
 import { slugify } from "../../utils/slugify";
+import { parseWorldEntityFile } from "../../parsers/worldEntityParser";
 
 export class ArchetypeHandler {
 	readonly entityType = "archetype";
@@ -20,8 +21,29 @@ export class ArchetypeHandler {
 		return archetype;
 	}
 
-	async push(_entity: Archetype, _context: SyncContext): Promise<void> {
-		// TODO: implement push logic
+	async push(entity: Archetype, context: SyncContext): Promise<void> {
+		const worldsRoot = context.fileManager.getWorldsRootPath();
+		const archetypeFolder = `${worldsRoot}/characters/_archetypes`;
+		const filePath = `${archetypeFolder}/${slugify(entity.name)}.md`;
+
+		let localContent: string;
+		try {
+			localContent = await context.fileManager.readFile(filePath);
+		} catch {
+			return;
+		}
+
+		const parsed = parseWorldEntityFile(localContent);
+		const description = parsed.description ?? undefined;
+
+		if (parsed.name === entity.name && description === (entity.description ?? undefined)) {
+			return;
+		}
+
+		await context.apiClient.updateArchetype(entity.id, {
+			name: parsed.name,
+			description,
+		});
 	}
 
 	async delete(id: string, context: SyncContext): Promise<void> {

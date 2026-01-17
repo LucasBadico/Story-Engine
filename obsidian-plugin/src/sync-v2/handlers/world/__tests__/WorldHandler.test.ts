@@ -34,6 +34,7 @@ const createContext = () => {
 		getArtifacts: vi.fn().mockResolvedValue([] as Artifact[]),
 		getEvents: vi.fn().mockResolvedValue([] as WorldEvent[]),
 		getLores: vi.fn().mockResolvedValue([] as Lore[]),
+		listRelationsByWorld: vi.fn().mockResolvedValue({ data: [], pagination: { has_more: false } }),
 	};
 	const fileManager = {
 		getWorldFolderPath: vi.fn().mockReturnValue("StoryFolder/worlds/eldoria"),

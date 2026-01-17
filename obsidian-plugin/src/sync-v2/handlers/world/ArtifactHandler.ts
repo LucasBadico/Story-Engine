@@ -2,6 +2,7 @@ import type { Artifact, World } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { FrontmatterGenerator } from "../../generators/FrontmatterGenerator";
 import { slugify } from "../../utils/slugify";
+import { parseWorldEntityFile } from "../../parsers/worldEntityParser";
 
 export class ArtifactHandler {
 	readonly entityType = "artifact";
@@ -18,8 +19,29 @@ export class ArtifactHandler {
 		return artifact;
 	}
 
-	async push(_entity: Artifact, _context: SyncContext): Promise<void> {
-		// TODO: implement push logic
+	async push(entity: Artifact, context: SyncContext): Promise<void> {
+		const world = await context.apiClient.getWorld(entity.world_id);
+		const folderPath = context.fileManager.getWorldFolderPath(world.name);
+		const filePath = `${folderPath}/artifacts/${slugify(entity.name)}.md`;
+
+		let localContent: string;
+		try {
+			localContent = await context.fileManager.readFile(filePath);
+		} catch {
+			return;
+		}
+
+		const parsed = parseWorldEntityFile(localContent);
+		const description = parsed.description ?? undefined;
+
+		if (parsed.name === entity.name && (description ?? "") === (entity.description ?? "")) {
+			return;
+		}
+
+		await context.apiClient.updateArtifact(entity.id, {
+			name: parsed.name,
+			description,
+		});
 	}
 
 	async delete(id: string, context: SyncContext): Promise<void> {

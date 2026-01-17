@@ -1,20 +1,27 @@
 import type { SceneWithBeats, ContentBlock } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { PathResolver } from "../../fileRenamer/PathResolver";
+import { ContentsGenerator } from "../../generators/ContentsGenerator";
+import { OutlineGenerator } from "../../generators/OutlineGenerator";
+import { writeRelationsFile } from "../../relations/relationsFileWriter";
 
 export class SceneHandler {
 	readonly entityType = "scene";
+	private readonly contentsGenerator = new ContentsGenerator();
+	private readonly outlineGenerator = new OutlineGenerator();
 
 	async pull(id: string, context: SyncContext): Promise<SceneWithBeats> {
 		const scene = await context.apiClient.getScene(id);
 		const beats = await context.apiClient.getBeats(scene.id);
 		const sceneWithBeats: SceneWithBeats = { scene, beats };
 		const story = await context.apiClient.getStory(scene.story_id);
+		const chapterOrder =
+			scene.chapter_id ? (await context.apiClient.getChapter(scene.chapter_id)).number ?? 0 : 0;
 		const folderPath = context.fileManager.getStoryFolderPath(story.title);
 		const scenesFolder = `${folderPath}/01-scenes`;
 		await context.fileManager.ensureFolderExists(scenesFolder);
 		const pathResolver = new PathResolver(folderPath);
-		const filePath = pathResolver.getScenePath(scene);
+		const filePath = pathResolver.getScenePath(scene, { chapterOrder });
 		const contentBlocks: ContentBlock[] = await context.apiClient.getContentBlocksByScene(scene.id);
 
 		await context.fileManager.writeSceneFile(
@@ -22,8 +29,59 @@ export class SceneHandler {
 			filePath,
 			story.title,
 			contentBlocks,
-			[]
+			[],
+			{ linkMode: "full_path", storyFolderPath: folderPath, chapterOrder }
 		);
+
+		const outlinePath = filePath.replace(/\.md$/, ".outline.md");
+		const contentsPath = filePath.replace(/\.md$/, ".contents.md");
+		const relationsPath = filePath.replace(/\.md$/, ".relations.md");
+
+		const outline = this.outlineGenerator.generateSceneOutline(sceneWithBeats, {
+			syncedAt: context.timestamp(),
+			showHelpBox: context.settings.showHelpBox,
+			idField: context.settings.frontmatterIdField,
+			storyFolderPath: folderPath,
+		});
+		await context.fileManager.writeFile(outlinePath, outline);
+
+		const sceneContentBlocks = new Map<string, ContentBlock[]>();
+		sceneContentBlocks.set(scene.id, contentBlocks);
+		const beatContentBlocks = new Map<string, ContentBlock[]>();
+		for (const beat of beats) {
+			const beatBlocks = await context.apiClient.getContentBlocksByBeat(beat.id);
+			beatContentBlocks.set(beat.id, beatBlocks);
+		}
+		const contents = this.contentsGenerator.generateSceneContents(
+			sceneWithBeats,
+			sceneContentBlocks,
+			beatContentBlocks,
+			{ syncedAt: context.timestamp(), idField: context.settings.frontmatterIdField }
+		);
+		await context.fileManager.writeFile(contentsPath, contents);
+
+		let worldFolderPath: string | undefined;
+		if (story.world_id) {
+			try {
+				const world = await context.apiClient.getWorld(story.world_id);
+				if (world?.name) {
+					worldFolderPath = context.fileManager.getWorldFolderPath(world.name);
+				}
+			} catch {
+				// ignore world lookup errors
+			}
+		}
+		await writeRelationsFile({
+			entity: {
+				id: scene.id,
+				name: `Scene ${scene.order_num ?? 0}: ${scene.goal || "Untitled"}`,
+				type: "scene",
+				worldId: story.world_id ?? undefined,
+			},
+			outputPath: relationsPath,
+			context,
+			worldFolderPath,
+		});
 
 		return sceneWithBeats;
 	}
@@ -31,9 +89,11 @@ export class SceneHandler {
 	async push(entity: SceneWithBeats, context: SyncContext): Promise<void> {
 		const scene = entity.scene;
 		const story = await context.apiClient.getStory(scene.story_id);
+		const chapterOrder =
+			scene.chapter_id ? (await context.apiClient.getChapter(scene.chapter_id)).number ?? 0 : 0;
 		const folderPath = context.fileManager.getStoryFolderPath(story.title);
 		const pathResolver = new PathResolver(folderPath);
-		const filePath = pathResolver.getScenePath(scene);
+		const filePath = pathResolver.getScenePath(scene, { chapterOrder });
 
 		// Read current file to detect changes
 		let fileContent: string;

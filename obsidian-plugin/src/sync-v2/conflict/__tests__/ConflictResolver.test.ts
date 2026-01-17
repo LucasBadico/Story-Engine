@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import type { App } from "obsidian";
 import { ConflictResolver } from "../ConflictResolver";
+import { ConflictModal } from "../ConflictModal";
 import type { Conflict, ConflictResolutionStrategy } from "../types";
 import type { SyncContext } from "../../types/sync";
 import type { StoryEngineSettings } from "../../../types";
@@ -201,20 +202,21 @@ describe("ConflictResolver", () => {
 			expect(result.resolution.autoResolved).toBe(true);
 		});
 
-		it("handles manual strategy correctly (fallback to local for now)", async () => {
+		it("handles manual strategy using the modal choice", async () => {
 			mockContext.settings.conflictResolution = "manual";
+			ConflictModal.setNextChoice("remote");
 
 			const conflict = createConflict();
 			const result = await resolver.resolve(conflict);
 
 			expect(result.success).toBe(true);
 			expect(result.resolution.strategy).toBe("manual");
-			expect(result.resolution.resolvedData).toEqual(conflict.localData); // Currently defaults to local
+			expect(result.resolution.resolvedData).toEqual(conflict.remoteData);
 			expect(result.resolution.autoResolved).toBe(false);
 			expect(mockContext.emitWarning).toHaveBeenCalledWith(
 				expect.objectContaining({
 					code: "conflict_detected",
-					message: expect.stringContaining("Conflict detected"),
+					message: expect.stringContaining("Manual resolution selected"),
 				})
 			);
 		});

@@ -145,5 +145,25 @@ Scene A
 			])
 		);
 	});
+
+	it("detects content text updates", () => {
+		const remote = `
+<!--content-start:0001:intro:cb-1-->
+Original text here
+<!--content-end:0001:intro:cb-1-->
+`;
+		const local = `
+<!--content-start:0001:intro:cb-1-->
+Updated paragraph from user
+<!--content-end:0001:intro:cb-1-->
+`;
+
+		const plan = planner.buildPlan(remote, local);
+		expect(plan.actions).toContainEqual({
+			type: "content_update",
+			contentBlockId: "cb-1",
+			newContent: "Updated paragraph from user",
+		});
+	});
 });
 

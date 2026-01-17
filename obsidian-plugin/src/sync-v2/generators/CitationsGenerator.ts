@@ -32,15 +32,18 @@ export class CitationsGenerator {
 
 		const grouped = this.groupByStory(citations);
 		for (const [storyId, entries] of grouped.entries()) {
-			lines.push(`## [[${storyId}|${entries[0].storyTitle}]]`, "");
+			const storyLabel = entries[0].storyTitle;
+			const storyPath = entries[0].storyPath ?? storyId;
+			lines.push(`## [[${storyPath}|${storyLabel}]]`, "");
 
 			const byRelation = this.groupByRelationType(entries);
 			for (const [relationType, relationEntries] of byRelation.entries()) {
 				lines.push(`### ${this.titleCase(relationType)} (\`relation_type: ${relationType}\`)`);
 				relationEntries.forEach((entry) => {
 					const context = entry.chapterTitle ? ` (Chapter: ${entry.chapterTitle})` : "";
+					const sourcePath = entry.sourcePath ?? entry.sourceId;
 					lines.push(
-						`- [[${entry.sourceId}|${entry.sourceTitle}]]${context}${
+						`- [[${sourcePath}|${entry.sourceTitle}]]${context}${
 							entry.summary ? `\n  - *"${entry.summary}"*` : ""
 						}`
 					);

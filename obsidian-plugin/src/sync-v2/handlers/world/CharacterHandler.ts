@@ -2,6 +2,7 @@ import type { Character, World } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { FrontmatterGenerator } from "../../generators/FrontmatterGenerator";
 import { slugify } from "../../utils/slugify";
+import { parseWorldEntityFile } from "../../parsers/worldEntityParser";
 
 export class CharacterHandler {
 	readonly entityType = "character";
@@ -18,8 +19,31 @@ export class CharacterHandler {
 		return character;
 	}
 
-	async push(_entity: Character, _context: SyncContext): Promise<void> {
-		// TODO: implement push logic
+	async push(entity: Character, context: SyncContext): Promise<void> {
+		const world = await context.apiClient.getWorld(entity.world_id);
+		const folderPath = context.fileManager.getWorldFolderPath(world.name);
+		const filePath = `${folderPath}/characters/${slugify(entity.name)}.md`;
+
+		let localContent: string;
+		try {
+			localContent = await context.fileManager.readFile(filePath);
+		} catch {
+			return;
+		}
+
+		const parsed = parseWorldEntityFile(localContent);
+
+		const normalizedDescription = parsed.description ?? undefined;
+		const existingDescription = entity.description ?? undefined;
+
+		if (parsed.name === entity.name && (normalizedDescription ?? "") === (existingDescription ?? "")) {
+			return;
+		}
+
+		await context.apiClient.updateCharacter(entity.id, {
+			name: parsed.name,
+			description: normalizedDescription,
+		});
 	}
 
 	async delete(id: string, context: SyncContext): Promise<void> {

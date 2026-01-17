@@ -14,6 +14,8 @@ describe("AutoSyncManagerV2", () => {
 	let mockFile: TFile;
 	let mockFolder: TFolder;
 	let autoSyncManager: AutoSyncManagerV2;
+	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+	let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
 	const settings: StoryEngineSettings = {
 		apiUrl: "http://localhost:8080",
@@ -35,6 +37,8 @@ describe("AutoSyncManagerV2", () => {
 
 	beforeEach(() => {
 		vi.useFakeTimers();
+		consoleErrorSpy = vi.spyOn(console as any, "error").mockImplementation(() => {});
+		consoleWarnSpy = vi.spyOn(console as any, "warn").mockImplementation(() => {});
 
 		// Mock App with workspace.on that captures handlers
 		const handlers: Record<string, Function> = {};
@@ -198,6 +202,8 @@ describe("AutoSyncManagerV2", () => {
 		if (autoSyncManager) {
 			autoSyncManager.dispose();
 		}
+		consoleErrorSpy?.mockRestore();
+		consoleWarnSpy?.mockRestore();
 		vi.useRealTimers();
 		vi.clearAllMocks();
 		// Don't restore all mocks here - let each test manage its own mocks
@@ -270,7 +276,7 @@ describe("AutoSyncManagerV2", () => {
 			(autoSyncManager as any).activeFile = mockFile;
 
 			// Simulate active leaf change
-			const newFile = { path: "Stories/Test Story/01-scenes/sc-0001-scene.md", name: "sc-0001-scene.md" } as TFile;
+			const newFile = { path: "Stories/Test Story/01-scenes/sc-0001-0001-scene.md", name: "sc-0001-0001-scene.md" } as TFile;
 			(mockApp.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(newFile);
 
 			const handlers = (mockApp.workspace as any)._handlers as Record<string, Function>;
@@ -289,7 +295,7 @@ describe("AutoSyncManagerV2", () => {
 			(autoSyncManager as any).dirtyFiles.clear();
 			(autoSyncManager as any).activeFile = mockFile;
 
-			const newFile = { path: "Stories/Test Story/01-scenes/sc-0001-scene.md" } as TFile;
+			const newFile = { path: "Stories/Test Story/01-scenes/sc-0001-0001-scene.md" } as TFile;
 			(mockApp.workspace.getActiveFile as ReturnType<typeof vi.fn>).mockReturnValue(newFile);
 
 			const handlers = (mockApp.workspace as any)._handlers as Record<string, Function>;
@@ -414,8 +420,8 @@ describe("AutoSyncManagerV2", () => {
 			} as TFolder;
 
 			const sceneFile = {
-				path: "Stories/Test Story/01-scenes/sc-0001-scene.md",
-				name: "sc-0001-scene.md",
+				path: "Stories/Test Story/01-scenes/sc-0001-0001-scene.md",
+				name: "sc-0001-0001-scene.md",
 				parent: sceneFolder,
 			} as TFile;
 
@@ -840,6 +846,47 @@ describe("AutoSyncManagerV2", () => {
 		});
 	});
 
+	describe("isOnline", () => {
+		it("returns false when navigator reports offline", () => {
+			const originalNavigator = (globalThis as any).navigator;
+			Object.defineProperty(globalThis, "navigator", {
+				value: { onLine: false },
+				configurable: true,
+			});
+
+			const result = (autoSyncManager as any).isOnline();
+
+			expect(result).toBe(false);
+
+			if (originalNavigator) {
+				Object.defineProperty(globalThis, "navigator", {
+					value: originalNavigator,
+					configurable: true,
+				});
+			} else {
+				delete (globalThis as any).navigator;
+			}
+		});
+
+		it("updates cached status based on API ping", async () => {
+			(mockContext.apiClient as any).listStories = vi.fn().mockResolvedValue([]);
+
+			await (autoSyncManager as any).refreshOnlineStatus();
+
+			const result = (autoSyncManager as any).isOnline();
+			expect(result).toBe(true);
+		});
+
+		it("marks offline when API ping fails", async () => {
+			(mockContext.apiClient as any).listStories = vi.fn().mockRejectedValue(new Error("offline"));
+
+			await (autoSyncManager as any).refreshOnlineStatus();
+
+			const result = (autoSyncManager as any).isOnline();
+			expect(result).toBe(false);
+		});
+	});
+
 	describe("isStoryEntityFile", () => {
 		it("identifies chapter files as story entity files", () => {
 			const chapterFile = {
@@ -851,7 +898,7 @@ describe("AutoSyncManagerV2", () => {
 
 		it("identifies scene files as story entity files", () => {
 			const sceneFile = {
-				path: "Stories/Test Story/01-scenes/sc-0001.md",
+				path: "Stories/Test Story/01-scenes/sc-0001-0001.md",
 			} as TFile;
 
 			expect((autoSyncManager as any).isStoryEntityFile(sceneFile)).toBe(true);

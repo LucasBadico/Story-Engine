@@ -26,6 +26,9 @@ export class AutoSyncManagerV2 {
 	private pendingOperations = new Map<string, PendingOperation>();
 	private operationQueue: PendingOperation[] = [];
 	private isProcessingQueue = false;
+	private lastOnlineCheck = 0;
+	private onlineCheckInFlight = false;
+	private isOnlineCached = true;
 
 	constructor(
 		private plugin: StoryEnginePlugin,
@@ -430,9 +433,30 @@ export class AutoSyncManagerV2 {
 	 * For now, always return true - can be enhanced with actual network detection
 	 */
 	private isOnline(): boolean {
-		// TODO: Implement actual network detection
-		// For now, assume online (will fail gracefully on API errors)
-		return true;
+		if (typeof navigator !== "undefined" && navigator.onLine === false) {
+			this.isOnlineCached = false;
+			return false;
+		}
+
+		const now = Date.now();
+		if (now - this.lastOnlineCheck > 15_000 && !this.onlineCheckInFlight) {
+			void this.refreshOnlineStatus();
+		}
+
+		return this.isOnlineCached;
+	}
+
+	private async refreshOnlineStatus(): Promise<void> {
+		this.onlineCheckInFlight = true;
+		try {
+			await this.context.apiClient.listStories();
+			this.isOnlineCached = true;
+		} catch {
+			this.isOnlineCached = false;
+		} finally {
+			this.lastOnlineCheck = Date.now();
+			this.onlineCheckInFlight = false;
+		}
 	}
 
 	/**

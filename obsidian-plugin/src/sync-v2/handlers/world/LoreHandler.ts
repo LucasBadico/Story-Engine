@@ -2,6 +2,7 @@ import type { Lore, World } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { FrontmatterGenerator } from "../../generators/FrontmatterGenerator";
 import { slugify } from "../../utils/slugify";
+import { parseWorldEntityFile } from "../../parsers/worldEntityParser";
 
 export class LoreHandler {
 	readonly entityType = "lore";
@@ -18,8 +19,29 @@ export class LoreHandler {
 		return lore;
 	}
 
-	async push(_entity: Lore, _context: SyncContext): Promise<void> {
-		// TODO: implement push logic
+	async push(entity: Lore, context: SyncContext): Promise<void> {
+		const world = await context.apiClient.getWorld(entity.world_id);
+		const folderPath = context.fileManager.getWorldFolderPath(world.name);
+		const filePath = `${folderPath}/lore/${slugify(entity.name)}.md`;
+
+		let localContent: string;
+		try {
+			localContent = await context.fileManager.readFile(filePath);
+		} catch {
+			return;
+		}
+
+		const parsed = parseWorldEntityFile(localContent);
+		const description = parsed.description ?? undefined;
+
+		if (parsed.name === entity.name && (description ?? "") === (entity.description ?? "")) {
+			return;
+		}
+
+		await context.apiClient.updateLore(entity.id, {
+			name: parsed.name,
+			description,
+		});
 	}
 
 	async delete(id: string, context: SyncContext): Promise<void> {

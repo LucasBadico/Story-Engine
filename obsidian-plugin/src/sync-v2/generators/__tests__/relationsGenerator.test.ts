@@ -26,6 +26,9 @@ const input: RelationsGeneratorInput = {
 			summary: "Opening",
 		},
 	],
+	options: {
+		worldFolderPath: "StoryFolder/worlds/Eldoria",
+	},
 };
 
 describe("RelationsGenerator", () => {
@@ -36,8 +39,12 @@ describe("RelationsGenerator", () => {
 		expect(output).toContain("type: story-relations");
 		expect(output).toContain("## World");
 		expect(output).toContain("## Main Characters");
-		expect(output).toContain("[[john-smith|John Smith]] - Scenes 1,2");
-		expect(output).toContain("_Add new main character: [[file|Name]] - description_");
+		expect(output).toContain(
+			"[[StoryFolder/worlds/Eldoria/characters/john-smith.md|John Smith]] - Scenes 1,2"
+		);
+		expect(output).toContain(
+			"_Add new main character: [[StoryFolder/worlds/Eldoria/characters/file.md|Name]] - description_"
+		);
 	});
 });
 
