@@ -2,6 +2,7 @@ import type { World, WorldEvent } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { FrontmatterGenerator } from "../../generators/FrontmatterGenerator";
 import { slugify } from "../../utils/slugify";
+import { parseWorldEntityFile } from "../../parsers/worldEntityParser";
 
 export class EventHandler {
 	readonly entityType = "event";
@@ -18,8 +19,29 @@ export class EventHandler {
 		return event;
 	}
 
-	async push(_entity: WorldEvent, _context: SyncContext): Promise<void> {
-		// TODO: implement push logic
+	async push(entity: WorldEvent, context: SyncContext): Promise<void> {
+		const world = await context.apiClient.getWorld(entity.world_id);
+		const folderPath = context.fileManager.getWorldFolderPath(world.name);
+		const filePath = `${folderPath}/events/${slugify(entity.name)}.md`;
+
+		let localContent: string;
+		try {
+			localContent = await context.fileManager.readFile(filePath);
+		} catch {
+			return;
+		}
+
+		const parsed = parseWorldEntityFile(localContent);
+		const description = parsed.description ?? null;
+
+		if (parsed.name === entity.name && description === (entity.description ?? null)) {
+			return;
+		}
+
+		await context.apiClient.updateEvent(entity.id, {
+			name: parsed.name,
+			description,
+		});
 	}
 
 	async delete(id: string, context: SyncContext): Promise<void> {

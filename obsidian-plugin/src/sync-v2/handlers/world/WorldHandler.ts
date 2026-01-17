@@ -1,9 +1,13 @@
 import type {
 	Artifact,
 	Character,
+	Chapter,
+	ContentBlock,
 	Faction,
 	Lore,
 	Location,
+	Beat,
+	Scene,
 	Story,
 	World,
 	WorldEvent,
@@ -18,6 +22,13 @@ import {
 } from "../../relations/mappers";
 import type { RelationTargetResolver, CitationSourceResolver } from "../../relations/mappers";
 import { RelationsPushHandler } from "../../push/RelationsPushHandler";
+import { PathResolver } from "../../fileRenamer/PathResolver";
+import { CharacterHandler } from "./CharacterHandler";
+import { LocationHandler } from "./LocationHandler";
+import { FactionHandler } from "./FactionHandler";
+import { ArtifactHandler } from "./ArtifactHandler";
+import { EventHandler } from "./EventHandler";
+import { LoreHandler } from "./LoreHandler";
 
 export class WorldHandler {
 	readonly entityType = "world";
@@ -53,11 +64,15 @@ export class WorldHandler {
 
 		await context.fileManager.writeFile(
 			`${folderPath}/world.outline.md`,
-			this.renderOutline(world, { characters, locations, factions, artifacts, events, loreList })
+			this.renderOutline(world, { characters, locations, factions, artifacts, events, loreList }, folderPath)
 		);
 		await context.fileManager.writeFile(
 			`${folderPath}/world.contents.md`,
-			this.renderContents(world)
+			this.renderContents(world, { characters, locations, factions, artifacts, events, loreList }, folderPath)
+		);
+		await this.writeWorldEntityFiles(
+			{ characters, locations, factions, artifacts, events, loreList },
+			context
 		);
 		// Generate relations and citations files
 		await this.generateRelations(world, folderPath, context);
@@ -119,7 +134,8 @@ export class WorldHandler {
 			artifacts: Artifact[];
 			events: WorldEvent[];
 			loreList: Lore[];
-		}
+		},
+		folderPath: string
 	): string {
 		const sections: Array<{ label: string; items: { name: string; extra?: string }[] }> = [
 			{
@@ -173,23 +189,78 @@ export class WorldHandler {
 			"",
 		];
 
+		const linkFor = (name: string, folder: string) =>
+			`[[${folderPath}/${folder}/${slugify(name)}.md|${name}]]`;
+
 		for (const section of sections) {
 			lines.push(`## ${section.label}`, "");
 			if (!section.items.length) {
 				lines.push("_Nenhum item sincronizado ainda._", "");
 				continue;
 			}
-			section.items.forEach((item) =>
-				lines.push(`- ${item.name}${item.extra ? ` (${item.extra})` : ""}`)
-			);
+			section.items.forEach((item) => {
+				const folder =
+					section.label === "Characters"
+						? "characters"
+						: section.label === "Locations"
+						? "locations"
+						: section.label === "Factions"
+						? "factions"
+						: section.label === "Artifacts"
+						? "artifacts"
+						: section.label === "Events"
+						? "events"
+						: "lore";
+				const link = linkFor(item.name, folder);
+				lines.push(`- ${link}${item.extra ? ` (${item.extra})` : ""}`);
+			});
 			lines.push("");
 		}
 
 		return lines.join("\n").trimEnd() + "\n";
 	}
 
-	private renderContents(world: World): string {
-		return [
+	private async writeWorldEntityFiles(
+		entities: {
+			characters: Character[];
+			locations: Location[];
+			factions: Faction[];
+			artifacts: Artifact[];
+			events: WorldEvent[];
+			loreList: Lore[];
+		},
+		context: SyncContext
+	): Promise<void> {
+		const characterHandler = new CharacterHandler();
+		const locationHandler = new LocationHandler();
+		const factionHandler = new FactionHandler();
+		const artifactHandler = new ArtifactHandler();
+		const eventHandler = new EventHandler();
+		const loreHandler = new LoreHandler();
+
+		await Promise.all([
+			Promise.all(entities.characters.map((character) => characterHandler.pull(character.id, context))),
+			Promise.all(entities.locations.map((location) => locationHandler.pull(location.id, context))),
+			Promise.all(entities.factions.map((faction) => factionHandler.pull(faction.id, context))),
+			Promise.all(entities.artifacts.map((artifact) => artifactHandler.pull(artifact.id, context))),
+			Promise.all(entities.events.map((event) => eventHandler.pull(event.id, context))),
+			Promise.all(entities.loreList.map((lore) => loreHandler.pull(lore.id, context))),
+		]);
+	}
+
+	private renderContents(
+		world: World,
+		opts: {
+			characters: Character[];
+			locations: Location[];
+			factions: Faction[];
+			artifacts: Artifact[];
+			events: WorldEvent[];
+			loreList: Lore[];
+		},
+		folderPath: string
+	): string {
+		const lines: string[] = [
 			`# ${world.name} - Contents`,
 			"",
 			"## Overview",
@@ -198,7 +269,71 @@ export class WorldHandler {
 			"## Time Configuration",
 			world.time_config ? "```json\n" + JSON.stringify(world.time_config, null, 2) + "\n```" : "_Não configurado._",
 			"",
-		].join("\n");
+		];
+
+		const addSection = (label: string, items: { name: string; path: string; extra?: string }[]) => {
+			lines.push(`## ${label}`, "");
+			if (!items.length) {
+				lines.push("_Nenhum item sincronizado ainda._", "");
+				return;
+			}
+			items.forEach((item) => {
+				const link = `[[${item.path}|${item.name}]]`;
+				lines.push(`- ${link}${item.extra ? ` (${item.extra})` : ""}`);
+			});
+			lines.push("");
+		};
+
+		addSection(
+			"Characters",
+			opts.characters.map((character) => ({
+				name: character.name,
+				path: `${folderPath}/characters/${slugify(character.name)}.md`,
+				extra: `Lvl ${character.class_level}`,
+			}))
+		);
+		addSection(
+			"Locations",
+			opts.locations.map((location) => ({
+				name: location.name,
+				path: `${folderPath}/locations/${slugify(location.name)}.md`,
+				extra: location.type ?? undefined,
+			}))
+		);
+		addSection(
+			"Factions",
+			opts.factions.map((faction) => ({
+				name: faction.name,
+				path: `${folderPath}/factions/${slugify(faction.name)}.md`,
+				extra: faction.type ?? undefined,
+			}))
+		);
+		addSection(
+			"Artifacts",
+			opts.artifacts.map((artifact) => ({
+				name: artifact.name,
+				path: `${folderPath}/artifacts/${slugify(artifact.name)}.md`,
+				extra: artifact.rarity,
+			}))
+		);
+		addSection(
+			"Events",
+			opts.events.map((event) => ({
+				name: event.name,
+				path: `${folderPath}/events/${slugify(event.name)}.md`,
+				extra: event.timeline ?? undefined,
+			}))
+		);
+		addSection(
+			"Lore",
+			opts.loreList.map((lore) => ({
+				name: lore.name,
+				path: `${folderPath}/lore/${slugify(lore.name)}.md`,
+				extra: lore.category ?? undefined,
+			}))
+		);
+
+		return lines.join("\n");
 	}
 
 	private renderRelationsPlaceholder(world: World): string {
@@ -343,6 +478,7 @@ export class WorldHandler {
 					syncedAt: this.now(),
 					showHelpBox: context.settings.showHelpBox,
 					idField: context.settings.frontmatterIdField,
+					worldFolderPath: folderPath,
 				},
 			});
 
@@ -406,9 +542,13 @@ export class WorldHandler {
 				relationsBySource.get(rel.source_id)!.push(rel);
 			}
 
-			// Build story hierarchy cache for each story that has relations
-			const storyCache = new Map<string, Story>();
-			const storyHierarchyCache = new Map<string, any>(); // StoryWithHierarchy simplified
+		// Build story hierarchy cache for each story that has relations
+		const storyCache = new Map<string, Story>();
+		const chapterCache = new Map<string, Chapter>();
+		const sceneCache = new Map<string, Scene>();
+		const beatCache = new Map<string, Beat>();
+		const contentBlockCache = new Map<string, ContentBlock>();
+		const resolverCache = new Map<string, PathResolver>();
 
 			// For chapters, scenes, and beats, we need to fetch their parent story
 			// This is expensive, so we'll do it in batches and cache results
@@ -425,40 +565,190 @@ export class WorldHandler {
 				}
 			}
 
-			// For now, use a simplified resolver that doesn't fetch story hierarchies
-			// This will generate citations but without full chapter/scene context
-			// TODO: Implement proper story hierarchy resolution for complete citations
-			const resolveSource: CitationSourceResolver = (relation) => {
-				if (!["chapter", "scene", "beat", "content_block"].includes(relation.source_type)) {
-					return null;
-				}
+		const getStory = async (storyId: string): Promise<Story> => {
+			const cached = storyCache.get(storyId);
+			if (cached) return cached;
+			const story = await context.apiClient.getStory(storyId);
+			storyCache.set(storyId, story);
+			return story;
+		};
 
-				// Without story hierarchy, we can't resolve story title or chapter title
-				// Return a minimal citation with just the source ID
+		const getChapter = async (chapterId: string): Promise<Chapter> => {
+			const cached = chapterCache.get(chapterId);
+			if (cached) return cached;
+			const chapter = await context.apiClient.getChapter(chapterId);
+			chapterCache.set(chapterId, chapter);
+			return chapter;
+		};
+
+		const getScene = async (sceneId: string): Promise<Scene> => {
+			const cached = sceneCache.get(sceneId);
+			if (cached) return cached;
+			const scene = await context.apiClient.getScene(sceneId);
+			sceneCache.set(sceneId, scene);
+			return scene;
+		};
+
+		const getBeat = async (beatId: string): Promise<Beat> => {
+			const cached = beatCache.get(beatId);
+			if (cached) return cached;
+			const beat = await context.apiClient.getBeat(beatId);
+			beatCache.set(beatId, beat);
+			return beat;
+		};
+
+		const getContentBlock = async (contentBlockId: string): Promise<ContentBlock> => {
+			const cached = contentBlockCache.get(contentBlockId);
+			if (cached) return cached;
+			const contentBlock = await context.apiClient.getContentBlock(contentBlockId);
+			contentBlockCache.set(contentBlockId, contentBlock);
+			return contentBlock;
+		};
+
+		const getResolver = (story: Story): PathResolver => {
+			const cached = resolverCache.get(story.id);
+			if (cached) return cached;
+			const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+			const resolver = new PathResolver(storyFolder);
+			resolverCache.set(story.id, resolver);
+			return resolver;
+		};
+
+		const resolveSource: CitationSourceResolver = (relation) => {
+			if (!["chapter", "scene", "beat", "content_block"].includes(relation.source_type)) {
+				return null;
+			}
+
+			return {
+				storyId: "unknown",
+				storyTitle: "Unknown Story",
+				sourceTitle: relation.source_id,
+				sourceType: relation.source_type as "chapter" | "scene" | "beat" | "content_block",
+				summary: relation.context,
+			};
+		};
+
+		const resolveSourceAsync = async (relation: typeof storyElementRelations[number]) => {
+			if (relation.source_type === "chapter") {
+				const chapter = await getChapter(relation.source_id);
+				const story = await getStory(chapter.story_id);
+				const resolver = getResolver(story);
+				const storyFolder = context.fileManager.getStoryFolderPath(story.title);
 				return {
-					storyId: "unknown", // Would need to fetch story hierarchy to resolve
-					storyTitle: "Unknown Story",
-					sourceTitle: relation.source_id,
-					sourceType: relation.source_type as "chapter" | "scene" | "beat" | "content_block",
+					storyId: story.id,
+					storyTitle: story.title,
+					storyPath: `${storyFolder}/story.md`,
+					sourceTitle: `Chapter ${chapter.number}: ${chapter.title}`,
+					sourceType: "chapter" as const,
+					sourcePath: resolver.getChapterPath(chapter),
+					chapterTitle: chapter.title,
 					summary: relation.context,
 				};
-			};
+			}
+
+			if (relation.source_type === "scene") {
+				const scene = await getScene(relation.source_id);
+				const story = await getStory(scene.story_id);
+				const resolver = getResolver(story);
+				const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+				let chapterTitle: string | undefined;
+				let chapterOrder = 0;
+				if (scene.chapter_id) {
+					const chapter = await getChapter(scene.chapter_id);
+					chapterTitle = chapter.title;
+					chapterOrder = chapter.number ?? 0;
+				}
+				return {
+					storyId: story.id,
+					storyTitle: story.title,
+					storyPath: `${storyFolder}/story.md`,
+					sourceTitle: `Scene ${scene.order_num ?? 0}: ${scene.goal || "Untitled"}`,
+					sourceType: "scene" as const,
+					sourcePath: resolver.getScenePath(scene, { chapterOrder }),
+					chapterTitle,
+					summary: relation.context,
+				};
+			}
+
+			if (relation.source_type === "beat") {
+				const beat = await getBeat(relation.source_id);
+				const scene = await getScene(beat.scene_id);
+				const story = await getStory(scene.story_id);
+				const resolver = getResolver(story);
+				const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+				let chapterTitle: string | undefined;
+				let chapterOrder = 0;
+				if (scene.chapter_id) {
+					const chapter = await getChapter(scene.chapter_id);
+					chapterTitle = chapter.title;
+					chapterOrder = chapter.number ?? 0;
+				}
+				return {
+					storyId: story.id,
+					storyTitle: story.title,
+					storyPath: `${storyFolder}/story.md`,
+					sourceTitle: `Beat ${beat.order_num ?? 0}: ${beat.intent || "Untitled"}`,
+					sourceType: "beat" as const,
+					sourcePath: resolver.getBeatPath(beat, {
+						chapterOrder,
+						sceneOrder: scene.order_num ?? 0,
+					}),
+					chapterTitle,
+					summary: relation.context,
+				};
+			}
+
+			if (relation.source_type === "content_block") {
+				const block = await getContentBlock(relation.source_id);
+				if (!block.chapter_id) {
+					return null;
+				}
+				const chapter = await getChapter(block.chapter_id);
+				const story = await getStory(chapter.story_id);
+				const resolver = getResolver(story);
+				const storyFolder = context.fileManager.getStoryFolderPath(story.title);
+				const sourceTitle =
+					block.metadata?.title ??
+					block.kind ??
+					block.type ??
+					"Content Block";
+				return {
+					storyId: story.id,
+					storyTitle: story.title,
+					storyPath: `${storyFolder}/story.md`,
+					sourceTitle,
+					sourceType: "content_block" as const,
+					sourcePath: resolver.getContentBlockPath(block),
+					chapterTitle: chapter.title,
+					summary: relation.context,
+				};
+			}
+
+			return null;
+		};
 
 			// For now, generate citations with limited information
 			// This can be enhanced later with proper story hierarchy resolution
-			const input = mapCitationsToGeneratorInput({
-				entity: {
-					id: world.id,
-					name: world.name,
-					type: "world",
-				},
-				relations: storyElementRelations,
-				resolveSource,
-				options: {
-					syncedAt: this.now(),
-					idField: context.settings.frontmatterIdField,
-				},
-			});
+		const resolvedSources = await Promise.all(
+			storyElementRelations.map(async (relation) => ({
+				relation,
+				source: await resolveSourceAsync(relation),
+			}))
+		);
+		const input = mapCitationsToGeneratorInput({
+			entity: {
+				id: world.id,
+				name: world.name,
+				type: "world",
+			},
+			relations: storyElementRelations,
+			resolveSource: (relation) =>
+				resolvedSources.find((item) => item.relation === relation)?.source ?? resolveSource(relation),
+			options: {
+				syncedAt: this.now(),
+				idField: context.settings.frontmatterIdField,
+			},
+		});
 
 			const citationsContent = this.citationsGenerator.generate(input);
 			await context.fileManager.writeFile(`${folderPath}/world.citations.md`, citationsContent);

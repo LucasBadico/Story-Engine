@@ -35,11 +35,13 @@ const createContext = () => {
 		getCharacter: vi.fn().mockResolvedValue(character),
 		getWorld: vi.fn().mockResolvedValue(world),
 		deleteCharacter: vi.fn(),
+		updateCharacter: vi.fn(),
 	};
 	const fileManager = {
 		getWorldFolderPath: vi.fn().mockReturnValue("StoryFolder/worlds/eldoria"),
 		ensureFolderExists: vi.fn(),
 		writeFile: vi.fn(),
+		readFile: vi.fn(),
 	};
 
 	const context: SyncContext = {
@@ -68,6 +70,57 @@ describe("CharacterHandler", () => {
 			"StoryFolder/worlds/eldoria/characters/aria-moon.md",
 			expect.stringContaining("# Aria Moon")
 		);
+	});
+
+	it("updates character when description changes", async () => {
+		const { context, apiClient, fileManager } = createContext();
+		const handler = new CharacterHandler();
+
+		const localContent = `---
+id: char-1
+world_id: world-1
+---
+
+# Aria Moon
+
+## Description
+Updated description
+
+## Metadata
+- Tenant: tenant-1
+`;
+		vi.mocked(fileManager.readFile).mockResolvedValue(localContent);
+
+		await handler.push(character, context);
+
+		expect(apiClient.updateCharacter).toHaveBeenCalledWith("char-1", {
+			name: "Aria Moon",
+			description: "Updated description",
+		});
+	});
+
+	it("does not update when nothing changes", async () => {
+		const { context, apiClient, fileManager } = createContext();
+		const handler = new CharacterHandler();
+
+		const localContent = `---
+id: char-1
+world_id: world-1
+---
+
+# Aria Moon
+
+## Description
+Hero
+
+## Metadata
+- Tenant: tenant-1
+`;
+		vi.mocked(fileManager.readFile).mockResolvedValue(localContent);
+
+		await handler.push(character, context);
+
+		expect(apiClient.updateCharacter).not.toHaveBeenCalled();
 	});
 });
 

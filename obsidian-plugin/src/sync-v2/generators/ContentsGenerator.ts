@@ -1,4 +1,5 @@
 import type {
+	Beat,
 	ChapterWithContent,
 	ContentBlock,
 	SceneWithBeats,
@@ -200,6 +201,40 @@ export class ContentsGenerator {
 		});
 
 		lines.push(this.parser.generatePlaceholder("beat"));
+
+		return lines.join("\n").trimEnd() + "\n";
+	}
+
+	generateBeatContents(
+		beat: Beat,
+		beatContentBlocks: Map<string, ContentBlock[]>,
+		options: { syncedAt?: string; idField?: string } = {}
+	): string {
+		const lines: string[] = [];
+
+		const idField = getIdFieldName(options.idField);
+
+		lines.push(
+			"---",
+			`${idField}: ${beat.id}`,
+			"type: beat-contents",
+			`synced_at: ${options.syncedAt ?? this.now()}`,
+			"---",
+			"",
+			`# Beat ${beat.order_num ?? 0}: ${beat.intent || "Untitled"} - Contents`,
+			""
+		);
+
+		const beatBlocks = beatContentBlocks.get(beat.id) ?? [];
+		if (beatBlocks.length === 0) {
+			lines.push(this.parser.generatePlaceholder("content"));
+		} else {
+			beatBlocks
+				.sort((a, b) => (a.order_num ?? 0) - (b.order_num ?? 0))
+				.forEach((block) => {
+					lines.push(this.renderContentBlock(block));
+				});
+		}
 
 		return lines.join("\n").trimEnd() + "\n";
 	}

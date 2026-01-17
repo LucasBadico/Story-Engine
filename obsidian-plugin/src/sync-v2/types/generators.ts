@@ -14,6 +14,10 @@ export interface GeneratorMetadata {
 	showHelpBox?: boolean;
 	/** Custom ID field name (from settings), defaults to "id" */
 	idField?: string;
+	/** Full path to story folder for link generation */
+	storyFolderPath?: string;
+	/** Full path to world folder for link generation */
+	worldFolderPath?: string;
 }
 
 export interface OutlineGeneratorInput {
@@ -57,10 +61,12 @@ export interface RelationsGeneratorInput {
 export interface ParsedCitationEntry {
 	storyId: string;
 	storyTitle: string;
+	storyPath?: string;
 	relationType: string;
 	sourceType: "chapter" | "scene" | "beat" | "content_block";
 	sourceId: string;
 	sourceTitle: string;
+	sourcePath?: string;
 	chapterTitle?: string;
 	summary?: string;
 	attributes?: Record<string, unknown>;

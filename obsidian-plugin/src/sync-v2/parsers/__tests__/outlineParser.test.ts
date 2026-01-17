@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { OutlineParser } from "../outlineParser";
 
 const SAMPLE_OUTLINE = `
-- [[ch-01-the-beginning|Chapter 1: The Beginning]] +
-\t- [[sc-01-meet-hero|Scene 1: Meet the hero - Morning]] +
-\t\t- [[bt-01-intro|Beat 1: Introduction]] +
+- [[Stories/Test Story/00-chapters/ch-0001-the-beginning.md|Chapter 1: The Beginning]] +
+\t- [[Stories/Test Story/01-scenes/sc-0001-0001-meet-hero.md|Scene 1: Meet the hero - Morning]] +
+\t\t- [[Stories/Test Story/02-beats/bt-0001-0001-0001-intro.md|Beat 1: Introduction]] +
 \t\t- _New beat: intent here..._
 `;
 
@@ -30,7 +30,9 @@ describe("OutlineParser", () => {
 	it("formats entries back into outline lines", () => {
 		const entries = parser.parse(SAMPLE_OUTLINE);
 		const line = parser.formatEntry(entries[1]);
-		expect(line).toContain("[[sc-01-meet-hero|Scene 1 Meet the hero - Morning]]");
+		expect(line).toContain(
+			"[[Stories/Test Story/01-scenes/sc-0001-0001-meet-hero.md|Scene 1 Meet the hero - Morning]]"
+		);
 		expect(line.trim().endsWith("+")).toBeTruthy();
 	});
 });

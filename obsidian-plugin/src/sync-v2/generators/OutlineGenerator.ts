@@ -1,6 +1,7 @@
 import type { ChapterWithContent, SceneWithBeats, StoryWithHierarchy } from "../../types";
 import type { GeneratorMetadata } from "../types/generators";
 import { getIdFieldName } from "../utils/frontmatterHelpers";
+import { buildStoryEntityPath, buildWikiLink } from "../utils/linkBuilder";
 
 interface OutlineSection {
 	type: "chapter" | "scene" | "beat";
@@ -51,7 +52,11 @@ export class OutlineGenerator {
 			);
 		}
 
-		const sections = this.buildSections(story.chapters, options.includePlaceholders !== false);
+		const sections = this.buildSections(
+			story.chapters,
+			options.includePlaceholders !== false,
+			options.storyFolderPath
+		);
 		sections.forEach((section) => {
 			const indent = "\t".repeat(section.depth);
 			lines.push(`${indent}- ${section.link} ${section.status}`.trimEnd());
@@ -66,17 +71,18 @@ export class OutlineGenerator {
 
 	private buildSections(
 		chapters: ChapterWithContent[],
-		includePlaceholders: boolean
+		includePlaceholders: boolean,
+		storyFolderPath?: string
 	): OutlineSection[] {
 		const sections: OutlineSection[] = [];
 
 		chapters.forEach((chapter, chapterIdx) => {
 			const chapterLink = this.buildLink(
-				"ch",
-				chapterIdx + 1,
+				"chapter",
+				chapter.chapter.number ?? chapterIdx + 1,
 				chapter.chapter.title,
-				chapter.chapter.id,
-				`Chapter ${chapterIdx + 1}: ${chapter.chapter.title}`
+				`Chapter ${chapterIdx + 1}: ${chapter.chapter.title}`,
+				storyFolderPath
 			);
 			sections.push({
 				type: "chapter",
@@ -89,11 +95,12 @@ export class OutlineGenerator {
 			chapter.scenes.forEach((sceneWrapper, sceneIdx) => {
 				const sceneLabel = this.composeSceneLabel(sceneWrapper);
 				const sceneLink = this.buildLink(
-					"sc",
-					sceneIdx + 1,
+					"scene",
+					sceneWrapper.scene.order_num ?? sceneIdx + 1,
 					sceneWrapper.scene.goal || `Scene ${sceneIdx + 1}`,
-					sceneWrapper.scene.id,
-					`Scene ${sceneIdx + 1}: ${sceneLabel}`
+					`Scene ${sceneIdx + 1}: ${sceneLabel}`,
+					storyFolderPath,
+					{ chapterOrder: chapter.chapter.number ?? chapterIdx + 1 }
 				);
 				sections.push({
 					type: "scene",
@@ -107,11 +114,15 @@ export class OutlineGenerator {
 					sections.push({
 						type: "beat",
 						link: this.buildLink(
-							"bt",
-							beatIdx + 1,
+							"beat",
+							beat.order_num ?? beatIdx + 1,
 							beat.intent || `Beat ${beatIdx + 1}`,
-							beat.id,
-							`Beat ${beatIdx + 1}: ${beat.intent || ""}`
+							`Beat ${beatIdx + 1}: ${beat.intent || ""}`,
+							storyFolderPath,
+							{
+								chapterOrder: chapter.chapter.number ?? chapterIdx + 1,
+								sceneOrder: sceneWrapper.scene.order_num ?? sceneIdx + 1,
+							}
 						),
 						label: beat.intent,
 						status: beat.outcome ? "+" : "-",
@@ -145,14 +156,20 @@ export class OutlineGenerator {
 	}
 
 	private buildLink(
-		prefix: string,
+		type: "chapter" | "scene" | "beat",
 		order: number,
 		title: string,
-		id: string,
-		display?: string
+		display: string | undefined,
+		storyFolderPath?: string,
+		overrides?: { chapterOrder?: number; sceneOrder?: number }
 	): string {
-		const slug = this.slugify(title);
 		const label = display ?? title;
+		if (storyFolderPath) {
+			const path = buildStoryEntityPath(storyFolderPath, type, order, title, overrides);
+			return buildWikiLink(path, label);
+		}
+		const slug = this.slugify(title);
+		const prefix = type === "chapter" ? "ch" : type === "scene" ? "sc" : "bt";
 		return `[[${prefix}-${order.toString().padStart(2, "0")}-${slug}|${label}]]`;
 	}
 
@@ -200,7 +217,12 @@ export class OutlineGenerator {
 			);
 		}
 
-		const sections = this.buildChapterSections(chapter.scenes, options.includePlaceholders !== false);
+		const sections = this.buildChapterSections(
+			chapter.scenes,
+			options.includePlaceholders !== false,
+			options.storyFolderPath,
+			chapter.chapter.number ?? 0
+		);
 		sections.forEach((section) => {
 			const indent = "\t".repeat(section.depth);
 			lines.push(`${indent}- ${section.link} ${section.status}`.trimEnd());
@@ -215,18 +237,21 @@ export class OutlineGenerator {
 
 	private buildChapterSections(
 		scenes: SceneWithBeats[],
-		includePlaceholders: boolean
+		includePlaceholders: boolean,
+		storyFolderPath?: string,
+		chapterOrder = 0
 	): OutlineSection[] {
 		const sections: OutlineSection[] = [];
 
 		scenes.forEach((sceneWrapper, sceneIdx) => {
 			const sceneLabel = this.composeSceneLabel(sceneWrapper);
 			const sceneLink = this.buildLink(
-				"sc",
+				"scene",
 				sceneWrapper.scene.order_num ?? sceneIdx + 1,
 				sceneWrapper.scene.goal || `Scene ${sceneIdx + 1}`,
-				sceneWrapper.scene.id,
-				`Scene ${sceneIdx + 1}: ${sceneLabel}`
+				`Scene ${sceneIdx + 1}: ${sceneLabel}`,
+				storyFolderPath,
+				{ chapterOrder }
 			);
 			sections.push({
 				type: "scene",
@@ -240,11 +265,15 @@ export class OutlineGenerator {
 				sections.push({
 					type: "beat",
 					link: this.buildLink(
-						"bt",
+						"beat",
 						beat.order_num ?? beatIdx + 1,
 						beat.intent || `Beat ${beatIdx + 1}`,
-						beat.id,
-						`Beat ${beatIdx + 1}: ${beat.intent || ""}`
+						`Beat ${beatIdx + 1}: ${beat.intent || ""}`,
+						storyFolderPath,
+						{
+							chapterOrder,
+							sceneOrder: sceneWrapper.scene.order_num ?? sceneIdx + 1,
+						}
 					),
 					label: beat.intent,
 					status: beat.outcome ? "+" : "-",
@@ -301,11 +330,12 @@ export class OutlineGenerator {
 
 		scene.beats.forEach((beat, beatIdx) => {
 			const beatLink = this.buildLink(
-				"bt",
+				"beat",
 				beat.order_num ?? beatIdx + 1,
 				beat.intent || `Beat ${beatIdx + 1}`,
-				beat.id,
-				`Beat ${beat.order_num ?? beatIdx + 1}: ${beat.intent || ""}`
+				`Beat ${beat.order_num ?? beatIdx + 1}: ${beat.intent || ""}`,
+				options.storyFolderPath,
+				{ chapterOrder: 0, sceneOrder: scene.scene.order_num ?? 0 }
 			);
 			lines.push(`- ${beatLink} ${beat.outcome ? "+" : "-"}`);
 		});

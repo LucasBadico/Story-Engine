@@ -99,9 +99,13 @@ const createContext = (
 ) => {
 	const apiClient = {
 		getStoryWithHierarchy: vi.fn().mockResolvedValue(mockStory),
+		getStory: vi.fn().mockResolvedValue(mockStory.story),
+		getContentBlocksByScene: vi.fn().mockResolvedValue([]),
+		getContentBlocksByBeat: vi.fn().mockResolvedValue([]),
 		getContentBlock: contentBlocks
 			? vi.fn((id: string) => Promise.resolve(contentBlocks[id]))
 			: vi.fn().mockRejectedValue(new Error("content block not found")),
+		updateContentBlock: vi.fn(),
 		listRelationsByTarget: vi.fn().mockResolvedValue({ data: relationsData, pagination: { has_more: false } }),
 		getCharacter: vi.fn().mockResolvedValue({ id: "char-1", name: "Test Character" }),
 		getLocation: vi.fn().mockResolvedValue({ id: "loc-1", name: "Test Location" }),
@@ -114,6 +118,10 @@ const createContext = (
 	const fileManager = {
 		getStoryFolderPath: vi.fn().mockReturnValue("StoryFolder"),
 		ensureFolderExists: vi.fn(),
+		writeChapterFile: vi.fn(),
+		writeSceneFile: vi.fn(),
+		writeBeatFile: vi.fn(),
+		writeContentBlockFile: vi.fn(),
 		writeStoryMetadata: vi.fn(),
 		writeFile: vi.fn(),
 		readFile: existingContents
@@ -150,7 +158,11 @@ describe("StoryHandler", () => {
 		expect(fileManager.writeStoryMetadata).toHaveBeenCalledWith(
 			mockStory.story,
 			"StoryFolder",
-			mockStory.chapters
+			mockStory.chapters,
+			undefined,
+			undefined,
+			undefined,
+			{ linkMode: "full_path" }
 		);
 		expect(fileManager.writeFile).toHaveBeenCalledWith(
 			"StoryFolder/story.outline.md",
@@ -162,7 +174,7 @@ describe("StoryHandler", () => {
 		);
 	});
 
-	it.skip("preserves untracked segments when reconciling contents", async () => {
+	it("preserves untracked segments when reconciling contents", async () => {
 		// TODO: Fix this test - findUntrackedSegments detection needs investigation
 		// The content after fences should be detected, but it's not working as expected
 		const existingContents = `---
@@ -258,8 +270,8 @@ Meet hero content
 
 	expect(renameMock).toHaveBeenCalledWith(
 		expect.objectContaining({
-			oldPath: expect.stringContaining("sc-0001-meet-hero.md"),
-			newPath: expect.stringContaining("sc-0002-meet-hero.md"),
+			oldPath: expect.stringContaining("sc-0001-0001-meet-hero.md"),
+			newPath: expect.stringContaining("sc-0001-0002-meet-hero.md"),
 		})
 	);
 });
@@ -444,6 +456,97 @@ Block One
 				newPath: expect.stringContaining("cb-0002-block-one.md"),
 			})
 		);
+	});
+
+	it("pushes content updates when local contents differ from remote", async () => {
+		const localContents = `---
+id: story-1
+type: story-contents
+synced_at: 2025-01-01T00:00:00Z
+---
+
+# Test Story - Contents
+
+<!--chapter-start:0001:chapter-1:ch-1-->
+## Chapter 1
+
+<!--scene-start:0001:meet-hero:sc-1-->
+### Scene 1
+
+<!--content-start:0001:intro:cb-1-->
+Modified content by user
+<!--content-end:0001:intro:cb-1-->
+
+<!--scene-end:0001:meet-hero:sc-1-->
+<!--chapter-end:0001:chapter-1:ch-1-->
+`;
+
+		const remoteContents = `---
+id: story-1
+type: story-contents
+synced_at: 2025-01-01T00:00:00Z
+---
+
+# Test Story - Contents
+
+<!--chapter-start:0001:chapter-1:ch-1-->
+## Chapter 1
+
+<!--scene-start:0001:meet-hero:sc-1-->
+### Scene 1
+
+<!--content-start:0001:intro:cb-1-->
+Original content
+<!--content-end:0001:intro:cb-1-->
+
+<!--scene-end:0001:meet-hero:sc-1-->
+<!--chapter-end:0001:chapter-1:ch-1-->
+`;
+
+		const relationsFile = `---
+id: story-1
+type: story-relations
+synced_at: 2025-01-01T00:00:00Z
+---
+
+# Test Story - Relations
+
+## Main Characters
+- _Add new main character: [[file|Name]] - description_
+`;
+
+		const outlineFile = `---
+id: story-1
+type: story-outline
+synced_at: 2025-01-01T00:00:00Z
+---
+
+# Test Story - Outline
+`;
+
+		const { context, apiClient, fileManager } = createContext();
+		fileManager.readFile = vi.fn((path: string) => {
+			if (path.endsWith("story.contents.md")) return Promise.resolve(localContents);
+			if (path.endsWith("story.relations.md")) return Promise.resolve(relationsFile);
+			if (path.endsWith("story.outline.md")) return Promise.resolve(outlineFile);
+			return Promise.reject(new Error("missing"));
+		});
+		apiClient.listRelationsByTarget.mockResolvedValue({
+			data: [],
+			pagination: { has_more: false },
+		});
+		apiClient.updateContentBlock.mockResolvedValue({});
+
+		const contentsGenerator = {
+			generateStoryContents: vi.fn().mockReturnValue(remoteContents),
+		};
+		const handler = new StoryHandler(undefined, contentsGenerator as any);
+
+		await handler.push(mockStory, context);
+
+		expect(apiClient.updateContentBlock).toHaveBeenCalledWith("cb-1", {
+			content: "Modified content by user",
+		});
 	});
 
 	it("generates relations file when pulling story", async () => {

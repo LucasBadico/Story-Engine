@@ -1,4 +1,4 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { App, TFile, Vault, MetadataCache } from "obsidian";
 import type { SyncContext } from "../../types/sync";
 import { detectEntityMentions, resolveEntityMention, type DetectedEntityMention } from "../detectEntityMentions";
@@ -128,9 +128,11 @@ describe("resolveEntityMention", () => {
 	let mockMetadataCache: MetadataCache;
 	let mockContext: SyncContext;
 	let mockFile: TFile;
+	let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
 		vi.clearAllMocks();
+		consoleWarnSpy = vi.spyOn(console as any, "warn").mockImplementation(() => {});
 		
 		mockFile = {
 			path: "worlds/eldoria/characters/aria-moon.md",
@@ -167,6 +169,10 @@ describe("resolveEntityMention", () => {
 			timestamp: () => "2025-01-01T00:00:00Z",
 			backupMode: "snapshots",
 		};
+	});
+
+	afterEach(() => {
+		consoleWarnSpy?.mockRestore();
 	});
 
 	it("resolves official format link successfully", async () => {

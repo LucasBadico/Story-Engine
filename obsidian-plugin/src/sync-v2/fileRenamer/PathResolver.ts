@@ -21,19 +21,36 @@ export class PathResolver {
 		);
 	}
 
-	getScenePath(scene: Scene, overrides?: { order?: number; goal?: string }): string {
+	getScenePath(
+		scene: Scene,
+		overrides?: { order?: number; goal?: string; chapterOrder?: number }
+	): string {
 		const order = overrides?.order ?? scene.order_num ?? 0;
+		const chapterOrder = overrides?.chapterOrder ?? 0;
 		const goal = overrides?.goal ?? scene.goal ?? "scene";
 		return normalizePath(
-			`${this.storyFolder}/01-scenes/${this.buildFileName("sc", order, goal)}`
+			`${this.storyFolder}/01-scenes/${this.buildCompositeFileName(
+				"sc",
+				[chapterOrder, order],
+				goal
+			)}`
 		);
 	}
 
-	getBeatPath(beat: Beat, overrides?: { order?: number; intent?: string }): string {
+	getBeatPath(
+		beat: Beat,
+		overrides?: { order?: number; intent?: string; chapterOrder?: number; sceneOrder?: number }
+	): string {
 		const order = overrides?.order ?? beat.order_num ?? 0;
+		const chapterOrder = overrides?.chapterOrder ?? 0;
+		const sceneOrder = overrides?.sceneOrder ?? 0;
 		const intent = overrides?.intent ?? beat.intent ?? "beat";
 		return normalizePath(
-			`${this.storyFolder}/02-beats/${this.buildFileName("bt", order, intent)}`
+			`${this.storyFolder}/02-beats/${this.buildCompositeFileName(
+				"bt",
+				[chapterOrder, sceneOrder, order],
+				intent
+			)}`
 		);
 	}
 
@@ -57,6 +74,11 @@ export class PathResolver {
 
 	private buildFileName(prefix: string, order: number, label: string): string {
 		return `${prefix}-${this.padOrder(order)}-${this.sanitize(label)}.md`;
+	}
+
+	private buildCompositeFileName(prefix: string, orders: number[], label: string): string {
+		const orderTags = orders.map((order) => this.padOrder(order)).join("-");
+		return `${prefix}-${orderTags}-${this.sanitize(label)}.md`;
 	}
 
 	private padOrder(order?: number): string {

@@ -1,6 +1,13 @@
 import type { App } from "obsidian";
 import type { SyncContext, SyncWarning } from "../types/sync";
-import type { Conflict, ConflictResolution, ConflictResolutionResult, ConflictResolutionStrategy, ConflictType } from "./types";
+import type {
+	Conflict,
+	ConflictResolution,
+	ConflictResolutionResult,
+	ConflictResolutionStrategy,
+	ConflictType,
+} from "./types";
+import { ConflictModal } from "./ConflictModal";
 
 /**
  * ConflictResolver handles conflict detection and resolution for Sync V2
@@ -258,20 +265,19 @@ export class ConflictResolver {
 	 * Resolve conflict manually (show UI modal to user)
 	 */
 	private async resolveManual(conflict: Conflict): Promise<ConflictResolution> {
-		// TODO: Show conflict resolution modal
-		// For now, default to local version
-		// This will be implemented when we create the generic ConflictModal
+		const choice = await new ConflictModal(this.app, conflict).open();
+		const resolvedData = choice === "remote" ? conflict.remoteData : conflict.localData;
 
 		this.context.emitWarning?.({
 			code: "conflict_detected",
-			message: `Conflict detected for ${conflict.entityType} ${conflict.entityId}. Using local version.`,
+			message: `Conflict detected for ${conflict.entityType} ${conflict.entityId}. Manual resolution selected (${choice}).`,
 			filePath: conflict.filePath,
 			severity: "warning",
 		});
 
 		return {
 			strategy: "manual",
-			resolvedData: conflict.localData,
+			resolvedData,
 			autoResolved: false,
 		};
 	}

@@ -2,6 +2,7 @@ import type { SyncContext } from "../types/sync";
 import type { EntityRelation, CreateRelationParams, UpdateRelationParams } from "../types/relations";
 import { RelationsParser, type RelationsFile, type RelationEntry } from "../parsers/relationsParser";
 import { getFrontmatterId } from "../utils/frontmatterHelpers";
+import { resolveLinkBasename } from "../utils/linkBuilder";
 
 export interface RelationsPushResult {
 	created: number;
@@ -288,10 +289,11 @@ export class RelationsPushHandler {
 	}
 
 	private async resolveEntityId(link: string, entityType: string, context: SyncContext): Promise<string | null> {
+		const normalized = resolveLinkBasename(link);
 		// If link is already a valid UUID, return it
 		const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-		if (uuidRegex.test(link)) {
-			return link;
+		if (uuidRegex.test(normalized)) {
+			return normalized;
 		}
 
 		// Otherwise, try to resolve by name/slug
@@ -301,7 +303,7 @@ export class RelationsPushHandler {
 				case "character": {
 					// Try to get by ID first (in case it's a slug-like ID)
 					try {
-						const char = await context.apiClient.getCharacter(link);
+						const char = await context.apiClient.getCharacter(normalized);
 						return char.id;
 					} catch {
 						// If not found, we'd need to search by name
@@ -311,7 +313,7 @@ export class RelationsPushHandler {
 				}
 				case "location": {
 					try {
-						const loc = await context.apiClient.getLocation(link);
+						const loc = await context.apiClient.getLocation(normalized);
 						return loc.id;
 					} catch {
 						return null;
@@ -319,7 +321,7 @@ export class RelationsPushHandler {
 				}
 				case "faction": {
 					try {
-						const faction = await context.apiClient.getFaction(link);
+						const faction = await context.apiClient.getFaction(normalized);
 						return faction.id;
 					} catch {
 						return null;
@@ -327,7 +329,7 @@ export class RelationsPushHandler {
 				}
 				case "artifact": {
 					try {
-						const artifact = await context.apiClient.getArtifact(link);
+						const artifact = await context.apiClient.getArtifact(normalized);
 						return artifact.id;
 					} catch {
 						return null;
@@ -335,7 +337,7 @@ export class RelationsPushHandler {
 				}
 				case "event": {
 					try {
-						const event = await context.apiClient.getEvent(link);
+						const event = await context.apiClient.getEvent(normalized);
 						return event.id;
 					} catch {
 						return null;
@@ -343,7 +345,7 @@ export class RelationsPushHandler {
 				}
 				case "lore": {
 					try {
-						const lore = await context.apiClient.getLore(link);
+						const lore = await context.apiClient.getLore(normalized);
 						return lore.id;
 					} catch {
 						return null;

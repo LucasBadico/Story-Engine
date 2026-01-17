@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import type { StoryEngineClient } from "../../../api/client";
 import {
 	resolveContentBlockHierarchy,
@@ -9,6 +9,15 @@ import {
 
 describe("contentBlockHelpers", () => {
 	describe("resolveContentBlockHierarchy", () => {
+	let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
+
+	beforeEach(() => {
+		consoleWarnSpy = vi.spyOn(console as any, "warn").mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		consoleWarnSpy?.mockRestore();
+	});
 		it("resolves hierarchy at beat level (most specific)", async () => {
 			const mockApiClient = {
 				getContentAnchors: vi.fn().mockResolvedValue([

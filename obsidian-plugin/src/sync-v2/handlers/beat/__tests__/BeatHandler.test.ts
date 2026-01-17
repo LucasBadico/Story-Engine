@@ -39,15 +39,20 @@ const createContext = () => {
 		getScene: vi.fn().mockResolvedValue({
 			id: "sc-1",
 			story_id: "story-1",
+			chapter_id: "ch-1",
+			order_num: 1,
 		}),
+		getChapter: vi.fn().mockResolvedValue({ id: "ch-1", number: 1 }),
 		getStory: vi.fn().mockResolvedValue({ id: "story-1", title: "Test Story" }),
 		getContentBlocksByBeat: vi.fn().mockResolvedValue([]),
+		listRelationsByTarget: vi.fn().mockResolvedValue({ data: [], pagination: { has_more: false } }),
 		deleteBeat: vi.fn(),
 	};
 	const fileManager = {
 		getStoryFolderPath: vi.fn().mockReturnValue("StoryFolder"),
 		ensureFolderExists: vi.fn(),
 		writeBeatFile: vi.fn(),
+		writeFile: vi.fn(),
 	};
 
 	const context: SyncContext = {
@@ -72,9 +77,15 @@ describe("BeatHandler", () => {
 		expect(apiClient.getBeat).toHaveBeenCalledWith("bt-1");
 		expect(fileManager.writeBeatFile).toHaveBeenCalledWith(
 			beat,
-			"StoryFolder/02-beats/bt-0001-introduce-hero.md",
+			"StoryFolder/02-beats/bt-0001-0001-0001-introduce-hero.md",
 			"Test Story",
-			[]
+			[],
+			{
+				linkMode: "full_path",
+				storyFolderPath: "StoryFolder",
+				chapterOrder: 1,
+				sceneOrder: 1,
+			}
 		);
 	});
 });

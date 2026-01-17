@@ -39,6 +39,11 @@ export type PushAction =
 			beatId: string;
 			fromSceneId?: string | null;
 			toSceneId: string;
+	  }
+	| {
+			type: "content_update";
+			contentBlockId: string;
+			newContent: string;
 	  };
 
 export interface PushPlan {
@@ -73,6 +78,9 @@ export class PushPlanner {
 					break;
 				case "beat":
 					this.handleBeatOperation(op, actions, unsupported, localMap);
+					break;
+				case "content":
+					this.handleContentOperation(op, actions, unsupported, localMap);
 					break;
 				default:
 					unsupported.push(op);
@@ -180,6 +188,27 @@ export class PushPlanner {
 				toSceneId: op.metadata.newParentId,
 			});
 			return;
+		}
+
+		unsupported.push(op);
+	}
+
+	private handleContentOperation(
+		op: DiffOperation,
+		actions: PushAction[],
+		unsupported: DiffOperation[],
+		localMap: Map<string, ParsedFence>
+	): void {
+		if (op.kind === "updated") {
+			const fence = localMap.get(op.fenceId);
+			if (fence && fence.innerText.trim().length > 0) {
+				actions.push({
+					type: "content_update",
+					contentBlockId: op.fenceId,
+					newContent: fence.innerText.trim(),
+				});
+				return;
+			}
 		}
 
 		unsupported.push(op);

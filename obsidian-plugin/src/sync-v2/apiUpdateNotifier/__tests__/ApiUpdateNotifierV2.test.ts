@@ -3,14 +3,17 @@ import { ApiUpdateNotifierV2, type ApiUpdateEvent } from "../ApiUpdateNotifierV2
 
 describe("ApiUpdateNotifierV2", () => {
 	let notifier: ApiUpdateNotifierV2;
+	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
 		vi.useFakeTimers();
+		consoleErrorSpy = vi.spyOn(console as any, "error").mockImplementation(() => {});
 		notifier = new ApiUpdateNotifierV2();
 	});
 
 	afterEach(() => {
 		notifier.dispose();
+		consoleErrorSpy?.mockRestore();
 		vi.useRealTimers();
 	});
 

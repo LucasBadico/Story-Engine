@@ -2,6 +2,7 @@ import type { Location, World } from "../../../types";
 import type { SyncContext } from "../../types/sync";
 import { FrontmatterGenerator } from "../../generators/FrontmatterGenerator";
 import { slugify } from "../../utils/slugify";
+import { parseWorldEntityFile } from "../../parsers/worldEntityParser";
 
 export class LocationHandler {
 	readonly entityType = "location";
@@ -18,8 +19,29 @@ export class LocationHandler {
 		return location;
 	}
 
-	async push(_entity: Location, _context: SyncContext): Promise<void> {
-		// TODO: implement push logic
+	async push(entity: Location, context: SyncContext): Promise<void> {
+		const world = await context.apiClient.getWorld(entity.world_id ?? "");
+		const folderPath = context.fileManager.getWorldFolderPath(world.name);
+		const filePath = `${folderPath}/locations/${slugify(entity.name) || entity.id}.md`;
+
+		let localContent: string;
+		try {
+			localContent = await context.fileManager.readFile(filePath);
+		} catch {
+			return;
+		}
+
+		const parsed = parseWorldEntityFile(localContent);
+		const description = parsed.description ?? undefined;
+
+		if (parsed.name === entity.name && (description ?? "") === (entity.description ?? "")) {
+			return;
+		}
+
+		await context.apiClient.updateLocation(entity.id, {
+			name: parsed.name,
+			description,
+		});
 	}
 
 	async delete(id: string, context: SyncContext): Promise<void> {

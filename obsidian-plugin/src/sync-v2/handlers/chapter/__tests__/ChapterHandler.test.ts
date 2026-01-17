@@ -50,6 +50,9 @@ const createContext = () => {
 		getChapter: vi.fn().mockResolvedValue(mockChapter),
 		getScenes: vi.fn().mockResolvedValue([mockScene("sc-1")]),
 		getBeats: vi.fn().mockResolvedValue([]),
+		getContentBlocksByScene: vi.fn().mockResolvedValue([]),
+		getContentBlocksByBeat: vi.fn().mockResolvedValue([]),
+		listRelationsByTarget: vi.fn().mockResolvedValue({ data: [], pagination: { has_more: false } }),
 		getStory: vi.fn().mockResolvedValue({
 			id: "story-1",
 			title: "Test Story",
@@ -60,6 +63,7 @@ const createContext = () => {
 		getStoryFolderPath: vi.fn().mockReturnValue("StoryFolder"),
 		ensureFolderExists: vi.fn(),
 		writeChapterFile: vi.fn(),
+		writeFile: vi.fn(),
 	};
 
 	const context: SyncContext = {
@@ -86,7 +90,11 @@ describe("ChapterHandler", () => {
 		expect(fileManager.writeChapterFile).toHaveBeenCalledWith(
 			expect.any(Object),
 			"StoryFolder/00-chapters/ch-0001-chapter-1.md",
-			"Test Story"
+			"Test Story",
+			undefined,
+			undefined,
+			undefined,
+			{ linkMode: "full_path", storyFolderPath: "StoryFolder" }
 		);
 	});
 });

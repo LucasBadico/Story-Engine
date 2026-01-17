@@ -85,7 +85,9 @@ export async function resolveEntityMention(
 		if (mention.format === "official") {
 			// Official format: resolve by full path
 			// Example: worlds/eldoria/characters/aria-moon -> worlds/eldoria/characters/aria-moon.md
-			const filePath = `${mention.filenamePath}.md`;
+			const filePath = mention.filenamePath.endsWith(".md")
+				? mention.filenamePath
+				: `${mention.filenamePath}.md`;
 			const abstractFile = vault.getAbstractFileByPath(filePath);
 			// Check if it's a file by verifying it has file-like properties
 			// instanceof doesn't work with mocks, so we check for properties instead

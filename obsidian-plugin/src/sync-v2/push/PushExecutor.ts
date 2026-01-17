@@ -1,6 +1,7 @@
 import type { StoryEngineClient } from "../../api/client";
 import type { SyncError } from "../types/sync";
 import type { PushAction } from "./PushPlanner";
+import type { ContentCitationService } from "./ContentCitationService";
 
 export interface PushExecutionSummary {
 	applied: number;
@@ -8,9 +9,12 @@ export interface PushExecutionSummary {
 }
 
 export class PushExecutor {
-	constructor(private readonly apiClient: StoryEngineClient) {}
+	constructor(
+		private readonly apiClient: StoryEngineClient,
+		private readonly citationService?: ContentCitationService
+	) {}
 
-	async execute(actions: PushAction[]): Promise<PushExecutionSummary> {
+	async execute(actions: PushAction[], options?: { worldId?: string }): Promise<PushExecutionSummary> {
 		const summary: PushExecutionSummary = {
 			applied: 0,
 			errors: [],
@@ -18,7 +22,7 @@ export class PushExecutor {
 
 		for (const action of actions) {
 			try {
-				await this.applyAction(action);
+				await this.applyAction(action, options?.worldId);
 				summary.applied += 1;
 			} catch (error) {
 				summary.errors.push({
@@ -36,7 +40,7 @@ export class PushExecutor {
 		return summary;
 	}
 
-	private async applyAction(action: PushAction): Promise<void> {
+	private async applyAction(action: PushAction, worldId?: string): Promise<void> {
 		switch (action.type) {
 			case "chapter_reorder":
 				await this.apiClient.updateChapter(action.chapterId, {
@@ -58,6 +62,12 @@ export class PushExecutor {
 				return;
 			case "beat_move":
 				await this.apiClient.moveBeat(action.beatId, action.toSceneId);
+				return;
+			case "content_update":
+				await this.apiClient.updateContentBlock(action.contentBlockId, {
+					content: action.newContent,
+				});
+				await this.citationService?.syncCitations(action.contentBlockId, action.newContent, worldId);
 				return;
 		}
 	}

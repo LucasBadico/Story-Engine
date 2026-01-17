@@ -1,5 +1,6 @@
 import type { RelationsGeneratorInput } from "../types/generators";
 import { getIdFieldName } from "../utils/frontmatterHelpers";
+import { buildWikiLink, buildWorldEntityPath, buildWorldFolderLink } from "../utils/linkBuilder";
 
 const TARGET_LABELS: Record<string, string> = {
 	character: "Main Characters",
@@ -36,14 +37,18 @@ export class RelationsGenerator {
 				"> [!tip] Como editar relações",
 				"> - **Adicionar**: Edite a linha `_Add new..._` da seção",
 				"> - **Remover**: Delete a linha da relação",
-				"> - **Formato**: `[[entity|Name]] - description`",
+				"> - **Formato**: `[[path/to/file.md|Name]] - description`",
 				""
 			);
 		}
 
 		if (entity.worldId && entity.worldName) {
 			lines.push("## World");
-			lines.push(`[[${entity.worldId}|${entity.worldName}]]`, "");
+			if (input.options?.worldFolderPath) {
+				lines.push(buildWikiLink(buildWorldFolderLink(input.options.worldFolderPath), entity.worldName), "");
+			} else {
+				lines.push(`[[${entity.worldId}|${entity.worldName}]]`, "");
+			}
 		}
 
 		const grouped = this.groupByTarget(relations);
@@ -51,7 +56,7 @@ export class RelationsGenerator {
 			lines.push(`## ${TARGET_LABELS[targetType] ?? targetType}`);
 
 			if (items.length === 0) {
-				lines.push(this.placeholderLine(targetType));
+				lines.push(this.placeholderLine(targetType, input.options?.worldFolderPath));
 				lines.push("");
 				continue;
 			}
@@ -61,10 +66,19 @@ export class RelationsGenerator {
 				.forEach((entry) => {
 					const description = entry.summary ?? entry.contextLabel ?? "";
 					const desc = description ? ` - ${description}` : "";
-					lines.push(`- [[${entry.targetId}|${entry.targetName}]]${desc}`);
+					if (input.options?.worldFolderPath && this.isWorldEntity(entry.targetType)) {
+						const path = buildWorldEntityPath(
+							input.options.worldFolderPath,
+							entry.targetType as keyof typeof TARGET_LABELS,
+							entry.targetName
+						);
+						lines.push(`- ${buildWikiLink(path, entry.targetName)}${desc}`);
+					} else {
+						lines.push(`- [[${entry.targetId}|${entry.targetName}]]${desc}`);
+					}
 				});
 
-			lines.push(this.placeholderLine(targetType), "");
+			lines.push(this.placeholderLine(targetType, input.options?.worldFolderPath), "");
 		}
 
 		return lines.join("\n").trimEnd() + "\n";
@@ -90,10 +104,22 @@ export class RelationsGenerator {
 		return map;
 	}
 
-	private placeholderLine(targetType: string): string {
+	private placeholderLine(targetType: string, worldFolderPath?: string): string {
 		const label = TARGET_LABELS[targetType] ?? targetType;
 		const noun = label.replace(/s$/, "").toLowerCase();
+		if (worldFolderPath && this.isWorldEntity(targetType)) {
+			const path = buildWorldEntityPath(
+				worldFolderPath,
+				targetType as keyof typeof TARGET_LABELS,
+				"file"
+			);
+			return `- _Add new ${noun}: ${buildWikiLink(path, "Name")} - description_`;
+		}
 		return `- _Add new ${noun}: [[file|Name]] - description_`;
+	}
+
+	private isWorldEntity(targetType: string): boolean {
+		return Object.prototype.hasOwnProperty.call(TARGET_LABELS, targetType);
 	}
 }
 

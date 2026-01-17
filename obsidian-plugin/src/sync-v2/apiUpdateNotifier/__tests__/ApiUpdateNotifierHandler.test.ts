@@ -10,9 +10,13 @@ describe("ApiUpdateNotifierHandler", () => {
 	let mockContext: SyncContext;
 	let handler: ApiUpdateNotifierHandler;
 	let mockEmitWarning: ReturnType<typeof vi.fn>;
+	let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
+	let consoleLogSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeEach(() => {
 		vi.useFakeTimers();
+		consoleErrorSpy = vi.spyOn(console as any, "error").mockImplementation(() => {});
+		consoleLogSpy = vi.spyOn(console as any, "log").mockImplementation(() => {});
 		notifier = new ApiUpdateNotifierV2();
 
 		mockEmitWarning = vi.fn();
@@ -37,6 +41,8 @@ describe("ApiUpdateNotifierHandler", () => {
 	afterEach(() => {
 		handler.dispose();
 		notifier.dispose();
+		consoleErrorSpy?.mockRestore();
+		consoleLogSpy?.mockRestore();
 		vi.useRealTimers();
 	});
 
