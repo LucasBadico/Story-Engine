@@ -482,24 +482,7 @@ export class StoryListView extends ItemView {
 					metaRow.createSpan({ text: "No world linked", cls: "story-engine-pill" });
 				}
 
-				const footer = card.createDiv({ cls: "story-engine-story-card-footer" });
-				const idContainer = footer.createDiv({ cls: "story-engine-world-id" });
-				idContainer.createSpan({ text: `${story.id.substring(0, 8)}...` });
-				const copyUuidButton = idContainer.createEl("button", {
-					cls: "story-engine-uuid-copy-btn",
-					attr: { "aria-label": "Copy UUID" }
-				});
-				setIcon(copyUuidButton, "copy");
-				copyUuidButton.onclick = (e) => {
-					e.stopPropagation();
-					navigator.clipboard.writeText(story.id).then(() => {
-						new Notice("UUID copied to clipboard");
-					}).catch(() => {
-						new Notice("Failed to copy UUID", 3000);
-					});
-				};
-
-				footer.createDiv({ cls: "story-engine-card-hint", text: "Click to open details" });
+				card.createDiv({ cls: "story-engine-story-hover-hint", text: "Click to open details" });
 			}
 	}
 
@@ -588,24 +571,7 @@ export class StoryListView extends ItemView {
 				cardBody.createDiv({ cls: "story-engine-world-empty-label", text: "No stories yet" });
 			}
 
-			const cardFooter = card.createDiv({ cls: "story-engine-world-card-footer" });
-			const idContainer = cardFooter.createDiv({ cls: "story-engine-world-id" });
-			idContainer.createSpan({ text: `${world.id.substring(0, 8)}...` });
-			const copyUuidButton = idContainer.createEl("button", {
-				cls: "story-engine-uuid-copy-btn",
-				attr: { "aria-label": "Copy UUID" }
-			});
-			setIcon(copyUuidButton, "copy");
-			copyUuidButton.onclick = (e) => {
-				e.stopPropagation();
-				navigator.clipboard.writeText(world.id).then(() => {
-					new Notice("UUID copied to clipboard");
-				}).catch(() => {
-					new Notice("Failed to copy UUID", 3000);
-				});
-			};
-
-			cardFooter.createDiv({ cls: "story-engine-world-card-hint", text: "Click to open details" });
+			card.createDiv({ cls: "story-engine-world-card-hint", text: "Click to open details" });
 		}
 
 		if (storiesWithoutWorld.length > 0) {
@@ -1010,20 +976,6 @@ export class StoryListView extends ItemView {
 				icon: "book-open",
 				title: "No chapters yet",
 				description: "Create the first chapter to start organizing this story.",
-				actionText: "Create Chapter",
-				onAction: () => {
-					if (!this.currentStory) return;
-					new ChapterModal(this.app, async (chapter) => {
-						try {
-							await this.plugin.apiClient.createChapter(this.currentStory!.id, chapter);
-							await this.loadHierarchy();
-							this.renderTabContent();
-							new Notice("Chapter created successfully");
-						} catch (err) {
-							throw err;
-						}
-					}, this.chapters).open();
-				},
 			});
 			return;
 		}
@@ -1041,7 +993,12 @@ export class StoryListView extends ItemView {
 		
 			// Hover actions
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
-			actions.createEl("button", { text: "Edit" }).onclick = () => {
+			const editBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Edit chapter" }
+			});
+			setIcon(editBtn, "pencil");
+			editBtn.onclick = () => {
 				new ChapterModal(this.app, async (updatedChapter) => {
 					try {
 						await this.plugin.apiClient.updateChapter(chapter.id, updatedChapter);
@@ -1055,22 +1012,42 @@ export class StoryListView extends ItemView {
 			};
 			// Up/Down buttons
 			if (chapter.number > 1) {
-				actions.createEl("button", { text: "Up" }).onclick = () => {
+				const upBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "Move chapter up" }
+				});
+				setIcon(upBtn, "arrow-up");
+				upBtn.onclick = () => {
 					this.moveChapterUp(chapter);
 				};
 			}
 			if (chapter.number < this.chapters.length) {
-				actions.createEl("button", { text: "Down" }).onclick = () => {
+				const downBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "Move chapter down" }
+				});
+				setIcon(downBtn, "arrow-down");
+				downBtn.onclick = () => {
 					this.moveChapterDown(chapter);
 				};
 			}
 			// Add Content button (only in Contents tab)
 			if (this.currentTab === "contents") {
-				actions.createEl("button", { text: "+ Content" }).onclick = () => {
+				const addContentBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "Add content" }
+				});
+				setIcon(addContentBtn, "plus");
+				addContentBtn.onclick = () => {
 					this.createContentForEntity("chapter", chapter.id, chapter.id);
 				};
 			}
-			actions.createEl("button", { text: "Delete" }).onclick = async () => {
+			const deleteBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Delete chapter" }
+			});
+			setIcon(deleteBtn, "trash");
+			deleteBtn.onclick = async () => {
 				if (confirm("Delete this chapter?")) {
 					try {
 						await this.plugin.apiClient.deleteChapter(chapter.id);
@@ -1095,21 +1072,6 @@ export class StoryListView extends ItemView {
 				icon: "film",
 				title: "No scenes yet",
 				description: "Add a chapter and its first scene to start structuring the story.",
-				actionText: "Create Scene",
-				onAction: () => {
-					if (!this.currentStory) return;
-					new SceneModal(this.app, this.currentStory.id, this.chapters, async (scene) => {
-						try {
-							scene.chapter_id = null;
-							await this.plugin.apiClient.createScene(scene);
-							await this.loadHierarchy();
-							this.renderTabContent();
-							new Notice("Scene created successfully");
-						} catch (err) {
-							throw err;
-						}
-					}, this.scenes, undefined, null).open();
-				},
 			});
 			return;
 		}
@@ -1132,22 +1094,12 @@ export class StoryListView extends ItemView {
 			const group = list.createDiv({ cls: "story-engine-group" });
 			const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
 			groupHeader.createEl("h3", { text: `Chapter ${chapter.number}: ${chapter.title}` });
-
-			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
-			if (chapterScenes.length === 0) {
-				groupItems.createEl("p", { text: "No scenes in this chapter." });
-			} else {
-				for (const scene of chapterScenes.sort((a, b) => a.order_num - b.order_num)) {
-					this.renderSceneItem(groupItems, scene);
-				}
-			}
-
-			// Footer with Add Scene button (appears on hover)
-			const groupFooter = group.createDiv({ cls: "story-engine-group-footer" });
-			const addButton = groupFooter.createEl("button", {
-				text: "+ Add Scene",
+			const addButton = groupHeader.createEl("button", {
 				cls: "story-engine-add-btn",
+				attr: { "aria-label": "Add scene" }
 			});
+			setIcon(addButton, "plus");
+			addButton.createSpan({ text: "Add scene" });
 			addButton.onclick = () => {
 				if (!this.currentStory) return;
 				new SceneModal(this.app, this.currentStory.id, this.chapters, async (scene) => {
@@ -1162,6 +1114,17 @@ export class StoryListView extends ItemView {
 					}
 				}, this.scenes, undefined, chapter.id).open();
 			};
+
+			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+			if (chapterScenes.length === 0) {
+				groupItems.createEl("p", { text: "No scenes in this chapter." });
+			} else {
+				for (const scene of chapterScenes.sort((a, b) => a.order_num - b.order_num)) {
+					this.renderSceneItem(groupItems, scene);
+				}
+			}
+
+			// Add Scene button moved to header
 		}
 
 		// Render orphan scenes (no chapter)
@@ -1170,18 +1133,12 @@ export class StoryListView extends ItemView {
 			const group = list.createDiv({ cls: "story-engine-group" });
 			const groupHeader = group.createDiv({ cls: "story-engine-group-header" });
 			groupHeader.createEl("h3", { text: "Without Chapter" });
-
-			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
-			for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
-				this.renderSceneItem(groupItems, scene);
-			}
-
-			// Footer with Add Scene button (appears on hover)
-			const groupFooter = group.createDiv({ cls: "story-engine-group-footer" });
-			const addButton = groupFooter.createEl("button", {
-				text: "+ Add Scene",
+			const addButton = groupHeader.createEl("button", {
 				cls: "story-engine-add-btn",
+				attr: { "aria-label": "Add scene" }
 			});
+			setIcon(addButton, "plus");
+			addButton.createSpan({ text: "Add scene" });
 			addButton.onclick = () => {
 				if (!this.currentStory) return;
 				new SceneModal(this.app, this.currentStory.id, this.chapters, async (scene) => {
@@ -1196,6 +1153,13 @@ export class StoryListView extends ItemView {
 					}
 				}, this.scenes, undefined, null).open();
 			};
+
+			const groupItems = group.createDiv({ cls: "story-engine-group-items" });
+			for (const scene of orphanScenes.sort((a, b) => a.order_num - b.order_num)) {
+				this.renderSceneItem(groupItems, scene);
+			}
+
+			// Add Scene button moved to header
 		}
 	}
 
@@ -1211,7 +1175,12 @@ export class StoryListView extends ItemView {
 		}
 
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
-		actions.createEl("button", { text: "Edit" }).onclick = () => {
+		const editBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Edit scene" }
+		});
+		setIcon(editBtn, "pencil");
+		editBtn.onclick = () => {
 			if (!this.currentStory) return;
 			new SceneModal(this.app, this.currentStory.id, this.chapters, async (updatedScene) => {
 				try {
@@ -1230,28 +1199,53 @@ export class StoryListView extends ItemView {
 		const minOrderNum = siblingScenes.length > 0 ? Math.min(...siblingScenes.map(s => s.order_num)) : scene.order_num;
 		const maxOrderNum = siblingScenes.length > 0 ? Math.max(...siblingScenes.map(s => s.order_num)) : scene.order_num;
 		if (scene.order_num > minOrderNum) {
-			actions.createEl("button", { text: "Up" }).onclick = () => {
+			const upBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Move scene up" }
+			});
+			setIcon(upBtn, "arrow-up");
+			upBtn.onclick = () => {
 				this.moveSceneUp(scene);
 			};
 		}
 		if (scene.order_num < maxOrderNum) {
-			actions.createEl("button", { text: "Down" }).onclick = () => {
+			const downBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Move scene down" }
+			});
+			setIcon(downBtn, "arrow-down");
+			downBtn.onclick = () => {
 				this.moveSceneDown(scene);
 			};
 		}
-		actions.createEl("button", { text: "Relinkar" }).onclick = async () => {
+		const relinkBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Relink scene" }
+		});
+		setIcon(relinkBtn, "link-2");
+		relinkBtn.onclick = async () => {
 			await this.showMoveSceneModal(scene);
 		};
 		// Add Content button (only in Contents tab)
 		if (this.currentTab === "contents") {
 			const chapterId = scene.chapter_id || (this.chapters.length > 0 ? this.chapters[0].id : "");
 			if (chapterId) {
-				actions.createEl("button", { text: "+ Content" }).onclick = () => {
+				const addContentBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "Add content" }
+				});
+				setIcon(addContentBtn, "plus");
+				addContentBtn.onclick = () => {
 					this.createContentForEntity("scene", scene.id, chapterId);
 				};
 			}
 		}
-		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+		const deleteBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Delete scene" }
+		});
+		setIcon(deleteBtn, "trash");
+		deleteBtn.onclick = async () => {
 			if (confirm("Delete this scene?")) {
 				try {
 					await this.plugin.apiClient.deleteScene(scene.id);
@@ -1275,12 +1269,6 @@ export class StoryListView extends ItemView {
 				description: this.scenes.length === 0
 					? "Create a scene first, then add beats to outline the flow."
 					: "Add beats inside scenes to build the narrative rhythm.",
-				actionText: this.scenes.length === 0 ? "Go to Scenes" : "Go to Scenes",
-				onAction: () => {
-					this.currentTab = "scenes";
-					this.renderTabs();
-					this.renderTabContent();
-				},
 			});
 			return;
 		}
@@ -1319,22 +1307,12 @@ export class StoryListView extends ItemView {
 					sceneHeader.createEl("h3", { 
 						text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}` 
 					});
-
-					const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
-					if (sceneBeats.length === 0) {
-						sceneItems.createEl("p", { text: "No beats in this scene." });
-					} else {
-						for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
-							this.renderBeatItem(sceneItems, beat);
-						}
-					}
-
-					// Footer with Add Beat button (appears on hover)
-					const sceneFooter = sceneGroup.createDiv({ cls: "story-engine-group-footer" });
-					const addButton = sceneFooter.createEl("button", {
-						text: "+ Add Beat",
+					const addButton = sceneHeader.createEl("button", {
 						cls: "story-engine-add-btn",
+						attr: { "aria-label": "Add beat" }
 					});
+					setIcon(addButton, "plus");
+					addButton.createSpan({ text: "Add Beat" });
 					addButton.onclick = () => {
 						if (!this.currentStory) return;
 						new BeatModal(this.app, this.currentStory.id, this.scenes, async (beat) => {
@@ -1349,6 +1327,17 @@ export class StoryListView extends ItemView {
 							}
 						}, this.beats, undefined, this.chapters, scene.id).open();
 					};
+
+					const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
+					if (sceneBeats.length === 0) {
+						sceneItems.createEl("p", { text: "No beats in this scene." });
+					} else {
+						for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
+							this.renderBeatItem(sceneItems, beat);
+						}
+					}
+
+					// Add Beat button moved to header
 				}
 			}
 		}
@@ -1378,22 +1367,12 @@ export class StoryListView extends ItemView {
 				sceneHeader.createEl("h3", { 
 					text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}` 
 				});
-
-				const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
-				if (sceneBeats.length === 0) {
-					sceneItems.createEl("p", { text: "No beats in this scene." });
-				} else {
-					for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
-						this.renderBeatItem(sceneItems, beat);
-					}
-				}
-
-				// Footer with Add Beat button (appears on hover)
-				const sceneFooter = sceneGroup.createDiv({ cls: "story-engine-group-footer" });
-				const addButton = sceneFooter.createEl("button", {
-					text: "+ Add Beat",
+				const addButton = sceneHeader.createEl("button", {
 					cls: "story-engine-add-btn",
+					attr: { "aria-label": "Add beat" }
 				});
+				setIcon(addButton, "plus");
+				addButton.createSpan({ text: "Add Beat" });
 				addButton.onclick = () => {
 					if (!this.currentStory) return;
 					new BeatModal(this.app, this.currentStory.id, this.scenes, async (beat) => {
@@ -1408,6 +1387,17 @@ export class StoryListView extends ItemView {
 						}
 					}, this.beats, undefined, this.chapters, scene.id).open();
 				};
+
+				const sceneItems = sceneGroup.createDiv({ cls: "story-engine-group-items" });
+				if (sceneBeats.length === 0) {
+					sceneItems.createEl("p", { text: "No beats in this scene." });
+				} else {
+					for (const beat of sceneBeats.sort((a, b) => a.order_num - b.order_num)) {
+						this.renderBeatItem(sceneItems, beat);
+					}
+				}
+
+				// Add Beat button moved to header
 			}
 
 			// Beats without valid scene
@@ -1449,7 +1439,12 @@ export class StoryListView extends ItemView {
 		}
 
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
-		actions.createEl("button", { text: "Edit" }).onclick = () => {
+		const editBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Edit beat" }
+		});
+		setIcon(editBtn, "pencil");
+		editBtn.onclick = () => {
 			if (!this.currentStory) return;
 			new BeatModal(this.app, this.currentStory.id, this.scenes, async (updatedBeat) => {
 				try {
@@ -1468,16 +1463,31 @@ export class StoryListView extends ItemView {
 		const minOrderNum = siblingBeats.length > 0 ? Math.min(...siblingBeats.map(b => b.order_num)) : beat.order_num;
 		const maxOrderNum = siblingBeats.length > 0 ? Math.max(...siblingBeats.map(b => b.order_num)) : beat.order_num;
 		if (beat.order_num > minOrderNum) {
-			actions.createEl("button", { text: "Up" }).onclick = () => {
+			const upBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Move beat up" }
+			});
+			setIcon(upBtn, "arrow-up");
+			upBtn.onclick = () => {
 				this.moveBeatUp(beat);
 			};
 		}
 		if (beat.order_num < maxOrderNum) {
-			actions.createEl("button", { text: "Down" }).onclick = () => {
+			const downBtn = actions.createEl("button", {
+				cls: "story-engine-entity-action-btn",
+				attr: { "aria-label": "Move beat down" }
+			});
+			setIcon(downBtn, "arrow-down");
+			downBtn.onclick = () => {
 				this.moveBeatDown(beat);
 			};
 		}
-		actions.createEl("button", { text: "Relinkar" }).onclick = async () => {
+		const relinkBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Relink beat" }
+		});
+		setIcon(relinkBtn, "link-2");
+		relinkBtn.onclick = async () => {
 			await this.showMoveBeatModal(beat);
 		};
 		// Add Content button (only in Contents tab)
@@ -1485,12 +1495,22 @@ export class StoryListView extends ItemView {
 			const scene = this.scenes.find(s => s.id === beat.scene_id);
 			const chapterId = scene?.chapter_id || (this.chapters.length > 0 ? this.chapters[0].id : "");
 			if (chapterId) {
-				actions.createEl("button", { text: "+ Content" }).onclick = () => {
+				const addContentBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "Add content" }
+				});
+				setIcon(addContentBtn, "plus");
+				addContentBtn.onclick = () => {
 					this.createContentForEntity("beat", beat.id, chapterId);
 				};
 			}
 		}
-		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+		const deleteBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Delete beat" }
+		});
+		setIcon(deleteBtn, "trash");
+		deleteBtn.onclick = async () => {
 			if (confirm("Delete this beat?")) {
 				try {
 					await this.plugin.apiClient.deleteBeat(beat.id);
@@ -1985,7 +2005,7 @@ export class StoryListView extends ItemView {
 					cls: "story-engine-add-content-btn story-engine-add-text-btn",
 					attr: { "aria-label": "Add text content" }
 				});
-				textBtn.innerHTML = '<span class="story-engine-icon">📝</span>';
+				setIcon(textBtn, "file-text");
 				textBtn.onclick = () => {
 					this.createContentForEntity("chapter", chapter.id, chapter.id, "text");
 				};
@@ -1995,7 +2015,7 @@ export class StoryListView extends ItemView {
 					cls: "story-engine-add-content-btn story-engine-add-image-btn",
 					attr: { "aria-label": "Add image content" }
 				});
-				imageBtn.innerHTML = '<span class="story-engine-icon">🖼️</span>';
+				setIcon(imageBtn, "image");
 				imageBtn.onclick = () => {
 					this.createContentForEntity("chapter", chapter.id, chapter.id, "image");
 				};
@@ -2039,7 +2059,7 @@ export class StoryListView extends ItemView {
 							cls: "story-engine-add-content-btn story-engine-add-text-btn",
 							attr: { "aria-label": "Add text content" }
 						});
-						textBtn.innerHTML = '<span class="story-engine-icon">📝</span>';
+						setIcon(textBtn, "file-text");
 						textBtn.onclick = () => {
 							this.createContentForEntity("scene", scene.id, chapterId, "text");
 						};
@@ -2049,7 +2069,7 @@ export class StoryListView extends ItemView {
 							cls: "story-engine-add-content-btn story-engine-add-image-btn",
 							attr: { "aria-label": "Add image content" }
 						});
-						imageBtn.innerHTML = '<span class="story-engine-icon">🖼️</span>';
+						setIcon(imageBtn, "image");
 						imageBtn.onclick = () => {
 							this.createContentForEntity("scene", scene.id, chapterId, "image");
 						};
@@ -2085,7 +2105,7 @@ export class StoryListView extends ItemView {
 										cls: "story-engine-add-content-btn story-engine-add-text-btn",
 										attr: { "aria-label": "Add text content" }
 									});
-									textBtn.innerHTML = '<span class="story-engine-icon">📝</span>';
+									setIcon(textBtn, "file-text");
 									textBtn.onclick = () => {
 										this.createContentForEntity("beat", beat.id, beatChapterId, "text");
 									};
@@ -2095,7 +2115,7 @@ export class StoryListView extends ItemView {
 										cls: "story-engine-add-content-btn story-engine-add-image-btn",
 										attr: { "aria-label": "Add image content" }
 									});
-									imageBtn.innerHTML = '<span class="story-engine-icon">🖼️</span>';
+									setIcon(imageBtn, "image");
 									imageBtn.onclick = () => {
 										this.createContentForEntity("beat", beat.id, beatChapterId, "image");
 									};
@@ -2139,14 +2159,16 @@ export class StoryListView extends ItemView {
 					text: `Scene ${scene.order_num}: ${scene.goal || "Untitled"}` 
 				});
 				
-				// Add Content button on hover
-				const sceneHeaderActions = sceneHeader.createDiv({ cls: "story-engine-header-actions" });
+				// Add Content buttons on hover
+				const sceneHeaderActions = sceneHeader.createDiv({ cls: "story-engine-hover-header-actions" });
 				const chapterId = this.chapters.length > 0 ? this.chapters[0].id : "";
 				if (chapterId) {
-					sceneHeaderActions.createEl("button", { 
-						text: "+ Content",
-						cls: "story-engine-add-content-btn"
-					}).onclick = () => {
+					const addContentBtn = sceneHeaderActions.createEl("button", { 
+						cls: "story-engine-add-content-btn",
+						attr: { "aria-label": "Add content" }
+					});
+					setIcon(addContentBtn, "plus");
+					addContentBtn.onclick = () => {
 						this.createContentForEntity("scene", scene.id, chapterId);
 					};
 				}
@@ -2174,10 +2196,12 @@ export class StoryListView extends ItemView {
 								const beatHeaderActions = beatSubGroupTitle.createDiv({ cls: "story-engine-hover-header-actions" });
 					const beatChapterId = this.chapters.length > 0 ? this.chapters[0].id : "";
 					if (beatChapterId) {
-						beatHeaderActions.createEl("button", { 
-							text: "+ Content",
-							cls: "story-engine-add-content-btn"
-						}).onclick = () => {
+						const addContentBtn = beatHeaderActions.createEl("button", { 
+							cls: "story-engine-add-content-btn",
+							attr: { "aria-label": "Add content" }
+						});
+						setIcon(addContentBtn, "plus");
+						addContentBtn.onclick = () => {
 							this.createContentForEntity("beat", beat.id, beatChapterId);
 						};
 					}
@@ -2260,7 +2284,11 @@ export class StoryListView extends ItemView {
 				const actions = item.createDiv({ cls: "story-engine-item-actions" });
 				
 				// View details button
-				const viewBtn = actions.createEl("button", { text: "View" });
+				const viewBtn = actions.createEl("button", {
+					cls: "story-engine-entity-action-btn",
+					attr: { "aria-label": "View character" }
+				});
+				setIcon(viewBtn, "eye");
 				viewBtn.onclick = () => {
 					this.showCharacterDetails(character);
 				};
@@ -2370,7 +2398,12 @@ export class StoryListView extends ItemView {
 		// Actions
 		const actions = item.createDiv({ cls: "story-engine-item-actions" });
 		
-		actions.createEl("button", { text: "Edit" }).onclick = () => {
+		const editBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Edit content" }
+		});
+		setIcon(editBtn, "pencil");
+		editBtn.onclick = () => {
 			new ContentBlockModal(this.app, async (updatedContentBlock) => {
 				try {
 					await this.plugin.apiClient.updateContentBlock(contentBlock.id, updatedContentBlock);
@@ -2383,15 +2416,30 @@ export class StoryListView extends ItemView {
 			}, contentBlock, this.plugin).open();
 		};
 
-		actions.createEl("button", { text: "Move" }).onclick = async () => {
+		const moveBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Move content" }
+		});
+		setIcon(moveBtn, "move");
+		moveBtn.onclick = async () => {
 			await this.showMoveContentModal(contentBlock, entityType, entityId, "move");
 		};
 
-		actions.createEl("button", { text: "Link" }).onclick = async () => {
+		const linkBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Link content" }
+		});
+		setIcon(linkBtn, "link-2");
+		linkBtn.onclick = async () => {
 			await this.showMoveContentModal(contentBlock, entityType, entityId, "link");
 		};
 
-		actions.createEl("button", { text: "Delete" }).onclick = async () => {
+		const deleteBtn = actions.createEl("button", {
+			cls: "story-engine-entity-action-btn",
+			attr: { "aria-label": "Delete content" }
+		});
+		setIcon(deleteBtn, "trash");
+		deleteBtn.onclick = async () => {
 			if (confirm("Delete this content block?")) {
 				try {
 					await this.plugin.apiClient.deleteContentBlock(contentBlock.id);

@@ -217,7 +217,7 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 			);
 
 		// Sidebar Position
-		new Setting(containerEl)
+		const sidebarPositionSetting = new Setting(containerEl)
 			.setName("World Sidebar Position")
 			.setDesc("Choose whether the world sidebar appears on the left or right side")
 			.addDropdown((dropdown) =>
@@ -232,6 +232,8 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 						this.app.workspace.trigger("layout-change");
 					})
 			);
+		// Hide from users (feature remains enabled internally)
+		sidebarPositionSetting.settingEl.style.display = "none";
 
 		new Setting(containerEl)
 			.setName("Unsplash Access Key")
