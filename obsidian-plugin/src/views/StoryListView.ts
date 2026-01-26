@@ -567,11 +567,14 @@ export class StoryListView extends ItemView {
 						text: `+${worldStories.length - maxChips} more`
 					});
 				}
+
+				storyChips.createSpan({
+					cls: "story-engine-world-card-hint",
+					text: "Click to open details"
+				});
 			} else {
 				cardBody.createDiv({ cls: "story-engine-world-empty-label", text: "No stories yet" });
 			}
-
-			card.createDiv({ cls: "story-engine-world-card-hint", text: "Click to open details" });
 		}
 
 		if (storiesWithoutWorld.length > 0) {
@@ -989,7 +992,10 @@ export class StoryListView extends ItemView {
 				text: `Chapter ${chapter.number}: ${chapter.title}`,
 			});
 			const meta = item.createDiv({ cls: "story-engine-meta" });
-			meta.createEl("span", { text: `Status: ${chapter.status}` });
+			const statusPill = meta.createSpan({
+				cls: `story-engine-status-pill story-engine-status-${chapter.status.toLowerCase().replace(/\s+/g, '-')}`
+			});
+			statusPill.textContent = chapter.status;
 		
 			// Hover actions
 			const actions = item.createDiv({ cls: "story-engine-item-actions" });
@@ -1099,7 +1105,6 @@ export class StoryListView extends ItemView {
 				attr: { "aria-label": "Add scene" }
 			});
 			setIcon(addButton, "plus");
-			addButton.createSpan({ text: "Add scene" });
 			addButton.onclick = () => {
 				if (!this.currentStory) return;
 				new SceneModal(this.app, this.currentStory.id, this.chapters, async (scene) => {
@@ -1138,7 +1143,6 @@ export class StoryListView extends ItemView {
 				attr: { "aria-label": "Add scene" }
 			});
 			setIcon(addButton, "plus");
-			addButton.createSpan({ text: "Add scene" });
 			addButton.onclick = () => {
 				if (!this.currentStory) return;
 				new SceneModal(this.app, this.currentStory.id, this.chapters, async (scene) => {
@@ -1312,7 +1316,6 @@ export class StoryListView extends ItemView {
 						attr: { "aria-label": "Add beat" }
 					});
 					setIcon(addButton, "plus");
-					addButton.createSpan({ text: "Add Beat" });
 					addButton.onclick = () => {
 						if (!this.currentStory) return;
 						new BeatModal(this.app, this.currentStory.id, this.scenes, async (beat) => {
@@ -1372,7 +1375,6 @@ export class StoryListView extends ItemView {
 					attr: { "aria-label": "Add beat" }
 				});
 				setIcon(addButton, "plus");
-				addButton.createSpan({ text: "Add Beat" });
 				addButton.onclick = () => {
 					if (!this.currentStory) return;
 					new BeatModal(this.app, this.currentStory.id, this.scenes, async (beat) => {
