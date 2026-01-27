@@ -232,8 +232,6 @@ export class StoryEngineSettingTab extends PluginSettingTab {
 						this.app.workspace.trigger("layout-change");
 					})
 			);
-		// Hide from users (feature remains enabled internally)
-		sidebarPositionSetting.settingEl.style.display = "none";
 
 		new Setting(containerEl)
 			.setName("Unsplash Access Key")
