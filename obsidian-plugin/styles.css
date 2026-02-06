@@ -680,7 +680,7 @@
 }
 
 .story-engine-view-content p {
-	margin: 1rem 0;
+	margin: 0.25rem 0;
 	color: var(--text-muted);
 }
 
