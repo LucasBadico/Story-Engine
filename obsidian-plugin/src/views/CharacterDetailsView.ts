@@ -61,8 +61,33 @@ export class CharacterDetailsView {
 	async render() {
 		await this.loadCharacterData();
 		this.renderHeader();
-		this.renderTabs();
-		this.renderTabContent();
+		this.renderContent();
+	}
+
+	private renderContent() {
+		// Clear content completely
+		this.contentEl.empty();
+		
+		const sidebarPosition = this.plugin.settings.sidebarPosition || "left";
+
+		// Create main container for tabs and content
+		const mainContainer = this.contentEl.createDiv({ cls: "character-details-container" });
+		
+		// Sidebar tabs
+		const tabsContainer = mainContainer.createDiv({
+			cls: `story-engine-world-sidebar story-engine-world-sidebar-${sidebarPosition} character-details-sidebar`
+		});
+		
+		// Content container
+		const contentContainer = mainContainer.createDiv({
+			cls: `character-details-content story-engine-world-tab-content story-engine-content-sidebar-${sidebarPosition}`
+		});
+		
+		// Render tabs
+		this.renderTabs(tabsContainer);
+		
+		// Render tab content
+		this.renderTabContent(contentContainer);
 	}
 
 	async loadCharacterData() {
@@ -122,9 +147,11 @@ export class CharacterDetailsView {
 
 		this.headerEl.empty();
 
-		const headerLeft = this.headerEl.createDiv({ cls: "story-engine-header-left" });
+		const headerContainer = this.headerEl.createDiv({ cls: "story-engine-world-details-header" });
+		const headerContent = headerContainer.createDiv({ cls: "story-engine-world-header-content" });
 
-		const backButton = headerLeft.createEl("button", {
+		const topRow = headerContent.createDiv({ cls: "story-engine-world-header-top" });
+		const backButton = topRow.createEl("button", {
 			text: "← Back",
 			cls: "story-engine-back-btn",
 		});
@@ -132,76 +159,94 @@ export class CharacterDetailsView {
 			this.onBack();
 		};
 
-		const titleDiv = headerLeft.createDiv({ cls: "story-engine-header-title" });
-		titleDiv.createEl("h2", { text: this.character.name });
+		const headerActions = topRow.createDiv({ cls: "story-engine-header-actions" });
+		const contextButton = headerActions.createEl("button", {
+			cls: "story-engine-context-btn",
+			attr: { "aria-label": "Character Actions" }
+		});
+		setIcon(contextButton, "more-vertical");
 
-		// Archetype pill
+		const dropdownMenu = headerActions.createDiv({ cls: "story-engine-dropdown-menu" });
+		dropdownMenu.style.display = "none";
+
+		const editOption = dropdownMenu.createEl("button", {
+			cls: "story-engine-dropdown-item",
+		});
+		setIcon(editOption, "pencil");
+		editOption.createSpan({ text: "Edit Character" });
+		editOption.onclick = () => {
+			dropdownMenu.style.display = "none";
+			this.onEditCharacter(this.character);
+		};
+
+		contextButton.onclick = (e) => {
+			e.stopPropagation();
+			const isVisible = dropdownMenu.style.display !== "none";
+			dropdownMenu.style.display = isVisible ? "none" : "block";
+		};
+		document.addEventListener("click", () => {
+			dropdownMenu.style.display = "none";
+		}, { once: true });
+
+		const titleSection = headerContent.createDiv({ cls: "story-engine-world-title-section" });
+		titleSection.createEl("h1", {
+			text: this.character.name,
+			cls: "story-engine-world-name"
+		});
+
+		const metaRow = titleSection.createDiv({ cls: "story-engine-world-meta-row" });
 		if (this.character.archetype_id) {
 			const archetype = this.archetypes.find((a) => a.id === this.character.archetype_id);
 			if (archetype) {
-				const archetypePill = titleDiv.createSpan({ cls: "story-engine-badge" });
-				archetypePill.textContent = archetype.name;
+				const archetypeBadge = metaRow.createSpan({ cls: "story-engine-badge story-engine-genre-badge" });
+				setIcon(archetypeBadge, "tag");
+				archetypeBadge.createSpan({ text: archetype.name });
 			}
 		}
 
-		// UUID with copy icon
-		const uuidDiv = headerLeft.createDiv({ cls: "story-engine-uuid" });
-		uuidDiv.createEl("span", { text: this.character.id });
-		const copyIcon = uuidDiv.createEl("span", { cls: "story-engine-copy-icon" });
-		setIcon(copyIcon, "copy");
-		copyIcon.onclick = () => {
+		const uuidContainer = metaRow.createDiv({ cls: "story-engine-world-uuid" });
+		uuidContainer.createSpan({ text: this.character.id.substring(0, 8) + "..." });
+		const copyIdBtn = uuidContainer.createEl("button", {
+			cls: "story-engine-copy-uuid-btn",
+			attr: { "aria-label": "Copy UUID" }
+		});
+		setIcon(copyIdBtn, "copy");
+		copyIdBtn.onclick = (e) => {
+			e.stopPropagation();
 			navigator.clipboard.writeText(this.character.id);
 			new Notice("UUID copied to clipboard");
 		};
-
-		const headerRight = this.headerEl.createDiv({ cls: "story-engine-header-right" });
-		const menuButton = headerRight.createEl("button", { text: "Edit Character" });
-		menuButton.onclick = () => {
-			this.onEditCharacter(this.character);
-		};
 	}
 
-	renderTabs() {
-		if (!this.contentEl) return;
-
-		// Remove existing tabs if any
-		const existingTabs = this.contentEl.querySelector(".story-engine-tabs");
-		if (existingTabs) {
-			existingTabs.remove();
-		}
-
-		const tabsContainer = this.contentEl.createDiv({ cls: "story-engine-tabs" });
+	private renderTabs(container: HTMLElement) {
 		type TabKey = "overview" | "traits" | "events" | "scenes" | "relationships";
-		const tabs: { key: TabKey; label: string }[] = [
-			{ key: "overview", label: "Overview" },
-			{ key: "traits", label: "Traits" },
-			{ key: "events", label: "Events" },
-			{ key: "scenes", label: "Scenes" },
-			{ key: "relationships", label: "Relationships" },
+		const tabs: { key: TabKey; label: string; icon: string }[] = [
+			{ key: "overview", label: "Overview", icon: "book-open" },
+			{ key: "traits", label: "Traits", icon: "tag" },
+			{ key: "events", label: "Events", icon: "calendar" },
+			{ key: "scenes", label: "Scenes", icon: "film" },
+			{ key: "relationships", label: "Relationships", icon: "users" },
 		];
 
-		for (const tab of tabs) {
-			const tabEl = tabsContainer.createEl("button", {
-				text: tab.label,
-				cls: this.characterTab === tab.key ? "story-engine-tab-active" : "story-engine-tab",
+		tabs.forEach(tab => {
+			const isActive = this.characterTab === tab.key;
+			const tabButton = container.createEl("button", {
+				cls: `story-engine-sidebar-tab ${isActive ? "is-active" : ""}`,
+				attr: { "aria-label": tab.label },
 			});
-			tabEl.onclick = () => {
-				this.characterTab = tab.key;
-				this.renderTabContent();
+			setIcon(tabButton, tab.icon);
+			
+			tabButton.onclick = () => {
+				if (this.characterTab !== tab.key) {
+					this.characterTab = tab.key;
+					this.renderContent();
+				}
 			};
-		}
+		});
 	}
 
-	renderTabContent() {
-		if (!this.contentEl) return;
-
-		// Find and clear existing tab content container
-		const existingContainer = this.contentEl.querySelector(".story-engine-tab-content");
-		if (existingContainer) {
-			existingContainer.remove();
-		}
-
-		const contentContainer = this.contentEl.createDiv({ cls: "story-engine-tab-content" });
+	private renderTabContent(container: HTMLElement) {
+		const contentContainer = container.createDiv({ cls: "character-details-content-inner" });
 
 		switch (this.characterTab) {
 			case "overview":
@@ -280,7 +325,7 @@ export class CharacterDetailsView {
 				this.character = updated;
 				await this.loadCharacterData();
 				this.renderHeader();
-				this.renderTabContent();
+				this.renderContent();
 				new Notice("Archetype saved");
 			} catch (err) {
 				new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -324,7 +369,7 @@ export class CharacterDetailsView {
 					try {
 						await this.plugin.apiClient.removeCharacterTrait(this.character.id, charTrait.trait_id);
 						await this.loadCharacterData();
-						this.renderTabContent();
+						this.renderContent();
 						new Notice("Trait removed");
 					} catch (err) {
 						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -365,7 +410,7 @@ export class CharacterDetailsView {
 					try {
 						await this.plugin.apiClient.removeEventCharacter(event.id, this.character.id);
 						await this.loadCharacterData();
-						this.renderTabContent();
+						this.renderContent();
 						new Notice("Character removed from event");
 					} catch (err) {
 						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -446,7 +491,7 @@ export class CharacterDetailsView {
 					try {
 						await this.plugin.apiClient.deleteCharacterRelationship(rel.id);
 						await this.loadCharacterData();
-						this.renderTabContent();
+						this.renderContent();
 						new Notice("Relationship deleted");
 					} catch (err) {
 						new Notice(`Error: ${err instanceof Error ? err.message : "Failed"}`, 5000);
@@ -502,7 +547,7 @@ export class CharacterDetailsView {
 					notesInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Trait added");
 			} catch (err) {
@@ -546,7 +591,7 @@ export class CharacterDetailsView {
 					notesInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Trait updated");
 			} catch (err) {
@@ -601,7 +646,7 @@ export class CharacterDetailsView {
 					roleInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Character added to event");
 			} catch (err) {
@@ -639,7 +684,7 @@ export class CharacterDetailsView {
 					roleInput.value || undefined
 				);
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Role updated");
 			} catch (err) {
@@ -709,7 +754,7 @@ export class CharacterDetailsView {
 					bidirectional: bidirectionalCheckbox.checked,
 				});
 				await this.loadCharacterData();
-				this.renderTabContent();
+			this.renderContent();
 				modal.close();
 				new Notice("Relationship added");
 			} catch (err) {
@@ -763,7 +808,7 @@ export class CharacterDetailsView {
 					bidirectional: bidirectionalCheckbox.checked,
 				});
 				await this.loadCharacterData();
-				this.renderTabContent();
+				this.renderContent();
 				modal.close();
 				new Notice("Relationship updated");
 			} catch (err) {
@@ -781,7 +826,7 @@ export class CharacterDetailsView {
 	updateCharacter(character: Character) {
 		this.character = character;
 		this.renderHeader();
-		this.renderTabContent();
+		this.renderContent();
 	}
 }
 
