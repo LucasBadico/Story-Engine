@@ -1,0 +1,132 @@
+syntax = "proto3";
+package plot;
+option go_package = "github.com/story-engine/main-service/proto/plot";
+
+import "google/protobuf/timestamp.proto";
+
+message EntityLink {
+  string id = 1;
+  string role = 2;
+  string entity_type = 3;
+  string entity_id = 4;
+}
+
+message Plot {
+  string id = 1;
+  string story_id = 2;
+  string title = 3;
+  string type = 4;
+  string description = 5;
+  string status = 6;
+  repeated EntityLink entities = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+}
+
+message PlotDevelopment {
+  string id = 1;
+  string plot_id = 2;
+  int32 chapter_number = 3;
+  string action = 4;
+  string description = 5;
+  int32 timeline_day = 6;
+  string timeline_confidence = 7;
+  bool has_timeline_day = 8;
+  string notes = 9;
+  string timeline_event_id = 10;
+  google.protobuf.Timestamp created_at = 11;
+}
+
+message CreatePlotRequest {
+  string story_id = 1;
+  string title = 2;
+  string type = 3;
+  string description = 4;
+  repeated EntityLink entities = 5;
+}
+
+message CreatePlotResponse {
+  Plot plot = 1;
+}
+
+message GetPlotRequest {
+  string id = 1;
+}
+
+message GetPlotResponse {
+  Plot plot = 1;
+}
+
+message ListPlotsByStoryRequest {
+  string story_id = 1;
+  string status = 2;
+}
+
+message ListPlotsByStoryResponse {
+  repeated Plot plots = 1;
+}
+
+message UpdatePlotRequest {
+  string id = 1;
+  string title = 2;
+  string type = 3;
+  string description = 4;
+  string status = 5;
+}
+
+message UpdatePlotResponse {
+  Plot plot = 1;
+}
+
+message DeletePlotRequest {
+  string id = 1;
+}
+
+message DeletePlotResponse {}
+
+message AddPlotEntityRequest {
+  string plot_id = 1;
+  string role = 2;
+  string entity_type = 3;
+  string entity_id = 4;
+}
+
+message AddPlotEntityResponse {
+  EntityLink entity = 1;
+}
+
+message CreatePlotDevelopmentRequest {
+  string plot_id = 1;
+  int32 chapter_number = 2;
+  string action = 3;
+  string description = 4;
+  int32 timeline_day = 5;
+  string timeline_confidence = 6;
+  bool has_timeline_day = 7;
+  string notes = 8;
+  string timeline_event_id = 9;
+}
+
+message CreatePlotDevelopmentResponse {
+  PlotDevelopment plot_development = 1;
+}
+
+message ListPlotDevelopmentsRequest {
+  string plot_id = 1;
+  int32 as_of_chapter = 2;
+}
+
+message ListPlotDevelopmentsResponse {
+  repeated PlotDevelopment plot_developments = 1;
+}
+
+service PlotService {
+  rpc CreatePlot(CreatePlotRequest) returns (CreatePlotResponse);
+  rpc GetPlot(GetPlotRequest) returns (GetPlotResponse);
+  rpc ListPlotsByStory(ListPlotsByStoryRequest) returns (ListPlotsByStoryResponse);
+  rpc UpdatePlot(UpdatePlotRequest) returns (UpdatePlotResponse);
+  rpc DeletePlot(DeletePlotRequest) returns (DeletePlotResponse);
+  rpc AddPlotEntity(AddPlotEntityRequest) returns (AddPlotEntityResponse);
+  rpc CreatePlotDevelopment(CreatePlotDevelopmentRequest) returns (CreatePlotDevelopmentResponse);
+  rpc ListPlotDevelopments(ListPlotDevelopmentsRequest) returns (ListPlotDevelopmentsResponse);
+}

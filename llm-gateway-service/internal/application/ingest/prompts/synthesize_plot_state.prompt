@@ -1,0 +1,27 @@
+You are a narrative analyst. Given a plot thread and its developments up to this point, write a concise narrative summary of the plot's current state.
+
+## Plot
+- **Title:** {{plot_title}}
+- **Type:** {{plot_type}}
+- **Status:** {{plot_status}}
+- **Description:** {{plot_description}}
+
+## Entities Involved
+{{plot_entities}}
+
+## Developments (chronological)
+{{plot_developments}}
+
+## Instructions
+
+Write a narrative summary (3-5 paragraphs) that covers:
+
+1. **Origin** — How and when this plot thread was introduced
+2. **Progression** — Key moments and escalations, in narrative order
+3. **Current State** — Where things stand now, what tension exists
+4. **Characters** — Who is involved and their roles/stakes in this thread
+5. **Unresolved** — What questions or conflicts remain open
+
+Write in present tense for the current state, past tense for history. Be specific — reference chapter numbers and concrete story details. This summary will be used for semantic search, so include character names, key objects, locations, and emotional states.
+
+Return ONLY the narrative summary text, no JSON, no headers, no markdown formatting.

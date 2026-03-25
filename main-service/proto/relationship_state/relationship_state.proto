@@ -1,0 +1,68 @@
+syntax = "proto3";
+package relationship_state;
+option go_package = "github.com/story-engine/main-service/proto/relationship_state";
+
+import "google/protobuf/timestamp.proto";
+
+message EntityLink {
+  string id = 1;
+  string role = 2;
+  string entity_type = 3;
+  string entity_id = 4;
+}
+
+message RelationshipState {
+  string id = 1;
+  string chapter_id = 2;
+  int32 chapter_number = 3;
+  string tension_description = 4;
+  int32 timeline_day = 5;
+  string timeline_confidence = 6;
+  bool has_timeline_day = 7;
+  repeated EntityLink entities = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+message CreateRelationshipStateRequest {
+  string chapter_id = 1;
+  int32 chapter_number = 2;
+  string tension_description = 3;
+  int32 timeline_day = 4;
+  string timeline_confidence = 5;
+  bool has_timeline_day = 6;
+  repeated EntityLink entities = 7;
+}
+
+message CreateRelationshipStateResponse {
+  RelationshipState relationship_state = 1;
+}
+
+message GetRelationshipStateRequest {
+  string id = 1;
+}
+
+message GetRelationshipStateResponse {
+  RelationshipState relationship_state = 1;
+}
+
+message ListRelationshipStatesByChapterRequest {
+  string chapter_id = 1;
+}
+
+message ListRelationshipStatesByChapterResponse {
+  repeated RelationshipState relationship_states = 1;
+}
+
+message DeleteRelationshipStateRequest {
+  string id = 1;
+}
+
+message DeleteRelationshipStateResponse {}
+
+service RelationshipStateService {
+  rpc CreateRelationshipState(CreateRelationshipStateRequest) returns (CreateRelationshipStateResponse);
+  rpc GetRelationshipState(GetRelationshipStateRequest) returns (GetRelationshipStateResponse);
+  rpc ListRelationshipStatesByChapter(ListRelationshipStatesByChapterRequest) returns (ListRelationshipStatesByChapterResponse);
+  rpc DeleteRelationshipState(DeleteRelationshipStateRequest) returns (DeleteRelationshipStateResponse);
+}

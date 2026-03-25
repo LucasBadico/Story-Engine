@@ -29,7 +29,7 @@ type Chapter struct {
 
 // NewChapter creates a new chapter
 func NewChapter(tenantID, storyID uuid.UUID, number int, title string) (*Chapter, error) {
-	if number < 1 {
+	if number < 0 {
 		return nil, ErrInvalidChapterNumber
 	}
 
@@ -48,7 +48,7 @@ func NewChapter(tenantID, storyID uuid.UUID, number int, title string) (*Chapter
 
 // Validate validates the chapter entity
 func (c *Chapter) Validate() error {
-	if c.Number < 1 {
+	if c.Number < 0 {
 		return ErrInvalidChapterNumber
 	}
 	if c.Status != ChapterStatusDraft && c.Status != ChapterStatusPublished && c.Status != ChapterStatusArchived {

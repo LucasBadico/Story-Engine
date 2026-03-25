@@ -37,6 +37,11 @@ type Chunk struct {
 	ChunkType *string `json:"chunk_type,omitempty"` // raw, summary, relations
 	EmbedText *string `json:"embed_text,omitempty"`
 
+	// Chapter/timeline metadata
+	ChapterNumber      *int    `json:"chapter_number,omitempty"`
+	TimelineDay        *int    `json:"timeline_day,omitempty"`
+	TimelineConfidence *string `json:"timeline_confidence,omitempty"`
+
 	// World entity metadata
 	WorldID       *uuid.UUID `json:"world_id,omitempty"`
 	WorldName     *string    `json:"world_name,omitempty"`

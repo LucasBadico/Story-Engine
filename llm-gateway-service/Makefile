@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-reset-volume db-reset db-truncate migrate-up migrate-down migrate-create test test-fmt test-integration test-integration-fmt test-unit test-coverage clean deps run-worker run-http
+.PHONY: db-up db-down db-reset-volume db-reset db-truncate migrate-up migrate-down migrate-create test test-fmt test-integration test-integration-fmt test-unit test-coverage clean deps worker-blocks-llm http-blocks-llm
 
 # Database management
 db-up:
@@ -19,12 +19,12 @@ db-up:
 		exit 1; \
 	fi
 	@echo "Creating database if it doesn't exist..."
-	@docker exec story-engine-postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'storyengine'" | grep -q 1 && echo "Database 'storyengine' found in catalog" || (docker exec story-engine-postgres psql -U postgres -c "CREATE DATABASE storyengine" && echo "Database 'storyengine' created successfully")
+	@docker exec story-engine-postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'storyblocks'" | grep -q 1 && echo "Database 'storyblocks' found in catalog" || (docker exec story-engine-postgres psql -U postgres -c "CREATE DATABASE storyblocks" && echo "Database 'storyblocks' created successfully")
 	@echo "Verifying database is accessible..."
 	@timeout=10; \
 	while [ $$timeout -gt 0 ]; do \
-		if docker exec story-engine-postgres psql -U postgres -d storyengine -c "SELECT 1" > /dev/null 2>&1; then \
-			echo "Database 'storyengine' is accessible!"; \
+		if docker exec story-engine-postgres psql -U postgres -d storyblocks -c "SELECT 1" > /dev/null 2>&1; then \
+			echo "Database 'storyblocks' is accessible!"; \
 			break; \
 		fi; \
 		echo "Waiting for database to be accessible... ($$timeout seconds remaining)"; \
@@ -32,7 +32,7 @@ db-up:
 		timeout=$$((timeout-1)); \
 	done; \
 	if [ $$timeout -eq 0 ]; then \
-		echo "ERROR: Database 'storyengine' is not accessible"; \
+		echo "ERROR: Database 'storyblocks' is not accessible"; \
 		exit 1; \
 	fi
 	@echo "Applying migrations..."
@@ -61,12 +61,12 @@ db-reset-volume:
 		exit 1; \
 	fi
 	@echo "Creating database if it doesn't exist..."
-	@docker exec story-engine-postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'storyengine'" | grep -q 1 && echo "Database 'storyengine' found in catalog" || (docker exec story-engine-postgres psql -U postgres -c "CREATE DATABASE storyengine" && echo "Database 'storyengine' created successfully")
+	@docker exec story-engine-postgres psql -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'storyblocks'" | grep -q 1 && echo "Database 'storyblocks' found in catalog" || (docker exec story-engine-postgres psql -U postgres -c "CREATE DATABASE storyblocks" && echo "Database 'storyblocks' created successfully")
 	@echo "Verifying database is accessible..."
 	@timeout=10; \
 	while [ $$timeout -gt 0 ]; do \
-		if docker exec story-engine-postgres psql -U postgres -d storyengine -c "SELECT 1" > /dev/null 2>&1; then \
-			echo "Database 'storyengine' is accessible!"; \
+		if docker exec story-engine-postgres psql -U postgres -d storyblocks -c "SELECT 1" > /dev/null 2>&1; then \
+			echo "Database 'storyblocks' is accessible!"; \
 			break; \
 		fi; \
 		echo "Waiting for database to be accessible... ($$timeout seconds remaining)"; \
@@ -74,7 +74,7 @@ db-reset-volume:
 		timeout=$$((timeout-1)); \
 	done; \
 	if [ $$timeout -eq 0 ]; then \
-		echo "ERROR: Database 'storyengine' is not accessible"; \
+		echo "ERROR: Database 'storyblocks' is not accessible"; \
 		exit 1; \
 	fi
 
@@ -82,14 +82,14 @@ db-reset: db-reset-volume migrate-up
 
 db-truncate:
 	@echo "Truncating all tables..."
-	@docker exec story-engine-postgres psql -U postgres -d storyengine -c "\
+	@docker exec story-engine-postgres psql -U postgres -d storyblocks -c "\
 		TRUNCATE TABLE embedding_chunks, embedding_documents \
 		RESTART IDENTITY CASCADE;" && \
 		echo "All tables truncated successfully" || \
 		(echo "ERROR: Failed to truncate tables"; exit 1)
 
 # Migration management
-MIGRATE_CMD = migrate -path ./migrations -database "postgres://postgres:postgres@localhost:5432/storyengine_llm?sslmode=disable"
+MIGRATE_CMD = migrate -path ./migrations -database "postgres://postgres:pass@localhost:5432/storyblocks_llm?sslmode=disable"
 
 migrate-up:
 	$(MIGRATE_CMD) up
@@ -132,9 +132,9 @@ deps:
 	go mod tidy
 
 # Run worker
-run-worker:
+worker-blocks-llm:
 	go run cmd/worker/main.go
 
 # Run HTTP API
-run-http:
+http-blocks-llm:
 	go run cmd/http/main.go

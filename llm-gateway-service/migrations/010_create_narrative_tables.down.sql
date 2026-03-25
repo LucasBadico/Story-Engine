@@ -1,0 +1,5 @@
+DROP TABLE IF EXISTS reveals;
+DROP TABLE IF EXISTS events;
+DROP TABLE IF EXISTS state_snapshots;
+DROP TABLE IF EXISTS concept_links;
+DROP TABLE IF EXISTS concepts;

@@ -161,6 +161,24 @@ func main() {
 		log,
 	)
 
+	// New narrative entity repositories
+	stateSnapshotRepo := postgres.NewStateSnapshotRepository(pgDB)
+	gwEventRepo := postgres.NewEventRepository(pgDB)
+
+	// New narrative entity ingesters
+	ingestCharacterStateUseCase := ingest.NewIngestCharacterStateUseCase(
+		grpcClient, documentRepo, chunkRepo, embedder, stateSnapshotRepo, log,
+	)
+	ingestRelationshipStateUseCase := ingest.NewIngestRelationshipStateUseCase(
+		grpcClient, documentRepo, chunkRepo, embedder, stateSnapshotRepo, log,
+	)
+	ingestTimelineEventUseCase := ingest.NewIngestTimelineEventUseCase(
+		grpcClient, documentRepo, chunkRepo, embedder, gwEventRepo, log,
+	)
+	ingestPlotUseCase := ingest.NewIngestPlotUseCase(
+		grpcClient, documentRepo, chunkRepo, embedder, gwEventRepo, log,
+	)
+
 	var summaryGenerator *ingest.GenerateSummaryUseCase
 	if apiKey := os.Getenv("GEMINI_API_KEY"); apiKey != "" {
 		model := os.Getenv("GEMINI_MODEL")
@@ -173,6 +191,7 @@ func main() {
 			log.Error("Failed to start LLM executor for summary", "error", err)
 		} else {
 			summaryGenerator = ingest.NewGenerateSummaryUseCase(llmExecutor, "gemini", log)
+			ingestPlotUseCase.SetExecutor(llmExecutor, "gemini")
 			log.Info("Summary generation enabled", "model", model)
 		}
 	} else {
@@ -191,6 +210,10 @@ func main() {
 		ingestFactionUseCase.SetSummaryGenerator(summaryGenerator)
 		ingestLoreUseCase.SetSummaryGenerator(summaryGenerator)
 		ingestRelationUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestCharacterStateUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestRelationshipStateUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestTimelineEventUseCase.SetSummaryGenerator(summaryGenerator)
+		ingestPlotUseCase.SetSummaryGenerator(summaryGenerator)
 	}
 	// searchMemoryUseCase is available for future use (e.g., API endpoints)
 	_ = search.NewSearchMemoryUseCase(
@@ -216,6 +239,10 @@ func main() {
 		ingestFactionUseCase,
 		ingestLoreUseCase,
 		ingestRelationUseCase,
+		ingestCharacterStateUseCase,
+		ingestRelationshipStateUseCase,
+		ingestTimelineEventUseCase,
+		ingestPlotUseCase,
 		log,
 		cfg,
 	)

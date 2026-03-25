@@ -51,6 +51,13 @@ type MainServiceClient interface {
 
 	// Scene references (relates story with world)
 	ListSceneReferences(ctx context.Context, sceneID uuid.UUID) ([]*SceneReference, error)
+
+	// New narrative entities
+	GetCharacterState(ctx context.Context, characterStateID uuid.UUID) (*CharacterState, error)
+	GetRelationshipState(ctx context.Context, relationshipStateID uuid.UUID) (*RelationshipState, error)
+	GetTimelineEvent(ctx context.Context, timelineEventID uuid.UUID) (*TimelineEvent, error)
+	GetPlot(ctx context.Context, plotID uuid.UUID) (*Plot, error)
+	ListPlotDevelopments(ctx context.Context, plotID uuid.UUID, asOfChapter int) ([]*PlotDevelopment, error)
 }
 
 // Story represents a story from main-service
@@ -260,6 +267,100 @@ type Lore struct {
 	HierarchyLevel int
 	CreatedAt      int64
 	UpdatedAt      int64
+}
+
+// CharacterState represents a per-chapter character state from main-service
+type CharacterState struct {
+	ID                 uuid.UUID
+	CharacterID        uuid.UUID
+	ChapterID          *uuid.UUID
+	ChapterNumber      int
+	Emotion            string
+	Goal               string
+	Secrets            []string
+	Clothes            string
+	PhysicalState      string
+	TimelineDay        *int
+	TimelineConfidence *string
+	CreatedAt          int64
+	UpdatedAt          int64
+}
+
+// RelationshipStateEntity represents an entity linked to a relationship state
+type RelationshipStateEntity struct {
+	ID         uuid.UUID
+	Role       string
+	EntityType string
+	EntityID   uuid.UUID
+}
+
+// RelationshipState represents a per-chapter relationship state from main-service
+type RelationshipState struct {
+	ID                 uuid.UUID
+	ChapterID          uuid.UUID
+	ChapterNumber      int
+	TensionDescription string
+	TimelineDay        *int
+	TimelineConfidence *string
+	Entities           []RelationshipStateEntity
+	CreatedAt          int64
+	UpdatedAt          int64
+}
+
+// TimelineEventEntity represents an entity involved in a timeline event
+type TimelineEventEntity struct {
+	ID         uuid.UUID
+	Role       string
+	EntityType string
+	EntityID   uuid.UUID
+}
+
+// TimelineEvent represents a timeline event from main-service
+type TimelineEvent struct {
+	ID                 uuid.UUID
+	StoryID            uuid.UUID
+	ChapterID          uuid.UUID
+	ChapterNumber      int
+	TimelineDay        *int
+	TimelineConfidence *string
+	Description        string
+	Entities           []TimelineEventEntity
+	CreatedAt          int64
+}
+
+// PlotEntity represents an entity linked to a plot
+type PlotEntity struct {
+	ID         uuid.UUID
+	Role       string
+	EntityType string
+	EntityID   uuid.UUID
+}
+
+// Plot represents a plot from main-service
+type Plot struct {
+	ID          uuid.UUID
+	StoryID     uuid.UUID
+	Title       string
+	Type        string
+	Description string
+	Status      string
+	Entities    []PlotEntity
+	CreatedAt   int64
+	UpdatedAt   int64
+}
+
+// PlotDevelopment represents a plot development from main-service
+type PlotDevelopment struct {
+	ID                 uuid.UUID
+	PlotID             uuid.UUID
+	ChapterNumber      int
+	Action             string
+	Description        string
+	Notes              string
+	TimelineDay        *int
+	TimelineConfidence *string
+	TimelineEventID    *uuid.UUID
+	CreatedAt          int64
 }
 
 // EntityRelation represents a relation between two entities

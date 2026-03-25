@@ -28,7 +28,11 @@ import (
 	characterskillpb "github.com/story-engine/main-service/proto/character_skill"
 	characterrpgstatspb "github.com/story-engine/main-service/proto/character_rpg_stats"
 	artifactrpgstatspb "github.com/story-engine/main-service/proto/artifact_rpg_stats"
+	characterstatepb "github.com/story-engine/main-service/proto/character_state"
 	inventorypb "github.com/story-engine/main-service/proto/inventory"
+	plotpb "github.com/story-engine/main-service/proto/plot"
+	relationshipstatepb "github.com/story-engine/main-service/proto/relationship_state"
+	timelineeventpb "github.com/story-engine/main-service/proto/timeline_event"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -56,6 +60,10 @@ type TestHandlers struct {
 	CharacterRPGStatsHandler   characterrpgstatspb.CharacterRPGStatsServiceServer
 	ArtifactRPGStatsHandler    artifactrpgstatspb.ArtifactRPGStatsServiceServer
 	InventoryHandler           inventorypb.InventoryServiceServer
+	CharacterStateHandler      characterstatepb.CharacterStateServiceServer
+	RelationshipStateHandler   relationshipstatepb.RelationshipStateServiceServer
+	TimelineEventHandler       timelineeventpb.TimelineEventServiceServer
+	PlotHandler                plotpb.PlotServiceServer
 }
 
 // SetupTestServer creates a test gRPC server with provided handlers
@@ -138,6 +146,18 @@ func SetupTestServerWithHandlers(t *testing.T, handlers TestHandlers) (*grpc.Cli
 	}
 	if handlers.InventoryHandler != nil {
 		grpcServer.RegisterInventoryService(handlers.InventoryHandler)
+	}
+	if handlers.CharacterStateHandler != nil {
+		grpcServer.RegisterCharacterStateService(handlers.CharacterStateHandler)
+	}
+	if handlers.RelationshipStateHandler != nil {
+		grpcServer.RegisterRelationshipStateService(handlers.RelationshipStateHandler)
+	}
+	if handlers.TimelineEventHandler != nil {
+		grpcServer.RegisterTimelineEventService(handlers.TimelineEventHandler)
+	}
+	if handlers.PlotHandler != nil {
+		grpcServer.RegisterPlotService(handlers.PlotHandler)
 	}
 
 	// Start server on random port

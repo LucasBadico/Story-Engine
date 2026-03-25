@@ -85,6 +85,7 @@ func (uc *IngestLocationUseCase) Execute(ctx context.Context, input IngestLocati
 		location.Name,
 		content,
 	)
+	doc.IsCanonical = true
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)

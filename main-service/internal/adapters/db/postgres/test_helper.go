@@ -33,7 +33,7 @@ func SetupTestDB(t *testing.T) (*DB, func()) {
 			return
 		}
 
-		// Use the main database (storyengine) as template
+		// Use the main database (storyblocks) as template
 		// It already has migrations applied via db-up target
 		templateName = GetTemplateDBName(cfg.Database)
 	})

@@ -14,9 +14,11 @@ import (
 	"github.com/story-engine/llm-gateway-service/internal/adapters/embeddings/openai"
 	httpadapter "github.com/story-engine/llm-gateway-service/internal/adapters/http"
 	"github.com/story-engine/llm-gateway-service/internal/adapters/llm/gemini"
+	"github.com/story-engine/llm-gateway-service/internal/application/canon"
 	"github.com/story-engine/llm-gateway-service/internal/application/extract"
 	"github.com/story-engine/llm-gateway-service/internal/application/extract/entities"
 	"github.com/story-engine/llm-gateway-service/internal/application/extract/relations"
+	"github.com/story-engine/llm-gateway-service/internal/application/inference"
 	"github.com/story-engine/llm-gateway-service/internal/application/search"
 	"github.com/story-engine/llm-gateway-service/internal/platform/config"
 	"github.com/story-engine/llm-gateway-service/internal/platform/database"
@@ -67,6 +69,12 @@ func main() {
 
 	searchHandler := httpapi.NewSearchHandler(searchUseCase, log)
 
+	// Canon retrieval
+	stateSnapshotRepo := postgres.NewStateSnapshotRepository(pgDB)
+	eventRepo := postgres.NewEventRepository(pgDB)
+	retrieveCanonUseCase := canon.NewRetrieveCanonUseCase(documentRepo, stateSnapshotRepo, eventRepo, log)
+	canonHandler := httpapi.NewCanonHandler(retrieveCanonUseCase, log)
+
 	relationTypes, suggestedRelations := loadRelationMaps(log, cfg.MainService.HTTPAddr)
 	if len(relationTypes) == 0 || len(suggestedRelations) == 0 {
 		log.Warn("relation maps not loaded",
@@ -83,6 +91,19 @@ func main() {
 	}
 
 	executorConfig := executor.ConfigFromEnv(cfg.LLM.Provider)
+
+	// Register inference provider in executor config if model differs
+	inferenceProvider := "gemini-inference"
+	if cfg.Inference.Model != cfg.LLM.Model {
+		executorConfig.Providers = append(executorConfig.Providers, executor.ProviderConfig{
+			Name:        inferenceProvider,
+			MaxParallel: 2,
+			QPS:         1,
+		})
+	} else {
+		inferenceProvider = cfg.LLM.Provider
+	}
+
 	providers := make([]executor.Provider, 0, len(executorConfig.Providers))
 	for _, providerCfg := range executorConfig.Providers {
 		switch providerCfg.Name {
@@ -96,6 +117,19 @@ func main() {
 				gemini.NewRouterModel(cfg.LLM.APIKey, cfg.LLM.Model),
 			))
 			log.Info("LLM executor registered Gemini", "model", cfg.LLM.Model)
+		case "gemini-inference":
+			providers = append(providers, executor.NewRouterModelProvider(
+				"gemini-inference",
+				gemini.NewRouterModel(cfg.LLM.APIKey, cfg.Inference.Model,
+					gemini.WithMaxOutputTokens(cfg.Inference.MaxOutputTokens),
+					gemini.WithTimeoutSeconds(cfg.Inference.TimeoutSeconds),
+				),
+			))
+			log.Info("LLM executor registered Gemini Inference",
+				"model", cfg.Inference.Model,
+				"max_output_tokens", cfg.Inference.MaxOutputTokens,
+				"timeout_seconds", cfg.Inference.TimeoutSeconds,
+			)
 		default:
 			log.Error("Unsupported LLM provider", "provider", providerCfg.Name)
 		}
@@ -133,11 +167,16 @@ func main() {
 	)
 	entityExtractHandler := httpapi.NewEntityExtractHandler(entityExtractUseCase, relationTypes, suggestedRelations, log)
 
+	inferChapterStructureUseCase := inference.NewInferChapterStructureUseCase(llmExecutor, inferenceProvider, log)
+	inferChapterStructureHandler := httpapi.NewInferChapterStructureHandler(inferChapterStructureUseCase, log)
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", httpapi.Health)
 	mux.HandleFunc("/api/v1/search", searchHandler.Search)
 	mux.HandleFunc("/api/v1/entity-extract", entityExtractHandler.Extract)
 	mux.HandleFunc("/api/v1/entity-extract/stream", entityExtractHandler.ExtractStream)
+	mux.HandleFunc("/api/v1/infer-chapter-structure", inferChapterStructureHandler.Infer)
+	mux.HandleFunc("/api/v1/stories/", canonHandler.Retrieve)
 
 	handler := middleware.Chain(
 		mux,

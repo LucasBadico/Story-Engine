@@ -112,9 +112,13 @@ func (q *ProcessingQueue) PopStableToProcessingByPrefix(ctx context.Context, ten
 	return toStringSlice(result), nil
 }
 
-// Ack removes a member from the processing set.
+// Ack removes a member from both the processing set and the queue set.
 func (q *ProcessingQueue) Ack(ctx context.Context, tenantID uuid.UUID, member string) error {
-	return q.client.ZRem(ctx, q.processingKey(tenantID), member).Err()
+	pipe := q.client.Pipeline()
+	pipe.ZRem(ctx, q.processingKey(tenantID), member)
+	pipe.ZRem(ctx, q.queueKey(tenantID), member)
+	_, err := pipe.Exec(ctx)
+	return err
 }
 
 // Release moves a member from processing back to the queue.

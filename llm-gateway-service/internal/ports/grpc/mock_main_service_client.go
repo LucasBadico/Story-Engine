@@ -341,3 +341,23 @@ func (m *MockMainServiceClient) GetRelation(ctx context.Context, relationID uuid
 	}
 	return relation, nil
 }
+
+func (m *MockMainServiceClient) GetCharacterState(ctx context.Context, characterStateID uuid.UUID) (*CharacterState, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockMainServiceClient) GetRelationshipState(ctx context.Context, relationshipStateID uuid.UUID) (*RelationshipState, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockMainServiceClient) GetTimelineEvent(ctx context.Context, timelineEventID uuid.UUID) (*TimelineEvent, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockMainServiceClient) GetPlot(ctx context.Context, plotID uuid.UUID) (*Plot, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *MockMainServiceClient) ListPlotDevelopments(ctx context.Context, plotID uuid.UUID, asOfChapter int) ([]*PlotDevelopment, error) {
+	return nil, fmt.Errorf("not implemented")
+}

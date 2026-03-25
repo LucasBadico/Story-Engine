@@ -86,7 +86,7 @@ func GetTemplateDBName(cfg *config.Config) string {
 		dbName := strings.Split(dbPart, "?")[0]
 		return dbName
 	}
-	return "storyengine"
+	return "storyblocks"
 }
 
 // NewDatabaseManager creates a new database manager
@@ -101,7 +101,7 @@ func NewDatabaseManager(cfg *config.Config) (*DatabaseManager, error) {
 	port := 5432
 	user := "postgres"
 	password := "postgres"
-	dbname := "storyengine"
+	dbname := "storyblocks"
 
 	// Try to extract from URL if present
 	if strings.HasPrefix(url, "postgres://") {
@@ -222,7 +222,7 @@ func SetupTestDB(t *testing.T) (*DB, func()) {
 			return
 		}
 
-		// Use the main database (storyengine) as template
+		// Use the main database (storyblocks) as template
 		// It already has migrations applied via db-up target
 		templateName = GetTemplateDBName(cfg)
 	})
@@ -308,8 +308,9 @@ func applyMigrations(dbURL, migrationsPath string) error {
 
 // TruncateTables truncates all tables in the test database
 func TruncateTables(ctx context.Context, db *DB) error {
-	query := `TRUNCATE TABLE 
-		embedding_chunks, embedding_documents
+	query := `TRUNCATE TABLE
+		embedding_chunks, embedding_documents,
+		concepts, concept_links, state_snapshots, events
 		RESTART IDENTITY CASCADE`
 	
 	if _, err := db.Exec(ctx, query); err != nil {

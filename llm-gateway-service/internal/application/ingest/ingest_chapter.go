@@ -82,6 +82,10 @@ func (uc *IngestChapterUseCase) Execute(ctx context.Context, input IngestChapter
 		chapter.Title,
 		content,
 	)
+	doc.IsCanonical = true
+	doc.StoryID = &chapter.StoryID
+	chapterNum := chapter.Number
+	doc.ChapterNumber = &chapterNum
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)
