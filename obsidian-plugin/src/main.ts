@@ -34,6 +34,7 @@ const DEFAULT_SETTINGS: StoryEngineSettings = {
 	localModeVideoUrl: "https://example.com/setup-video",
 	autoSyncOnApiUpdates: true,
 	autoPushOnFileBlur: true,
+	sidebarPosition: "left",
 };
 
 export default class StoryEnginePlugin extends Plugin {
