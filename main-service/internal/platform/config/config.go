@@ -8,11 +8,17 @@ import (
 
 // Config holds application configuration
 type Config struct {
-	Database DatabaseConfig
-	GRPC     GRPCConfig
-	HTTP     HTTPConfig
-	LLM      LLMConfig
-	Cleanup  CleanupConfig
+	Database   DatabaseConfig
+	GRPC       GRPCConfig
+	HTTP       HTTPConfig
+	LLM        LLMConfig
+	LLMGateway LLMGatewayConfig
+	Cleanup    CleanupConfig
+}
+
+// LLMGatewayConfig holds LLM Gateway HTTP endpoint settings
+type LLMGatewayConfig struct {
+	URL string
 }
 
 // DatabaseConfig holds database connection settings
@@ -90,8 +96,8 @@ func Load() *Config {
 			Host:     getEnv("DB_HOST", "localhost"),
 			Port:     getEnvInt("DB_PORT", 5432),
 			User:     getEnv("DB_USER", "postgres"),
-			Password: getEnv("DB_PASSWORD", "postgres"),
-			Database: getEnv("DB_NAME", "storyengine"),
+			Password: getEnv("DB_PASSWORD", "pass"),
+			Database: getEnv("DB_NAME", "storyblocks"),
 			SSLMode:  getEnv("DB_SSLMODE", "disable"),
 			Path:     getEnv("DB_PATH", "./story-engine.db"),
 		},
@@ -102,7 +108,7 @@ func Load() *Config {
 			EnableReflection: getEnvBool("GRPC_ENABLE_REFLECTION", true),
 		},
 		HTTP: HTTPConfig{
-			Port: getEnvInt("HTTP_PORT", 8080),
+			Port: getEnvInt("HTTP_PORT", 7979),
 		},
 		LLM: LLMConfig{
 			Enabled: getEnvBool("LLM_GATEWAY_ENABLED", false),
@@ -111,6 +117,9 @@ func Load() *Config {
 				Password: getEnv("LLM_GATEWAY_REDIS_PASSWORD", ""),
 				DB:       getEnvInt("LLM_GATEWAY_REDIS_DB", 0),
 			},
+		},
+		LLMGateway: LLMGatewayConfig{
+			URL: getEnv("LLM_GATEWAY_URL", "http://localhost:8081"),
 		},
 		Cleanup: CleanupConfig{
 			DraftTTLHours:        getEnvInt("CLEANUP_DRAFT_TTL_HOURS", 24),

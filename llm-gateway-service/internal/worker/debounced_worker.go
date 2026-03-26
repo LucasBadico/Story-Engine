@@ -27,8 +27,12 @@ type DebouncedWorker struct {
 	ingestArtifact     *ingest.IngestArtifactUseCase
 	ingestFaction      *ingest.IngestFactionUseCase
 	ingestLore         *ingest.IngestLoreUseCase
-	ingestRelation     *ingest.IngestRelationUseCase
-	logger             *logger.Logger
+	ingestRelation          *ingest.IngestRelationUseCase
+	ingestCharacterState    *ingest.IngestCharacterStateUseCase
+	ingestRelationshipState *ingest.IngestRelationshipStateUseCase
+	ingestTimelineEvent     *ingest.IngestTimelineEventUseCase
+	ingestPlot              *ingest.IngestPlotUseCase
+	logger                  *logger.Logger
 	storyDebounce      time.Duration
 	worldDebounce      time.Duration
 	processingTimeout  time.Duration
@@ -50,6 +54,10 @@ func NewDebouncedWorker(
 	ingestFaction *ingest.IngestFactionUseCase,
 	ingestLore *ingest.IngestLoreUseCase,
 	ingestRelation *ingest.IngestRelationUseCase,
+	ingestCharacterState *ingest.IngestCharacterStateUseCase,
+	ingestRelationshipState *ingest.IngestRelationshipStateUseCase,
+	ingestTimelineEvent *ingest.IngestTimelineEventUseCase,
+	ingestPlot *ingest.IngestPlotUseCase,
 	logger *logger.Logger,
 	cfg *config.Config,
 ) *DebouncedWorker {
@@ -74,8 +82,12 @@ func NewDebouncedWorker(
 		ingestArtifact:     ingestArtifact,
 		ingestFaction:      ingestFaction,
 		ingestLore:         ingestLore,
-		ingestRelation:     ingestRelation,
-		logger:             logger,
+		ingestRelation:          ingestRelation,
+		ingestCharacterState:    ingestCharacterState,
+		ingestRelationshipState: ingestRelationshipState,
+		ingestTimelineEvent:     ingestTimelineEvent,
+		ingestPlot:              ingestPlot,
+		logger:                  logger,
 		storyDebounce:      storyDebounce,
 		worldDebounce:      worldDebounce,
 		processingTimeout:  time.Duration(cfg.Worker.ProcessingTimeoutSeconds) * time.Second,
@@ -218,10 +230,12 @@ func (w *DebouncedWorker) processTenantQueueByTypes(ctx context.Context, tenantI
 var storySourceTypes = []memory.SourceType{
 	memory.SourceTypeStory,
 	memory.SourceTypeChapter,
-	memory.SourceTypeScene,
-	memory.SourceTypeBeat,
 	memory.SourceTypeContentBlock,
 	memory.SourceTypeRelationCitation,
+	memory.SourceTypeCharacterState,
+	memory.SourceTypeRelationshipState,
+	memory.SourceTypeTimelineEvent,
+	memory.SourceTypePlot,
 }
 
 var worldSourceTypes = []memory.SourceType{
@@ -374,6 +388,46 @@ func (w *DebouncedWorker) processItem(ctx context.Context, item *queue.QueueItem
 			return fmt.Errorf("failed to ingest relation: %w", err)
 		}
 		w.logger.Info("Successfully ingested relation", "relation_id", item.SourceID)
+
+	case memory.SourceTypeCharacterState:
+		_, err := w.ingestCharacterState.Execute(ctx, ingest.IngestCharacterStateInput{
+			TenantID:         item.TenantID,
+			CharacterStateID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest character state: %w", err)
+		}
+		w.logger.Info("Successfully ingested character state", "character_state_id", item.SourceID)
+
+	case memory.SourceTypeRelationshipState:
+		_, err := w.ingestRelationshipState.Execute(ctx, ingest.IngestRelationshipStateInput{
+			TenantID:            item.TenantID,
+			RelationshipStateID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest relationship state: %w", err)
+		}
+		w.logger.Info("Successfully ingested relationship state", "relationship_state_id", item.SourceID)
+
+	case memory.SourceTypeTimelineEvent:
+		_, err := w.ingestTimelineEvent.Execute(ctx, ingest.IngestTimelineEventInput{
+			TenantID:        item.TenantID,
+			TimelineEventID: item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest timeline event: %w", err)
+		}
+		w.logger.Info("Successfully ingested timeline event", "timeline_event_id", item.SourceID)
+
+	case memory.SourceTypePlot:
+		_, err := w.ingestPlot.Execute(ctx, ingest.IngestPlotInput{
+			TenantID: item.TenantID,
+			PlotID:   item.SourceID,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to ingest plot: %w", err)
+		}
+		w.logger.Info("Successfully ingested plot", "plot_id", item.SourceID)
 
 	default:
 		return fmt.Errorf("unsupported source type: %s", item.SourceType)

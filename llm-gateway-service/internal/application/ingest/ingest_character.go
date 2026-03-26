@@ -89,6 +89,7 @@ func (uc *IngestCharacterUseCase) Execute(ctx context.Context, input IngestChara
 		character.Name,
 		content,
 	)
+	doc.IsCanonical = true
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)

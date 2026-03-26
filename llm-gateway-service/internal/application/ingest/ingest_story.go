@@ -76,6 +76,8 @@ func (uc *IngestStoryUseCase) Execute(ctx context.Context, input IngestStoryInpu
 		story.Title,
 		content,
 	)
+	doc.IsCanonical = true
+	doc.StoryID = &input.StoryID
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)

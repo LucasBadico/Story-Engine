@@ -1,0 +1,79 @@
+syntax = "proto3";
+package character_state;
+option go_package = "github.com/story-engine/main-service/proto/character_state";
+
+import "google/protobuf/timestamp.proto";
+
+message CharacterState {
+  string id = 1;
+  string character_id = 2;
+  string chapter_id = 3;
+  int32 chapter_number = 4;
+  string emotion = 5;
+  string goal = 6;
+  repeated string secrets = 7;
+  string clothes = 8;
+  string physical_state = 9;
+  int32 timeline_day = 10;
+  string timeline_confidence = 11;
+  bool has_timeline_day = 12;
+  google.protobuf.Timestamp created_at = 13;
+  google.protobuf.Timestamp updated_at = 14;
+}
+
+message CreateCharacterStateRequest {
+  string character_id = 1;
+  string chapter_id = 2;
+  int32 chapter_number = 3;
+  string emotion = 4;
+  string goal = 5;
+  repeated string secrets = 6;
+  string clothes = 7;
+  string physical_state = 8;
+  int32 timeline_day = 9;
+  string timeline_confidence = 10;
+  bool has_timeline_day = 11;
+}
+
+message CreateCharacterStateResponse {
+  CharacterState character_state = 1;
+}
+
+message GetCharacterStateRequest {
+  string id = 1;
+}
+
+message GetCharacterStateResponse {
+  CharacterState character_state = 1;
+}
+
+message GetLatestCharacterStateRequest {
+  string character_id = 1;
+  int32 as_of_chapter = 2;
+}
+
+message GetLatestCharacterStateResponse {
+  CharacterState character_state = 1;
+}
+
+message ListCharacterStatesByChapterRequest {
+  string chapter_id = 1;
+}
+
+message ListCharacterStatesByChapterResponse {
+  repeated CharacterState character_states = 1;
+}
+
+message DeleteCharacterStateRequest {
+  string id = 1;
+}
+
+message DeleteCharacterStateResponse {}
+
+service CharacterStateService {
+  rpc CreateCharacterState(CreateCharacterStateRequest) returns (CreateCharacterStateResponse);
+  rpc GetCharacterState(GetCharacterStateRequest) returns (GetCharacterStateResponse);
+  rpc GetLatestCharacterState(GetLatestCharacterStateRequest) returns (GetLatestCharacterStateResponse);
+  rpc ListCharacterStatesByChapter(ListCharacterStatesByChapterRequest) returns (ListCharacterStatesByChapterResponse);
+  rpc DeleteCharacterState(DeleteCharacterStateRequest) returns (DeleteCharacterStateResponse);
+}

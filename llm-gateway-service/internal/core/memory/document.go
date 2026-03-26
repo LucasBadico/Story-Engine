@@ -25,6 +25,15 @@ const (
 	SourceTypeLore             SourceType = "lore"
 	SourceTypeRelation         SourceType = "relation"
 	SourceTypeRelationCitation SourceType = "relation_citation"
+	SourceTypeCanon            SourceType = "canon"
+	SourceTypeChapterLog       SourceType = "chapter_log"
+	SourceTypeArcContext       SourceType = "arc_context"
+	SourceTypeAuthorNotes      SourceType = "author_notes"
+	SourceTypeCharacterState    SourceType = "character_state"
+	SourceTypeRelationshipState SourceType = "relationship_state"
+	SourceTypeTimelineEvent     SourceType = "timeline_event"
+	SourceTypePlot              SourceType = "plot"
+	SourceTypePlotDevelopment   SourceType = "plot_development"
 )
 
 // Document represents an embedding document
@@ -35,9 +44,14 @@ type Document struct {
 	SourceID   uuid.UUID
 	Title      string
 	Content    string
-	Metadata   map[string]string
-	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	Metadata         map[string]string
+	ValidFromChapter int
+	ValidToChapter   *int
+	IsCanonical      bool
+	ChapterNumber    *int
+	StoryID          *uuid.UUID
+	CreatedAt        time.Time
+	UpdatedAt        time.Time
 }
 
 // NewDocument creates a new document

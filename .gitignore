@@ -26,6 +26,9 @@ pnpm-debug.log*
 .env.local
 .env.*.local
 
+# Claude Code
+.claude/worktrees/
+
 # IDE
 .vscode/
 .idea/
@@ -42,5 +45,9 @@ Thumbs.db
 scripts/gmail-extractor/stories/*
 scripts/gmail-extractor/credentials.json
 scripts/gmail-extractor/token.json
+
+# Story data exports
+data/gcloud-exported-chapter/*
+!data/gcloud-exported-chapter/.gitkeep
 
 story-engine.db

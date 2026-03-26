@@ -102,6 +102,13 @@ func (uc *IngestContentBlockUseCase) Execute(ctx context.Context, input IngestCo
 		title,
 		enrichedContent,
 	)
+	if contentBlock.ChapterID != nil {
+		chapter, err := uc.mainServiceClient.GetChapter(ctx, *contentBlock.ChapterID)
+		if err == nil {
+			doc.StoryID = &chapter.StoryID
+			doc.ChapterNumber = &chapter.Number
+		}
+	}
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)

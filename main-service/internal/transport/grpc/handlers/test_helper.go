@@ -11,9 +11,14 @@ import (
 	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	contentblockapp "github.com/story-engine/main-service/internal/application/story/content_block"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
+	plotapp "github.com/story-engine/main-service/internal/application/story/plot"
+	timelineeventapp "github.com/story-engine/main-service/internal/application/story/timeline_event"
 	relationapp "github.com/story-engine/main-service/internal/application/relation"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	"github.com/story-engine/main-service/internal/application/world"
+	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterstateapp "github.com/story-engine/main-service/internal/application/world/character_state"
+	relationshipstateapp "github.com/story-engine/main-service/internal/application/world/relationship_state"
 	"github.com/story-engine/main-service/internal/platform/logger"
 	grpctesting "github.com/story-engine/main-service/internal/transport/grpc/testing"
 	"google.golang.org/grpc"
@@ -40,11 +45,20 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	characterRepo := postgres.NewCharacterRepository(db)
 	locationRepo := postgres.NewLocationRepository(db)
 	artifactRepo := postgres.NewArtifactRepository(db)
+	characterStateRepo := postgres.NewCharacterStateRepository(db)
+	relationshipStateRepo := postgres.NewRelationshipStateRepository(db)
+	timelineEventRepo := postgres.NewTimelineEventRepository(db)
+	plotRepo := postgres.NewPlotRepository(db)
+	plotDevelopmentRepo := postgres.NewPlotDevelopmentRepository(db)
 
 	// Initialize use cases
 	log := logger.New()
 	createTenantUseCase := tenant.NewCreateTenantUseCase(tenantRepo, auditLogRepo, log)
 	createWorldUseCase := world.NewCreateWorldUseCase(worldRepo, tenantRepo, auditLogRepo, log)
+	getWorldUseCase := world.NewGetWorldUseCase(worldRepo, log)
+	listWorldsUseCase := world.NewListWorldsUseCase(worldRepo, log)
+	updateWorldUseCase := world.NewUpdateWorldUseCase(worldRepo, auditLogRepo, log)
+	deleteWorldUseCase := world.NewDeleteWorldUseCase(worldRepo, auditLogRepo, log)
 	createStoryUseCase := story.NewCreateStoryUseCase(storyRepo, tenantRepo, worldRepo, createWorldUseCase, auditLogRepo, nil, log)
 	getStoryUseCase := story.NewGetStoryUseCase(storyRepo, log)
 	updateStoryUseCase := story.NewUpdateStoryUseCase(storyRepo, nil, log)
@@ -82,6 +96,21 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	removeSceneReferenceUC := sceneapp.NewRemoveSceneReferenceUseCase(listRelationsBySourceUseCase, deleteRelationUseCase, log)
 	getSceneReferencesUC := sceneapp.NewGetSceneReferencesUseCase(listRelationsBySourceUseCase, log)
 
+	// Character use cases (needed for character_state tests)
+	archetypeRepo := postgres.NewArchetypeRepository(db)
+	characterTraitRepo := postgres.NewCharacterTraitRepository(db)
+	createCharacterUC := characterapp.NewCreateCharacterUseCase(characterRepo, worldRepo, archetypeRepo, auditLogRepo, log)
+	getCharacterUC := characterapp.NewGetCharacterUseCase(characterRepo, log)
+	listCharactersUC := characterapp.NewListCharactersUseCase(characterRepo, log)
+	updateCharacterUC := characterapp.NewUpdateCharacterUseCase(characterRepo, archetypeRepo, worldRepo, auditLogRepo, log)
+	deleteCharacterUC := characterapp.NewDeleteCharacterUseCase(characterRepo, characterTraitRepo, entityRelationRepo, worldRepo, auditLogRepo, log)
+	getCharacterTraitsUC := characterapp.NewGetCharacterTraitsUseCase(characterTraitRepo, log)
+	listRelationsByTargetUseCase := relationapp.NewListRelationsByTargetUseCase(entityRelationRepo, log)
+	getCharacterEventsUC := characterapp.NewGetCharacterEventsUseCase(listRelationsByTargetUseCase, log)
+	addTraitToCharacterUC := characterapp.NewAddTraitToCharacterUseCase(characterRepo, nil, characterTraitRepo, log)
+	updateCharacterTraitUC := characterapp.NewUpdateCharacterTraitUseCase(characterTraitRepo, nil, log)
+	removeTraitFromCharacterUC := characterapp.NewRemoveTraitFromCharacterUseCase(characterTraitRepo, log)
+
 	createBeatUseCase := beatapp.NewCreateBeatUseCase(beatRepo, sceneRepo, nil, log)
 	getBeatUseCase := beatapp.NewGetBeatUseCase(beatRepo, log)
 	updateBeatUseCase := beatapp.NewUpdateBeatUseCase(beatRepo, nil, log)
@@ -99,6 +128,36 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 	listContentAnchorsByContentBlockUseCase := contentblockapp.NewListContentAnchorsByContentBlockUseCase(contentAnchorRepo, contentBlockRepo, log)
 	listContentBlocksByEntityUseCase := contentblockapp.NewListContentBlocksByEntityUseCase(contentAnchorRepo, contentBlockRepo, log)
 	deleteContentAnchorUseCase := contentblockapp.NewDeleteContentAnchorUseCase(contentAnchorRepo, log)
+
+	// Character state use cases
+	createCharacterStateUC := characterstateapp.NewCreateCharacterStateUseCase(characterStateRepo, characterRepo, auditLogRepo, log)
+	getCharacterStateUC := characterstateapp.NewGetCharacterStateUseCase(characterStateRepo, log)
+	getLatestCharacterStateUC := characterstateapp.NewGetLatestCharacterStateUseCase(characterStateRepo, log)
+	listCharacterStatesUC := characterstateapp.NewListCharacterStatesUseCase(characterStateRepo, log)
+	deleteCharacterStateUC := characterstateapp.NewDeleteCharacterStateUseCase(characterStateRepo, auditLogRepo, log)
+
+	// Relationship state use cases
+	createRelationshipStateUC := relationshipstateapp.NewCreateRelationshipStateUseCase(relationshipStateRepo, auditLogRepo, log)
+	getRelationshipStateUC := relationshipstateapp.NewGetRelationshipStateUseCase(relationshipStateRepo, log)
+	listRelationshipStatesUC := relationshipstateapp.NewListRelationshipStatesUseCase(relationshipStateRepo, log)
+	deleteRelationshipStateUC := relationshipstateapp.NewDeleteRelationshipStateUseCase(relationshipStateRepo, auditLogRepo, log)
+
+	// Timeline event use cases
+	createTimelineEventUC := timelineeventapp.NewCreateTimelineEventUseCase(timelineEventRepo, storyRepo, auditLogRepo, log)
+	getTimelineEventUC := timelineeventapp.NewGetTimelineEventUseCase(timelineEventRepo, log)
+	listTimelineEventsByStoryUC := timelineeventapp.NewListTimelineEventsByStoryUseCase(timelineEventRepo, log)
+	listTimelineEventsByChapterUC := timelineeventapp.NewListTimelineEventsByChapterUseCase(timelineEventRepo, log)
+	deleteTimelineEventUC := timelineeventapp.NewDeleteTimelineEventUseCase(timelineEventRepo, auditLogRepo, log)
+
+	// Plot use cases
+	createPlotUC := plotapp.NewCreatePlotUseCase(plotRepo, storyRepo, auditLogRepo, log)
+	getPlotUC := plotapp.NewGetPlotUseCase(plotRepo, log)
+	listPlotsUC := plotapp.NewListPlotsUseCase(plotRepo, log)
+	updatePlotUC := plotapp.NewUpdatePlotUseCase(plotRepo, auditLogRepo, log)
+	deletePlotUC := plotapp.NewDeletePlotUseCase(plotRepo, auditLogRepo, log)
+	addPlotEntityUC := plotapp.NewAddPlotEntityUseCase(plotRepo, log)
+	createPlotDevelopmentUC := plotapp.NewCreatePlotDevelopmentUseCase(plotDevelopmentRepo, plotRepo, auditLogRepo, log)
+	listPlotDevelopmentsUC := plotapp.NewListPlotDevelopmentsUseCase(plotDevelopmentRepo, log)
 
 	// Create handlers
 	tenantHandler := NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -155,16 +214,34 @@ func setupTestServer(t *testing.T) (*grpc.ClientConn, func()) {
 		deleteContentAnchorUseCase,
 		log,
 	)
+	worldHandler := NewWorldHandler(createWorldUseCase, getWorldUseCase, listWorldsUseCase, updateWorldUseCase, deleteWorldUseCase, log)
+	characterHandler := NewCharacterHandler(
+		createCharacterUC, getCharacterUC, listCharactersUC, updateCharacterUC, deleteCharacterUC,
+		getCharacterTraitsUC, getCharacterEventsUC,
+		addTraitToCharacterUC, updateCharacterTraitUC, removeTraitFromCharacterUC,
+		nil, nil, nil, nil, nil, // Character relationship use cases - not needed for tests
+		log,
+	)
+	characterStateHandler := NewCharacterStateHandler(createCharacterStateUC, getCharacterStateUC, getLatestCharacterStateUC, listCharacterStatesUC, deleteCharacterStateUC, log)
+	relationshipStateHandler := NewRelationshipStateHandler(createRelationshipStateUC, getRelationshipStateUC, listRelationshipStatesUC, deleteRelationshipStateUC, log)
+	timelineEventHandler := NewTimelineEventHandler(createTimelineEventUC, getTimelineEventUC, listTimelineEventsByStoryUC, listTimelineEventsByChapterUC, deleteTimelineEventUC, log)
+	plotHandler := NewPlotHandler(createPlotUC, getPlotUC, listPlotsUC, updatePlotUC, deletePlotUC, addPlotEntityUC, createPlotDevelopmentUC, listPlotDevelopmentsUC, log)
 
 	// Use the testing package's SetupTestServerWithHandlers with all handlers
 	conn, cleanupServer := grpctesting.SetupTestServerWithHandlers(t, grpctesting.TestHandlers{
-		TenantHandler:                tenantHandler,
-		StoryHandler:                 storyHandler,
-		ChapterHandler:               chapterHandler,
-		SceneHandler:                 sceneHandler,
-		BeatHandler:                  beatHandler,
-		ContentBlockHandler:          contentBlockHandler,
-		ContentAnchorHandler: contentAnchorHandler,
+		TenantHandler:              tenantHandler,
+		StoryHandler:               storyHandler,
+		ChapterHandler:             chapterHandler,
+		SceneHandler:               sceneHandler,
+		BeatHandler:                beatHandler,
+		ContentBlockHandler:        contentBlockHandler,
+		ContentAnchorHandler:       contentAnchorHandler,
+		WorldHandler:               worldHandler,
+		CharacterHandler:           characterHandler,
+		CharacterStateHandler:      characterStateHandler,
+		RelationshipStateHandler:   relationshipStateHandler,
+		TimelineEventHandler:       timelineEventHandler,
+		PlotHandler:                plotHandler,
 	})
 
 	cleanup := func() {

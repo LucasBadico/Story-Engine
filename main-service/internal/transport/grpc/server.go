@@ -29,7 +29,11 @@ import (
 	tenantpb "github.com/story-engine/main-service/proto/tenant"
 	traitpb "github.com/story-engine/main-service/proto/trait"
 	worldpb "github.com/story-engine/main-service/proto/world"
+	characterstatepb "github.com/story-engine/main-service/proto/character_state"
 	entityrelationpb "github.com/story-engine/main-service/proto/entity_relation"
+	plotpb "github.com/story-engine/main-service/proto/plot"
+	relationshipstatepb "github.com/story-engine/main-service/proto/relationship_state"
+	timelineeventpb "github.com/story-engine/main-service/proto/timeline_event"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/reflection"
 )
@@ -215,6 +219,30 @@ func (s *Server) RegisterInventoryService(handler inventorypb.InventoryServiceSe
 func (s *Server) RegisterEntityRelationService(handler entityrelationpb.EntityRelationServiceServer) {
 	entityrelationpb.RegisterEntityRelationServiceServer(s.grpcServer, handler)
 	s.logger.Info("EntityRelationService registered")
+}
+
+// RegisterCharacterStateService registers the CharacterStateService handler
+func (s *Server) RegisterCharacterStateService(handler characterstatepb.CharacterStateServiceServer) {
+	characterstatepb.RegisterCharacterStateServiceServer(s.grpcServer, handler)
+	s.logger.Info("CharacterStateService registered")
+}
+
+// RegisterRelationshipStateService registers the RelationshipStateService handler
+func (s *Server) RegisterRelationshipStateService(handler relationshipstatepb.RelationshipStateServiceServer) {
+	relationshipstatepb.RegisterRelationshipStateServiceServer(s.grpcServer, handler)
+	s.logger.Info("RelationshipStateService registered")
+}
+
+// RegisterTimelineEventService registers the TimelineEventService handler
+func (s *Server) RegisterTimelineEventService(handler timelineeventpb.TimelineEventServiceServer) {
+	timelineeventpb.RegisterTimelineEventServiceServer(s.grpcServer, handler)
+	s.logger.Info("TimelineEventService registered")
+}
+
+// RegisterPlotService registers the PlotService handler
+func (s *Server) RegisterPlotService(handler plotpb.PlotServiceServer) {
+	plotpb.RegisterPlotServiceServer(s.grpcServer, handler)
+	s.logger.Info("PlotService registered")
 }
 
 // Start starts the gRPC server

@@ -9,5 +9,7 @@ var (
 	ErrDocumentIDRequired = errors.New("document_id is required")
 	ErrInvalidChunkIndex  = errors.New("chunk_index must be >= 0")
 	ErrInvalidSourceType  = errors.New("invalid source_type")
+	ErrStoryIDRequired    = errors.New("story_id is required")
+	ErrNameRequired       = errors.New("name is required")
 )
 

@@ -31,6 +31,11 @@ type Config struct {
 		APIKey   string
 		Model    string
 	}
+	Inference struct {
+		Model           string
+		MaxOutputTokens int
+		TimeoutSeconds  int
+	}
 	Worker struct {
 		DebounceMinutes          int
 		StoryDebounceSeconds     int
@@ -49,7 +54,7 @@ func Load() *Config {
 	cfg := &Config{}
 
 	// Database
-	cfg.Database.URL = getEnv("DATABASE_URL", "postgres://postgres:postgres@localhost:5432/storyengine?sslmode=disable")
+	cfg.Database.URL = getEnv("DATABASE_URL", "postgres://postgres:pass@localhost:5432/storyblocks?sslmode=disable")
 
 	// Redis
 	cfg.Redis.Addr = getEnv("REDIS_ADDR", "localhost:6379")
@@ -58,7 +63,7 @@ func Load() *Config {
 
 	// Main Service
 	cfg.MainService.GRPCAddr = getEnv("MAIN_SERVICE_GRPC_ADDR", "localhost:50051")
-	cfg.MainService.HTTPAddr = getEnv("MAIN_SERVICE_HTTP_ADDR", "http://localhost:8080")
+	cfg.MainService.HTTPAddr = getEnv("MAIN_SERVICE_HTTP_ADDR", "http://localhost:7979")
 
 	// Embedding
 	cfg.Embedding.Provider = getEnv("EMBEDDING_PROVIDER", "ollama")
@@ -80,6 +85,11 @@ func Load() *Config {
 	cfg.LLM.Provider = getEnv("LLM_PROVIDER", "gemini")
 	cfg.LLM.APIKey = getEnv("LLM_API_KEY", getEnv("GEMINI_API_KEY", ""))
 	cfg.LLM.Model = getEnv("LLM_MODEL", getEnv("GEMINI_MODEL", ""))
+
+	// Inference (separate model for structural inference — heavier reasoning)
+	cfg.Inference.Model = getEnv("INFERENCE_MODEL", "gemini-2.5-pro")
+	cfg.Inference.MaxOutputTokens = getEnvInt("INFERENCE_MAX_OUTPUT_TOKENS", 16384)
+	cfg.Inference.TimeoutSeconds = getEnvInt("INFERENCE_TIMEOUT_SECONDS", 120)
 
 	// Worker
 	cfg.Worker.DebounceMinutes = getEnvInt("WORKER_DEBOUNCE_MINUTES", 5)

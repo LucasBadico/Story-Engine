@@ -76,6 +76,7 @@ func (uc *IngestWorldUseCase) Execute(ctx context.Context, input IngestWorldInpu
 		world.Name,
 		content,
 	)
+	doc.IsCanonical = true
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)

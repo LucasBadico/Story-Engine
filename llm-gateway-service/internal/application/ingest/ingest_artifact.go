@@ -82,6 +82,7 @@ func (uc *IngestArtifactUseCase) Execute(ctx context.Context, input IngestArtifa
 		artifact.Name,
 		content,
 	)
+	doc.IsCanonical = true
 
 	if err := doc.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid document: %w", err)

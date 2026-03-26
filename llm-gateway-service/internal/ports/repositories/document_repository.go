@@ -15,5 +15,7 @@ type DocumentRepository interface {
 	Update(ctx context.Context, doc *memory.Document) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	ListByTenant(ctx context.Context, tenantID uuid.UUID, limit, offset int) ([]*memory.Document, error)
+	ListCanonical(ctx context.Context, storyID uuid.UUID, asOfChapter int) ([]*memory.Document, error)
+	ListByStoryAndSourceType(ctx context.Context, storyID uuid.UUID, sourceType memory.SourceType) ([]*memory.Document, error)
 }
 

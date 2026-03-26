@@ -56,10 +56,10 @@ func (uc *CreateChapterUseCase) Execute(ctx context.Context, input CreateChapter
 		return nil, err
 	}
 
-	if input.Number < 1 {
+	if input.Number < 0 {
 		return nil, &platformerrors.ValidationError{
 			Field:   "number",
-			Message: "must be greater than 0",
+			Message: "must be >= 0",
 		}
 	}
 

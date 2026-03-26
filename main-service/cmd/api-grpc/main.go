@@ -21,9 +21,13 @@ import (
 	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
 	contentblockapp "github.com/story-engine/main-service/internal/application/story/content_block"
+	plotapp "github.com/story-engine/main-service/internal/application/story/plot"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
+	timelineeventapp "github.com/story-engine/main-service/internal/application/story/timeline_event"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
+	characterstateapp "github.com/story-engine/main-service/internal/application/world/character_state"
+	relationshipstateapp "github.com/story-engine/main-service/internal/application/world/relationship_state"
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
@@ -105,6 +109,11 @@ func main() {
 	artifactStatsRepo := postgres.NewArtifactRPGStatsRepository(pgDB)
 	inventoryRepo := postgres.NewCharacterInventoryRepository(pgDB)
 	inventoryItemRepo := postgres.NewInventoryItemRepository(pgDB)
+	characterStateRepo := postgres.NewCharacterStateRepository(pgDB)
+	relationshipStateRepo := postgres.NewRelationshipStateRepository(pgDB)
+	timelineEventRepo := postgres.NewTimelineEventRepository(pgDB)
+	plotRepo := postgres.NewPlotRepository(pgDB)
+	plotDevelopmentRepo := postgres.NewPlotDevelopmentRepository(pgDB)
 
 	// Entity relation use cases (created early because they're used by other use cases)
 	summaryGenerator := relationapp.NewSummaryGenerator()
@@ -280,6 +289,36 @@ func main() {
 	deleteInventoryItemUseCase := characterinventoryapp.NewDeleteCharacterInventoryUseCase(inventoryRepo, log)
 	listInventoryUseCase := characterinventoryapp.NewListCharacterInventoryUseCase(inventoryRepo, log)
 
+	// Character state use cases
+	createCharacterStateUseCase := characterstateapp.NewCreateCharacterStateUseCase(characterStateRepo, characterRepo, auditLogRepo, log)
+	getCharacterStateUseCase := characterstateapp.NewGetCharacterStateUseCase(characterStateRepo, log)
+	getLatestCharacterStateUseCase := characterstateapp.NewGetLatestCharacterStateUseCase(characterStateRepo, log)
+	listCharacterStatesUseCase := characterstateapp.NewListCharacterStatesUseCase(characterStateRepo, log)
+	deleteCharacterStateUseCase := characterstateapp.NewDeleteCharacterStateUseCase(characterStateRepo, auditLogRepo, log)
+
+	// Relationship state use cases
+	createRelationshipStateUseCase := relationshipstateapp.NewCreateRelationshipStateUseCase(relationshipStateRepo, auditLogRepo, log)
+	getRelationshipStateUseCase := relationshipstateapp.NewGetRelationshipStateUseCase(relationshipStateRepo, log)
+	listRelationshipStatesUseCase := relationshipstateapp.NewListRelationshipStatesUseCase(relationshipStateRepo, log)
+	deleteRelationshipStateUseCase := relationshipstateapp.NewDeleteRelationshipStateUseCase(relationshipStateRepo, auditLogRepo, log)
+
+	// Timeline event use cases
+	createTimelineEventUseCase := timelineeventapp.NewCreateTimelineEventUseCase(timelineEventRepo, storyRepo, auditLogRepo, log)
+	getTimelineEventUseCase := timelineeventapp.NewGetTimelineEventUseCase(timelineEventRepo, log)
+	listTimelineEventsByStoryUseCase := timelineeventapp.NewListTimelineEventsByStoryUseCase(timelineEventRepo, log)
+	listTimelineEventsByChapterUseCase := timelineeventapp.NewListTimelineEventsByChapterUseCase(timelineEventRepo, log)
+	deleteTimelineEventUseCase := timelineeventapp.NewDeleteTimelineEventUseCase(timelineEventRepo, auditLogRepo, log)
+
+	// Plot use cases
+	createPlotUseCase := plotapp.NewCreatePlotUseCase(plotRepo, storyRepo, auditLogRepo, log)
+	getPlotUseCase := plotapp.NewGetPlotUseCase(plotRepo, log)
+	listPlotsUseCase := plotapp.NewListPlotsUseCase(plotRepo, log)
+	updatePlotUseCase := plotapp.NewUpdatePlotUseCase(plotRepo, auditLogRepo, log)
+	deletePlotUseCase := plotapp.NewDeletePlotUseCase(plotRepo, auditLogRepo, log)
+	addPlotEntityUseCase := plotapp.NewAddPlotEntityUseCase(plotRepo, log)
+	createPlotDevelopmentUseCase := plotapp.NewCreatePlotDevelopmentUseCase(plotDevelopmentRepo, plotRepo, auditLogRepo, log)
+	listPlotDevelopmentsUseCase := plotapp.NewListPlotDevelopmentsUseCase(plotDevelopmentRepo, log)
+
 	createWorldUseCase.SetIngestionQueue(ingestionQueue)
 	updateWorldUseCase.SetIngestionQueue(ingestionQueue)
 	createLocationUseCase.SetIngestionQueue(ingestionQueue)
@@ -335,6 +374,10 @@ func main() {
 	characterRPGStatsHandler := handlers.NewCharacterRPGStatsHandler(createCharacterStatsUseCase, getActiveCharacterStatsUseCase, listCharacterStatsHistoryUseCase, activateCharacterStatsVersionUseCase, deleteAllCharacterStatsUseCase, log)
 	artifactRPGStatsHandler := handlers.NewArtifactRPGStatsHandler(createArtifactStatsUseCase, getActiveArtifactStatsUseCase, listArtifactStatsHistoryUseCase, activateArtifactStatsVersionUseCase, log)
 	inventoryHandler := handlers.NewInventoryHandler(addItemToInventoryUseCase, updateInventoryItemUseCase, deleteInventoryItemUseCase, listInventoryUseCase, log)
+	characterStateHandler := handlers.NewCharacterStateHandler(createCharacterStateUseCase, getCharacterStateUseCase, getLatestCharacterStateUseCase, listCharacterStatesUseCase, deleteCharacterStateUseCase, log)
+	relationshipStateHandler := handlers.NewRelationshipStateHandler(createRelationshipStateUseCase, getRelationshipStateUseCase, listRelationshipStatesUseCase, deleteRelationshipStateUseCase, log)
+	timelineEventHandler := handlers.NewTimelineEventHandler(createTimelineEventUseCase, getTimelineEventUseCase, listTimelineEventsByStoryUseCase, listTimelineEventsByChapterUseCase, deleteTimelineEventUseCase, log)
+	plotHandler := handlers.NewPlotHandler(createPlotUseCase, getPlotUseCase, listPlotsUseCase, updatePlotUseCase, deletePlotUseCase, addPlotEntityUseCase, createPlotDevelopmentUseCase, listPlotDevelopmentsUseCase, log)
 
 	// Create and configure gRPC server
 	grpcServer := grpcserver.NewServer(cfg, log)
@@ -362,6 +405,10 @@ func main() {
 	grpcServer.RegisterCharacterRPGStatsService(characterRPGStatsHandler)
 	grpcServer.RegisterArtifactRPGStatsService(artifactRPGStatsHandler)
 	grpcServer.RegisterInventoryService(inventoryHandler)
+	grpcServer.RegisterCharacterStateService(characterStateHandler)
+	grpcServer.RegisterRelationshipStateService(relationshipStateHandler)
+	grpcServer.RegisterTimelineEventService(timelineEventHandler)
+	grpcServer.RegisterPlotService(plotHandler)
 
 	// Setup graceful shutdown
 	_, cancel := context.WithCancel(context.Background())

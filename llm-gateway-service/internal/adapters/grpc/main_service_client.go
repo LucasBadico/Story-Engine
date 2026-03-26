@@ -11,7 +11,11 @@ import (
 	chapterpb "github.com/story-engine/main-service/proto/chapter"
 	characterpb "github.com/story-engine/main-service/proto/character"
 	contentblockpb "github.com/story-engine/main-service/proto/content_block"
+	characterstatepb "github.com/story-engine/main-service/proto/character_state"
 	entityrelationpb "github.com/story-engine/main-service/proto/entity_relation"
+	plotpb "github.com/story-engine/main-service/proto/plot"
+	relationshipstatepb "github.com/story-engine/main-service/proto/relationship_state"
+	timelineeventpb "github.com/story-engine/main-service/proto/timeline_event"
 	eventpb "github.com/story-engine/main-service/proto/event"
 	factionpb "github.com/story-engine/main-service/proto/faction"
 	locationpb "github.com/story-engine/main-service/proto/location"
@@ -40,8 +44,12 @@ type MainServiceClient struct {
 	artifactClient       artifactpb.ArtifactServiceClient
 	factionClient        factionpb.FactionServiceClient
 	loreClient           lorepb.LoreServiceClient
-	entityRelationClient entityrelationpb.EntityRelationServiceClient
-	conn                 *grpclib.ClientConn
+	entityRelationClient    entityrelationpb.EntityRelationServiceClient
+	characterStateClient    characterstatepb.CharacterStateServiceClient
+	relationshipStateClient relationshipstatepb.RelationshipStateServiceClient
+	timelineEventClient     timelineeventpb.TimelineEventServiceClient
+	plotClient              plotpb.PlotServiceClient
+	conn                    *grpclib.ClientConn
 }
 
 // NewMainServiceClient creates a new gRPC client for main-service
@@ -65,8 +73,12 @@ func NewMainServiceClient(addr string) (*MainServiceClient, error) {
 		artifactClient:       artifactpb.NewArtifactServiceClient(conn),
 		factionClient:        factionpb.NewFactionServiceClient(conn),
 		loreClient:           lorepb.NewLoreServiceClient(conn),
-		entityRelationClient: entityrelationpb.NewEntityRelationServiceClient(conn),
-		conn:                 conn,
+		entityRelationClient:    entityrelationpb.NewEntityRelationServiceClient(conn),
+		characterStateClient:    characterstatepb.NewCharacterStateServiceClient(conn),
+		relationshipStateClient: relationshipstatepb.NewRelationshipStateServiceClient(conn),
+		timelineEventClient:     timelineeventpb.NewTimelineEventServiceClient(conn),
+		plotClient:              plotpb.NewPlotServiceClient(conn),
+		conn:                    conn,
 	}, nil
 }
 
@@ -742,6 +754,202 @@ func protoToLore(l *lorepb.Lore) *grpcclient.Lore {
 	}
 
 	return lore
+}
+
+// GetCharacterState retrieves a character state by ID
+func (c *MainServiceClient) GetCharacterState(ctx context.Context, characterStateID uuid.UUID) (*grpcclient.CharacterState, error) {
+	resp, err := c.characterStateClient.GetCharacterState(ctx, &characterstatepb.GetCharacterStateRequest{
+		Id: characterStateID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToCharacterState(resp.CharacterState), nil
+}
+
+// GetRelationshipState retrieves a relationship state by ID
+func (c *MainServiceClient) GetRelationshipState(ctx context.Context, relationshipStateID uuid.UUID) (*grpcclient.RelationshipState, error) {
+	resp, err := c.relationshipStateClient.GetRelationshipState(ctx, &relationshipstatepb.GetRelationshipStateRequest{
+		Id: relationshipStateID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToRelationshipState(resp.RelationshipState), nil
+}
+
+// GetTimelineEvent retrieves a timeline event by ID
+func (c *MainServiceClient) GetTimelineEvent(ctx context.Context, timelineEventID uuid.UUID) (*grpcclient.TimelineEvent, error) {
+	resp, err := c.timelineEventClient.GetTimelineEvent(ctx, &timelineeventpb.GetTimelineEventRequest{
+		Id: timelineEventID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToTimelineEvent(resp.TimelineEvent), nil
+}
+
+// GetPlot retrieves a plot by ID
+func (c *MainServiceClient) GetPlot(ctx context.Context, plotID uuid.UUID) (*grpcclient.Plot, error) {
+	resp, err := c.plotClient.GetPlot(ctx, &plotpb.GetPlotRequest{
+		Id: plotID.String(),
+	})
+	if err != nil {
+		return nil, err
+	}
+	return protoToPlot(resp.Plot), nil
+}
+
+// ListPlotDevelopments lists plot developments
+func (c *MainServiceClient) ListPlotDevelopments(ctx context.Context, plotID uuid.UUID, asOfChapter int) ([]*grpcclient.PlotDevelopment, error) {
+	resp, err := c.plotClient.ListPlotDevelopments(ctx, &plotpb.ListPlotDevelopmentsRequest{
+		PlotId:      plotID.String(),
+		AsOfChapter: int32(asOfChapter),
+	})
+	if err != nil {
+		return nil, err
+	}
+	devs := make([]*grpcclient.PlotDevelopment, len(resp.PlotDevelopments))
+	for i, d := range resp.PlotDevelopments {
+		devs[i] = protoToPlotDevelopment(d)
+	}
+	return devs, nil
+}
+
+func protoToCharacterState(cs *characterstatepb.CharacterState) *grpcclient.CharacterState {
+	id, _ := uuid.Parse(cs.Id)
+	characterID, _ := uuid.Parse(cs.CharacterId)
+
+	state := &grpcclient.CharacterState{
+		ID:            id,
+		CharacterID:   characterID,
+		ChapterNumber: int(cs.ChapterNumber),
+		Emotion:       cs.Emotion,
+		Goal:          cs.Goal,
+		Secrets:       cs.Secrets,
+		Clothes:       cs.Clothes,
+		PhysicalState: cs.PhysicalState,
+		CreatedAt:     cs.CreatedAt.Seconds,
+		UpdatedAt:     cs.UpdatedAt.Seconds,
+	}
+	if cs.ChapterId != "" {
+		chapterID, _ := uuid.Parse(cs.ChapterId)
+		state.ChapterID = &chapterID
+	}
+	if cs.HasTimelineDay {
+		day := int(cs.TimelineDay)
+		state.TimelineDay = &day
+	}
+	if cs.TimelineConfidence != "" {
+		state.TimelineConfidence = &cs.TimelineConfidence
+	}
+	return state
+}
+
+func protoToRelationshipState(rs *relationshipstatepb.RelationshipState) *grpcclient.RelationshipState {
+	id, _ := uuid.Parse(rs.Id)
+	chapterID, _ := uuid.Parse(rs.ChapterId)
+
+	state := &grpcclient.RelationshipState{
+		ID:                 id,
+		ChapterID:          chapterID,
+		ChapterNumber:      int(rs.ChapterNumber),
+		TensionDescription: rs.TensionDescription,
+		CreatedAt:          rs.CreatedAt.Seconds,
+		UpdatedAt:          rs.UpdatedAt.Seconds,
+	}
+	if rs.HasTimelineDay {
+		day := int(rs.TimelineDay)
+		state.TimelineDay = &day
+	}
+	if rs.TimelineConfidence != "" {
+		state.TimelineConfidence = &rs.TimelineConfidence
+	}
+	entities := make([]grpcclient.RelationshipStateEntity, len(rs.Entities))
+	for i, e := range rs.Entities {
+		eID, _ := uuid.Parse(e.Id)
+		entityID, _ := uuid.Parse(e.EntityId)
+		entities[i] = grpcclient.RelationshipStateEntity{
+			ID: eID, Role: e.Role, EntityType: e.EntityType, EntityID: entityID,
+		}
+	}
+	state.Entities = entities
+	return state
+}
+
+func protoToTimelineEvent(te *timelineeventpb.TimelineEvent) *grpcclient.TimelineEvent {
+	id, _ := uuid.Parse(te.Id)
+	storyID, _ := uuid.Parse(te.StoryId)
+	chapterID, _ := uuid.Parse(te.ChapterId)
+
+	event := &grpcclient.TimelineEvent{
+		ID:            id,
+		StoryID:       storyID,
+		ChapterID:     chapterID,
+		ChapterNumber: int(te.ChapterNumber),
+		Description:   te.Description,
+		CreatedAt:     te.CreatedAt.Seconds,
+	}
+	if te.HasTimelineDay {
+		day := int(te.TimelineDay)
+		event.TimelineDay = &day
+	}
+	if te.TimelineConfidence != "" {
+		event.TimelineConfidence = &te.TimelineConfidence
+	}
+	entities := make([]grpcclient.TimelineEventEntity, len(te.Entities))
+	for i, e := range te.Entities {
+		eID, _ := uuid.Parse(e.Id)
+		entityID, _ := uuid.Parse(e.EntityId)
+		entities[i] = grpcclient.TimelineEventEntity{
+			ID: eID, Role: e.Role, EntityType: e.EntityType, EntityID: entityID,
+		}
+	}
+	event.Entities = entities
+	return event
+}
+
+func protoToPlot(p *plotpb.Plot) *grpcclient.Plot {
+	id, _ := uuid.Parse(p.Id)
+	storyID, _ := uuid.Parse(p.StoryId)
+
+	plot := &grpcclient.Plot{
+		ID: id, StoryID: storyID, Title: p.Title, Type: p.Type,
+		Description: p.Description, Status: p.Status,
+		CreatedAt: p.CreatedAt.Seconds, UpdatedAt: p.UpdatedAt.Seconds,
+	}
+	entities := make([]grpcclient.PlotEntity, len(p.Entities))
+	for i, e := range p.Entities {
+		eID, _ := uuid.Parse(e.Id)
+		entityID, _ := uuid.Parse(e.EntityId)
+		entities[i] = grpcclient.PlotEntity{
+			ID: eID, Role: e.Role, EntityType: e.EntityType, EntityID: entityID,
+		}
+	}
+	plot.Entities = entities
+	return plot
+}
+
+func protoToPlotDevelopment(d *plotpb.PlotDevelopment) *grpcclient.PlotDevelopment {
+	id, _ := uuid.Parse(d.Id)
+	plotID, _ := uuid.Parse(d.PlotId)
+
+	dev := &grpcclient.PlotDevelopment{
+		ID: id, PlotID: plotID, ChapterNumber: int(d.ChapterNumber),
+		Action: d.Action, Description: d.Description, Notes: d.Notes, CreatedAt: d.CreatedAt.Seconds,
+	}
+	if d.HasTimelineDay {
+		day := int(d.TimelineDay)
+		dev.TimelineDay = &day
+	}
+	if d.TimelineConfidence != "" {
+		dev.TimelineConfidence = &d.TimelineConfidence
+	}
+	if d.TimelineEventId != "" {
+		eventID, _ := uuid.Parse(d.TimelineEventId)
+		dev.TimelineEventID = &eventID
+	}
+	return dev
 }
 
 func protoToEntityRelation(r *entityrelationpb.EntityRelation) *grpcclient.EntityRelation {

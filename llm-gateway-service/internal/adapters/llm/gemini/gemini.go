@@ -19,22 +19,55 @@ const (
 )
 
 type RouterModel struct {
-	apiKey string
-	model  string
-	client *http.Client
+	apiKey          string
+	model           string
+	maxOutputTokens int
+	timeoutSeconds  int
+	temperature     float32
+	client          *http.Client
 }
 
-func NewRouterModel(apiKey string, model string) *RouterModel {
+// RouterModelOption configures a RouterModel
+type RouterModelOption func(*RouterModel)
+
+// WithMaxOutputTokens sets the default max output tokens (default: 4096)
+func WithMaxOutputTokens(n int) RouterModelOption {
+	return func(m *RouterModel) { m.maxOutputTokens = n }
+}
+
+// WithTimeoutSeconds sets the HTTP client timeout (default: 30s)
+func WithTimeoutSeconds(n int) RouterModelOption {
+	return func(m *RouterModel) {
+		m.timeoutSeconds = n
+		m.client = &http.Client{Timeout: time.Duration(n) * time.Second}
+	}
+}
+
+// WithTemperature sets the generation temperature (default: 0.2)
+func WithTemperature(t float32) RouterModelOption {
+	return func(m *RouterModel) { m.temperature = t }
+}
+
+func NewRouterModel(apiKey string, model string, opts ...RouterModelOption) *RouterModel {
 	trimmed := model
 	if trimmed == "" {
 		trimmed = defaultModel
 	}
 
-	return &RouterModel{
-		apiKey: apiKey,
-		model:  trimmed,
-		client: &http.Client{Timeout: 30 * time.Second},
+	m := &RouterModel{
+		apiKey:          apiKey,
+		model:           trimmed,
+		maxOutputTokens: defaultMaxOutputTokens,
+		timeoutSeconds:  30,
+		temperature:     0.2,
+		client:          &http.Client{Timeout: 30 * time.Second},
 	}
+
+	for _, opt := range opts {
+		opt(m)
+	}
+
+	return m
 }
 
 type requestPayload struct {
@@ -72,12 +105,12 @@ type promptFeedback struct {
 }
 
 func (m *RouterModel) Generate(ctx context.Context, prompt string) (string, error) {
-	return m.generateWithMaxOutputTokens(ctx, prompt, defaultMaxOutputTokens)
+	return m.generateWithMaxOutputTokens(ctx, prompt, m.maxOutputTokens)
 }
 
 func (m *RouterModel) GenerateWithMaxOutputTokens(ctx context.Context, prompt string, maxOutputTokens int) (string, error) {
 	if maxOutputTokens <= 0 {
-		maxOutputTokens = defaultMaxOutputTokens
+		maxOutputTokens = m.maxOutputTokens
 	}
 	return m.generateWithMaxOutputTokens(ctx, prompt, maxOutputTokens)
 }
@@ -93,7 +126,7 @@ func (m *RouterModel) generateWithMaxOutputTokens(ctx context.Context, prompt st
 	const maxAttempts = 3
 
 	client := m.client
-	if maxOutputTokens > defaultMaxOutputTokens && client.Timeout < extendedTimeoutSeconds*time.Second {
+	if maxOutputTokens > m.maxOutputTokens && client.Timeout < extendedTimeoutSeconds*time.Second {
 		client = &http.Client{Timeout: extendedTimeoutSeconds * time.Second}
 	}
 
@@ -108,7 +141,7 @@ func (m *RouterModel) generateWithMaxOutputTokens(ctx context.Context, prompt st
 				},
 			},
 			GenerationConfig: generationConfig{
-				Temperature:      0.2,
+				Temperature:      m.temperature,
 				MaxOutputTokens:  maxOutputTokens,
 				ResponseMimeType: "application/json",
 			},

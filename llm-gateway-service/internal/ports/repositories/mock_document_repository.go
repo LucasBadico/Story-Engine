@@ -139,3 +139,27 @@ func (m *MockDocumentRepository) ListByTenant(ctx context.Context, tenantID uuid
 	return result, nil
 }
 
+// ListCanonical lists canonical documents for a story
+func (m *MockDocumentRepository) ListCanonical(ctx context.Context, storyID uuid.UUID, asOfChapter int) ([]*memory.Document, error) {
+	var result []*memory.Document
+	for _, doc := range m.documents {
+		if doc.StoryID != nil && *doc.StoryID == storyID && doc.IsCanonical && doc.ValidFromChapter <= asOfChapter {
+			if doc.ValidToChapter == nil || *doc.ValidToChapter > asOfChapter {
+				result = append(result, doc)
+			}
+		}
+	}
+	return result, nil
+}
+
+// ListByStoryAndSourceType lists documents for a story by source type
+func (m *MockDocumentRepository) ListByStoryAndSourceType(ctx context.Context, storyID uuid.UUID, sourceType memory.SourceType) ([]*memory.Document, error) {
+	var result []*memory.Document
+	for _, doc := range m.documents {
+		if doc.StoryID != nil && *doc.StoryID == storyID && doc.SourceType == sourceType {
+			result = append(result, doc)
+		}
+	}
+	return result, nil
+}
+

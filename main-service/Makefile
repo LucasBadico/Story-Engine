@@ -1,4 +1,4 @@
-.PHONY: db-up db-down db-reset-volume db-truncate migrate-up migrate-down migrate-create test test-integration test-http clean run-offline
+.PHONY: db-up db-down db-reset-volume db-truncate migrate-up migrate-down migrate-create test test-integration test-http clean http-blocks-offline http-blocks-api grpc-blocks-api
 
 # PostgreSQL defaults (used by pg-test-clean)
 PGH ?= localhost
@@ -14,31 +14,31 @@ db-up:
 		(echo "ERROR: PostgreSQL is not running. Start it with 'brew services start postgresql@16' or similar"; exit 1)
 	@echo "PostgreSQL is ready!"
 	@echo "Creating database if it doesn't exist..."
-	@psql -h localhost -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'storyengine'" | grep -q 1 && \
-		echo "Database 'storyengine' already exists" || \
-		(psql -h localhost -U postgres -c "CREATE DATABASE storyengine" && echo "Database 'storyengine' created")
+	@psql -h localhost -U postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'storyblocks'" | grep -q 1 && \
+		echo "Database 'storyblocks' already exists" || \
+		(psql -h localhost -U postgres -c "CREATE DATABASE storyblocks" && echo "Database 'storyblocks' created")
 
 db-down:
 	@echo "PostgreSQL runs as a local service. Use 'brew services stop postgresql' if needed."
 
 db-reset-volume:
 	@echo "Dropping and recreating database..."
-	@psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS storyengine" 2>/dev/null || true
-	@psql -h localhost -U postgres -c "CREATE DATABASE storyengine"
+	@psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS storyblocks" 2>/dev/null || true
+	@psql -h localhost -U postgres -c "CREATE DATABASE storyblocks"
 	@echo "Database reset complete"
 
 db-reset: db-reset-volume migrate-up
 
 db-truncate:
 	@echo "Truncating all tables..."
-	@psql -h localhost -U postgres -d storyengine -c "\
+	@psql -h localhost -U postgres -d storyblocks -c "\
 		TRUNCATE TABLE prose_blocks, beats, scenes, chapters, stories, \
 		audit_logs, memberships, users, tenants \
 		RESTART IDENTITY CASCADE;" && \
 		echo "All tables truncated successfully"
 
 # Migration management
-MIGRATE_CMD = migrate -path ./migrations -database "postgres://postgres:postgres@localhost:5432/storyengine?sslmode=disable"
+MIGRATE_CMD = migrate -path ./migrations -database "postgres://postgres:pass@localhost:5432/storyblocks?sslmode=disable"
 
 migrate-up:
 	$(MIGRATE_CMD) up
@@ -86,15 +86,15 @@ proto-clean:
 	find proto -name "*.pb.go" -delete
 
 # Run gRPC server
-run-grpc:
+grpc-blocks-api:
 	go run cmd/api-grpc/main.go
 
 # Run HTTP server
-run-http:
+http-blocks-api:
 	go run cmd/api-http/main.go
 
 # Run HTTP/SQLite server
-run-offline:
+http-blocks-offline:
 	go run cmd/api-offline/main.go
 
 # Test HTTP handlers

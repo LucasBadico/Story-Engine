@@ -28,16 +28,20 @@ import (
 	beatapp "github.com/story-engine/main-service/internal/application/story/beat"
 	chapterapp "github.com/story-engine/main-service/internal/application/story/chapter"
 	contentblockapp "github.com/story-engine/main-service/internal/application/story/content_block"
+	plotapp "github.com/story-engine/main-service/internal/application/story/plot"
 	sceneapp "github.com/story-engine/main-service/internal/application/story/scene"
+	timelineeventapp "github.com/story-engine/main-service/internal/application/story/timeline_event"
 	"github.com/story-engine/main-service/internal/application/tenant"
 	worldapp "github.com/story-engine/main-service/internal/application/world"
 	archetypeapp "github.com/story-engine/main-service/internal/application/world/archetype"
 	artifactapp "github.com/story-engine/main-service/internal/application/world/artifact"
 	characterapp "github.com/story-engine/main-service/internal/application/world/character"
+	characterstateapp "github.com/story-engine/main-service/internal/application/world/character_state"
 	eventapp "github.com/story-engine/main-service/internal/application/world/event"
 	factionapp "github.com/story-engine/main-service/internal/application/world/faction"
 	locationapp "github.com/story-engine/main-service/internal/application/world/location"
 	loreapp "github.com/story-engine/main-service/internal/application/world/lore"
+	relationshipstateapp "github.com/story-engine/main-service/internal/application/world/relationship_state"
 	traitapp "github.com/story-engine/main-service/internal/application/world/trait"
 	"github.com/story-engine/main-service/internal/platform/config"
 	"github.com/story-engine/main-service/internal/platform/database"
@@ -110,6 +114,11 @@ func main() {
 	beatRepo := postgres.NewBeatRepository(pgDB)
 	contentBlockRepo := postgres.NewContentBlockRepository(pgDB)
 	contentAnchorRepo := postgres.NewContentAnchorRepository(pgDB)
+	characterStateRepo := postgres.NewCharacterStateRepository(pgDB)
+	relationshipStateRepo := postgres.NewRelationshipStateRepository(pgDB)
+	timelineEventRepo := postgres.NewTimelineEventRepository(pgDB)
+	plotRepo := postgres.NewPlotRepository(pgDB)
+	plotDevelopmentRepo := postgres.NewPlotDevelopmentRepository(pgDB)
 	entityRelationRepo := postgres.NewEntityRelationRepository(pgDB)
 	auditLogRepo := postgres.NewAuditLogRepository(pgDB)
 	transactionRepo := postgres.NewTransactionRepository(pgDB)
@@ -297,6 +306,29 @@ func main() {
 	unequipItemUseCase := characterinventoryapp.NewUnequipItemUseCase(characterInventoryRepo, log)
 	deleteCharacterInventoryUseCase := characterinventoryapp.NewDeleteCharacterInventoryUseCase(characterInventoryRepo, log)
 	transferItemUseCase := characterinventoryapp.NewTransferItemUseCase(characterInventoryRepo, characterRepo, log)
+	createCharacterStateUseCase := characterstateapp.NewCreateCharacterStateUseCase(characterStateRepo, characterRepo, auditLogRepo, log)
+	getCharacterStateUseCase := characterstateapp.NewGetCharacterStateUseCase(characterStateRepo, log)
+	getLatestCharacterStateUseCase := characterstateapp.NewGetLatestCharacterStateUseCase(characterStateRepo, log)
+	listCharacterStatesUseCase := characterstateapp.NewListCharacterStatesUseCase(characterStateRepo, log)
+	deleteCharacterStateUseCase := characterstateapp.NewDeleteCharacterStateUseCase(characterStateRepo, auditLogRepo, log)
+	createRelationshipStateUseCase := relationshipstateapp.NewCreateRelationshipStateUseCase(relationshipStateRepo, auditLogRepo, log)
+	getRelationshipStateUseCase := relationshipstateapp.NewGetRelationshipStateUseCase(relationshipStateRepo, log)
+	getLatestRelationshipStateUseCase := relationshipstateapp.NewGetLatestRelationshipStateUseCase(relationshipStateRepo, log)
+	listRelationshipStatesUseCase := relationshipstateapp.NewListRelationshipStatesUseCase(relationshipStateRepo, log)
+	deleteRelationshipStateUseCase := relationshipstateapp.NewDeleteRelationshipStateUseCase(relationshipStateRepo, auditLogRepo, log)
+	createTimelineEventUseCase := timelineeventapp.NewCreateTimelineEventUseCase(timelineEventRepo, storyRepo, auditLogRepo, log)
+	getTimelineEventUseCase := timelineeventapp.NewGetTimelineEventUseCase(timelineEventRepo, log)
+	listTimelineEventsByStoryUseCase := timelineeventapp.NewListTimelineEventsByStoryUseCase(timelineEventRepo, log)
+	listTimelineEventsByChapterUseCase := timelineeventapp.NewListTimelineEventsByChapterUseCase(timelineEventRepo, log)
+	deleteTimelineEventUseCase := timelineeventapp.NewDeleteTimelineEventUseCase(timelineEventRepo, auditLogRepo, log)
+	createPlotUseCase := plotapp.NewCreatePlotUseCase(plotRepo, storyRepo, auditLogRepo, log)
+	getPlotUseCase := plotapp.NewGetPlotUseCase(plotRepo, log)
+	listPlotsUseCase := plotapp.NewListPlotsUseCase(plotRepo, log)
+	updatePlotUseCase := plotapp.NewUpdatePlotUseCase(plotRepo, auditLogRepo, log)
+	deletePlotUseCase := plotapp.NewDeletePlotUseCase(plotRepo, auditLogRepo, log)
+	addPlotEntityUseCase := plotapp.NewAddPlotEntityUseCase(plotRepo, log)
+	createPlotDevelopmentUseCase := plotapp.NewCreatePlotDevelopmentUseCase(plotDevelopmentRepo, plotRepo, auditLogRepo, log)
+	listPlotDevelopmentsUseCase := plotapp.NewListPlotDevelopmentsUseCase(plotDevelopmentRepo, log)
 
 	createWorldUseCase.SetIngestionQueue(ingestionQueue)
 	updateWorldUseCase.SetIngestionQueue(ingestionQueue)
@@ -312,6 +344,10 @@ func main() {
 	updateFactionUseCase.SetIngestionQueue(ingestionQueue)
 	createLoreUseCase.SetIngestionQueue(ingestionQueue)
 	updateLoreUseCase.SetIngestionQueue(ingestionQueue)
+	createCharacterStateUseCase.SetIngestionQueue(ingestionQueue)
+	createRelationshipStateUseCase.SetIngestionQueue(ingestionQueue)
+	createTimelineEventUseCase.SetIngestionQueue(ingestionQueue)
+	createPlotUseCase.SetIngestionQueue(ingestionQueue)
 
 	// Create handlers
 	tenantHandler := httphandlers.NewTenantHandler(createTenantUseCase, tenantRepo, log)
@@ -358,6 +394,10 @@ func main() {
 	contentBlockHandler := httphandlers.NewContentBlockHandler(createContentBlockUseCase, getContentBlockUseCase, updateContentBlockUseCase, deleteContentBlockUseCase, listContentBlocksUseCase, log)
 	contentAnchorHandler := httphandlers.NewContentAnchorHandler(createContentAnchorUseCase, listContentAnchorsByContentBlockUseCase, listContentBlocksByEntityUseCase, deleteContentAnchorUseCase, log)
 	entityRelationHandler := httphandlers.NewEntityRelationHandler(createRelationUseCase, getRelationUseCase, listRelationsBySourceUseCase, listRelationsByTargetUseCase, listRelationsByWorldUseCase, updateRelationUseCase, deleteRelationUseCase, log)
+	characterStateHandler := httphandlers.NewCharacterStateHandler(createCharacterStateUseCase, getCharacterStateUseCase, getLatestCharacterStateUseCase, listCharacterStatesUseCase, deleteCharacterStateUseCase, log)
+	relationshipStateHandler := httphandlers.NewRelationshipStateHandler(createRelationshipStateUseCase, getRelationshipStateUseCase, getLatestRelationshipStateUseCase, listRelationshipStatesUseCase, deleteRelationshipStateUseCase, log)
+	timelineEventHandler := httphandlers.NewTimelineEventHandler(createTimelineEventUseCase, getTimelineEventUseCase, listTimelineEventsByStoryUseCase, listTimelineEventsByChapterUseCase, deleteTimelineEventUseCase, log)
+	plotHandler := httphandlers.NewPlotHandler(createPlotUseCase, getPlotUseCase, listPlotsUseCase, updatePlotUseCase, deletePlotUseCase, addPlotEntityUseCase, createPlotDevelopmentUseCase, listPlotDevelopmentsUseCase, log)
 	relationMapHandler := httphandlers.NewRelationMapHandler()
 
 	// Create router
@@ -563,6 +603,37 @@ func main() {
 	mux.HandleFunc("PUT /api/v1/character-inventory/{id}/unequip", inventoryHandler.UnequipItem)
 	mux.HandleFunc("DELETE /api/v1/character-inventory/{id}", inventoryHandler.DeleteInventory)
 	mux.HandleFunc("POST /api/v1/character-inventory/{id}/transfer", inventoryHandler.TransferItem)
+
+	// Character state routes
+	mux.HandleFunc("POST /api/v1/characters/{character_id}/states", characterStateHandler.Create)
+	mux.HandleFunc("GET /api/v1/character-states/{id}", characterStateHandler.Get)
+	mux.HandleFunc("GET /api/v1/characters/{character_id}/states/latest", characterStateHandler.GetLatest)
+	mux.HandleFunc("GET /api/v1/chapters/{chapter_id}/character-states", characterStateHandler.ListByChapter)
+	mux.HandleFunc("DELETE /api/v1/character-states/{id}", characterStateHandler.Delete)
+
+	// Relationship state routes
+	mux.HandleFunc("POST /api/v1/relationship-states", relationshipStateHandler.Create)
+	mux.HandleFunc("GET /api/v1/relationship-states/{id}", relationshipStateHandler.Get)
+	mux.HandleFunc("GET /api/v1/relationship-states/latest", relationshipStateHandler.GetLatest)
+	mux.HandleFunc("GET /api/v1/chapters/{chapter_id}/relationship-states", relationshipStateHandler.ListByChapter)
+	mux.HandleFunc("DELETE /api/v1/relationship-states/{id}", relationshipStateHandler.Delete)
+
+	// Timeline event routes
+	mux.HandleFunc("POST /api/v1/stories/{story_id}/timeline-events", timelineEventHandler.Create)
+	mux.HandleFunc("GET /api/v1/timeline-events/{id}", timelineEventHandler.Get)
+	mux.HandleFunc("GET /api/v1/stories/{story_id}/timeline-events", timelineEventHandler.ListByStory)
+	mux.HandleFunc("GET /api/v1/chapters/{chapter_id}/timeline-events", timelineEventHandler.ListByChapter)
+	mux.HandleFunc("DELETE /api/v1/timeline-events/{id}", timelineEventHandler.Delete)
+
+	// Plot routes
+	mux.HandleFunc("POST /api/v1/stories/{story_id}/plots", plotHandler.Create)
+	mux.HandleFunc("GET /api/v1/plots/{id}", plotHandler.Get)
+	mux.HandleFunc("GET /api/v1/stories/{story_id}/plots", plotHandler.ListByStory)
+	mux.HandleFunc("PUT /api/v1/plots/{id}", plotHandler.Update)
+	mux.HandleFunc("DELETE /api/v1/plots/{id}", plotHandler.Delete)
+	mux.HandleFunc("POST /api/v1/plots/{id}/entities", plotHandler.AddEntity)
+	mux.HandleFunc("POST /api/v1/plots/{id}/developments", plotHandler.CreateDevelopment)
+	mux.HandleFunc("GET /api/v1/plots/{id}/developments", plotHandler.ListDevelopments)
 
 	// Entity relations routes
 	mux.HandleFunc("POST /api/v1/relations", entityRelationHandler.Create)
