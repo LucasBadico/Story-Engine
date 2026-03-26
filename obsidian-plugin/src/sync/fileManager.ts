@@ -25,6 +25,10 @@ export class FileManager {
 		return `${this.baseFolder}/${sanitized}`;
 	}
 
+	getWorldsRootPath(): string {
+		return `${this.baseFolder}/worlds`;
+	}
+
 	// Sanitize folder/file names
 	private sanitizeFolderName(name: string): string {
 		return name
@@ -38,8 +42,21 @@ export class FileManager {
 		baseFields: Record<string, string | number | null>,
 		extraFields?: Record<string, string | number | null>,
 		options?: {
-			entityType: "story" | "chapter" | "scene" | "beat" | "content-block";
+			entityType:
+				| "story"
+				| "chapter"
+				| "scene"
+				| "beat"
+				| "content-block"
+				| "world"
+				| "character"
+				| "location"
+				| "faction"
+				| "artifact"
+				| "event"
+				| "lore";
 			storyName?: string;
+			worldName?: string;
 			date?: string; // ISO date string (YYYY-MM-DD) or Date object
 		}
 	): string {
@@ -62,6 +79,12 @@ export class FileManager {
 					.toLowerCase()
 					.replace(/\s+/g, "-");
 				tags.push(`story/${sanitizedStoryName}`);
+			}
+			if (options.worldName) {
+				const sanitizedWorldName = this.sanitizeFolderName(options.worldName)
+					.toLowerCase()
+					.replace(/\s+/g, "-");
+				tags.push(`world/${sanitizedWorldName}`);
 			}
 
 			// Date tag in format YYYY/MM/DD
@@ -109,12 +132,92 @@ export class FileManager {
 		return lines.join("\n");
 	}
 
+	getWorldFolderPath(worldName: string): string {
+		const sanitized = this.sanitizeFolderName(worldName);
+		return `${this.baseFolder}/worlds/${sanitized}`;
+	}
+
+	async writeWorldMetadata(world: import("../types").World, folderPath: string): Promise<void> {
+		await this.ensureFolderExists(folderPath);
+		const frontmatter = this.generateFrontmatter(
+			{
+				id: world.id,
+				genre: world.genre,
+				rpg_system_id: world.rpg_system_id ?? null,
+				time_config: world.time_config ? JSON.stringify(world.time_config) : null,
+				created_at: world.created_at,
+				updated_at: world.updated_at,
+			},
+			undefined,
+			{
+				entityType: "world",
+				worldName: world.name,
+				date: world.created_at,
+			}
+		);
+
+		const content = [
+			frontmatter,
+			`# ${world.name}`,
+			"",
+			world.description || "_No description yet._",
+			"",
+			world.is_implicit ? "> This world is implicit (auto-created)." : "",
+		]
+			.filter(Boolean)
+			.join("\n");
+
+		await this.writeFile(`${folderPath}/world.md`, content.trim() + "\n");
+	}
+
 	// Ensure folder exists
 	async ensureFolderExists(path: string): Promise<void> {
 		const folder = this.vault.getAbstractFileByPath(path);
 		if (!folder) {
 			await this.vault.createFolder(path);
 		}
+	}
+
+	async writeFile(filePath: string, content: string): Promise<void> {
+		const folderPath = filePath.split("/").slice(0, -1).join("/");
+		if (folderPath) {
+			await this.ensureFolderExists(folderPath);
+		}
+		const existing = this.vault.getAbstractFileByPath(filePath);
+		if (existing instanceof TFile) {
+			await this.vault.modify(existing, content);
+		} else {
+			await this.vault.create(filePath, content);
+		}
+	}
+
+	async readFile(filePath: string): Promise<string> {
+		const file = this.vault.getAbstractFileByPath(filePath);
+		if (!(file instanceof TFile)) {
+			throw new Error(`File not found: ${filePath}`);
+		}
+		return this.vault.read(file);
+	}
+
+	async renameFile(oldPath: string, newPath: string): Promise<void> {
+		const file = this.vault.getAbstractFileByPath(oldPath);
+		if (!(file instanceof TFile)) {
+			throw new Error(`File not found: ${oldPath}`);
+		}
+		const folderPath = newPath.split("/").slice(0, -1).join("/");
+		if (folderPath) {
+			await this.ensureFolderExists(folderPath);
+		}
+		await this.vault.rename(file, newPath);
+	}
+
+	fileExists(path: string): boolean {
+		const file = this.vault.getAbstractFileByPath(path);
+		return !!file;
+	}
+
+	async createSnapshot(_label: string): Promise<void> {
+		// TODO: implement snapshot storage (Phase 11)
 	}
 
 	// Write story metadata (story.md)
@@ -124,7 +227,8 @@ export class FileManager {
 		chapters?: ChapterWithContent[], 
 		orphanScenes?: SceneWithBeats[], 
 		orphanBeats?: Beat[],
-		chapterContentData?: Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentAnchor[] }>
+		chapterContentData?: Map<string, { contentBlocks: ContentBlock[], contentBlockRefs: ContentAnchor[] }>,
+		options?: { linkMode?: "basename" | "full_path" }
 	): Promise<void> {
 		await this.ensureFolderExists(folderPath);
 
@@ -184,32 +288,56 @@ export class FileManager {
 				const chapter = chapterWithContent.chapter;
 				const chapterFileName = `Chapter-${chapter.number}.md`;
 				const chapterLinkName = chapterFileName.replace(/\.md$/, "");
+				const chapterLinkPath =
+					options?.linkMode === "full_path"
+						? this.buildStoryEntityPath(folderPath, "chapter", chapter.number, chapter.title)
+						: chapterLinkName;
 				
 				// For now, we don't track prose at story level, so always use "-"
 				// In the future, we could check if chapter has any prose blocks
-				content += `- [[${chapterLinkName}|Chapter ${chapter.number}: ${chapter.title}]]\n`;
+				content += `- [[${chapterLinkPath}|Chapter ${chapter.number}: ${chapter.title}]]\n`;
 				
 				// Add scenes for this chapter
 				for (const { scene, beats } of chapterWithContent.scenes) {
 					const sceneFileName = this.generateSceneFileName(scene);
 					const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+					const sceneLinkPath =
+						options?.linkMode === "full_path"
+							? this.buildStoryEntityPath(
+									folderPath,
+									"scene",
+									scene.order_num ?? 0,
+									scene.goal || "scene",
+									{ chapterOrder: chapter.number }
+							  )
+							: sceneLinkName;
 					const sceneDisplayText = scene.time_ref 
 						? `${scene.goal} - ${scene.time_ref}`
 						: scene.goal;
 					
 					// For now, we don't track prose at story level, so always use "-"
-					content += `\t- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
+					content += `\t- [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
 					
 					// Add beats for this scene
 					for (const beat of beats) {
 						const beatFileName = this.generateBeatFileName(beat);
 						const beatLinkName = beatFileName.replace(/\.md$/, "");
+						const beatLinkPath =
+							options?.linkMode === "full_path"
+								? this.buildStoryEntityPath(
+										folderPath,
+										"beat",
+										beat.order_num ?? 0,
+										beat.intent || "beat",
+										{ chapterOrder: chapter.number, sceneOrder: scene.order_num ?? 0 }
+								  )
+								: beatLinkName;
 						const beatDisplayText = beat.outcome
 							? `${beat.intent} -> ${beat.outcome}`
 							: beat.intent;
 						
 						// For now, we don't track prose at story level, so always use "-"
-						content += `\t\t- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
+						content += `\t\t- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
 					}
 				}
 			}
@@ -233,23 +361,43 @@ export class FileManager {
 			for (const { scene, beats } of orphanScenes) {
 				const sceneFileName = this.generateSceneFileName(scene);
 				const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+				const sceneLinkPath =
+					options?.linkMode === "full_path"
+						? this.buildStoryEntityPath(
+								folderPath,
+								"scene",
+								scene.order_num ?? 0,
+								scene.goal || "scene",
+								{ chapterOrder: 0 }
+						  )
+						: sceneLinkName;
 				const sceneDisplayText = scene.time_ref 
 					? `${scene.goal} - ${scene.time_ref}`
 					: scene.goal;
 				
 				// For now, we don't track prose at story level, so always use "-"
-				content += `- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
+				content += `- [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
 				
 				// Add beats for this scene
 				for (const beat of beats) {
 					const beatFileName = this.generateBeatFileName(beat);
 					const beatLinkName = beatFileName.replace(/\.md$/, "");
+					const beatLinkPath =
+						options?.linkMode === "full_path"
+							? this.buildStoryEntityPath(
+									folderPath,
+									"beat",
+									beat.order_num ?? 0,
+									beat.intent || "beat",
+									{ chapterOrder: 0, sceneOrder: scene.order_num ?? 0 }
+							  )
+							: beatLinkName;
 					const beatDisplayText = beat.outcome
 						? `${beat.intent} -> ${beat.outcome}`
 						: beat.intent;
 					
 					// For now, we don't track prose at story level, so always use "-"
-					content += `\t- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
+					content += `\t- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
 				}
 			}
 			content += `\n`;
@@ -398,7 +546,8 @@ export class FileManager {
 		storyName?: string,
 		contentBlocks?: ContentBlock[],
 		contentBlockRefs?: ContentAnchor[],
-		orphanScenes?: SceneWithBeats[] // Include orphan scenes for easy association
+		orphanScenes?: SceneWithBeats[], // Include orphan scenes for easy association
+		options?: { linkMode?: "basename" | "full_path"; storyFolderPath?: string }
 	): Promise<void> {
 		const { chapter, scenes } = chapterWithContent;
 
@@ -449,10 +598,23 @@ export class FileManager {
 		content += `> - **Markers**: \`-\` indicates no associated prose, \`+\` indicates associated prose\n`;
 		content += `> - **Orphan scenes** (without chapter) are shown below for easy association\n\n`;
 		
+		const storyFolderPath =
+			options?.storyFolderPath ?? this.resolveStoryFolderPath(filePath, "00-chapters");
+
 		// Add scenes for this chapter
 		for (const { scene, beats } of scenes) {
 			const sceneFileName = this.generateSceneFileName(scene);
 			const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+			const sceneLinkPath =
+				options?.linkMode === "full_path" && storyFolderPath
+					? this.buildStoryEntityPath(
+							storyFolderPath,
+							"scene",
+							scene.order_num ?? 0,
+							scene.goal || "scene",
+							{ chapterOrder: chapter.number }
+					  )
+					: sceneLinkName;
 			const sceneDisplayText = scene.time_ref 
 				? `${scene.goal} - ${scene.time_ref}`
 				: scene.goal;
@@ -462,12 +624,22 @@ export class FileManager {
 			const hasSceneContent = sceneContentBlocks.length > 0;
 			const sceneMarker = hasSceneContent ? "+" : "-";
 			
-			content += `${sceneMarker} [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
+			content += `${sceneMarker} [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
 			
 			// Add beats for this scene
 			for (const beat of beats) {
 				const beatFileName = this.generateBeatFileName(beat);
 				const beatLinkName = beatFileName.replace(/\.md$/, "");
+				const beatLinkPath =
+					options?.linkMode === "full_path" && storyFolderPath
+						? this.buildStoryEntityPath(
+								storyFolderPath,
+								"beat",
+								beat.order_num ?? 0,
+								beat.intent || "beat",
+								{ chapterOrder: chapter.number, sceneOrder: scene.order_num ?? 0 }
+						  )
+						: beatLinkName;
 				const beatDisplayText = beat.outcome
 					? `${beat.intent} -> ${beat.outcome}`
 					: beat.intent;
@@ -477,7 +649,7 @@ export class FileManager {
 				const hasBeatContent = beatContentBlocks.length > 0;
 				const beatMarker = hasBeatContent ? "+" : "-";
 				
-				content += `\t${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
+				content += `\t${beatMarker} [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
 			}
 		}
 		
@@ -490,23 +662,43 @@ export class FileManager {
 			for (const { scene, beats } of orphanScenes) {
 				const sceneFileName = this.generateSceneFileName(scene);
 				const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+				const sceneLinkPath =
+					options?.linkMode === "full_path" && storyFolderPath
+						? this.buildStoryEntityPath(
+								storyFolderPath,
+								"scene",
+								scene.order_num ?? 0,
+								scene.goal || "scene",
+								{ chapterOrder: 0 }
+						  )
+						: sceneLinkName;
 				const sceneDisplayText = scene.time_ref 
 					? `${scene.goal} - ${scene.time_ref}`
 					: scene.goal;
 				
 				// For now, we don't track prose at chapter level, so always use "-"
-				content += `- [[${sceneLinkName}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
+				content += `- [[${sceneLinkPath}|Scene ${scene.order_num}: ${sceneDisplayText}]]\n`;
 				
 				// Add beats for this orphan scene
 				for (const beat of beats) {
 					const beatFileName = this.generateBeatFileName(beat);
 					const beatLinkName = beatFileName.replace(/\.md$/, "");
+					const beatLinkPath =
+						options?.linkMode === "full_path" && storyFolderPath
+							? this.buildStoryEntityPath(
+									storyFolderPath,
+									"beat",
+									beat.order_num ?? 0,
+									beat.intent || "beat",
+									{ chapterOrder: 0, sceneOrder: scene.order_num ?? 0 }
+							  )
+							: beatLinkName;
 					const beatDisplayText = beat.outcome
 						? `${beat.intent} -> ${beat.outcome}`
 						: beat.intent;
 					
 					// For now, we don't track prose at chapter level, so always use "-"
-					content += `\t- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
+					content += `\t- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
 				}
 			}
 		}
@@ -572,7 +764,7 @@ export class FileManager {
 	}
 
 	// Read story metadata
-	async readStoryMetadata(folderPath: string): Promise<StoryMetadata> {
+	async readStoryMetadata(folderPath: string, idField?: string): Promise<StoryMetadata> {
 		const filePath = `${folderPath}/story.md`;
 		const file = this.vault.getAbstractFileByPath(filePath);
 
@@ -583,9 +775,13 @@ export class FileManager {
 		const content = await this.vault.read(file);
 		const frontmatter = this.parseFrontmatter(content);
 
+		// Use configured ID field name to read story ID, fallback to "id"
+		const effectiveIdField = idField || "id";
+		const storyId = frontmatter[effectiveIdField] || frontmatter.id || "";
+
 		return {
 			frontmatter: {
-				id: frontmatter.id,
+				id: storyId,
 				title: frontmatter.title,
 				status: frontmatter.status,
 				version: parseInt(frontmatter.version),
@@ -684,9 +880,17 @@ export class FileManager {
 		filePath: string,
 		storyName?: string,
 		contentBlocks?: ContentBlock[],
-		orphanBeats?: Beat[] // Include orphan beats for easy association
+		orphanBeats?: Beat[], // Include orphan beats for easy association
+		options?: {
+			linkMode?: "basename" | "full_path";
+			storyFolderPath?: string;
+			chapterOrder?: number;
+		}
 	): Promise<void> {
 		const { scene, beats } = sceneWithBeats;
+		const storyFolderPath =
+			options?.storyFolderPath ?? this.resolveStoryFolderPath(filePath, "01-scenes");
+		const chapterOrder = options?.chapterOrder ?? 0;
 
 		const baseFields: Record<string, string | number | null> = {
 			id: scene.id,
@@ -753,6 +957,16 @@ export class FileManager {
 			for (const beat of beats.sort((a, b) => a.order_num - b.order_num)) {
 				const beatFileName = this.generateBeatFileName(beat);
 				const beatLinkName = beatFileName.replace(/\.md$/, "");
+				const beatLinkPath =
+					options?.linkMode === "full_path" && storyFolderPath
+						? this.buildStoryEntityPath(
+								storyFolderPath,
+								"beat",
+								beat.order_num ?? 0,
+								beat.intent || "beat",
+								{ chapterOrder, sceneOrder: scene.order_num ?? 0 }
+						  )
+						: beatLinkName;
 				const beatDisplayText = beat.outcome
 					? `${beat.intent} -> ${beat.outcome}`
 					: beat.intent;
@@ -762,7 +976,7 @@ export class FileManager {
 				const hasBeatProse = beatsWithProse.has(beat.id);
 				const beatMarker = hasBeatProse ? "+" : "-";
 				
-				content += `${beatMarker} [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
+				content += `${beatMarker} [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
 			}
 			
 			// Add orphan beats (beats without scene_id) for easy association
@@ -774,12 +988,21 @@ export class FileManager {
 				for (const beat of orphanBeats) {
 					const beatFileName = this.generateBeatFileName(beat);
 					const beatLinkName = beatFileName.replace(/\.md$/, "");
+					const beatLinkPath =
+						options?.linkMode === "full_path" && storyFolderPath
+							? this.buildStoryEntityPath(
+									storyFolderPath,
+									"beat",
+									beat.order_num ?? 0,
+									beat.intent || "beat"
+							  )
+							: beatLinkName;
 					const beatDisplayText = beat.outcome
 						? `${beat.intent} -> ${beat.outcome}`
 						: beat.intent;
 					
 					// For now, we don't track prose at scene level, so always use "-"
-					content += `- [[${beatLinkName}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
+					content += `- [[${beatLinkPath}|Beat ${beat.order_num}: ${beatDisplayText}]]\n`;
 				}
 			}
 			
@@ -789,11 +1012,21 @@ export class FileManager {
 		// Generate hierarchical prose section for the scene
 		const sceneFileName = this.generateSceneFileName(scene);
 		const sceneLinkName = sceneFileName.replace(/\.md$/, "");
+		const sceneLinkPath =
+			options?.linkMode === "full_path" && storyFolderPath
+				? this.buildStoryEntityPath(
+						storyFolderPath,
+						"scene",
+						scene.order_num ?? 0,
+						scene.goal || "scene",
+						{ chapterOrder }
+				  )
+				: sceneLinkName;
 		const sceneDisplayText = scene.time_ref 
 			? `${scene.goal} - ${scene.time_ref}`
 			: scene.goal;
 		
-		content += `## Scene: [[${sceneLinkName}|${sceneDisplayText}]]\n\n`;
+		content += `## Scene: [[${sceneLinkPath}|${sceneDisplayText}]]\n\n`;
 
 		// Add prose blocks at scene level (not associated with any beat)
 		if (contentBlocks && contentBlocks.length > 0) {
@@ -802,7 +1035,11 @@ export class FileManager {
 			for (const contentBlock of sortedContentBlocks) {
 				const fileName = this.generateContentBlockFileName(contentBlock);
 				const linkName = fileName.replace(/\.md$/, "");
-				content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
+				const linkPath =
+					options?.linkMode === "full_path" && storyFolderPath
+						? this.buildContentBlockPath(storyFolderPath, contentBlock)
+						: linkName;
+				content += `[[${linkPath}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 			}
 		}
 
@@ -810,11 +1047,21 @@ export class FileManager {
 		for (const beat of beats.sort((a, b) => a.order_num - b.order_num)) {
 			const beatFileName = this.generateBeatFileName(beat);
 			const beatLinkName = beatFileName.replace(/\.md$/, "");
+			const beatLinkPath =
+				options?.linkMode === "full_path" && storyFolderPath
+					? this.buildStoryEntityPath(
+							storyFolderPath,
+							"beat",
+							beat.order_num ?? 0,
+							beat.intent || "beat",
+							{ chapterOrder, sceneOrder: scene.order_num ?? 0 }
+					  )
+					: beatLinkName;
 			const beatDisplayText = beat.outcome
 				? `${beat.intent} -> ${beat.outcome}`
 				: beat.intent;
 			
-			content += `### Beat: [[${beatLinkName}|${beatDisplayText}]]\n\n`;
+			content += `### Beat: [[${beatLinkPath}|${beatDisplayText}]]\n\n`;
 		}
 
 		const file = this.vault.getAbstractFileByPath(filePath);
@@ -830,7 +1077,13 @@ export class FileManager {
 		beat: Beat,
 		filePath: string,
 		storyName?: string,
-		contentBlocks?: ContentBlock[]
+		contentBlocks?: ContentBlock[],
+		options?: {
+			linkMode?: "basename" | "full_path";
+			storyFolderPath?: string;
+			chapterOrder?: number;
+			sceneOrder?: number;
+		}
 	): Promise<void> {
 		const baseFields = {
 			id: beat.id,
@@ -861,11 +1114,26 @@ export class FileManager {
 		// Generate hierarchical prose section for the beat
 		const beatFileName = this.generateBeatFileName(beat);
 		const beatLinkName = beatFileName.replace(/\.md$/, "");
+		const storyFolderPath =
+			options?.storyFolderPath ?? this.resolveStoryFolderPath(filePath, "02-beats");
+		const beatLinkPath =
+			options?.linkMode === "full_path" && storyFolderPath
+				? this.buildStoryEntityPath(
+						storyFolderPath,
+						"beat",
+						beat.order_num ?? 0,
+						beat.intent || "beat",
+						{
+							chapterOrder: options?.chapterOrder ?? 0,
+							sceneOrder: options?.sceneOrder ?? 0,
+						}
+				  )
+				: beatLinkName;
 		const beatDisplayText = beat.outcome
 			? `${beat.intent} -> ${beat.outcome}`
 			: beat.intent;
 		
-		content += `## Beat: [[${beatLinkName}|${beatDisplayText}]]\n\n`;
+		content += `## Beat: [[${beatLinkPath}|${beatDisplayText}]]\n\n`;
 
 		// Add content blocks for this beat
 		if (contentBlocks && contentBlocks.length > 0) {
@@ -873,7 +1141,11 @@ export class FileManager {
 			for (const contentBlock of sortedContentBlocks) {
 				const fileName = this.generateContentBlockFileName(contentBlock);
 				const linkName = fileName.replace(/\.md$/, "");
-				content += `[[${linkName}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
+				const linkPath =
+					options?.linkMode === "full_path" && storyFolderPath
+						? this.buildContentBlockPath(storyFolderPath, contentBlock)
+						: linkName;
+				content += `[[${linkPath}|${contentBlock.content.substring(0, 50)}...]]\n\n`;
 			}
 		}
 
@@ -1179,6 +1451,63 @@ export class FileManager {
 			.toLowerCase();
 
 		return `${dateStr}_${intentSanitized}.md`;
+	}
+
+	private resolveStoryFolderPath(filePath: string, folderName: string): string | null {
+		const marker = `/${folderName}/`;
+		const index = filePath.indexOf(marker);
+		if (index === -1) {
+			return null;
+		}
+		return filePath.slice(0, index);
+	}
+
+	private sanitizeSlug(value: string): string {
+		return value
+			.normalize("NFKD")
+			.replace(/[^\w\s-]/g, "")
+			.replace(/\s+/g, " ")
+			.trim()
+			.replace(/\s+/g, "-")
+			.replace(/-+/g, "-")
+			.replace(/^-|-$/g, "")
+			.toLowerCase();
+	}
+
+	private buildStoryEntityPath(
+		storyFolderPath: string,
+		type: "chapter" | "scene" | "beat",
+		order: number,
+		title: string,
+		overrides?: { chapterOrder?: number; sceneOrder?: number }
+	): string {
+		const folder = type === "chapter" ? "00-chapters" : type === "scene" ? "01-scenes" : "02-beats";
+		const prefix = type === "chapter" ? "ch" : type === "scene" ? "sc" : "bt";
+		const slug = this.sanitizeSlug(title || type);
+		const orderTag = String(order).padStart(4, "0");
+		if (type === "scene") {
+			const chapterTag = String(overrides?.chapterOrder ?? 0).padStart(4, "0");
+			return `${storyFolderPath}/${folder}/${prefix}-${chapterTag}-${orderTag}-${slug}.md`;
+		}
+		if (type === "beat") {
+			const chapterTag = String(overrides?.chapterOrder ?? 0).padStart(4, "0");
+			const sceneTag = String(overrides?.sceneOrder ?? 0).padStart(4, "0");
+			return `${storyFolderPath}/${folder}/${prefix}-${chapterTag}-${sceneTag}-${orderTag}-${slug}.md`;
+		}
+		return `${storyFolderPath}/${folder}/${prefix}-${orderTag}-${slug}.md`;
+	}
+
+	private buildContentBlockPath(storyFolderPath: string, contentBlock: ContentBlock): string {
+		const type = contentBlock.type || "text";
+		const folder = this.getContentTypeFolder(type);
+		const orderTag = String(contentBlock.order_num ?? 0).padStart(4, "0");
+		const titleSource =
+			(contentBlock.metadata?.title as string | undefined) ||
+			contentBlock.kind ||
+			contentBlock.type ||
+			"content";
+		const slug = this.sanitizeSlug(titleSource);
+		return `${storyFolderPath}/03-contents/${folder}/cb-${orderTag}-${slug}.md`;
 	}
 
 	// Write content block file
