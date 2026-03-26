@@ -14,7 +14,7 @@ func RegisterTimelineTool(s *server.MCPServer, gw *gateway.Client, defaultStoryI
 	tool := mcp.NewTool("get_timeline",
 		mcp.WithDescription("Get the story timeline events up to a specific chapter. Returns a chronological list of narrative events with entities involved."),
 		mcp.WithString("story_id", mcp.Description("Story UUID. Optional if a default is configured.")),
-		mcp.WithNumber("as_of_chapter", mcp.Required(), mcp.Description("Chapter number — timeline includes events up to this chapter")),
+		mcp.WithNumber("as_of_chapter", mcp.Description("Chapter number — timeline includes events up to this chapter. Defaults to latest if omitted.")),
 		mcp.WithNumber("as_of_day", mcp.Description("In-story day number for timeline-consistent mode")),
 		mcp.WithString("mode", mcp.Description("Retrieval mode: revealed_narrative (default), timeline_consistent, or omniscient")),
 		mcp.WithNumber("limit", mcp.Description("Maximum number of events to return")),
@@ -26,11 +26,10 @@ func RegisterTimelineTool(s *server.MCPServer, gw *gateway.Client, defaultStoryI
 			return mcp.NewToolResultError("story_id is required — provide it or set --default-story-id"), nil
 		}
 
-		chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64)
-		if !ok || chapterF < 0 {
-			return mcp.NewToolResultError("as_of_chapter is required and must be >= 0"), nil
+		chapter := 9999
+		if chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64); ok && chapterF >= 0 {
+			chapter = int(chapterF)
 		}
-		chapter := int(chapterF)
 
 		asOfDay := optionalInt(request.Params.Arguments, "as_of_day")
 		mode, _ := request.Params.Arguments["mode"].(string)

@@ -15,7 +15,7 @@ func RegisterPlotTool(s *server.MCPServer, gw *gateway.Client, defaultStoryID st
 	tool := mcp.NewTool("get_plots",
 		mcp.WithDescription("Get plot threads for a story at a specific point in the narrative. Returns plot summaries with their current state, developments, and connected entities. Plots are versioned — each chapter may show a different state of the plot thread."),
 		mcp.WithString("story_id", mcp.Description("Story UUID. Optional if a default is configured.")),
-		mcp.WithNumber("as_of_chapter", mcp.Required(), mcp.Description("Chapter number — returns plot state as known at this chapter")),
+		mcp.WithNumber("as_of_chapter", mcp.Description("Chapter number — returns plot state as known at this chapter. Defaults to latest if omitted.")),
 		mcp.WithString("mode", mcp.Description("Retrieval mode: revealed_narrative (default, spoiler-safe), timeline_consistent, or omniscient")),
 	)
 
@@ -25,11 +25,10 @@ func RegisterPlotTool(s *server.MCPServer, gw *gateway.Client, defaultStoryID st
 			return mcp.NewToolResultError("story_id is required — provide it or set --default-story-id"), nil
 		}
 
-		chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64)
-		if !ok || chapterF < 0 {
-			return mcp.NewToolResultError("as_of_chapter is required and must be >= 0"), nil
+		chapter := 9999
+		if chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64); ok && chapterF >= 0 {
+			chapter = int(chapterF)
 		}
-		chapter := int(chapterF)
 
 		mode, _ := request.Params.Arguments["mode"].(string)
 

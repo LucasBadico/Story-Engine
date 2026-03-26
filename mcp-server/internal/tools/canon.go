@@ -15,7 +15,7 @@ func RegisterCanonTool(s *server.MCPServer, gw *gateway.Client, defaultStoryID s
 	tool := mcp.NewTool("get_canon",
 		mcp.WithDescription("Get the assembled story canon at a specific point in the narrative. Returns canonical documents (cold+warm), character/relationship states (hot), and timeline events."),
 		mcp.WithString("story_id", mcp.Description("Story UUID. Optional if a default is configured.")),
-		mcp.WithNumber("as_of_chapter", mcp.Required(), mcp.Description("Chapter number — canon is assembled up to this chapter")),
+		mcp.WithNumber("as_of_chapter", mcp.Description("Chapter number — canon is assembled up to this chapter. Defaults to latest if omitted.")),
 		mcp.WithNumber("as_of_day", mcp.Description("In-story day number for timeline-consistent mode")),
 		mcp.WithString("mode", mcp.Description("Retrieval mode: revealed_narrative (default, spoiler-safe), timeline_consistent, or omniscient")),
 		mcp.WithNumber("event_limit", mcp.Description("Maximum number of timeline events to include")),
@@ -27,11 +27,10 @@ func RegisterCanonTool(s *server.MCPServer, gw *gateway.Client, defaultStoryID s
 			return mcp.NewToolResultError("story_id is required — provide it or set --default-story-id"), nil
 		}
 
-		chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64)
-		if !ok || chapterF < 0 {
-			return mcp.NewToolResultError("as_of_chapter is required and must be >= 0"), nil
+		chapter := 9999 // default: show all
+		if chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64); ok && chapterF >= 0 {
+			chapter = int(chapterF)
 		}
-		chapter := int(chapterF)
 
 		asOfDay := optionalInt(request.Params.Arguments, "as_of_day")
 		mode, _ := request.Params.Arguments["mode"].(string)

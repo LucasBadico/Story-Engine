@@ -1,4 +1,4 @@
-.PHONY: start stop api grpc gateway worker mcp
+.PHONY: start stop api grpc gateway worker mcp copilot-build copilot-deploy copilot
 
 # Source .env before running each service
 define load-env
@@ -30,6 +30,29 @@ worker:
 # MCP server — SSE on port 8082 (for LM Studio on Windows)
 mcp:
 	cd mcp-server && go run cmd/mcp/main.go --sse=:8082 --default-story-id="d7acd365-1304-4ed7-918e-789fff0e82ef" --default-tenant-id="0d0a0534-7f05-4def-89bf-dd431f2134fc" 2>&1
+
+# Obsidian Copilot (MCP Fork) — build and deploy to vault
+# Usage:
+#   make copilot                          # build + deploy to default vault (writing)
+#   make copilot VAULT=my-vault           # build + deploy to specific vault
+#   make copilot-build                    # build only
+#   make copilot-deploy                   # deploy only (skip build)
+#   make copilot-deploy VAULT=my-vault    # deploy to specific vault
+NOTES_DIR = /mnt/c/Users/Lucas Badico/Documents/notes
+VAULT ?= Obsidian/writing
+PLUGIN_DIR = $(NOTES_DIR)/$(VAULT)/.obsidian/plugins/copilot
+
+copilot-build:
+	cd obsidian-copilot && npm run build
+
+copilot-deploy:
+	@test -d "$(PLUGIN_DIR)" || (echo "Error: vault not found at $(PLUGIN_DIR)" && exit 1)
+	cp obsidian-copilot/main.js "$(PLUGIN_DIR)/main.js"
+	cp obsidian-copilot/manifest.json "$(PLUGIN_DIR)/manifest.json"
+	cp obsidian-copilot/styles.css "$(PLUGIN_DIR)/styles.css"
+	@echo "Deployed $$(grep '"version"' obsidian-copilot/manifest.json | head -1 | sed 's/.*: "//;s/".*//' ) to $(VAULT)"
+
+copilot: copilot-build copilot-deploy
 
 # Stop all services (kills by port + worker process)
 stop:

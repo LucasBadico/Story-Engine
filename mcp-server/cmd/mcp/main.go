@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"net/http"
 	"os"
 
 	"github.com/mark3labs/mcp-go/server"
@@ -11,6 +12,23 @@ import (
 	"github.com/story-engine/mcp-server/internal/resources"
 	"github.com/story-engine/mcp-server/internal/tools"
 )
+
+// corsMiddleware wraps an http.Handler with permissive CORS headers.
+// Needed because Obsidian sends requests from origin "app://obsidian.md".
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, mcp-protocol-version")
+
+		if r.Method == http.MethodOptions {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	gatewayURL := flag.String("gateway-url", "http://localhost:8081", "LLM Gateway base URL")
@@ -57,10 +75,11 @@ func main() {
 	resources.RegisterStoryResources(mcpServer, gw, *defaultStoryID)
 
 	if *sseAddr != "" {
-		// Start SSE transport (for Windows LM Studio connecting to WSL2).
+		// Start SSE transport with CORS (Obsidian sends from app://obsidian.md origin).
 		sseServer := server.NewSSEServer(mcpServer)
-		fmt.Fprintf(os.Stderr, "MCP SSE server listening on %s\n", *sseAddr)
-		if err := sseServer.Start(*sseAddr); err != nil {
+		corsHandler := corsMiddleware(sseServer)
+		fmt.Fprintf(os.Stderr, "MCP SSE server listening on %s (CORS enabled)\n", *sseAddr)
+		if err := http.ListenAndServe(*sseAddr, corsHandler); err != nil {
 			fmt.Fprintf(os.Stderr, "MCP SSE server error: %v\n", err)
 			os.Exit(1)
 		}

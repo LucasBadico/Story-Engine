@@ -16,7 +16,7 @@ func RegisterCharacterTool(s *server.MCPServer, gw *gateway.Client, defaultStory
 		mcp.WithDescription("Get a specific character's state at a point in the narrative. Fetches canon and filters state snapshots by character entity type. Returns emotional state, goals, secrets, clothes, physical state."),
 		mcp.WithString("story_id", mcp.Description("Story UUID. Optional if a default is configured.")),
 		mcp.WithString("character_name", mcp.Required(), mcp.Description("Name of the character to look up (matched against state data)")),
-		mcp.WithNumber("as_of_chapter", mcp.Required(), mcp.Description("Chapter number — state is computed up to this chapter")),
+		mcp.WithNumber("as_of_chapter", mcp.Description("Chapter number — state is computed up to this chapter. Defaults to latest if omitted.")),
 		mcp.WithNumber("as_of_day", mcp.Description("In-story day number for timeline-consistent mode")),
 		mcp.WithString("mode", mcp.Description("Retrieval mode: revealed_narrative (default), timeline_consistent, or omniscient")),
 	)
@@ -32,11 +32,10 @@ func RegisterCharacterTool(s *server.MCPServer, gw *gateway.Client, defaultStory
 			return mcp.NewToolResultError("character_name is required"), nil
 		}
 
-		chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64)
-		if !ok || chapterF < 0 {
-			return mcp.NewToolResultError("as_of_chapter is required and must be >= 0"), nil
+		chapter := 9999
+		if chapterF, ok := request.Params.Arguments["as_of_chapter"].(float64); ok && chapterF >= 0 {
+			chapter = int(chapterF)
 		}
-		chapter := int(chapterF)
 
 		asOfDay := optionalInt(request.Params.Arguments, "as_of_day")
 		mode, _ := request.Params.Arguments["mode"].(string)
